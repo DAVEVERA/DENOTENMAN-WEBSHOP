@@ -1,0 +1,447 @@
+// DeNotenman — data model
+// See docs/adr/0002-data-model.md for rationale.
+// Migration workflow: .claude/skills/prisma-migration/SKILL.md
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==============================================================================
+// Enums
+// ==============================================================================
+
+enum UserRole {
+  owner
+  admin
+  staff
+  customer
+}
+
+enum ProductStatus {
+  draft
+  active
+  archived
+}
+
+enum OrderStatus {
+  pending
+  paid
+  fulfilled
+  cancelled
+  refunded
+}
+
+enum ImportStatus {
+  uploaded
+  parsing
+  validated
+  committing
+  completed
+  failed
+}
+
+enum ImportRowStatus {
+  parsed
+  validated
+  invalid
+  imported
+  failed
+  skipped
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+  restore
+  import
+  undo
+}
+
+enum ShippingCountry {
+  NL
+  BE
+}
+
+// ==============================================================================
+// Catalog
+// ==============================================================================
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String
+  name        String
+  description String?
+  parentId    String?  @db.Uuid
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  deletedAt   DateTime? @db.Timestamptz(6)
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@unique([parentId, slug])
+  @@index([parentId])
+  @@index([deletedAt])
+}
+
+model Product {
+  id          String        @id @default(uuid()) @db.Uuid
+  sku         String        @unique
+  slug        String        @unique
+  name        String
+  description String?
+  categoryId  String        @db.Uuid
+  status      ProductStatus @default(draft)
+  origin      String?
+  harvestYear Int?
+  roasted     Boolean?
+  organic     Boolean       @default(false)
+  allergens   String[]      @default([])
+  ingredients String?
+  storageInfo String?
+  tasteNotes  String?
+  usageTip    String?
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
+  deletedAt   DateTime?     @db.Timestamptz(6)
+
+  category   Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  variants   ProductVariant[]
+  images     ProductImage[]
+  tags       ProductTag[]
+  orderLines OrderLine[]
+  cartLines  CartLine[]
+  importRows ImportRow[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model ProductVariant {
+  id            String   @id @default(uuid()) @db.Uuid
+  productId     String   @db.Uuid
+  sku           String   @unique
+  name          String
+  weightGrams   Int
+  priceCents    Int
+  currency      String   @default("EUR") @db.Char(3)
+  stockQuantity Int      @default(0)
+  lowStockAt    Int      @default(5)
+  position      Int      @default(0)
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+  deletedAt     DateTime? @db.Timestamptz(6)
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderLines OrderLine[]
+  cartLines  CartLine[]
+
+  @@index([productId])
+  @@index([deletedAt])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @db.Uuid
+  url       String
+  altText   String
+  position  Int      @default(0)
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model Tag {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  products ProductTag[]
+}
+
+model ProductTag {
+  productId String @db.Uuid
+  tagId     String @db.Uuid
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+  @@index([tagId])
+}
+
+// ==============================================================================
+// Customers & auth
+// ==============================================================================
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  passwordHash String
+  role         UserRole  @default(customer)
+  emailVerifiedAt DateTime? @db.Timestamptz(6)
+  lastLoginAt  DateTime? @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt    DateTime? @db.Timestamptz(6)
+
+  customer      Customer?
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  tokenHash  String   @unique
+  expiresAt  DateTime @db.Timestamptz(6)
+  revokedAt  DateTime? @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  userAgent  String?
+  ipAddress  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Customer {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @db.Uuid
+  firstName   String
+  lastName    String
+  phoneNumber String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addresses Address[]
+  orders    Order[]
+  carts     Cart[]
+}
+
+model Address {
+  id           String          @id @default(uuid()) @db.Uuid
+  customerId   String          @db.Uuid
+  label        String?
+  firstName    String
+  lastName     String
+  companyName  String?
+  street       String
+  houseNumber  String
+  addition     String?
+  postalCode   String
+  city         String
+  country      ShippingCountry
+  phoneNumber  String?
+  isDefault    Boolean         @default(false)
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime        @updatedAt @db.Timestamptz(6)
+
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  ordersShipping Order[]  @relation("ShippingAddress")
+  ordersBilling  Order[]  @relation("BillingAddress")
+
+  @@index([customerId])
+}
+
+// ==============================================================================
+// Cart & checkout
+// ==============================================================================
+
+model Cart {
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String?  @db.Uuid
+  token      String   @unique
+  currency   String   @default("EUR") @db.Char(3)
+  expiresAt  DateTime @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  customer Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  lines    CartLine[]
+
+  @@index([customerId])
+  @@index([expiresAt])
+}
+
+model CartLine {
+  id        String   @id @default(uuid()) @db.Uuid
+  cartId    String   @db.Uuid
+  productId String   @db.Uuid
+  variantId String   @db.Uuid
+  quantity  Int
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, variantId])
+  @@index([cartId])
+}
+
+model Order {
+  id                  String      @id @default(uuid()) @db.Uuid
+  orderNumber         String      @unique
+  customerId          String?     @db.Uuid
+  guestEmail          String?
+  status              OrderStatus @default(pending)
+  currency            String      @default("EUR") @db.Char(3)
+  subtotalCents       Int
+  shippingCents       Int
+  taxCents            Int
+  totalCents          Int
+  shippingAddressId   String?     @db.Uuid
+  billingAddressId    String?     @db.Uuid
+  stripeSessionId     String?     @unique
+  stripePaymentIntent String?     @unique
+  paidAt              DateTime?   @db.Timestamptz(6)
+  fulfilledAt         DateTime?   @db.Timestamptz(6)
+  cancelledAt         DateTime?   @db.Timestamptz(6)
+  notes               String?
+  createdAt           DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime    @updatedAt @db.Timestamptz(6)
+
+  customer        Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  shippingAddress Address?    @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress  Address?    @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  lines           OrderLine[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  orderId        String   @db.Uuid
+  productId      String   @db.Uuid
+  variantId      String   @db.Uuid
+  productName    String
+  variantName    String
+  unitPriceCents Int
+  quantity       Int
+  totalCents     Int
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+}
+
+// ==============================================================================
+// Shipping rules (editable in admin)
+// ==============================================================================
+
+model ShippingRule {
+  id                   String          @id @default(uuid()) @db.Uuid
+  country              ShippingCountry
+  name                 String
+  baseCostCents        Int
+  freeAboveCents       Int?
+  estimatedDays        Int
+  active               Boolean         @default(true)
+  sortOrder            Int             @default(0)
+  createdAt            DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime        @updatedAt @db.Timestamptz(6)
+
+  @@unique([country, name])
+  @@index([country, active])
+}
+
+// ==============================================================================
+// Importer
+// ==============================================================================
+
+model ImportBatch {
+  id              String       @id @default(uuid()) @db.Uuid
+  fileName        String
+  fileSize        Int
+  sourceFormat    String
+  mappingConfig   Json?
+  dedupStrategy   String       @default("bySku")
+  status          ImportStatus @default(uploaded)
+  totalRecords    Int?
+  validatedCount  Int          @default(0)
+  invalidCount    Int          @default(0)
+  importedCount   Int          @default(0)
+  failedCount     Int          @default(0)
+  startedBy       String       @db.Uuid
+  startedAt       DateTime     @default(now()) @db.Timestamptz(6)
+  validatedAt     DateTime?    @db.Timestamptz(6)
+  completedAt     DateTime?    @db.Timestamptz(6)
+  undoneAt        DateTime?    @db.Timestamptz(6)
+
+  rows ImportRow[]
+
+  @@index([status])
+  @@index([startedBy])
+  @@index([startedAt])
+}
+
+model ImportRow {
+  id         String          @id @default(uuid()) @db.Uuid
+  batchId    String          @db.Uuid
+  rowNumber  Int
+  rawData    Json
+  parsedData Json?
+  productId  String?         @db.Uuid
+  status     ImportRowStatus @default(parsed)
+  errors     Json?
+  action     String?
+  createdAt  DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime        @updatedAt @db.Timestamptz(6)
+
+  batch   ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  product Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId, status])
+}
+
+// ==============================================================================
+// Audit
+// ==============================================================================
+
+model AuditLog {
+  id         String      @id @default(uuid()) @db.Uuid
+  userId     String?     @db.Uuid
+  action     AuditAction
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now()) @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}

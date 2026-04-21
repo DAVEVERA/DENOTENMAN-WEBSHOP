@@ -1,0 +1,40 @@
+node_modules
+.pnpm-store
+
+# Build output
+dist
+build
+.next
+out
+.turbo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Coverage
+coverage
+.nyc_output
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea
+
+# Playwright
+playwright-report
+test-results
+
+# Misc
+*.tsbuildinfo
