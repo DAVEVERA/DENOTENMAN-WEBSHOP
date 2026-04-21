@@ -3,11 +3,11 @@ import argon2 from "argon2";
 
 const prisma = new PrismaClient();
 
-type CategorySeed = {
+interface CategorySeed {
   slug: string;
   name: string;
   children?: CategorySeed[];
-};
+}
 
 const CATEGORIES: CategorySeed[] = [
   {
@@ -91,14 +91,25 @@ async function seedCategories(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
 
   for (const [rootIndex, root] of CATEGORIES.entries()) {
-    const parent = await prisma.category.upsert({
-      where: { parentId_slug: { parentId: null as unknown as string, slug: root.slug } },
-      update: { name: root.name, sortOrder: rootIndex },
-      create: { slug: root.slug, name: root.name, sortOrder: rootIndex },
+    // Top-level categories have parentId = null. Postgres treats NULL as
+    // not-equal to itself, so composite unique (parentId, slug) cannot be used
+    // with upsert when parentId is null. Do a manual find-or-create.
+    const existing = await prisma.category.findFirst({
+      where: { parentId: null, slug: root.slug },
     });
+
+    const parent = existing
+      ? await prisma.category.update({
+          where: { id: existing.id },
+          data: { name: root.name, sortOrder: rootIndex },
+        })
+      : await prisma.category.create({
+          data: { slug: root.slug, name: root.name, sortOrder: rootIndex },
+        });
+
     map.set(root.slug, parent.id);
 
-    if (!root.children) continue;
+    if (!root.children) {continue;}
 
     for (const [childIndex, child] of root.children.entries()) {
       const created = await prisma.category.upsert({
@@ -118,7 +129,7 @@ async function seedCategories(): Promise<Map<string, string>> {
   return map;
 }
 
-type ProductSeed = {
+interface ProductSeed {
   sku: string;
   slug: string;
   name: string;
@@ -132,7 +143,7 @@ type ProductSeed = {
   organic?: boolean;
   allergens?: string[];
   variants: { sku: string; name: string; weightGrams: number; priceCents: number; stock: number }[];
-};
+}
 
 const PRODUCTS: ProductSeed[] = [
   {
