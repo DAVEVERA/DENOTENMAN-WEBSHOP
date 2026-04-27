@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir C:\\\\\\\\Users\\\\\\\\MNRV\\\\\\\\AppData\\\\\\\\Roaming\\\\\\\\npm *)",
+      "Bash(\"/c/Users/MNRV/AppData/Local/pnpm/pnpm\" --version)",
+      "Bash(\"/c/Users/MNRV/AppData/Roaming/npm/pnpm\" --version)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" --version)",
+      "Bash(\"/c/Program Files/nodejs/npm\" --version)",
+      "Bash(export PATH=\"/c/Windows/system32:/c/Windows:/c/Program Files/nodejs:/c/Users/MNRV/AppData/Roaming/npm:$PATH\")",
+      "Bash(export PATH=\"/c/Windows/System32:/c/Windows:/c/Program Files/nodejs:/c/Users/MNRV/AppData/Roaming/npm:$PATH\")",
+      "Bash(export PATH=\"/c/Users/MNRV/AppData/Local/nvm/v24.13.1:/c/Users/MNRV/AppData/Local/nvm/v24.13.1/node_modules/corepack/shims:/c/Program Files/Git/usr/bin:$PATH\")",
+      "Bash(export *)"
+    ]
+  }
+}

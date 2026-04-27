@@ -45,4 +45,10 @@ export default tseslint.config(
       curly: ["error", "all"],
     },
   },
+  {
+    files: ["**/*.module.ts"],
+    rules: {
+      "@typescript-eslint/no-extraneous-class": "off",
+    },
+  },
 );
