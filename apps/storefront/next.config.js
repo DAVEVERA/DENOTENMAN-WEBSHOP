@@ -9,6 +9,17 @@ const nextConfig = {
         protocol: "https",
         hostname: "**.r2.dev",
       },
+      {
+        protocol: "https",
+        hostname: "denotenman.com",
+        pathname: "/wp-content/uploads/**",
+      },
+      {
+        // Supabase Storage CDN
+        protocol: "https",
+        hostname: "luablfcmhzykjnxmtlqh.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   async rewrites() {

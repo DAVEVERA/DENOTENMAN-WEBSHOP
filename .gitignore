@@ -38,3 +38,10 @@ test-results
 
 # Misc
 *.tsbuildinfo
+
+# Local product images — hosted on Supabase CDN, not in repo
+apps/storefront/public/products/
+Database/
+
+# Utility / audit output files
+ontbrekende-afbeeldingen.csv

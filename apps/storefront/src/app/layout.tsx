@@ -12,16 +12,20 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "DeNotenman — Noten, Zuidvruchten & Meer",
-    template: "%s | DeNotenman",
+    default: "De Notenman — Noten, Zuidvruchten & Meer",
+    template: "%s | De Notenman",
   },
   description:
     "Premium noten, zuidvruchten, pitten, zaden en honing. Vers verpakt, eerlijke herkomst, zonder onnodige toevoegingen.",
   metadataBase: new URL("https://denotenman.nl"),
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
   openGraph: {
     type: "website",
     locale: "nl_NL",
-    siteName: "DeNotenman",
+    siteName: "De Notenman",
   },
   robots: {
     index: true,

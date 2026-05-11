@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { ShoppingBag, Menu, X, Search, User } from "lucide-react";
 
@@ -12,14 +13,15 @@ export function Header() {
       <div className="container-shop">
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo */}
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-xl font-bold tracking-tight text-brand-green-700"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-green text-white text-sm font-black">
-              DN
-            </span>
-            <span className="hidden sm:inline">DeNotenman</span>
+          <Link href="/" aria-label="De Notenman - naar startpagina" className="flex items-center">
+            <Image
+              src="/logo.png"
+              alt="De Notenman"
+              width={120}
+              height={48}
+              className="h-12 w-auto object-contain"
+              priority
+            />
           </Link>
 
           {/* Desktop nav */}

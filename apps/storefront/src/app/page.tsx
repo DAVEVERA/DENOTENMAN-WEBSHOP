@@ -26,16 +26,21 @@ export default async function HomePage() {
 
   try {
     categories = await apiFetch<CategoryTree[]>("/categories");
-    featuredProducts = await apiFetch<ProductList>("/products?pageSize=8");
+    featuredProducts = await apiFetch<ProductList>("/products?pageSize=12");
   } catch {
     // API may not be running yet during first dev setup
   }
+
+  // Alleen categorieën met producten tonen
+  const activeCategories = categories.filter((c) => c.productCount > 0);
+
+  // Producten met afbeelding filteren
+  const visibleProducts = featuredProducts.items.filter((p) => p.images.length > 0);
 
   return (
     <>
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-brand-green-700 via-brand-green-600 to-brand-green-800">
-        <div className="absolute inset-0 bg-[url('/grain.svg')] opacity-10" />
         <div className="container-shop relative py-20 sm:py-28 lg:py-36">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
@@ -105,14 +110,51 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Categories */}
-      {categories.length > 0 && (
-        <section className="py-16">
+      {/* Bowl product gallery — like the reference image */}
+      {visibleProducts.length > 0 && (
+        <section className="py-16 bg-white">
+          <div className="container-shop">
+            <div className="flex items-end justify-between mb-10">
+              <div>
+                <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Ons assortiment</h2>
+                <p className="mt-1 text-neutral-500 text-sm">Vers verpakt, elke dag</p>
+              </div>
+              <Link
+                href="/categorie/noten"
+                className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-brand-green-600 transition-colors hover:text-brand-green-700"
+              >
+                Alles bekijken
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            {/* Bowl grid — matches reference: circles side by side */}
+            <div className="grid grid-cols-3 gap-x-4 gap-y-8 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+              {visibleProducts.map((product) => (
+                <ProductCard key={product.id} {...product} />
+              ))}
+            </div>
+
+            <div className="mt-10 text-center sm:hidden">
+              <Link
+                href="/categorie/noten"
+                className="inline-flex items-center gap-2 rounded-lg border border-brand-green-200 px-5 py-2.5 text-sm font-semibold text-brand-green-700 hover:bg-brand-green-50 transition-colors"
+              >
+                Alles bekijken <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Categories — alleen tonen als er producten in zitten */}
+      {activeCategories.length > 0 && (
+        <section className="py-16 bg-neutral-50">
           <div className="container-shop">
             <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Categorieën</h2>
-            <p className="mt-2 text-neutral-600">Ontdek ons uitgebreide assortiment</p>
+            <p className="mt-2 text-neutral-500">Ontdek ons uitgebreide assortiment</p>
             <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {categories.map((cat) => (
+              {activeCategories.map((cat) => (
                 <Link
                   key={cat.id}
                   href={`/categorie/${cat.slug}`}
@@ -124,52 +166,7 @@ export default async function HomePage() {
                   <p className="mt-1 text-xs text-neutral-500">
                     {cat.productCount} product{cat.productCount !== 1 ? "en" : ""}
                   </p>
-                  {cat.children.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {cat.children.slice(0, 3).map((child) => (
-                        <span
-                          key={child.id}
-                          className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600"
-                        >
-                          {child.name}
-                        </span>
-                      ))}
-                      {cat.children.length > 3 && (
-                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600">
-                          +{cat.children.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Featured products */}
-      {featuredProducts.items.length > 0 && (
-        <section className="bg-neutral-50 py-16">
-          <div className="container-shop">
-            <div className="flex items-end justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
-                  Populaire producten
-                </h2>
-                <p className="mt-2 text-neutral-600">Onze best verkochte noten &amp; meer</p>
-              </div>
-              <Link
-                href="/categorie/noten"
-                className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-brand-green-600 transition-colors hover:text-brand-green-700"
-              >
-                Alles bekijken
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-            <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {featuredProducts.items.map((product) => (
-                <ProductCard key={product.id} {...product} />
               ))}
             </div>
           </div>
