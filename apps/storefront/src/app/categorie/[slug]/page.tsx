@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { apiFetch } from "@/lib/api";
 import { ProductCard } from "@/components/product/product-card";
+import { serverApiClient } from "@/lib/server-api";
+import type { Product } from "@denotenman/schemas";
 
-import type { ProductCardProps } from "@/components/product/product-card";
-
+// TODO(@fullstack-dev): replace once CategoryDetailSchema lands in @denotenman/schemas
 interface CategoryDetail {
   id: string;
   name: string;
@@ -16,11 +16,20 @@ interface CategoryDetail {
   children: CategoryDetail[];
 }
 
-interface ProductList {
-  items: ProductCardProps[];
-  total: number;
-  page: number;
-  pageSize: number;
+// TODO(@fullstack-dev): replace once CategoryDetailSchema lands in @denotenman/schemas
+interface RawCategoryMeta {
+  name: string;
+  description: string | null;
+}
+
+const API_URL = process.env.API_URL ?? "http://localhost:4000";
+
+async function fetchCategory(slug: string): Promise<CategoryDetail | null> {
+  const res = await fetch(`${API_URL}/v1/categories/${encodeURIComponent(slug)}`, {
+    next: { revalidate: 60 },
+  });
+  if (!res.ok) {return null;}
+  return res.json() as Promise<CategoryDetail>;
 }
 
 interface Props {
@@ -29,33 +38,34 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  try {
-    const cat = await apiFetch<{ name: string; description: string | null }>(
-      `/categories/${params.slug}`,
-    );
-    return { title: cat.name, description: cat.description ?? `Ontdek ${cat.name} bij DeNotenman` };
-  } catch {
-    return { title: "Categorie" };
-  }
+  const res = await fetch(`${API_URL}/v1/categories/${encodeURIComponent(params.slug)}`, {
+    next: { revalidate: 60 },
+  });
+  if (!res.ok) {return { title: "Categorie" };}
+  const cat = (await res.json()) as RawCategoryMeta;
+  return {
+    title: cat.name,
+    description: cat.description ?? `Ontdek ${cat.name} bij DeNotenman`,
+  };
 }
 
 export const revalidate = 60;
 
 export default async function CategoryPage({ params, searchParams }: Props) {
-  let category: CategoryDetail;
-  let products: ProductList;
-  try {
-    [category, products] = await Promise.all([
-      apiFetch<CategoryDetail>(`/categories/${params.slug}`),
-      apiFetch<ProductList>(
-        `/products?category=${params.slug}&page=${searchParams.page ?? "1"}&pageSize=12`,
-      ),
-    ]);
-  } catch {
+  const page = Number(searchParams.page ?? "1");
+
+  const api = serverApiClient();
+  const [category, products] = await Promise.all([
+    fetchCategory(params.slug),
+    api.products.list({ category: params.slug, page, pageSize: 12 }).catch(() => null),
+  ]);
+
+  if (!category || !products) {
     notFound();
   }
 
   const totalPages = Math.ceil(products.total / products.pageSize);
+  const typedItems: Product[] = products.items;
 
   return (
     <div className="py-8">
@@ -104,11 +114,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           </div>
         )}
 
-        {products.items.length > 0 ? (
+        {typedItems.length > 0 ? (
           <>
             <p className="mb-4 text-sm text-neutral-500">{products.total} producten</p>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {products.items.map((p) => (
+              {typedItems.map((p) => (
                 <ProductCard key={p.id} {...p} />
               ))}
             </div>

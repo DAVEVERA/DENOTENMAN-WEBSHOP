@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ArrowRight, Truck, ShieldCheck, Leaf } from "lucide-react";
-import { apiFetch } from "@/lib/api";
 import { ProductCard } from "@/components/product/product-card";
-import type { ProductCardProps } from "@/components/product/product-card";
+import { serverApiClient } from "@/lib/server-api";
+import type { Product } from "@denotenman/schemas";
 
+// TODO(@fullstack-dev): replace once CategoryTreeSchema lands in @denotenman/schemas
 interface CategoryTree {
   id: string;
   slug: string;
@@ -13,20 +14,27 @@ interface CategoryTree {
   children: { id: string; slug: string; name: string; productCount: number }[];
 }
 
-interface ProductList {
-  items: ProductCardProps[];
-  total: number;
+const API_URL = process.env.API_URL ?? "http://localhost:4000";
+
+async function fetchCategories(): Promise<CategoryTree[]> {
+  const res = await fetch(`${API_URL}/v1/categories`, { next: { revalidate: 60 } });
+  if (!res.ok) {return [];}
+  return res.json() as Promise<CategoryTree[]>;
 }
 
 export const revalidate = 60;
 
 export default async function HomePage() {
   let categories: CategoryTree[] = [];
-  let featuredProducts: ProductList = { items: [], total: 0 };
+  let featuredProducts: Product[] = [];
+  let total = 0;
 
   try {
-    categories = await apiFetch<CategoryTree[]>("/categories");
-    featuredProducts = await apiFetch<ProductList>("/products?pageSize=12");
+    const api = serverApiClient();
+    [categories, { items: featuredProducts, total }] = await Promise.all([
+      fetchCategories(),
+      api.products.list({ pageSize: 12 }),
+    ]);
   } catch {
     // API may not be running yet during first dev setup
   }
@@ -35,7 +43,9 @@ export default async function HomePage() {
   const activeCategories = categories.filter((c) => c.productCount > 0);
 
   // Producten met afbeelding filteren
-  const visibleProducts = featuredProducts.items.filter((p) => p.images.length > 0);
+  const visibleProducts = featuredProducts.filter((p) => p.images.length > 0);
+
+  void total;
 
   return (
     <>

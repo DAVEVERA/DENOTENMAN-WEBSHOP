@@ -154,6 +154,9 @@ importers:
 
   apps/storefront:
     dependencies:
+      '@denotenman/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@denotenman/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas

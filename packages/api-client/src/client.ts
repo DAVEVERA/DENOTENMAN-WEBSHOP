@@ -80,10 +80,12 @@ export function createApiClient(opts: ApiClientOptions) {
     },
 
     products: {
-      list(query?: Partial<{ page: number; pageSize: number }>): Promise<Paginated<Product>> {
+      list(
+        query?: Partial<{ page: number; pageSize: number; category: string }>,
+      ): Promise<Paginated<Product>> {
         return request(
           PaginatedProductSchema,
-          ctx("/products", "GET", undefined, query as Record<string, number | undefined>),
+          ctx("/products", "GET", undefined, query as Record<string, string | number | undefined>),
         );
       },
 

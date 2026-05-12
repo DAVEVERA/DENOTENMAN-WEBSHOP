@@ -2,31 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, Leaf, ShoppingBag } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { serverApiClient } from "@/lib/server-api";
 import { ProductConfigurator } from "@/components/product/ProductConfigurator";
 import { ProductUspBox } from "@/components/product/ProductUspBox";
-
-interface ProductDetail {
-  id: string;
-  sku: string;
-  name: string;
-  description?: string;
-  organic: boolean;
-  tasteNotes?: string;
-  origin?: string;
-  ingredients?: string;
-  storageInfo?: string;
-  allergens?: string[];
-  category: { slug: string; name: string };
-  images: { url: string; altText: string }[];
-  variants: {
-    id: string;
-    name: string;
-    priceCents: number;
-    weightGrams: number;
-    stockQuantity: number;
-  }[];
-}
 
 interface Props {
   params: { slug: string };
@@ -34,7 +12,8 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
-    const p = await apiFetch<ProductDetail>(`/products/${params.slug}`);
+    const api = serverApiClient();
+    const p = await api.products.getBySlug(params.slug);
     return {
       title: `${p.name} online bestellen | DeNotenman`,
       description:
@@ -49,9 +28,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export const revalidate = 60;
 
 export default async function ProductPage({ params }: Props) {
-  let product: ProductDetail;
+  const api = serverApiClient();
+
+  let product: Awaited<ReturnType<typeof api.products.getBySlug>>;
   try {
-    product = await apiFetch<ProductDetail>(`/products/${params.slug}`);
+    product = await api.products.getBySlug(params.slug);
   } catch {
     notFound();
   }
@@ -263,7 +244,7 @@ export default async function ProductPage({ params }: Props) {
                     <span className="font-medium text-neutral-900">{product.origin}</span>
                   </div>
                 )}
-                {product.allergens && product.allergens.length > 0 && (
+                {product.allergens.length > 0 && (
                   <div className="py-3 flex">
                     <span className="text-neutral-500 w-1/3 shrink-0">Allergenen</span>
                     <span className="font-medium text-neutral-900 leading-snug">
@@ -275,13 +256,12 @@ export default async function ProductPage({ params }: Props) {
                     </span>
                   </div>
                 )}
-                {product.storageInfo && (
+                {product.storageInfo ? (
                   <div className="py-3 flex border-b-0">
                     <span className="text-neutral-500 w-1/3 shrink-0">Bewaaradvies</span>
                     <span className="font-medium text-neutral-900">{product.storageInfo}</span>
                   </div>
-                )}
-                {!product.storageInfo && (
+                ) : (
                   <div className="py-3 flex border-b-0">
                     <span className="text-neutral-500 w-1/3 shrink-0">Bewaaradvies</span>
                     <span className="font-medium text-neutral-900">

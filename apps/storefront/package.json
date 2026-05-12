@@ -13,6 +13,7 @@
     "clean": "rm -rf .next"
   },
   "dependencies": {
+    "@denotenman/api-client": "workspace:*",
     "@denotenman/schemas": "workspace:*",
     "@denotenman/ui": "workspace:*",
     "clsx": "2.1.1",
