@@ -55,4 +55,14 @@ describe("createWorkerEnv — worker schema", () => {
     const result = createWorkerEnv({ ...BASE });
     expect(result.SENTRY_DSN).toBeUndefined();
   });
+
+  it("SENTRY_ENVIRONMENT is optional — valid without it", () => {
+    const result = createWorkerEnv({ ...BASE });
+    expect(result.SENTRY_ENVIRONMENT).toBeUndefined();
+  });
+
+  it("SENTRY_ENVIRONMENT is read when provided", () => {
+    const result = createWorkerEnv({ ...BASE, SENTRY_ENVIRONMENT: "staging" });
+    expect(result.SENTRY_ENVIRONMENT).toBe("staging");
+  });
 });

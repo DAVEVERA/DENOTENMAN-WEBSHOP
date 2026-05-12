@@ -63,6 +63,7 @@ const apiEnvSchema = z
     // Observability
     SENTRY_DSN: z.string().url().optional(),
     SENTRY_ENVIRONMENT: z.string().optional(),
+    SENTRY_USER_ID_PEPPER: z.string().optional(),
   })
   .superRefine((val, ctx) => {
     // STOREFRONT_URL — required in production

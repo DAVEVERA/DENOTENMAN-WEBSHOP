@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { LoggerModule } from "nestjs-pino";
+import { SentryExceptionFilter } from "./sentry-exception.filter";
 import { PrismaModule } from "./prisma/prisma.module";
 import { HealthModule } from "./health/health.module";
 import { ProductsModule } from "./products/products.module";
@@ -42,6 +43,11 @@ import { env } from "./env";
     OrdersModule,
   ],
   providers: [
+    // Sentry exception capture — runs before all guards so server errors are always captured.
+    {
+      provide: APP_FILTER,
+      useClass: SentryExceptionFilter,
+    },
     // Rate limiting — applied first.
     {
       provide: APP_GUARD,

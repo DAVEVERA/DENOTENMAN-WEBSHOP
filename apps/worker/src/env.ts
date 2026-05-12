@@ -45,6 +45,7 @@ const workerEnvSchema = z.object({
 
   // Observability
   SENTRY_DSN: z.string().url().optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
 });
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;

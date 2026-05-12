@@ -1,8 +1,10 @@
 import "./fastify-augment";
+import { initSentry } from "./sentry";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter } from "@nestjs/platform-fastify";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import type { FastifyInstance } from "fastify/types/instance";
+import * as Sentry from "@sentry/node";
 import type { FastifyRequest } from "fastify/types/request";
 import helmet from "@fastify/helmet";
 import cors from "@fastify/cors";
@@ -14,6 +16,9 @@ import { AppModule } from "./app.module";
 import { env } from "./env";
 
 async function bootstrap() {
+  // Must run before NestFactory.create so the SDK instruments require() hooks.
+  initSentry();
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({ logger: false }),
@@ -21,6 +26,13 @@ async function bootstrap() {
   );
 
   app.useLogger(app.get(Logger));
+
+  // Wire Sentry's Fastify error handler so unhandled route errors are captured.
+  // Must be called after the Fastify instance exists but before routes are set.
+  // The intermediate cast to unknown is necessary because NestJS exposes the
+  // adapter instance typed as the Fastify base type while Sentry expects a
+  // more specific generic parameterisation.
+  Sentry.setupFastifyErrorHandler(app.getHttpAdapter().getInstance() as unknown as FastifyInstance);
 
   // Raw body parser for the Stripe webhook route (ADR 0008).
   //
