@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, Leaf, ShoppingBag } from "lucide-react";
@@ -101,14 +102,17 @@ export default async function ProductPage({ params }: Props) {
 
         {/* Top Product Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-12 items-start">
-          {/* Left Column: Images (4 cols) */}
-          <div className="lg:col-span-4 flex flex-col gap-4">
+          {/* Left Column: Image (4 cols) */}
+          <div className="lg:col-span-4">
             <div className="aspect-square overflow-hidden rounded-2xl bg-white border border-neutral-100 shadow-sm relative group">
               {img ? (
-                <img
+                <Image
                   src={img.url}
-                  alt={img.altText}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  alt={product.name}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  priority
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-neutral-300">
@@ -116,17 +120,6 @@ export default async function ProductPage({ params }: Props) {
                   <span className="text-sm">Geen afbeelding</span>
                 </div>
               )}
-            </div>
-            {/* Thumbnails (Mocked for now since DB only returns 1 image usually) */}
-            <div className="grid grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-xl bg-white border border-neutral-100 overflow-hidden cursor-pointer hover:border-brand-green transition-colors opacity-70 hover:opacity-100"
-                >
-                  {img && <img src={img.url} alt="" className="w-full h-full object-cover" />}
-                </div>
-              ))}
             </div>
           </div>
 
@@ -186,48 +179,6 @@ export default async function ProductPage({ params }: Props) {
           {/* Specs & Extra Info */}
           <div className="lg:col-span-5 flex flex-col gap-8">
             <div className="bg-white rounded-3xl p-8 lg:p-10 border border-neutral-100 shadow-sm">
-              <h2 className="text-xl font-bold text-neutral-900 mb-6">Voedingswaarden</h2>
-              <div className="divide-y divide-neutral-100 text-sm">
-                <div className="py-3 flex justify-between">
-                  <span className="text-neutral-500">Energie (kJ)</span>
-                  <span className="font-medium text-neutral-900">2986</span>
-                </div>
-                <div className="py-3 flex justify-between">
-                  <span className="text-neutral-500">Energie (kcal)</span>
-                  <span className="font-medium text-neutral-900">728</span>
-                </div>
-                <div className="py-3 flex justify-between">
-                  <span className="text-neutral-500">Vetten</span>
-                  <span className="font-medium text-neutral-900">72.0 g/100g</span>
-                </div>
-                <div className="py-3 flex justify-between pl-4">
-                  <span className="text-neutral-500">- Verzadigd</span>
-                  <span className="font-medium text-neutral-900">6.0 g/100g</span>
-                </div>
-                <div className="py-3 flex justify-between">
-                  <span className="text-neutral-500">Eiwitten</span>
-                  <span className="font-medium text-neutral-900">9.2 g/100g</span>
-                </div>
-                <div className="py-3 flex justify-between">
-                  <span className="text-neutral-500">Koolhydraten</span>
-                  <span className="font-medium text-neutral-900">5.8 g/100g</span>
-                </div>
-                <div className="py-3 flex justify-between pl-4">
-                  <span className="text-neutral-500">- Suikers</span>
-                  <span className="font-medium text-neutral-900">4.3 g/100g</span>
-                </div>
-                <div className="py-3 flex justify-between">
-                  <span className="text-neutral-500">Voedingsvezels</span>
-                  <span className="font-medium text-neutral-900">4.7 g/100g</span>
-                </div>
-                <div className="py-3 flex justify-between border-b-0">
-                  <span className="text-neutral-500">Zout</span>
-                  <span className="font-medium text-neutral-900">0 g/100g</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-3xl p-8 lg:p-10 border border-neutral-100 shadow-sm">
               <h2 className="text-xl font-bold text-neutral-900 mb-6">Extra informatie</h2>
               <div className="divide-y divide-neutral-100 text-sm">
                 <div className="py-3 flex">
@@ -271,37 +222,6 @@ export default async function ProductPage({ params }: Props) {
                 )}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Recommended products mockup */}
-        <div className="mt-24">
-          <h2 className="text-2xl font-bold text-neutral-900 mb-8 font-serif">
-            Aanbevolen voor jou
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="group flex flex-col items-center bg-white rounded-3xl p-6 border border-neutral-100 shadow-sm hover:shadow-md transition-all"
-              >
-                <div className="w-32 h-32 rounded-full bg-brand-green-50 overflow-hidden mb-6 group-hover:scale-105 transition-transform">
-                  <div className="w-full h-full flex items-center justify-center text-brand-green-200">
-                    <Leaf className="w-12 h-12" />
-                  </div>
-                </div>
-                <h3 className="font-bold text-neutral-900 text-center mb-1">Amandelen Gebrand</h3>
-                <p className="text-xs text-neutral-500 mb-4">DeNotenman</p>
-                <div className="flex items-center gap-2 mt-auto">
-                  <span className="text-sm font-medium text-neutral-900">
-                    Vanaf <strong>€4,95</strong>
-                  </span>
-                  <div className="w-8 h-8 rounded-full border border-brand-green flex items-center justify-center text-brand-green group-hover:bg-brand-green group-hover:text-white transition-colors">
-                    <span className="text-lg leading-none">+</span>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
