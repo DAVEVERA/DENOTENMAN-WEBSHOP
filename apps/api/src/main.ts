@@ -1,4 +1,3 @@
-import "./fastify-augment";
 import { initSentry } from "./sentry";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter } from "@nestjs/platform-fastify";

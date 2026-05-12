@@ -34,7 +34,7 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/categorie/gedroogd-fruit-zuidvruchten"
+                  href="/categorie/gedroogd-fruit"
                   className="transition-colors hover:text-brand-green-400"
                 >
                   Zuidvruchten
@@ -42,7 +42,7 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/categorie/pitten-zaden"
+                  href="/categorie/pitten-en-zaden"
                   className="transition-colors hover:text-brand-green-400"
                 >
                   Pitten &amp; Zaden

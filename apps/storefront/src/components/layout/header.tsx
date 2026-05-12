@@ -30,13 +30,13 @@ export function Header() {
               Noten
             </Link>
             <Link
-              href="/categorie/gedroogd-fruit-zuidvruchten"
+              href="/categorie/gedroogd-fruit"
               className="transition-colors hover:text-brand-green-600"
             >
               Zuidvruchten
             </Link>
             <Link
-              href="/categorie/pitten-zaden"
+              href="/categorie/pitten-en-zaden"
               className="transition-colors hover:text-brand-green-600"
             >
               Pitten &amp; Zaden
@@ -99,8 +99,8 @@ export function Header() {
             <ul className="space-y-1">
               {[
                 { href: "/categorie/noten", label: "Noten" },
-                { href: "/categorie/gedroogd-fruit-zuidvruchten", label: "Zuidvruchten" },
-                { href: "/categorie/pitten-zaden", label: "Pitten & Zaden" },
+                { href: "/categorie/gedroogd-fruit", label: "Zuidvruchten" },
+                { href: "/categorie/pitten-en-zaden", label: "Pitten & Zaden" },
                 { href: "/categorie/natuurvoeding", label: "Natuurvoeding" },
                 { href: "/categorie/snacks", label: "Snacks" },
                 { href: "/account/login", label: "Account" },

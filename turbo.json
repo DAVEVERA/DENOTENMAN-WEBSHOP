@@ -1,7 +1,32 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env", "tsconfig.base.json"],
-  "globalEnv": ["NODE_ENV", "DATABASE_URL", "REDIS_URL"],
+  "globalEnv": [
+    "NODE_ENV",
+    "PORT",
+    "WORKER_PORT",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "STOREFRONT_URL",
+    "ADMIN_URL",
+    "API_URL",
+    "JWT_ACCESS_SECRET",
+    "JWT_REFRESH_SECRET",
+    "JWT_ACCESS_TTL",
+    "JWT_REFRESH_TTL",
+    "CSRF_SECRET",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "STRIPE_PUBLISHABLE_KEY",
+    "SENTRY_DSN",
+    "SENTRY_ENVIRONMENT",
+    "SENTRY_USER_ID_PEPPER",
+    "NEXT_PUBLIC_SENTRY_DSN",
+    "SEED_OWNER_EMAIL",
+    "SEED_OWNER_PASSWORD",
+    "SEED_ADMIN_EMAIL",
+    "SEED_ADMIN_PASSWORD"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
