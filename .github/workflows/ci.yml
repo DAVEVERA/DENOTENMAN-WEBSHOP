@@ -77,12 +77,31 @@ jobs:
         run: pnpm build
 
       - name: Install Playwright
-        run: pnpm --filter @denotenman/e2e exec playwright install --with-deps
+        run: pnpm --filter @denotenman/e2e exec playwright install --with-deps chromium
+        if: success()
+
+      - name: Build storefront
+        run: pnpm --filter @denotenman/storefront build
+        if: success()
+
+      - name: Start storefront
+        run: pnpm --filter @denotenman/storefront start &
+        if: success()
+        env:
+          PORT: 3000
+          API_URL: http://localhost:3001
+
+      - name: Wait for storefront
+        run: until curl -sf http://localhost:3000; do sleep 2; done
+        timeout-minutes: 2
         if: success()
 
       - name: Run E2E Tests
-        run: pnpm test:e2e
+        run: pnpm --filter @denotenman/e2e test:e2e
         if: success()
+        env:
+          E2E_SKIP_WEBSERVER: "1"
+          E2E_BASE_URL: http://localhost:3000
 
   deploy-preview:
     name: Preview Deploy
