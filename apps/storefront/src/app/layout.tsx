@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { ReplayRouteGuard } from "@/components/sentry/replay-route-guard";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -37,6 +38,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="nl" className={inter.variable}>
       <body className="flex min-h-screen flex-col">
+        {/* Stops replay on /checkout and /account — see ADR 0011 */}
+        <ReplayRouteGuard />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
