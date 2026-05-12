@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { CanActivate, ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import type { FastifyRequest, FastifyReply } from "fastify";
+import type { FastifyReply } from "fastify";
+import type { FastifyRequest } from "fastify/types/request";
 import { IS_PUBLIC_KEY, CSRF_EXEMPT_ROUTES } from "./auth.constants";
 
 // Methods that mutate state and require CSRF verification.

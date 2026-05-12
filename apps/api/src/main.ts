@@ -1,6 +1,9 @@
+import "./fastify-augment";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter } from "@nestjs/platform-fastify";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
+import type { FastifyInstance } from "fastify/types/instance";
+import type { FastifyRequest } from "fastify/types/request";
 import helmet from "@fastify/helmet";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
@@ -18,6 +21,37 @@ async function bootstrap() {
   );
 
   app.useLogger(app.get(Logger));
+
+  // Raw body parser for the Stripe webhook route (ADR 0008).
+  //
+  // All requests arriving as application/json are intercepted here. Requests
+  // targeting /v1/stripe/webhook need the original raw bytes so that Stripe's
+  // HMAC signature can be verified. Every other route gets the standard
+  // JSON-parsed body.
+  //
+  // FastifyRequest.rawBody is typed via src/fastify-augment.d.ts — zero `any`.
+  // addContentTypeParser is called via the NestJS Fastify adapter's register
+  // pass-through to avoid needing a direct FastifyInstance cast.
+  await app.register((instance: FastifyInstance, _opts: unknown, done: () => void) => {
+    instance.addContentTypeParser(
+      "application/json",
+      { parseAs: "buffer" },
+      (req, body: Buffer, done: (err: Error | null, body?: unknown) => void) => {
+        // req.raw is IncomingMessage (Node.js http) — url is always present at runtime.
+        if (req.raw.url?.startsWith("/v1/stripe/webhook")) {
+          req.raw.rawBody = body;
+          done(null, body);
+          return;
+        }
+        try {
+          done(null, JSON.parse(body.toString("utf8")));
+        } catch (err) {
+          done(err as Error, undefined);
+        }
+      },
+    );
+    done();
+  });
 
   await app.register(helmet);
   await app.register(cors, {
@@ -55,10 +89,12 @@ async function bootstrap() {
       // hmacKey ties each token to a session secret, strengthening the double-submit
       hmacKey: csrfSecret,
     },
-    getToken: (req) => {
-      const headers = req.headers as Record<string, string | string[] | undefined>;
-      const val = headers["x-csrf-token"];
-      return Array.isArray(val) ? (val[0] ?? "") : (val ?? "");
+    getToken: (req: FastifyRequest) => {
+      // headers is typed via IncomingHttpHeaders which allows bracket access for custom headers.
+      const rawVal: string | string[] | undefined = (
+        req.headers as Record<string, string | string[] | undefined>
+      )["x-csrf-token"];
+      return Array.isArray(rawVal) ? (rawVal[0] ?? "") : (rawVal ?? "");
     },
   });
 

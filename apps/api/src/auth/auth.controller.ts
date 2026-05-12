@@ -12,8 +12,15 @@ import {
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiCookieAuth, ApiBearerAuth } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
-import type { FastifyRequest, FastifyReply } from "fastify";
+import type { FastifyReply } from "fastify";
+import type { FastifyRequest } from "fastify/types/request";
 import type { IncomingHttpHeaders } from "http";
+
+// @fastify/cookie adds `.cookies` at runtime via plugin; the base FastifyRequest
+// type doesn't include it. This interface narrows the cast safely.
+interface RequestWithCookies extends FastifyRequest {
+  cookies: Record<string, string | undefined>;
+}
 import { AuthService } from "./auth.service";
 import { PublicApi } from "./decorators/public-api.decorator";
 import { CurrentUser } from "./decorators/current-user.decorator";
@@ -49,7 +56,7 @@ export class AuthController {
   @ApiOperation({ summary: "Inloggen en token-paar ontvangen" })
   async login(
     @Body() body: unknown,
-    @Req() req: FastifyRequest,
+    @Req() req: RequestWithCookies,
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
     const parsed = LoginSchema.safeParse(body);
@@ -80,7 +87,7 @@ export class AuthController {
   @Throttle({ auth: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: "Access-token vernieuwen via refresh-cookie" })
   @ApiCookieAuth(COOKIE_REFRESH_TOKEN)
-  async refresh(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
+  async refresh(@Req() req: RequestWithCookies, @Res({ passthrough: true }) res: FastifyReply) {
     const cookies = req.cookies;
     const rawToken = cookies[COOKIE_REFRESH_TOKEN];
     if (!rawToken) {
@@ -104,7 +111,7 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Uitloggen — refresh-token intrekken" })
   @ApiBearerAuth()
-  async logout(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
+  async logout(@Req() req: RequestWithCookies, @Res({ passthrough: true }) res: FastifyReply) {
     const cookies = req.cookies;
     const rawToken = cookies[COOKIE_REFRESH_TOKEN];
     if (rawToken) {

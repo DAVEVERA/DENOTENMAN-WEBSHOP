@@ -7,6 +7,7 @@ import { HealthModule } from "./health/health.module";
 import { ProductsModule } from "./products/products.module";
 import { CategoriesModule } from "./categories/categories.module";
 import { AuthModule } from "./auth/auth.module";
+import { StripeModule } from "./stripe/stripe.module";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard";
 import { RolesGuard } from "./auth/roles.guard";
 import { CsrfGuard } from "./auth/csrf.guard";
@@ -33,6 +34,7 @@ import { CsrfGuard } from "./auth/csrf.guard";
     ProductsModule,
     CategoriesModule,
     AuthModule,
+    StripeModule,
   ],
   providers: [
     // Rate limiting — applied first.
