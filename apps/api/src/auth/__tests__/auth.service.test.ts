@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { UnauthorizedException } from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
 import type { PinoLogger } from "nestjs-pino";
@@ -148,11 +148,6 @@ describe("AuthService.login", () => {
   const UA = "test-agent";
   const IP = "127.0.0.1";
 
-  beforeEach(() => {
-    process.env.JWT_ACCESS_SECRET = "a".repeat(32);
-    process.env.JWT_REFRESH_SECRET = "b".repeat(32);
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -233,10 +228,6 @@ describe("AuthService.login", () => {
 });
 
 describe("AuthService.refresh", () => {
-  beforeEach(() => {
-    process.env.JWT_ACCESS_SECRET = "a".repeat(32);
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
   });

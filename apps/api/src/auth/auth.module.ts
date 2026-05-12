@@ -6,14 +6,14 @@ import { AuthService } from "./auth.service";
 import { ArgonHasher } from "./argon-hasher";
 import { JwtStrategy } from "./jwt.strategy";
 import { RefreshTokenRepository } from "./repositories/refresh-token.repository";
-import { assertEnv } from "./env";
+import { env } from "../env";
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: "jwt" }),
     JwtModule.registerAsync({
       useFactory: () => ({
-        secret: assertEnv("JWT_ACCESS_SECRET"),
+        secret: env.JWT_ACCESS_SECRET,
         signOptions: {
           algorithm: "HS256",
           issuer: "denotenman-api",

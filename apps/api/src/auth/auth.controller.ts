@@ -27,6 +27,7 @@ import { CurrentUser } from "./decorators/current-user.decorator";
 import type { AuthenticatedUser } from "./decorators/current-user.decorator";
 import { LoginSchema } from "./dto/login.dto";
 import { COOKIE_REFRESH_TOKEN, REFRESH_TOKEN_TTL_SECONDS } from "./auth.constants";
+import { env } from "../env";
 
 // The v4 typedef declares generateCsrf(): FastifyReply but the runtime
 // implementation is an async function that resolves to the token string.
@@ -158,7 +159,7 @@ export class AuthController {
   private setRefreshCookie(res: FastifyReply, rawToken: string): void {
     res.setCookie(COOKIE_REFRESH_TOKEN, rawToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: env.NODE_ENV === "production",
       sameSite: "strict",
       path: "/v1/auth/refresh",
       maxAge: REFRESH_TOKEN_TTL_SECONDS,

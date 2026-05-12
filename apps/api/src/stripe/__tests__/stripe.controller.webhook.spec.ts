@@ -75,7 +75,6 @@ function makeController(svc: StripeService) {
 
 describe("StripeController.handleWebhook", () => {
   beforeEach(() => {
-    process.env.STRIPE_WEBHOOK_SECRET = TEST_WEBHOOK_SECRET;
     vi.clearAllMocks();
   });
 

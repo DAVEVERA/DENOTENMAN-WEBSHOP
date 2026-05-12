@@ -143,7 +143,6 @@ function makeService(
 
 describe("StripeService.createCheckoutSession — server-side pricing", () => {
   beforeEach(() => {
-    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     vi.clearAllMocks();
   });
 
@@ -283,7 +282,6 @@ describe("StripeService.createCheckoutSession — server-side pricing", () => {
 
 describe("StripeService.constructWebhookEvent", () => {
   beforeEach(() => {
-    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     vi.clearAllMocks();
   });
 
@@ -320,7 +318,6 @@ describe("StripeService.constructWebhookEvent", () => {
 
 describe("StripeService.processWebhookEvent", () => {
   beforeEach(() => {
-    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     vi.clearAllMocks();
   });
 

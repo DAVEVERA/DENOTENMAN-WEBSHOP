@@ -10,7 +10,7 @@ import {
   REFRESH_TOKEN_TTL_SECONDS,
   AUDIT_REFRESH_REUSE,
 } from "./auth.constants";
-import { assertEnv } from "./env";
+import { env } from "../env";
 import type { LoginDto } from "./dto/login.dto";
 import type { AuthenticatedUser } from "./decorators/current-user.decorator";
 
@@ -234,11 +234,10 @@ export class AuthService {
   }
 
   private signAccessToken(userId: string, email: string, role: string): Promise<string> {
-    const secret = assertEnv("JWT_ACCESS_SECRET");
     return this.jwtService.signAsync(
       { sub: userId, email, role },
       {
-        secret,
+        secret: env.JWT_ACCESS_SECRET,
         algorithm: "HS256",
         expiresIn: ACCESS_TOKEN_TTL_SECONDS,
         issuer: "denotenman-api",

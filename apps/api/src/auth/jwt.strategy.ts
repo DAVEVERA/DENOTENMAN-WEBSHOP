@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
-import { assertEnv } from "./env";
+import { env } from "../env";
 import type { AuthenticatedUser } from "./decorators/current-user.decorator";
 
 interface JwtPayload {
@@ -20,7 +20,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
       ignoreExpiration: false,
       // Per ADR 0007: explicit algorithm list — rejects alg=none and RS*/ES* confusion attacks.
       algorithms: ["HS256"],
-      secretOrKey: assertEnv("JWT_ACCESS_SECRET"),
+      secretOrKey: env.JWT_ACCESS_SECRET,
       issuer: "denotenman-api",
       audience: "denotenman-client",
     });

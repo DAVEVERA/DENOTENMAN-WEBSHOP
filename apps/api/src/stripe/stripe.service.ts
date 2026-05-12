@@ -12,6 +12,7 @@ import type { Checkout } from "stripe/cjs/resources/Checkout/Sessions";
 import { PrismaService } from "../prisma/prisma.service";
 import { StripeEventRepository } from "./repositories/stripe-event.repository";
 import { STRIPE_CLIENT, SUPPORTED_EVENT_TYPES } from "./stripe.constants";
+import { env } from "../env";
 import { handleCheckoutSessionCompleted } from "./handlers/checkout-session-completed.handler";
 import { handlePaymentIntentPaymentFailed } from "./handlers/payment-intent-payment-failed.handler";
 import { handleChargeRefunded } from "./handlers/charge-refunded.handler";
@@ -164,7 +165,7 @@ export class StripeService {
       return this.stripe.webhooks.constructEvent(
         rawBody,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET ?? "",
+        env.STRIPE_WEBHOOK_SECRET ?? "",
       );
     } catch {
       throw new BadRequestException({

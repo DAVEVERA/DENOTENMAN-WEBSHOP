@@ -3,6 +3,7 @@ import { FastifyAdapter } from "@nestjs/platform-fastify";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
+import { env } from "./env";
 
 async function bootstrap() {
   // trustProxy: true ensures accurate client IP behind a reverse proxy / load balancer.
@@ -14,8 +15,7 @@ async function bootstrap() {
 
   app.useLogger(app.get(Logger));
 
-  const port = parseInt(process.env.WORKER_PORT ?? "3002", 10);
-  await app.listen(port, "0.0.0.0");
+  await app.listen(env.WORKER_PORT, "0.0.0.0");
 }
 
 void bootstrap();

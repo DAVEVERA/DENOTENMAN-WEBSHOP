@@ -26,6 +26,7 @@ import { CheckoutBodySchema } from "./dto/checkout.dto";
 import type { CheckoutResponse } from "./dto/checkout.dto";
 import { CART_COOKIE_NAME } from "./cart.constants";
 import type { Cart } from "@denotenman/schemas";
+import { env } from "../env";
 
 function getCartToken(req: FastifyRequest): string | null {
   const raw: unknown = req.cookies[CART_COOKIE_NAME];
@@ -64,7 +65,7 @@ export class CartController {
     if (isNew || (!guestToken && !user)) {
       res.setCookie(CART_COOKIE_NAME, token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: env.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: this.cartService.cartCookieTtl,
         path: "/",
@@ -114,7 +115,7 @@ export class CartController {
     if (isNew || !guestToken) {
       res.setCookie(CART_COOKIE_NAME, token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: env.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: this.cartService.cartCookieTtl,
         path: "/",

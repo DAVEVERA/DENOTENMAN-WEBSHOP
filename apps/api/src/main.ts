@@ -11,7 +11,7 @@ import csrf from "@fastify/csrf-protection";
 import { Logger } from "nestjs-pino";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
-import { assertEnv } from "./auth/env";
+import { env } from "./env";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -56,8 +56,8 @@ async function bootstrap() {
   await app.register(helmet);
   await app.register(cors, {
     origin: [
-      process.env.STOREFRONT_URL ?? "http://localhost:3000",
-      process.env.ADMIN_URL ?? "http://localhost:3001",
+      env.STOREFRONT_URL ?? "http://localhost:3000",
+      env.ADMIN_URL ?? "http://localhost:3001",
     ],
     credentials: true,
   });
@@ -74,20 +74,17 @@ async function bootstrap() {
   //   2. Skips CSRF_EXEMPT_ROUTES (hard list in auth.constants) — /v1/stripe/webhook
   //      is pre-listed so PR-C (Stripe module) works without touching this file.
   //   3. Calls fastify.csrfProtection() for all other POST/PUT/PATCH/DELETE routes.
-  //
-  // The CSRF_SECRET env variable is validated here; EnvService (#5 PR-A) will own this later.
-  const csrfSecret = assertEnv("CSRF_SECRET");
   await app.register(csrf, {
     cookieKey: "csrf-token",
     cookieOpts: {
       httpOnly: false, // front-end must read for the double-submit header
-      secure: process.env.NODE_ENV === "production",
+      secure: env.NODE_ENV === "production",
       sameSite: "strict" as const,
       path: "/",
     },
     csrfOpts: {
       // hmacKey ties each token to a session secret, strengthening the double-submit
-      hmacKey: csrfSecret,
+      hmacKey: env.CSRF_SECRET,
     },
     getToken: (req: FastifyRequest) => {
       // headers is typed via IncomingHttpHeaders which allows bracket access for custom headers.
@@ -102,7 +99,7 @@ async function bootstrap() {
     exclude: ["healthz", "readyz", "docs"],
   });
 
-  if (process.env.NODE_ENV !== "production") {
+  if (env.NODE_ENV !== "production") {
     const config = new DocumentBuilder()
       .setTitle("DeNotenman API")
       .setDescription("Webshop REST API")
@@ -114,8 +111,7 @@ async function bootstrap() {
     SwaggerModule.setup("docs", app, document);
   }
 
-  const port = parseInt(process.env.PORT ?? "4000", 10);
-  await app.listen(port, "0.0.0.0");
+  await app.listen(env.PORT, "0.0.0.0");
 }
 
 void bootstrap();

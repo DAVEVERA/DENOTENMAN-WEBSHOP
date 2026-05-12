@@ -1,17 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { JwtStrategy } from "../jwt.strategy";
 
+const ACCESS = "access-secret-32-bytes-random!!!!";
+const REFRESH = "refresh-secret-32-bytes-random!!!";
+
 describe("JwtStrategy.validate", () => {
-  beforeEach(() => {
-    process.env.JWT_ACCESS_SECRET = "a".repeat(32);
-  });
-
-  afterEach(() => {
-    delete process.env.JWT_ACCESS_SECRET;
-  });
-
   it("returns an AuthenticatedUser from a valid payload", () => {
     const strategy = new JwtStrategy();
     const result = strategy.validate({
@@ -40,19 +35,6 @@ describe("JwtStrategy.validate", () => {
 });
 
 describe("JWT algorithm enforcement", () => {
-  const ACCESS = "access-secret-32-bytes-random!!!!";
-  const REFRESH = "refresh-secret-32-bytes-random!!!";
-
-  beforeEach(() => {
-    process.env.JWT_ACCESS_SECRET = ACCESS;
-    process.env.JWT_REFRESH_SECRET = REFRESH;
-  });
-
-  afterEach(() => {
-    delete process.env.JWT_ACCESS_SECRET;
-    delete process.env.JWT_REFRESH_SECRET;
-  });
-
   it("HS256 signed token verifies correctly", async () => {
     const jwtService = new JwtService({
       secret: ACCESS,

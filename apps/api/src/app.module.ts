@@ -13,13 +13,14 @@ import { OrdersModule } from "./orders/orders.module";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard";
 import { RolesGuard } from "./auth/roles.guard";
 import { CsrfGuard } from "./auth/csrf.guard";
+import { env } from "./env";
 
 @Module({
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
-          process.env.NODE_ENV !== "production"
+          env.NODE_ENV !== "production"
             ? { target: "pino-pretty", options: { colorize: true } }
             : undefined,
         autoLogging: true,
