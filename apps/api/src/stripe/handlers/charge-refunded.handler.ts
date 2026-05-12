@@ -1,5 +1,6 @@
 import type { Stripe } from "stripe/cjs/stripe.core";
 import type { PrismaTransaction } from "../repositories/stripe-event.repository";
+import type { OrderStateService } from "../../orders/order-state.service";
 
 /**
  * Handles `charge.refunded`.
@@ -12,6 +13,7 @@ import type { PrismaTransaction } from "../repositories/stripe-event.repository"
 export async function handleChargeRefunded(
   event: Stripe.Event,
   tx: PrismaTransaction,
+  orderStateService: OrderStateService,
 ): Promise<void> {
   const charge = event.data.object as Stripe.Charge;
   const paymentIntentId =
@@ -23,11 +25,5 @@ export async function handleChargeRefunded(
     return;
   }
 
-  await tx.order.updateMany({
-    where: {
-      stripePaymentIntent: paymentIntentId,
-      status: { in: ["paid", "fulfilled"] },
-    },
-    data: { status: "refunded" },
-  });
+  await orderStateService.markAsRefunded(paymentIntentId, tx);
 }

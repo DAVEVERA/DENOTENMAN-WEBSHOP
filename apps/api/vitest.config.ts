@@ -6,7 +6,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "src/**/*.spec.ts"],
     coverage: {
       provider: "v8",
-      include: ["src/auth/**", "src/stripe/**"],
+      include: ["src/auth/**", "src/stripe/**", "src/cart/**", "src/orders/**"],
       thresholds: {
         lines: 80,
         functions: 80,

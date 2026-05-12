@@ -11,6 +11,7 @@ import type { PrismaService } from "../../prisma/prisma.service";
 import type { StripeEventRepository } from "../repositories/stripe-event.repository";
 import type { PinoLogger } from "nestjs-pino";
 import type StripeSDK from "stripe";
+import type { OrderStateService } from "../../orders/order-state.service";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -113,13 +114,27 @@ function makeLogger(): PinoLogger {
   } as unknown as PinoLogger;
 }
 
+function makeOrderStateSvcMock() {
+  const markAsPaid = vi.fn().mockResolvedValue(undefined);
+  const markAsFailed = vi.fn().mockResolvedValue(undefined);
+  const markAsRefunded = vi.fn().mockResolvedValue(undefined);
+  return { markAsPaid, markAsFailed, markAsRefunded } as unknown as OrderStateService;
+}
+
 function makeService(
   stripeMock: InstanceType<typeof StripeSDK>,
   prismaMock: PrismaService,
   repoMock: StripeEventRepository,
   logger?: PinoLogger,
+  orderStateSvc?: OrderStateService,
 ): StripeService {
-  return new StripeService(stripeMock, prismaMock, repoMock, logger ?? makeLogger());
+  return new StripeService(
+    stripeMock,
+    prismaMock,
+    repoMock,
+    orderStateSvc ?? makeOrderStateSvcMock(),
+    logger ?? makeLogger(),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -358,24 +373,30 @@ describe("StripeService.processWebhookEvent", () => {
     expect(orderUpdateMany).not.toHaveBeenCalled();
   });
 
-  it("valid checkout.session.completed — returns { handled: true }, order updated", async () => {
+  it("valid checkout.session.completed — returns { handled: true }, order state service called", async () => {
     const { stripe } = makeStripeMock();
-    const { prisma, orderUpdateMany } = makePrismaMock();
+    const { prisma } = makePrismaMock();
     const { repo } = makeRepoMock();
+    const markAsPaid = vi.fn().mockResolvedValue(undefined);
+    const orderStateSvc = {
+      markAsPaid,
+      markAsFailed: vi.fn().mockResolvedValue(undefined),
+      markAsRefunded: vi.fn().mockResolvedValue(undefined),
+    } as unknown as OrderStateService;
 
     (prisma.$transaction as ReturnType<typeof vi.fn>).mockImplementation(
       (fn: (tx: unknown) => Promise<unknown>) => {
         return fn({
-          order: { updateMany: orderUpdateMany },
+          order: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
           stripeEvent: { create: vi.fn().mockResolvedValue({}) },
         });
       },
     );
 
-    const svc = makeService(stripe, prisma, repo);
+    const svc = makeService(stripe, prisma, repo, undefined, orderStateSvc);
     const result = await svc.processWebhookEvent(makeEvent("checkout.session.completed"));
 
     expect(result.handled).toBe(true);
-    expect(orderUpdateMany).toHaveBeenCalledOnce();
+    expect(markAsPaid).toHaveBeenCalledOnce();
   });
 });

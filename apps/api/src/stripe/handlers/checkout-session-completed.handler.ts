@@ -1,5 +1,6 @@
 import type { Stripe } from "stripe/cjs/stripe.core";
 import type { PrismaTransaction } from "../repositories/stripe-event.repository";
+import type { OrderStateService } from "../../orders/order-state.service";
 
 /**
  * Handles `checkout.session.completed`.
@@ -16,6 +17,7 @@ import type { PrismaTransaction } from "../repositories/stripe-event.repository"
 export async function handleCheckoutSessionCompleted(
   event: Stripe.Event,
   tx: PrismaTransaction,
+  orderStateService: OrderStateService,
 ): Promise<void> {
   const session = event.data.object as Stripe.Checkout.Session;
   const sessionId = session.id;
@@ -24,12 +26,9 @@ export async function handleCheckoutSessionCompleted(
       ? session.payment_intent
       : (session.payment_intent?.id ?? null);
 
-  await tx.order.updateMany({
-    where: { stripeSessionId: sessionId, status: "pending" },
-    data: {
-      status: "paid",
-      stripePaymentIntent: paymentIntentId,
-      paidAt: new Date(),
-    },
-  });
+  if (!paymentIntentId) {
+    return;
+  }
+
+  await orderStateService.markAsPaid(sessionId, paymentIntentId, tx);
 }

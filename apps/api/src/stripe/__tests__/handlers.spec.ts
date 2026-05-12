@@ -4,6 +4,7 @@ import { handleCheckoutSessionCompleted } from "../handlers/checkout-session-com
 import { handlePaymentIntentPaymentFailed } from "../handlers/payment-intent-payment-failed.handler";
 import { handleChargeRefunded } from "../handlers/charge-refunded.handler";
 import type { PrismaTransaction } from "../repositories/stripe-event.repository";
+import type { OrderStateService } from "../../orders/order-state.service";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -15,6 +16,14 @@ function makeTx() {
     order: { updateMany },
   } as unknown as PrismaTransaction;
   return { tx, updateMany };
+}
+
+function makeOrderStateService() {
+  const markAsPaid = vi.fn().mockResolvedValue(undefined);
+  const markAsFailed = vi.fn().mockResolvedValue(undefined);
+  const markAsRefunded = vi.fn().mockResolvedValue(undefined);
+  const svc = { markAsPaid, markAsFailed, markAsRefunded } as unknown as OrderStateService;
+  return { svc, markAsPaid, markAsFailed, markAsRefunded };
 }
 
 function makeCheckoutCompletedEvent(
@@ -33,13 +42,14 @@ function makeCheckoutCompletedEvent(
   } as unknown as Stripe.Event;
 }
 
-function makePaymentFailedEvent(paymentIntentId = "pi_test"): Stripe.Event {
+function makePaymentFailedEvent(paymentIntentId = "pi_test", sessionId?: string): Stripe.Event {
   return {
     id: "evt_2",
     type: "payment_intent.payment_failed",
     data: {
       object: {
         id: paymentIntentId,
+        metadata: sessionId ? { stripeSessionId: sessionId } : {},
       } as Stripe.PaymentIntent,
     },
   } as unknown as Stripe.Event;
@@ -65,34 +75,37 @@ function makeChargeRefundedEvent(paymentIntentId: string | null = "pi_test"): St
 describe("handleCheckoutSessionCompleted", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("happy path — updates order to paid with session and payment intent", async () => {
-    const { tx, updateMany } = makeTx();
-    await handleCheckoutSessionCompleted(makeCheckoutCompletedEvent("cs_1", "pi_1"), tx);
+  it("happy path — calls markAsPaid with session and payment intent", async () => {
+    const { tx } = makeTx();
+    const { svc, markAsPaid } = makeOrderStateService();
+    await handleCheckoutSessionCompleted(makeCheckoutCompletedEvent("cs_1", "pi_1"), tx, svc);
 
-    expect(updateMany).toHaveBeenCalledOnce();
-    const [callArgs] = updateMany.mock.calls as [
-      [
-        {
-          where: { stripeSessionId: string; status: string };
-          data: { status: string; stripePaymentIntent: string; paidAt: Date };
-        },
-      ],
-    ];
-    expect(callArgs[0].where).toEqual({ stripeSessionId: "cs_1", status: "pending" });
-    expect(callArgs[0].data.status).toBe("paid");
-    expect(callArgs[0].data.stripePaymentIntent).toBe("pi_1");
-    expect(callArgs[0].data.paidAt).toBeInstanceOf(Date);
+    expect(markAsPaid).toHaveBeenCalledOnce();
+    expect(markAsPaid).toHaveBeenCalledWith("cs_1", "pi_1", tx);
   });
 
   it("handles payment_intent as object with .id property", async () => {
-    const { tx, updateMany } = makeTx();
+    const { tx } = makeTx();
+    const { svc, markAsPaid } = makeOrderStateService();
     await handleCheckoutSessionCompleted(
       makeCheckoutCompletedEvent("cs_obj", { id: "pi_obj_1" }),
       tx,
+      svc,
     );
 
-    const [callArgs] = updateMany.mock.calls as [[{ data: { stripePaymentIntent: string } }]];
-    expect(callArgs[0].data.stripePaymentIntent).toBe("pi_obj_1");
+    expect(markAsPaid).toHaveBeenCalledWith("cs_obj", "pi_obj_1", tx);
+  });
+
+  it("skips when paymentIntentId is null", async () => {
+    const { tx } = makeTx();
+    const { svc, markAsPaid } = makeOrderStateService();
+    await handleCheckoutSessionCompleted(
+      makeCheckoutCompletedEvent("cs_null", null as unknown as string),
+      tx,
+      svc,
+    );
+
+    expect(markAsPaid).not.toHaveBeenCalled();
   });
 });
 
@@ -103,17 +116,32 @@ describe("handleCheckoutSessionCompleted", () => {
 describe("handlePaymentIntentPaymentFailed", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("happy path — updates order to cancelled", async () => {
-    const { tx, updateMany } = makeTx();
-    await handlePaymentIntentPaymentFailed(makePaymentFailedEvent("pi_failed"), tx);
+  it("uses markAsFailed when sessionId is in metadata", async () => {
+    const { tx } = makeTx();
+    const { svc, markAsFailed } = makeOrderStateService();
+    await handlePaymentIntentPaymentFailed(
+      makePaymentFailedEvent("pi_failed", "cs_failed"),
+      tx,
+      svc,
+    );
 
+    expect(markAsFailed).toHaveBeenCalledOnce();
+    expect(markAsFailed).toHaveBeenCalledWith("cs_failed", tx);
+  });
+
+  it("falls back to tx.order.updateMany when sessionId is missing", async () => {
+    const { tx, updateMany } = makeTx();
+    const { svc, markAsFailed } = makeOrderStateService();
+    await handlePaymentIntentPaymentFailed(makePaymentFailedEvent("pi_failed"), tx, svc);
+
+    expect(markAsFailed).not.toHaveBeenCalled();
     expect(updateMany).toHaveBeenCalledOnce();
     expect(updateMany).toHaveBeenCalledWith({
       where: {
         stripePaymentIntent: "pi_failed",
         status: { in: ["pending", "paid"] },
       },
-      data: { status: "cancelled" },
+      data: { status: "cancelled", cancelledAt: expect.any(Date) as Date },
     });
   });
 });
@@ -125,24 +153,20 @@ describe("handlePaymentIntentPaymentFailed", () => {
 describe("handleChargeRefunded", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("happy path — updates order to refunded", async () => {
-    const { tx, updateMany } = makeTx();
-    await handleChargeRefunded(makeChargeRefundedEvent("pi_refund"), tx);
+  it("happy path — calls markAsRefunded", async () => {
+    const { tx } = makeTx();
+    const { svc, markAsRefunded } = makeOrderStateService();
+    await handleChargeRefunded(makeChargeRefundedEvent("pi_refund"), tx, svc);
 
-    expect(updateMany).toHaveBeenCalledOnce();
-    expect(updateMany).toHaveBeenCalledWith({
-      where: {
-        stripePaymentIntent: "pi_refund",
-        status: { in: ["paid", "fulfilled"] },
-      },
-      data: { status: "refunded" },
-    });
+    expect(markAsRefunded).toHaveBeenCalledOnce();
+    expect(markAsRefunded).toHaveBeenCalledWith("pi_refund", tx);
   });
 
-  it("charge without payment_intent — skips updateMany gracefully", async () => {
-    const { tx, updateMany } = makeTx();
-    await handleChargeRefunded(makeChargeRefundedEvent(null), tx);
+  it("charge without payment_intent — skips gracefully", async () => {
+    const { tx } = makeTx();
+    const { svc, markAsRefunded } = makeOrderStateService();
+    await handleChargeRefunded(makeChargeRefundedEvent(null), tx, svc);
 
-    expect(updateMany).not.toHaveBeenCalled();
+    expect(markAsRefunded).not.toHaveBeenCalled();
   });
 });

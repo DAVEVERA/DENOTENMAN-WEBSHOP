@@ -20,6 +20,7 @@ import type {
   CheckoutSessionResponse,
 } from "./dto/create-checkout-session.dto";
 import type { PrismaTransaction } from "./repositories/stripe-event.repository";
+import { OrderStateService } from "../orders/order-state.service";
 
 @Injectable()
 export class StripeService {
@@ -27,6 +28,7 @@ export class StripeService {
     @Inject(STRIPE_CLIENT) private readonly stripe: InstanceType<typeof StripeSDK>,
     private readonly prisma: PrismaService,
     private readonly stripeEventRepo: StripeEventRepository,
+    private readonly orderStateService: OrderStateService,
     @InjectPinoLogger(StripeService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -214,15 +216,15 @@ export class StripeService {
   ): Promise<void> {
     switch (eventType) {
       case "checkout.session.completed":
-        await handleCheckoutSessionCompleted(event, tx);
+        await handleCheckoutSessionCompleted(event, tx, this.orderStateService);
         break;
 
       case "payment_intent.payment_failed":
-        await handlePaymentIntentPaymentFailed(event, tx);
+        await handlePaymentIntentPaymentFailed(event, tx, this.orderStateService);
         break;
 
       case "charge.refunded":
-        await handleChargeRefunded(event, tx);
+        await handleChargeRefunded(event, tx, this.orderStateService);
         break;
 
       default:
