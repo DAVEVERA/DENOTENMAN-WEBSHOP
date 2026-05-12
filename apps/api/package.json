@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@denotenman/prisma": "workspace:*",
+    "argon2": "0.41.1",
     "@denotenman/schemas": "workspace:*",
     "@fastify/cookie": "9.4.0",
     "@fastify/cors": "9.0.1",

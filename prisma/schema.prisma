@@ -1,6 +1,5 @@
 // DeNotenman — data model
 // See docs/adr/0002-data-model.md for rationale.
-// Migration workflow: .claude/skills/prisma-migration/SKILL.md
 
 generator client {
   provider      = "prisma-client-js"
@@ -350,6 +349,21 @@ model OrderLine {
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
 
   @@index([orderId])
+}
+
+// ==============================================================================
+// Payments — Stripe webhook idempotency (ADR 0008)
+// ==============================================================================
+
+model StripeEvent {
+  id          String   @id                        // stripe event.id — primary dedup key
+  type        String
+  payload     Json
+  processedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([type])
+  @@index([processedAt])
+  @@map("stripe_events")
 }
 
 // ==============================================================================

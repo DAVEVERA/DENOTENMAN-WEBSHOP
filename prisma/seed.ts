@@ -109,7 +109,9 @@ async function seedCategories(): Promise<Map<string, string>> {
 
     map.set(root.slug, parent.id);
 
-    if (!root.children) {continue;}
+    if (!root.children) {
+      continue;
+    }
 
     for (const [childIndex, child] of root.children.entries()) {
       const created = await prisma.category.upsert({
@@ -501,7 +503,12 @@ async function seedUsers(): Promise<void> {
     update: {},
     create: {
       email: ownerEmail,
-      passwordHash: await argon2.hash(ownerPassword, { memoryCost: 19456, timeCost: 2 }),
+      passwordHash: await argon2.hash(ownerPassword, {
+        type: argon2.argon2id,
+        memoryCost: 47104,
+        timeCost: 3,
+        parallelism: 1,
+      }),
       role: UserRole.owner,
       emailVerifiedAt: new Date(),
     },
@@ -512,7 +519,12 @@ async function seedUsers(): Promise<void> {
     update: {},
     create: {
       email: adminEmail,
-      passwordHash: await argon2.hash(adminPassword, { memoryCost: 19456, timeCost: 2 }),
+      passwordHash: await argon2.hash(adminPassword, {
+        type: argon2.argon2id,
+        memoryCost: 47104,
+        timeCost: 3,
+        parallelism: 1,
+      }),
       role: UserRole.admin,
       emailVerifiedAt: new Date(),
     },
