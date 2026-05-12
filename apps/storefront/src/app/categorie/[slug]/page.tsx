@@ -4,33 +4,7 @@ import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { ProductCard } from "@/components/product/product-card";
 import { serverApiClient } from "@/lib/server-api";
-import type { Product } from "@denotenman/schemas";
-
-// TODO(@fullstack-dev): replace once CategoryDetailSchema lands in @denotenman/schemas
-interface CategoryDetail {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  parent?: { slug: string; name: string };
-  children: CategoryDetail[];
-}
-
-// TODO(@fullstack-dev): replace once CategoryDetailSchema lands in @denotenman/schemas
-interface RawCategoryMeta {
-  name: string;
-  description: string | null;
-}
-
-const API_URL = process.env.API_URL ?? "http://localhost:4000";
-
-async function fetchCategory(slug: string): Promise<CategoryDetail | null> {
-  const res = await fetch(`${API_URL}/v1/categories/${encodeURIComponent(slug)}`, {
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) {return null;}
-  return res.json() as Promise<CategoryDetail>;
-}
+import type { Product, CategoryDetail } from "@denotenman/schemas";
 
 interface Props {
   params: { slug: string };
@@ -38,15 +12,16 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const res = await fetch(`${API_URL}/v1/categories/${encodeURIComponent(params.slug)}`, {
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) {return { title: "Categorie" };}
-  const cat = (await res.json()) as RawCategoryMeta;
-  return {
-    title: cat.name,
-    description: cat.description ?? `Ontdek ${cat.name} bij DeNotenman`,
-  };
+  try {
+    const api = serverApiClient();
+    const cat = await api.categories.getBySlug(params.slug);
+    return {
+      title: cat.name,
+      description: cat.description ?? `Ontdek ${cat.name} bij DeNotenman`,
+    };
+  } catch {
+    return { title: "Categorie" };
+  }
 }
 
 export const revalidate = 60;
@@ -56,7 +31,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
 
   const api = serverApiClient();
   const [category, products] = await Promise.all([
-    fetchCategory(params.slug),
+    api.categories.getBySlug(params.slug).catch((): CategoryDetail | null => null),
     api.products.list({ category: params.slug, page, pageSize: 12 }).catch(() => null),
   ]);
 

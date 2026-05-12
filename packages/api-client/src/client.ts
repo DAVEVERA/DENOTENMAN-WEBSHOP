@@ -4,6 +4,8 @@ import {
   ProductSchema,
   CartSchema,
   OrderSchema,
+  CategoryTreeSchema,
+  CategoryDetailSchema,
   paginated,
   AddToCartSchema,
   UpdateCartLineSchema,
@@ -14,6 +16,8 @@ import type {
   Product,
   Cart,
   Order,
+  CategoryTree,
+  CategoryDetail,
   AddToCart,
   UpdateCartLine,
   Login,
@@ -38,6 +42,7 @@ const RefreshResponseSchema = z.object({
 });
 
 const PaginatedProductSchema = paginated(ProductSchema);
+const CategoryTreeArraySchema = z.array(CategoryTreeSchema);
 
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 export type RefreshResponse = z.infer<typeof RefreshResponseSchema>;
@@ -76,6 +81,16 @@ export function createApiClient(opts: ApiClientOptions) {
 
       logout(): Promise<void> {
         return request(z.void(), ctx("/auth/logout", "POST"));
+      },
+    },
+
+    categories: {
+      list(): Promise<CategoryTree[]> {
+        return request(CategoryTreeArraySchema, ctx("/categories", "GET"));
+      },
+
+      getBySlug(slug: string): Promise<CategoryDetail> {
+        return request(CategoryDetailSchema, ctx(`/categories/${encodeURIComponent(slug)}`, "GET"));
       },
     },
 

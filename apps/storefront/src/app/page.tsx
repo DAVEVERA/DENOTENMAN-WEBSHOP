@@ -2,25 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Truck, ShieldCheck, Leaf } from "lucide-react";
 import { ProductCard } from "@/components/product/product-card";
 import { serverApiClient } from "@/lib/server-api";
-import type { Product } from "@denotenman/schemas";
-
-// TODO(@fullstack-dev): replace once CategoryTreeSchema lands in @denotenman/schemas
-interface CategoryTree {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  productCount: number;
-  children: { id: string; slug: string; name: string; productCount: number }[];
-}
-
-const API_URL = process.env.API_URL ?? "http://localhost:4000";
-
-async function fetchCategories(): Promise<CategoryTree[]> {
-  const res = await fetch(`${API_URL}/v1/categories`, { next: { revalidate: 60 } });
-  if (!res.ok) {return [];}
-  return res.json() as Promise<CategoryTree[]>;
-}
+import type { Product, CategoryTree } from "@denotenman/schemas";
 
 export const revalidate = 60;
 
@@ -32,7 +14,7 @@ export default async function HomePage() {
   try {
     const api = serverApiClient();
     [categories, { items: featuredProducts, total }] = await Promise.all([
-      fetchCategories(),
+      api.categories.list(),
       api.products.list({ pageSize: 12 }),
     ]);
   } catch {

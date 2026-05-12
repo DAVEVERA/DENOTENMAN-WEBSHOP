@@ -143,6 +143,34 @@ beforeEach(() => {
   mockFetch.mockReset();
 });
 
+const validCategoryTree = {
+  id: UUID2,
+  slug: "noten",
+  name: "Noten",
+  description: null,
+  parentId: null,
+  sortOrder: 0,
+  productCount: 4,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  deletedAt: null,
+  children: [],
+};
+
+const validCategoryDetail = {
+  id: UUID2,
+  slug: "noten",
+  name: "Noten",
+  description: null,
+  parentId: null,
+  sortOrder: 0,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  deletedAt: null,
+  parent: null,
+  children: [],
+};
+
 describe("auth.login", () => {
   it("POSTs to /auth/login and returns user + accessToken", async () => {
     mockFetch.mockResolvedValueOnce(makeResponse({ user: validUser, accessToken: "tok-123" }));
@@ -308,6 +336,76 @@ describe("orders.getById", () => {
     const [url] = lastCall();
     expect(url).toBe(`https://api.example.com/orders/${UUID}`);
     expect(result.orderNumber).toBe("ORD-001");
+  });
+});
+
+describe("categories.list", () => {
+  it("GETs /categories and returns CategoryTree array", async () => {
+    mockFetch.mockResolvedValueOnce(makeResponse([validCategoryTree]));
+
+    const result = await client().categories.list();
+
+    const [url, init] = lastCall();
+    expect(url).toBe("https://api.example.com/categories");
+    expect(init.method).toBe("GET");
+    expect(result).toHaveLength(1);
+    const firstItem = result[0];
+    expect(firstItem?.slug).toBe("noten");
+    expect(firstItem?.productCount).toBe(4);
+  });
+
+  it("returns empty array when no categories exist", async () => {
+    mockFetch.mockResolvedValueOnce(makeResponse([]));
+
+    const result = await client().categories.list();
+    expect(result).toHaveLength(0);
+  });
+
+  it("throws ApiError on schema mismatch", async () => {
+    mockFetch.mockResolvedValueOnce(makeResponse({ not: "an-array" }));
+
+    try {
+      await client().categories.list();
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApiError);
+      const apiErr = err as ApiError;
+      expect(apiErr.code).toBe("SCHEMA_MISMATCH");
+    }
+  });
+});
+
+describe("categories.getBySlug", () => {
+  it("GETs /categories/:slug", async () => {
+    mockFetch.mockResolvedValueOnce(makeResponse(validCategoryDetail));
+
+    const result = await client().categories.getBySlug("noten");
+
+    const [url, init] = lastCall();
+    expect(url).toBe("https://api.example.com/categories/noten");
+    expect(init.method).toBe("GET");
+    expect(result.slug).toBe("noten");
+    expect(result.parent).toBeNull();
+  });
+
+  it("encodes special characters in slug", async () => {
+    mockFetch.mockResolvedValueOnce(makeResponse(validCategoryDetail));
+
+    await client().categories.getBySlug("noten en zaden");
+
+    const [url] = lastCall();
+    expect(url as string).toContain("noten%20en%20zaden");
+  });
+
+  it("returns detail with parent when present", async () => {
+    const detailWithParent = {
+      ...validCategoryDetail,
+      parentId: UUID3,
+      parent: { id: UUID3, slug: "droogfruit", name: "Droogfruit" },
+    };
+    mockFetch.mockResolvedValueOnce(makeResponse(detailWithParent));
+
+    const result = await client().categories.getBySlug("noten");
+    expect(result.parent?.slug).toBe("droogfruit");
   });
 });
 
