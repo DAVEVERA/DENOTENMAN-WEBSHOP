@@ -1,7 +1,9 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
 import { ProductsService } from "./products.service";
+import { PublicApi } from "../auth/decorators/public-api.decorator";
 
+@PublicApi()
 @ApiTags("products")
 @Controller("products")
 export class ProductsController {

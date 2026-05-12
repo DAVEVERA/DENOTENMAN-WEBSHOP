@@ -6,6 +6,10 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { HealthModule } from "./health/health.module";
 import { ProductsModule } from "./products/products.module";
 import { CategoriesModule } from "./categories/categories.module";
+import { AuthModule } from "./auth/auth.module";
+import { JwtAuthGuard } from "./auth/jwt-auth.guard";
+import { RolesGuard } from "./auth/roles.guard";
+import { CsrfGuard } from "./auth/csrf.guard";
 
 @Module({
   imports: [
@@ -28,11 +32,29 @@ import { CategoriesModule } from "./categories/categories.module";
     HealthModule,
     ProductsModule,
     CategoriesModule,
+    AuthModule,
   ],
   providers: [
+    // Rate limiting — applied first.
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // JWT authentication — routes decorated @PublicApi() are exempt.
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    // RBAC — only active when @Roles(...) is present on the handler or class.
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+    // CSRF — POST/PUT/PATCH/DELETE routes with cookie auth. @PublicApi() and
+    // hard-coded exempt routes (Stripe webhook) bypass verification.
+    {
+      provide: APP_GUARD,
+      useClass: CsrfGuard,
     },
   ],
 })
