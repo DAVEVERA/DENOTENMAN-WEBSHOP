@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Query,
 } from "@nestjs/common";
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
@@ -15,6 +17,8 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../auth/decorators/current-user.decorator";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { ListOrdersQuerySchema } from "./dto/list-orders.dto";
+import { UpdateOrderStatusDtoSchema } from "./dto/update-order-status.dto";
+import type { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import type { Order } from "@denotenman/schemas";
 
 @ApiTags("orders")
@@ -101,6 +105,36 @@ export class OrdersController {
   ): Promise<Order> {
     const isAdmin = ["owner", "admin", "staff"].includes(user.role);
     return this.ordersService.findById(id, user.sub, isAdmin);
+  }
+
+  /**
+   * PATCH /v1/orders/:id/status
+   *
+   * Admin-only endpoint to update an order's status.
+   */
+  @Patch(":id/status")
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ auth: { limit: 30, ttl: 60_000 } })
+  @Roles("owner", "admin", "staff")
+  @ApiOperation({ summary: "Bestelstatus bijwerken (admin)" })
+  @ApiParam({ name: "id", type: "string", format: "uuid" })
+  @ApiResponse({ status: 200, description: "Bijgewerkte bestelling" })
+  @ApiResponse({ status: 404, description: "Bestelling niet gevonden" })
+  async updateStatus(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() rawBody: UpdateOrderStatusDto,
+  ): Promise<Order> {
+    const parsed = UpdateOrderStatusDtoSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Ongeldige statuswaarde",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+    return this.ordersService.updateStatus(id, parsed.data.status);
   }
 
   /**

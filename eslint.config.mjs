@@ -13,6 +13,7 @@ export default tseslint.config(
       "**/*.config.mjs",
       "**/*.config.ts",
       "scripts/**",
+      "**/check-db.ts",
     ],
   },
   js.configs.recommended,

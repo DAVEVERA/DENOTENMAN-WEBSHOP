@@ -150,4 +150,25 @@ export class OrderRepository {
       data: { status: "refunded" },
     });
   }
+
+  async updateStatus(id: string, status: Order["status"]): Promise<OrderWithLines> {
+    const now = new Date();
+    const timestamps: Partial<Pick<Order, "paidAt" | "fulfilledAt" | "cancelledAt">> = {};
+
+    if (status === "paid") {
+      timestamps.paidAt = now;
+    }
+    if (status === "fulfilled") {
+      timestamps.fulfilledAt = now;
+    }
+    if (status === "cancelled") {
+      timestamps.cancelledAt = now;
+    }
+
+    return this.prisma.order.update({
+      where: { id },
+      data: { status, ...timestamps },
+      include: ORDER_INCLUDE,
+    });
+  }
 }

@@ -1,6 +1,19 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import type { Paginated } from "@denotenman/schemas";
+import { CreateProductDtoSchema } from "./dto/create-product.dto";
+import { UpdateProductDtoSchema } from "./dto/update-product.dto";
+import { CreateVariantDtoSchema } from "./dto/create-variant.dto";
+import { UpdateVariantDtoSchema } from "./dto/update-variant.dto";
+import type { CreateProductDto } from "./dto/create-product.dto";
+import type { UpdateProductDto } from "./dto/update-product.dto";
+import type { CreateVariantDto } from "./dto/create-variant.dto";
+import type { UpdateVariantDto } from "./dto/update-variant.dto";
 
 interface ListProductsOptions {
   page: number;
@@ -59,6 +72,195 @@ export class ProductsService {
     }));
 
     return { items: mapped, page, pageSize, total };
+  }
+
+  async create(raw: CreateProductDto): Promise<unknown> {
+    const parsed = CreateProductDtoSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Ongeldige productgegevens",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const dto = parsed.data;
+
+    try {
+      return await this.prisma.product.create({
+        data: {
+          sku: dto.sku,
+          slug: dto.slug,
+          name: dto.name,
+          description: dto.description,
+          categoryId: dto.categoryId,
+          status: dto.status,
+          origin: dto.origin,
+          harvestYear: dto.harvestYear,
+          roasted: dto.roasted,
+          organic: dto.organic,
+          allergens: dto.allergens,
+          ingredients: dto.ingredients,
+          storageInfo: dto.storageInfo,
+          tasteNotes: dto.tasteNotes,
+          usageTip: dto.usageTip,
+        },
+        include: {
+          variants: { where: { deletedAt: null }, orderBy: { position: "asc" } },
+          images: { orderBy: { position: "asc" } },
+          category: { select: { id: true, slug: true, name: true } },
+          tags: { include: { tag: true } },
+        },
+      });
+    } catch (err: unknown) {
+      const e = err as { code?: string };
+      if (e.code === "P2002") {
+        throw new ConflictException({
+          error: { code: "PRODUCT_CONFLICT", message: "SKU of slug is al in gebruik" },
+        });
+      }
+      throw err;
+    }
+  }
+
+  async update(id: string, raw: UpdateProductDto): Promise<unknown> {
+    const parsed = UpdateProductDtoSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Ongeldige productgegevens",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const dto = parsed.data;
+
+    try {
+      return await this.prisma.product.update({
+        where: { id },
+        data: dto,
+        include: {
+          variants: { where: { deletedAt: null }, orderBy: { position: "asc" } },
+          images: { orderBy: { position: "asc" } },
+          category: { select: { id: true, slug: true, name: true } },
+          tags: { include: { tag: true } },
+        },
+      });
+    } catch (err: unknown) {
+      const e = err as { code?: string };
+      if (e.code === "P2025") {
+        throw new NotFoundException({
+          error: { code: "PRODUCT_NOT_FOUND", message: `Product niet gevonden: ${id}` },
+        });
+      }
+      if (e.code === "P2002") {
+        throw new ConflictException({
+          error: { code: "PRODUCT_CONFLICT", message: "SKU of slug is al in gebruik" },
+        });
+      }
+      throw err;
+    }
+  }
+
+  async remove(id: string): Promise<void> {
+    try {
+      await this.prisma.product.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+    } catch (err: unknown) {
+      const e = err as { code?: string };
+      if (e.code === "P2025") {
+        throw new NotFoundException({
+          error: { code: "PRODUCT_NOT_FOUND", message: `Product niet gevonden: ${id}` },
+        });
+      }
+      throw err;
+    }
+  }
+
+  async addVariant(productId: string, raw: CreateVariantDto): Promise<unknown> {
+    const parsed = CreateVariantDtoSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Ongeldige variantgegevens",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const dto = parsed.data;
+
+    return this.prisma.productVariant.create({
+      data: {
+        productId,
+        sku: dto.sku,
+        name: dto.name,
+        weightGrams: dto.weightGrams,
+        priceCents: dto.priceCents,
+        currency: dto.currency,
+        stockQuantity: dto.stockQuantity,
+        lowStockAt: dto.lowStockAt,
+        position: dto.position,
+      },
+    });
+  }
+
+  async updateVariant(
+    productId: string,
+    variantId: string,
+    raw: UpdateVariantDto,
+  ): Promise<unknown> {
+    const parsed = UpdateVariantDtoSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Ongeldige variantgegevens",
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    const dto = parsed.data;
+
+    try {
+      return await this.prisma.productVariant.update({
+        where: { id: variantId, productId },
+        data: dto,
+      });
+    } catch (err: unknown) {
+      const e = err as { code?: string };
+      if (e.code === "P2025") {
+        throw new NotFoundException({
+          error: { code: "VARIANT_NOT_FOUND", message: `Variant niet gevonden: ${variantId}` },
+        });
+      }
+      throw err;
+    }
+  }
+
+  async removeVariant(productId: string, variantId: string): Promise<void> {
+    try {
+      await this.prisma.productVariant.update({
+        where: { id: variantId, productId },
+        data: { deletedAt: new Date() },
+      });
+    } catch (err: unknown) {
+      const e = err as { code?: string };
+      if (e.code === "P2025") {
+        throw new NotFoundException({
+          error: { code: "VARIANT_NOT_FOUND", message: `Variant niet gevonden: ${variantId}` },
+        });
+      }
+      throw err;
+    }
   }
 
   async findBySlug(slug: string) {

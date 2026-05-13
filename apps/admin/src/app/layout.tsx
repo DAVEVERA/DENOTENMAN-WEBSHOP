@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { AdminNav } from "../components/admin-nav";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,10 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="nl" className={inter.variable}>
       <body className="admin-layout">
         <aside className="admin-sidebar" aria-label="Navigatie">
-          {/* Sidebar-navigatie wordt in sprint 2 toegevoegd */}
-          <div className="p-4 border-b border-neutral-200">
-            <span className="text-sm font-semibold text-neutral-700">De Notenman</span>
-          </div>
+          <AdminNav />
         </aside>
         <main className="admin-main" id="main-content">
           {children}

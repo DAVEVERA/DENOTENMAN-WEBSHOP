@@ -157,4 +157,18 @@ export class OrdersService {
     await this.orderRepo.markAsRefunded(paymentIntentId, tx);
     this.logger.info({ paymentIntentId }, "Order marked as refunded");
   }
+
+  async updateStatus(id: string, status: Order["status"]): Promise<Order> {
+    const existing = await this.orderRepo.findById(id);
+
+    if (!existing) {
+      throw new NotFoundException({
+        error: { code: "ORDER_NOT_FOUND", message: "Bestelling niet gevonden" },
+      });
+    }
+
+    const updated = await this.orderRepo.updateStatus(id, status);
+    this.logger.info({ orderId: id, status }, "Order status updated");
+    return mapOrderToDto(updated);
+  }
 }
