@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, Leaf, ShoppingBag } from "lucide-react";
+import { ChevronRight, Leaf, ShoppingBag, Info, Truck } from "lucide-react";
 import { serverApiClient } from "@/lib/server-api";
 import { ProductConfigurator } from "@/components/product/ProductConfigurator";
 import { ProductUspBox } from "@/components/product/ProductUspBox";
@@ -72,27 +72,41 @@ export default async function ProductPage({ params }: Props) {
         }}
       />
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Decorative Header Background */}
+      <div className="h-48 bg-brand-primary w-full absolute top-0 left-0 -z-10 overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: `radial-gradient(var(--brand-gold) 2px, transparent 2px)`,
+            backgroundSize: "30px 30px",
+          }}
+        ></div>
+      </div>
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-20">
         {/* Breadcrumb */}
-        <nav aria-label="Kruimelpad" className="mb-8">
-          <ol className="flex items-center gap-2 text-sm text-neutral-500">
+        <nav
+          aria-label="Kruimelpad"
+          className="mb-10 backdrop-blur-md bg-white/50 w-fit px-4 py-2 rounded-full border border-brand-gold/30 shadow-sm"
+        >
+          <ol className="flex items-center gap-2 text-sm text-brand-primary/80 font-medium">
             <li>
-              <Link href="/" className="hover:text-brand-green transition-colors">
+              <Link href="/" className="hover:text-brand-gold transition-colors">
                 Home
               </Link>
             </li>
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 text-brand-gold" />
             <li>
               <Link
                 href={`/categorie/${product.category.slug}`}
-                className="hover:text-brand-green transition-colors"
+                className="hover:text-brand-gold transition-colors"
               >
                 {product.category.name}
               </Link>
             </li>
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 text-brand-gold" />
             <li
-              className="font-medium text-neutral-900 truncate max-w-[200px] md:max-w-none"
+              className="text-brand-primary font-bold truncate max-w-[200px] md:max-w-none"
               aria-current="page"
             >
               {product.name}
@@ -101,76 +115,112 @@ export default async function ProductPage({ params }: Props) {
         </nav>
 
         {/* Top Product Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-12 items-start">
-          {/* Left Column: Image (4 cols) */}
-          <div className="lg:col-span-4">
-            <div className="aspect-square overflow-hidden rounded-2xl bg-white border border-neutral-100 shadow-sm relative group">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-16 items-start">
+          {/* Left Column: Image (5 cols) */}
+          <div className="lg:col-span-5">
+            <div className="aspect-[4/5] overflow-hidden rounded-[2rem] bg-white shadow-2xl relative group border-4 border-brand-gold/20">
               {img ? (
                 <Image
                   src={img.url}
                   alt={product.name}
                   fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 40vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
                   priority
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-neutral-300">
-                  <ShoppingBag className="w-16 h-16 mb-4" />
-                  <span className="text-sm">Geen afbeelding</span>
+                <div className="flex flex-col items-center justify-center h-full text-brand-primary/30 bg-surface">
+                  <ShoppingBag className="w-20 h-20 mb-4 text-brand-gold" />
+                  <span className="text-sm font-medium">Geen afbeelding beschikbaar</span>
                 </div>
               )}
+              {/* Premium overlay gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
             </div>
           </div>
 
-          {/* Middle Column: Details & Buy (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col">
-            <div className="mb-6">
-              <h1 className="text-3xl lg:text-4xl font-bold text-neutral-900 tracking-tight leading-tight mb-3">
+          {/* Middle Column: Details & Buy (7 cols) */}
+          <div className="lg:col-span-7 flex flex-col pt-4">
+            <div className="mb-8">
+              {product.organic && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-primary px-4 py-1.5 text-xs font-bold text-brand-gold mb-6 shadow-md uppercase tracking-wider">
+                  <Leaf className="w-4 h-4" /> Biologisch
+                </span>
+              )}
+              <h1 className="text-4xl lg:text-5xl font-bold text-brand-primary tracking-tight leading-tight mb-6 drop-shadow-sm">
                 {product.name}
               </h1>
 
-              {product.organic && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-green-50 px-3 py-1 text-xs font-semibold text-brand-green-700 mb-4 border border-brand-green-100">
-                  <Leaf className="w-3.5 h-3.5" /> Biologisch
-                </span>
-              )}
-
               {product.description && (
-                <p className="text-neutral-600 leading-relaxed">{product.description}</p>
+                <p className="text-brand-primary/80 leading-relaxed text-lg font-medium border-l-4 border-brand-highlight pl-4">
+                  {product.description}
+                </p>
               )}
             </div>
 
-            <ProductConfigurator variants={product.variants} />
-          </div>
+            <div className="bg-white rounded-3xl p-8 border border-brand-gold/30 shadow-lg mb-8 relative overflow-hidden">
+              {/* Accent decoration */}
+              <div className="absolute top-0 right-0 w-24 h-24 bg-brand-gold/10 rounded-bl-full pointer-events-none"></div>
+              <ProductConfigurator variants={product.variants} />
+            </div>
 
-          {/* Right Column: USPs (3 cols) */}
-          <div className="lg:col-span-3">
-            <ProductUspBox />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-surface rounded-2xl p-5 border border-brand-primary/10 flex items-center gap-4">
+                <div className="bg-brand-primary text-brand-gold p-3 rounded-xl">
+                  <Truck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-brand-primary">Gratis Verzending</h4>
+                  <p className="text-sm text-brand-primary/70">Vanaf €40 in NL</p>
+                </div>
+              </div>
+              <div className="bg-surface rounded-2xl p-5 border border-brand-primary/10 flex items-center gap-4">
+                <div className="bg-brand-gold text-brand-primary p-3 rounded-xl">
+                  <Info className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-brand-primary">Direct Vers</h4>
+                  <p className="text-sm text-brand-primary/70">Op bestelling verpakt</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Product Details Section (Tabs/Grid) */}
-        <div className="mt-16 grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-12">
+        <div className="mt-20 grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-12">
           {/* Omschrijving */}
-          <div className="lg:col-span-7 bg-white rounded-3xl p-8 lg:p-10 border border-neutral-100 shadow-sm">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-6 font-serif">Omschrijving</h2>
-            <div className="prose prose-neutral max-w-none text-neutral-600">
-              <h3 className="text-lg font-bold text-neutral-900 mb-2">{product.name}</h3>
-              <p className="mb-4">{product.description}</p>
+          <div className="lg:col-span-7 bg-white rounded-[2rem] p-8 lg:p-12 border border-brand-gold/20 shadow-xl relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 opacity-5">
+              <Image
+                src="/Logo/Denotenmascotte.png"
+                width={200}
+                height={200}
+                alt="decoratief"
+                className="object-contain"
+              />
+            </div>
+            <h2 className="text-3xl font-bold text-brand-primary mb-8 border-b-2 border-brand-highlight/50 pb-4 inline-block">
+              Productinformatie
+            </h2>
+            <div className="prose prose-lg prose-brand max-w-none text-brand-primary/80">
+              <p className="mb-6 leading-relaxed">{product.description}</p>
 
               {product.tasteNotes && (
-                <>
-                  <p className="font-semibold text-neutral-900 mt-6 mb-1">Smaakprofiel</p>
-                  <p>{product.tasteNotes}</p>
-                </>
+                <div className="bg-surface p-6 rounded-2xl border border-brand-primary/10 mb-8">
+                  <h3 className="text-xl font-bold text-brand-primary mb-2 flex items-center gap-2">
+                    <Leaf className="w-5 h-5 text-brand-highlight" /> Smaakprofiel
+                  </h3>
+                  <p className="m-0 italic">{product.tasteNotes}</p>
+                </div>
               )}
 
-              <p className="mt-6">
+              <p className="leading-relaxed">
                 Ideaal om zo te eten, door je ontbijt te mengen of om te gebruiken in baksels en
-                salades. Onze noten zijn vers gebrand of gewoon 100% puur natuur.
+                salades. Onze producten worden met liefde geselecteerd en verpakt, zodat jij geniet
+                van de pure ambachtelijke kwaliteit die we al jaren bieden.
               </p>
-              <p className="mt-4 font-medium text-brand-green-700">
+              <p className="mt-6 font-bold text-brand-primary text-xl">
                 Voor wie houdt van pure eenvoud en rijke smaak.
               </p>
             </div>
@@ -178,50 +228,56 @@ export default async function ProductPage({ params }: Props) {
 
           {/* Specs & Extra Info */}
           <div className="lg:col-span-5 flex flex-col gap-8">
-            <div className="bg-white rounded-3xl p-8 lg:p-10 border border-neutral-100 shadow-sm">
-              <h2 className="text-xl font-bold text-neutral-900 mb-6">Extra informatie</h2>
-              <div className="divide-y divide-neutral-100 text-sm">
-                <div className="py-3 flex">
-                  <span className="text-neutral-500 w-1/3 shrink-0">SKU</span>
-                  <span className="font-medium text-neutral-900">{product.sku}</span>
+            <div className="bg-brand-primary text-white rounded-[2rem] p-8 lg:p-12 shadow-xl border border-brand-gold/40 relative overflow-hidden">
+              <div
+                className="absolute inset-0 opacity-10"
+                style={{
+                  backgroundImage: `url('/Branding/Lookenfeel.png')`,
+                  backgroundSize: "cover",
+                }}
+              ></div>
+              <h2 className="text-2xl font-bold text-brand-gold mb-8 relative z-10">
+                Specificaties
+              </h2>
+              <div className="divide-y divide-brand-gold/20 text-base relative z-10">
+                <div className="py-4 flex justify-between items-center">
+                  <span className="text-brand-gold/80">SKU</span>
+                  <span className="font-bold">{product.sku}</span>
                 </div>
-                <div className="py-3 flex">
-                  <span className="text-neutral-500 w-1/3 shrink-0">Merk</span>
-                  <span className="font-medium text-brand-green-700">DeNotenman</span>
+                <div className="py-4 flex justify-between items-center">
+                  <span className="text-brand-gold/80">Merk</span>
+                  <span className="font-bold text-brand-highlight">DeNotenman</span>
                 </div>
                 {product.origin && (
-                  <div className="py-3 flex">
-                    <span className="text-neutral-500 w-1/3 shrink-0">Herkomst</span>
-                    <span className="font-medium text-neutral-900">{product.origin}</span>
+                  <div className="py-4 flex justify-between items-center">
+                    <span className="text-brand-gold/80">Herkomst</span>
+                    <span className="font-bold">{product.origin}</span>
                   </div>
                 )}
                 {product.allergens.length > 0 && (
-                  <div className="py-3 flex">
-                    <span className="text-neutral-500 w-1/3 shrink-0">Allergenen</span>
-                    <span className="font-medium text-neutral-900 leading-snug">
+                  <div className="py-4 flex flex-col gap-2">
+                    <span className="text-brand-gold/80">Allergenen</span>
+                    <span className="font-medium text-surface/90 leading-snug">
                       Kan sporen bevatten van: gluten, pinda, amandel, hazelnoot, walnoot,
                       cashewnoot, pecannoot, paranoot, pistachenoot en macadamianoot.
                       <br />
                       <br />
-                      <strong className="font-bold">Bevat:</strong> {product.allergens.join(", ")}
+                      <strong className="text-brand-gold">Bevat:</strong>{" "}
+                      {product.allergens.join(", ")}
                     </span>
                   </div>
                 )}
-                {product.storageInfo ? (
-                  <div className="py-3 flex border-b-0">
-                    <span className="text-neutral-500 w-1/3 shrink-0">Bewaaradvies</span>
-                    <span className="font-medium text-neutral-900">{product.storageInfo}</span>
-                  </div>
-                ) : (
-                  <div className="py-3 flex border-b-0">
-                    <span className="text-neutral-500 w-1/3 shrink-0">Bewaaradvies</span>
-                    <span className="font-medium text-neutral-900">
-                      Koel, droog en donker bewaren.
-                    </span>
-                  </div>
-                )}
+                <div className="py-4 flex flex-col gap-2 border-b-0">
+                  <span className="text-brand-gold/80">Bewaaradvies</span>
+                  <span className="font-medium text-surface/90">
+                    {product.storageInfo ??
+                      "Koel, droog en donker bewaren. Na openen beperkt houdbaar."}
+                  </span>
+                </div>
               </div>
             </div>
+
+            <ProductUspBox />
           </div>
         </div>
       </div>

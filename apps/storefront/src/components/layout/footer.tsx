@@ -9,7 +9,7 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 text-lg font-bold text-white">
-              <Leaf className="h-5 w-5 text-brand-green-400" />
+              <Leaf className="h-5 w-5 text-brand-primary-400" />
               DeNotenman
             </div>
             <p className="mt-3 text-sm leading-relaxed text-neutral-400">
@@ -27,7 +27,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/categorie/noten"
-                  className="transition-colors hover:text-brand-green-400"
+                  className="transition-colors hover:text-brand-primary-400"
                 >
                   Noten
                 </Link>
@@ -35,7 +35,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/categorie/gedroogd-fruit"
-                  className="transition-colors hover:text-brand-green-400"
+                  className="transition-colors hover:text-brand-primary-400"
                 >
                   Zuidvruchten
                 </Link>
@@ -43,7 +43,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/categorie/pitten-en-zaden"
-                  className="transition-colors hover:text-brand-green-400"
+                  className="transition-colors hover:text-brand-primary-400"
                 >
                   Pitten &amp; Zaden
                 </Link>
@@ -51,7 +51,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/categorie/snacks"
-                  className="transition-colors hover:text-brand-green-400"
+                  className="transition-colors hover:text-brand-primary-400"
                 >
                   Snacks
                 </Link>
@@ -66,25 +66,25 @@ export function Footer() {
             </h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/over-ons" className="transition-colors hover:text-brand-green-400">
+                <Link href="/over-ons" className="transition-colors hover:text-brand-primary-400">
                   Over ons
                 </Link>
               </li>
               <li>
-                <Link href="/verzending" className="transition-colors hover:text-brand-green-400">
+                <Link href="/verzending" className="transition-colors hover:text-brand-primary-400">
                   Verzending
                 </Link>
               </li>
               <li>
                 <Link
                   href="/algemene-voorwaarden"
-                  className="transition-colors hover:text-brand-green-400"
+                  className="transition-colors hover:text-brand-primary-400"
                 >
                   Algemene voorwaarden
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="transition-colors hover:text-brand-green-400">
+                <Link href="/privacy" className="transition-colors hover:text-brand-primary-400">
                   Privacybeleid
                 </Link>
               </li>
@@ -101,7 +101,7 @@ export function Footer() {
                 <Mail className="h-4 w-4 shrink-0 text-neutral-500" />
                 <a
                   href="mailto:info@denotenman.nl"
-                  className="transition-colors hover:text-brand-green-400"
+                  className="transition-colors hover:text-brand-primary-400"
                 >
                   info@denotenman.nl
                 </a>

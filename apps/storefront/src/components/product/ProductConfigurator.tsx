@@ -63,8 +63,8 @@ export function ProductConfigurator({ variants }: Props) {
               className={cn(
                 "w-full flex items-center justify-between p-4 rounded-xl border-2 text-left transition-all",
                 isSelected
-                  ? "border-brand-green bg-brand-green-50/50"
-                  : "border-neutral-200 bg-white hover:border-brand-green-200",
+                  ? "border-brand-primary bg-brand-primary-50/50"
+                  : "border-neutral-200 bg-white hover:border-brand-primary-200",
                 isOutOfStock && "opacity-50 cursor-not-allowed grayscale",
               )}
             >
@@ -96,8 +96,10 @@ export function ProductConfigurator({ variants }: Props) {
                     <span className="text-xs font-medium text-danger">Uitverkocht</span>
                   ) : (
                     <>
-                      <div className="w-1.5 h-1.5 rounded-full bg-brand-green" />
-                      <span className="text-xs font-medium text-brand-green-700">Op voorraad</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-brand-primary" />
+                      <span className="text-xs font-medium text-brand-primary-700">
+                        Op voorraad
+                      </span>
                     </>
                   )}
                 </div>
@@ -127,7 +129,7 @@ export function ProductConfigurator({ variants }: Props) {
           </button>
         </div>
 
-        <button className="flex-1 w-full bg-brand-green text-white h-14 rounded-xl font-bold shadow-sm shadow-brand-green/20 hover:bg-brand-green-600 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 group">
+        <button className="flex-1 w-full bg-brand-primary text-white h-14 rounded-xl font-bold shadow-sm shadow-brand-primary/20 hover:bg-brand-primary-600 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 group">
           <ShoppingBag className="w-5 h-5 group-hover:scale-110 transition-transform" />
           Bestellen
         </button>

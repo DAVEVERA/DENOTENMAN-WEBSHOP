@@ -15,39 +15,46 @@ export function Header() {
           {/* Logo */}
           <Link href="/" aria-label="De Notenman - naar startpagina" className="flex items-center">
             <Image
-              src="/logo.png"
+              src="/Logo/DeNotenmanH1Logo.png"
               alt="De Notenman"
               width={120}
               height={48}
               className="h-12 w-auto object-contain"
+              style={{ width: "auto", height: "auto" }}
               priority
             />
           </Link>
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-neutral-700">
-            <Link href="/categorie/noten" className="transition-colors hover:text-brand-green-600">
+            <Link
+              href="/categorie/noten"
+              className="transition-colors hover:text-brand-primary-600"
+            >
               Noten
             </Link>
             <Link
               href="/categorie/gedroogd-fruit"
-              className="transition-colors hover:text-brand-green-600"
+              className="transition-colors hover:text-brand-primary-600"
             >
               Zuidvruchten
             </Link>
             <Link
               href="/categorie/pitten-en-zaden"
-              className="transition-colors hover:text-brand-green-600"
+              className="transition-colors hover:text-brand-primary-600"
             >
               Pitten &amp; Zaden
             </Link>
             <Link
               href="/categorie/natuurvoeding"
-              className="transition-colors hover:text-brand-green-600"
+              className="transition-colors hover:text-brand-primary-600"
             >
               Natuurvoeding
             </Link>
-            <Link href="/categorie/snacks" className="transition-colors hover:text-brand-green-600">
+            <Link
+              href="/categorie/snacks"
+              className="transition-colors hover:text-brand-primary-600"
+            >
               Snacks
             </Link>
           </nav>
@@ -56,25 +63,25 @@ export function Header() {
           <div className="flex items-center gap-3">
             <Link
               href="/zoeken"
-              className="rounded-full p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-brand-green-600"
+              className="rounded-full p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-brand-primary-600"
               aria-label="Zoeken"
             >
               <Search className="h-5 w-5" />
             </Link>
             <Link
               href="/account/login"
-              className="hidden sm:flex rounded-full p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-brand-green-600"
+              className="hidden sm:flex rounded-full p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-brand-primary-600"
               aria-label="Account"
             >
               <User className="h-5 w-5" />
             </Link>
             <Link
               href="/winkelwagen"
-              className="relative rounded-full p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-brand-green-600"
+              className="relative rounded-full p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-brand-primary-600"
               aria-label="Winkelwagen"
             >
               <ShoppingBag className="h-5 w-5" />
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-green text-[10px] font-bold text-white">
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-primary text-[10px] font-bold text-white">
                 0
               </span>
             </Link>
@@ -111,7 +118,7 @@ export function Header() {
                     onClick={() => {
                       setMobileOpen(false);
                     }}
-                    className="block rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-brand-green-50 hover:text-brand-green-700"
+                    className="block rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-brand-primary-50 hover:text-brand-primary-700"
                   >
                     {item.label}
                   </Link>

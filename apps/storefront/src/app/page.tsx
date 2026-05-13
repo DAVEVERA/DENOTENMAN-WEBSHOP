@@ -3,6 +3,7 @@ import { ArrowRight, Truck, ShieldCheck, Leaf } from "lucide-react";
 import { ProductCard } from "@/components/product/product-card";
 import { serverApiClient } from "@/lib/server-api";
 import type { Product, CategoryTree } from "@denotenman/schemas";
+import Image from "next/image";
 
 export const revalidate = 60;
 
@@ -21,44 +22,59 @@ export default async function HomePage() {
     // API may not be running yet during first dev setup
   }
 
-  // Alleen categorieën met producten tonen
   const activeCategories = categories.filter((c) => c.productCount > 0);
-
-  // Producten met afbeelding filteren
   const visibleProducts = featuredProducts.filter((p) => p.images.length > 0);
 
   void total;
 
   return (
     <>
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-green-700 via-brand-green-600 to-brand-green-800">
-        <div className="container-shop relative py-20 sm:py-28 lg:py-36">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-brand-primary">
+        <div className="absolute inset-0">
+          <Image
+            src="/Hero/hero2.png"
+            alt="De Notenman assortiment"
+            fill
+            className="object-cover object-center opacity-40 mix-blend-overlay"
+            priority
+          />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-primary to-transparent opacity-80" />
+
+        <div className="container-shop relative py-24 sm:py-32 lg:py-40 z-10">
+          <div className="max-w-3xl flex flex-col items-start">
+            <Image
+              src="/Logo/DeNotenmanH1Logo.png"
+              alt="De Notenman Logo"
+              width={250}
+              height={80}
+              className="mb-8 invert drop-shadow-md object-contain"
+              style={{ width: "auto", height: "auto" }}
+            />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-gold/50 bg-brand-primary/50 px-4 py-1.5 text-xs font-semibold text-brand-gold backdrop-blur-md">
               <Leaf className="h-3.5 w-3.5" />
               Puur &amp; natuurlijk
             </span>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Premium noten
-              <br />
-              &amp; zuidvruchten
+            <h1 className="mt-6 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-7xl drop-shadow-lg">
+              Premium noten <br />
+              <span className="text-brand-gold">&amp; zuidvruchten</span>
             </h1>
-            <p className="mt-4 text-lg leading-relaxed text-white/80 sm:text-xl">
+            <p className="mt-6 text-lg leading-relaxed text-surface/90 sm:text-xl drop-shadow max-w-2xl">
               Vers verpakt, eerlijke herkomst, zonder onnodige toevoegingen. Direct bij je thuis
-              bezorgd.
+              bezorgd met de kwaliteit van de markt.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-10 flex flex-wrap gap-4">
               <Link
                 href="/categorie/noten"
-                className="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-brand-green-700 shadow-lg transition-all hover:bg-brand-green-50 hover:shadow-xl"
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-gold px-8 py-4 text-base font-bold text-brand-primary shadow-xl shadow-brand-primary/20 transition-all hover:bg-white hover:scale-105"
               >
                 Bekijk assortiment
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-5 w-5" />
               </Link>
               <Link
                 href="/over-ons"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-lg border-2 border-brand-gold px-8 py-4 text-base font-bold text-brand-gold backdrop-blur-sm transition-all hover:bg-brand-gold hover:text-brand-primary"
               >
                 Over ons
               </Link>
@@ -68,9 +84,9 @@ export default async function HomePage() {
       </section>
 
       {/* Trust bar */}
-      <section className="border-b border-neutral-200 bg-white py-6">
+      <section className="border-b border-brand-gold/20 bg-surface py-8">
         <div className="container-shop">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             {[
               {
                 icon: Truck,
@@ -84,17 +100,17 @@ export default async function HomePage() {
               },
               {
                 icon: Leaf,
-                title: "Zonder onnodige toevoegingen",
+                title: "Zonder toevoegingen",
                 desc: "Puur natuur, niets meer",
               },
             ].map((item) => (
-              <div key={item.title} className="flex items-center gap-3 text-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-green-50 text-brand-green-600">
-                  <item.icon className="h-5 w-5" />
+              <div key={item.title} className="flex items-center gap-4 text-sm group">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-primary text-brand-gold shadow-md transition-transform group-hover:scale-110">
+                  <item.icon className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="font-semibold text-neutral-900">{item.title}</p>
-                  <p className="text-neutral-500">{item.desc}</p>
+                  <p className="font-bold text-brand-primary text-base">{item.title}</p>
+                  <p className="text-brand-primary/70">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -102,60 +118,77 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Bowl product gallery — like the reference image */}
+      {/* Bowl product gallery */}
       {visibleProducts.length > 0 && (
-        <section className="py-16 bg-white">
-          <div className="container-shop">
-            <div className="flex items-end justify-between mb-10">
+        <section className="py-20 bg-white relative">
+          <div className="container-shop relative z-10">
+            <div className="flex items-end justify-between mb-12">
               <div>
-                <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Ons assortiment</h2>
-                <p className="mt-1 text-neutral-500 text-sm">Vers verpakt, elke dag</p>
+                <h2 className="text-3xl font-bold text-brand-primary sm:text-4xl relative inline-block">
+                  Ons assortiment
+                  <div className="absolute -bottom-2 left-0 h-1 w-1/3 bg-brand-highlight rounded-full"></div>
+                </h2>
+                <p className="mt-4 text-brand-primary/60 text-lg">Vers verpakt, elke dag</p>
               </div>
               <Link
                 href="/categorie/noten"
-                className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-brand-green-600 transition-colors hover:text-brand-green-700"
+                className="hidden sm:inline-flex items-center gap-2 text-base font-bold text-brand-gold hover:text-brand-highlight transition-colors"
               >
                 Alles bekijken
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
 
-            {/* Bowl grid — matches reference: circles side by side */}
-            <div className="grid grid-cols-3 gap-x-4 gap-y-8 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {visibleProducts.map((product) => (
                 <ProductCard key={product.id} {...product} />
               ))}
             </div>
 
-            <div className="mt-10 text-center sm:hidden">
+            <div className="mt-12 text-center sm:hidden">
               <Link
                 href="/categorie/noten"
-                className="inline-flex items-center gap-2 rounded-lg border border-brand-green-200 px-5 py-2.5 text-sm font-semibold text-brand-green-700 hover:bg-brand-green-50 transition-colors"
+                className="inline-flex items-center gap-2 rounded-xl border-2 border-brand-gold px-8 py-3.5 text-base font-bold text-brand-primary hover:bg-brand-gold transition-colors"
               >
-                Alles bekijken <ArrowRight className="h-4 w-4" />
+                Alles bekijken <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
           </div>
         </section>
       )}
 
-      {/* Categories — alleen tonen als er producten in zitten */}
+      {/* Categories */}
       {activeCategories.length > 0 && (
-        <section className="py-16 bg-neutral-50">
-          <div className="container-shop">
-            <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Categorieën</h2>
-            <p className="mt-2 text-neutral-500">Ontdek ons uitgebreide assortiment</p>
-            <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <section className="py-20 bg-surface relative overflow-hidden">
+          {/* Subtle Background Pattern */}
+          <div
+            className="absolute inset-0 opacity-5"
+            style={{
+              backgroundImage: `radial-gradient(var(--brand-pattern) 2px, transparent 2px)`,
+              backgroundSize: "30px 30px",
+            }}
+          ></div>
+
+          <div className="container-shop relative z-10">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-brand-primary sm:text-4xl">Categorieën</h2>
+              <p className="mt-4 text-brand-primary/70 text-lg">
+                Ontdek ons uitgebreide assortiment
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
               {activeCategories.map((cat) => (
                 <Link
                   key={cat.id}
                   href={`/categorie/${cat.slug}`}
-                  className="group rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-brand-green-200 hover:-translate-y-0.5"
+                  className="group relative flex flex-col items-center justify-center overflow-hidden rounded-2xl bg-white p-8 text-center shadow-md transition-all hover:-translate-y-1 hover:shadow-xl border border-brand-gold/20"
                 >
-                  <h3 className="font-semibold text-neutral-900 group-hover:text-brand-green-700 transition-colors">
+                  <div className="absolute inset-0 bg-brand-primary opacity-0 transition-opacity group-hover:opacity-5"></div>
+                  <h3 className="relative z-10 text-xl font-bold text-brand-primary transition-colors">
                     {cat.name}
                   </h3>
-                  <p className="mt-1 text-xs text-neutral-500">
+                  <p className="relative z-10 mt-2 text-sm font-medium text-brand-gold">
                     {cat.productCount} product{cat.productCount !== 1 ? "en" : ""}
                   </p>
                 </Link>
@@ -166,16 +199,35 @@ export default async function HomePage() {
       )}
 
       {/* CTA */}
-      <section className="py-16">
-        <div className="container-shop">
-          <div className="rounded-2xl bg-brand-earth-50 p-8 text-center sm:p-12">
-            <h2 className="text-2xl font-bold text-brand-earth-800 sm:text-3xl">Heb je vragen?</h2>
-            <p className="mx-auto mt-3 max-w-lg text-brand-earth-600">
-              Wij helpen je graag bij het kiezen van de juiste producten. Neem gerust contact op.
+      <section className="py-24 bg-brand-primary relative overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `url('/Branding/Lookenfeel.png')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        ></div>
+
+        <div className="container-shop relative z-10">
+          <div className="mx-auto max-w-3xl rounded-3xl border border-brand-gold/30 bg-brand-primary/80 p-10 text-center backdrop-blur-md sm:p-16 shadow-2xl">
+            <Image
+              src="/Logo/Denotenmascotte.png"
+              alt="Mascotte"
+              width={100}
+              height={100}
+              className="mx-auto mb-6 object-contain drop-shadow-md"
+            />
+            <h2 className="text-3xl font-bold text-brand-gold sm:text-4xl">
+              Heb je vragen of specifieke wensen?
+            </h2>
+            <p className="mx-auto mt-6 max-w-xl text-lg text-surface/90">
+              Wij helpen je graag bij het kiezen van de juiste producten voor jouw behoeften. Neem
+              gerust contact met ons op voor advies op maat.
             </p>
             <Link
               href="mailto:info@denotenman.nl"
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-earth px-6 py-3 text-sm font-semibold text-white shadow transition-all hover:bg-brand-earth-600 hover:shadow-md"
+              className="mt-10 inline-flex items-center gap-2 rounded-xl bg-brand-highlight px-8 py-4 text-lg font-bold text-brand-primary shadow-lg transition-all hover:bg-white hover:scale-105"
             >
               Neem contact op
             </Link>
