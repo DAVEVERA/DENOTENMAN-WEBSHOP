@@ -1,8 +1,11 @@
+const path = require("path");
 const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../.."),
   // ADR 0011: generate source maps for Sentry upload but do not serve them publicly.
   // Combined with sourcemaps.deleteSourcemapsAfterUpload, no maps remain in deploy.
   productionBrowserSourceMaps: false,
@@ -31,7 +34,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/v1/:path*`,
+        destination: `${process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/v1/:path*`,
       },
     ];
   },
