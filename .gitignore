@@ -8,8 +8,9 @@ build
 out
 .turbo
 
-# Env
+# Env — nooit secrets in git
 .env
+.env.prod
 .env.local
 .env.*.local
 

@@ -108,11 +108,32 @@ services:
         API_INTERNAL_URL: http://api:3001
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN}
         SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN}
+        SENTRY_ORG: ${SENTRY_ORG}
+        SENTRY_PROJECT_STOREFRONT: ${SENTRY_PROJECT_STOREFRONT}
     restart: unless-stopped
     environment:
       NODE_ENV: production
       API_URL: http://api:3001
       NEXT_PUBLIC_API_URL: /api
+    depends_on:
+      - api
+    networks:
+      - internal
+      - public
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+      args:
+        NEXT_PUBLIC_API_URL: https://api.denotenman.com
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN}
+        SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN}
+        SENTRY_ORG: ${SENTRY_ORG}
+        SENTRY_PROJECT_ADMIN: ${SENTRY_PROJECT_ADMIN}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
     depends_on:
       - api
     networks:

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Eerste keer SSL-certificaten aanvragen bij Let's Encrypt.
-# Éénmalig uitvoeren nadat DNS van denotenman.com naar dit server-IP wijst.
+# Éénmalig uitvoeren nadat DNS van alle subdomeinen naar dit server-IP wijst.
 # Gebruik: ./scripts/init-ssl.sh
 
 set -e
@@ -16,7 +16,7 @@ docker run -d --name nginx-bootstrap \
   -v certbot_www:/var/www/certbot \
   nginx:alpine
 
-echo "Stap 2: Certificaat aanvragen voor $DOMAIN..."
+echo "Stap 2: Certificaat aanvragen voor $DOMAIN en subdomeinen..."
 docker run --rm \
   -v certbot_certs:/etc/letsencrypt \
   -v certbot_www:/var/www/certbot \
@@ -28,7 +28,8 @@ docker run --rm \
   --no-eff-email \
   -d "$DOMAIN" \
   -d "www.$DOMAIN" \
-  -d "api.$DOMAIN"
+  -d "api.$DOMAIN" \
+  -d "admin.$DOMAIN"
 
 echo "Stap 3: Tijdelijke nginx stoppen..."
 docker stop nginx-bootstrap && docker rm nginx-bootstrap
@@ -38,4 +39,6 @@ $COMPOSE up -d
 
 echo ""
 echo "Klaar! De webshop draait op https://$DOMAIN"
+echo "Admin panel: https://admin.$DOMAIN"
+echo "API: https://api.$DOMAIN"
 echo "Certificaten worden elke 12 uur automatisch verlengd."

@@ -1,0 +1,39 @@
+# VCS
+.git
+.gitignore
+
+# Dependencies — worden opnieuw geïnstalleerd inside Docker
+node_modules
+**/node_modules
+
+# Build output — wordt opnieuw gemaakt inside Docker
+**/dist
+**/.next
+**/.turbo
+**/coverage
+
+# Omgevingsbestanden — nooit in de Docker context
+.env
+.env.prod
+.env.local
+.env.*.local
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tijdelijke bestanden
+temp.json
+products.json
+ontbrekende-afbeeldingen.csv
+scripts/download-wp-images.js

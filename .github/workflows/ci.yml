@@ -73,61 +73,32 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build
-        run: pnpm build
+      - name: Build packages
+        run: pnpm --filter @denotenman/schemas build && pnpm --filter @denotenman/utils build
 
-      - name: Install Playwright
-        run: pnpm --filter @denotenman/e2e exec playwright install --with-deps chromium
-        if: success()
+      - name: Build API
+        run: pnpm --filter @denotenman/api build
 
-      - name: Build storefront
-        run: pnpm --filter @denotenman/storefront build
-        if: success()
-
-      - name: Start storefront
-        run: pnpm --filter @denotenman/storefront start &
-        if: success()
-        env:
-          PORT: 3000
-          API_URL: http://localhost:3001
-
-      - name: Wait for storefront
-        run: until curl -sf http://localhost:3000; do sleep 2; done
-        timeout-minutes: 2
-        if: success()
-
-      - name: Run E2E Tests
-        run: pnpm --filter @denotenman/e2e test:e2e
-        if: success()
-        env:
-          E2E_SKIP_WEBSERVER: "1"
-          E2E_BASE_URL: http://localhost:3000
-
-  deploy-preview:
-    name: Preview Deploy
+  deploy:
+    name: Deploy naar Hetzner VPS
     needs: quality
-    if: github.event_name == 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to Vercel (Preview)
-        run: npx vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }} && npx vercel build --token=${{ secrets.VERCEL_TOKEN }} && npx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-  deploy-prod:
-    name: Production Deploy
-    needs: quality
-    if: startsWith(github.ref, 'refs/tags/v')
     environment:
       name: production
       url: https://denotenman.com
-    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to Vercel (Production)
-        run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} && npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }} && npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/denotenman
+            git pull origin main
+            DOCKER_BUILDKIT=1 docker compose -f docker-compose.prod.yml --env-file .env.prod build
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+            docker compose -f docker-compose.prod.yml --env-file .env.prod ps

@@ -1,0 +1,22 @@
+FROM node:20-alpine
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && apk add --no-cache openssl
+
+WORKDIR /app
+COPY . .
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+RUN pnpm --filter @denotenman/prisma generate && \
+    pnpm --filter @denotenman/schemas build && \
+    pnpm --filter @denotenman/utils build && \
+    pnpm --filter @denotenman/worker build
+
+RUN touch .env
+
+ENV NODE_ENV=production
+EXPOSE 3002
+
+CMD ["node", "apps/worker/dist/main.js"]
