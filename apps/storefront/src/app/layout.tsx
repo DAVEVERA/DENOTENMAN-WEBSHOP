@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { ReplayRouteGuard } from "@/components/sentry/replay-route-guard";
+import { CartProvider } from "@/lib/cart-context";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
   },
   description:
     "Premium noten, zuidvruchten, pitten, zaden en honing. Vers verpakt, eerlijke herkomst, zonder onnodige toevoegingen.",
-  metadataBase: new URL("https://denotenman.nl"),
+  metadataBase: new URL("https://denotenman.com"),
   openGraph: {
     type: "website",
     locale: "nl_NL",
@@ -36,9 +37,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-screen flex-col">
         {/* Stops replay on /checkout and /account — see ADR 0011 */}
         <ReplayRouteGuard />
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
+        <CartProvider>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </CartProvider>
       </body>
     </html>
   );

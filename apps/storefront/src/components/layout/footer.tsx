@@ -100,10 +100,10 @@ export function Footer() {
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 shrink-0 text-neutral-500" />
                 <a
-                  href="mailto:info@denotenman.nl"
+                  href="mailto:info@denotenman.com"
                   className="transition-colors hover:text-brand-primary-400"
                 >
-                  info@denotenman.nl
+                  info@denotenman.com
                 </a>
               </li>
               <li className="flex items-center gap-2">

@@ -32,8 +32,8 @@ All jobs must pass. No "continue-on-error". No skipping.
 
 ## Deploy targets
 
-- **Storefront** → Vercel project `denotenman-storefront`, domain `denotenman.nl`.
-- **Admin** → Vercel project `denotenman-admin`, domain `admin.denotenman.nl`, protected by edge middleware that requires auth cookie.
+- **Storefront** → Vercel project `denotenman-storefront`, domain `denotenman.com`.
+- **Admin** → Vercel project `denotenman-admin`, domain `admin.denotenman.com`, protected by edge middleware that requires auth cookie.
 - **API + Worker** → Fly.io app `denotenman-api`, two processes sharing one image. Region: `ams`. Min machines: 1 each. Autoscale on CPU > 70%.
 - **Postgres** → Neon, region `eu-central-1`, branches for preview.
 - **Redis** → Upstash, region Frankfurt.

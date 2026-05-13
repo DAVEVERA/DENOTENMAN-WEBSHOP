@@ -37,7 +37,7 @@ function makeEvent(overrides: Partial<ErrorEvent> = {}): ErrorEvent {
     },
     user: {
       id: "user-42",
-      email: "jan@denotenman.nl",
+      email: "jan@denotenman.com",
       ip_address: "192.168.1.1",
     },
     ...overrides,
@@ -107,7 +107,7 @@ describe("beforeSend", () => {
     const event = makeEvent({
       request: {
         url: "/v1/auth/login",
-        data: { email: "jan@denotenman.nl", password: "supersecret" },
+        data: { email: "jan@denotenman.com", password: "supersecret" },
         headers: {},
         query_string: "",
       },

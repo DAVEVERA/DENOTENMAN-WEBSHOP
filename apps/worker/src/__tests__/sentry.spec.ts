@@ -37,7 +37,7 @@ function makeEvent(overrides: Partial<ErrorEvent> = {}): ErrorEvent {
     },
     user: {
       id: "worker-user-1",
-      email: "jan@denotenman.nl",
+      email: "jan@denotenman.com",
       ip_address: "10.0.0.1",
     },
     ...overrides,

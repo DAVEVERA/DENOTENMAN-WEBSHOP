@@ -49,7 +49,7 @@ describe("createEnv — API schema", () => {
       createEnv({
         ...BASE,
         NODE_ENV: "production",
-        ADMIN_URL: "https://admin.denotenman.nl",
+        ADMIN_URL: "https://admin.denotenman.com",
         STRIPE_SECRET_KEY: "sk_live_test",
         STRIPE_WEBHOOK_SECRET: "whsec_live_test",
       }),
@@ -68,8 +68,8 @@ describe("createEnv — API schema", () => {
       createEnv({
         ...BASE,
         NODE_ENV: "production",
-        STOREFRONT_URL: "https://denotenman.nl",
-        ADMIN_URL: "https://admin.denotenman.nl",
+        STOREFRONT_URL: "https://denotenman.com",
+        ADMIN_URL: "https://admin.denotenman.com",
         // STRIPE_SECRET_KEY intentionally absent
       }),
     ).toThrow("Environment validation failed");

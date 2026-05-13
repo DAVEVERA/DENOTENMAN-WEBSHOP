@@ -112,7 +112,7 @@ export default function VerzendingPage() {
               </p>
               <p className="text-brand-primary/80 leading-relaxed mt-4">
                 De retourkosten zijn in dit geval voor eigen rekening. Neem altijd eerst contact op
-                met onze klantenservice (info@denotenman.nl) voordat je een product retour stuurt,
+                met onze klantenservice (info@denotenman.com) voordat je een product retour stuurt,
                 zodat we je de juiste instructies kunnen geven.
               </p>
             </section>

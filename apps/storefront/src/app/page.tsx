@@ -226,7 +226,7 @@ export default async function HomePage() {
               gerust contact met ons op voor advies op maat.
             </p>
             <Link
-              href="mailto:info@denotenman.nl"
+              href="mailto:info@denotenman.com"
               className="mt-10 inline-flex items-center gap-2 rounded-xl bg-brand-highlight px-8 py-4 text-lg font-bold text-brand-primary shadow-lg transition-all hover:bg-white hover:scale-105"
             >
               Neem contact op

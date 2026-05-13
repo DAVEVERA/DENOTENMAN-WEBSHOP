@@ -495,8 +495,8 @@ async function seedUsers(): Promise<void> {
     return;
   }
 
-  const ownerEmail = process.env.SEED_OWNER_EMAIL ?? "owner@denotenman.nl";
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@denotenman.nl";
+  const ownerEmail = process.env.SEED_OWNER_EMAIL ?? "owner@denotenman.com";
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@denotenman.com";
 
   await prisma.user.upsert({
     where: { email: ownerEmail },

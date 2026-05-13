@@ -122,7 +122,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     environment:
       name: production
-      url: https://denotenman.nl
+      url: https://denotenman.com
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

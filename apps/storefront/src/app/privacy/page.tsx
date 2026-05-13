@@ -65,7 +65,7 @@ export default function PrivacyPage() {
             Je hebt het recht om je persoonsgegevens in te zien, te corrigeren of te verwijderen.
             Daarnaast heb je het recht om je eventuele toestemming voor de gegevensverwerking in te
             trekken of bezwaar te maken tegen de verwerking van jouw persoonsgegevens. Neem hiervoor
-            contact met ons op via info@denotenman.nl.
+            contact met ons op via info@denotenman.com.
           </p>
         </div>
 

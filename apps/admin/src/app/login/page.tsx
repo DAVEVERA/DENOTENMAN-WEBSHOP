@@ -16,7 +16,7 @@ export default function LoginPage() {
               type="email"
               autoComplete="email"
               className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-brand-green-500 focus:outline-none focus:ring-2 focus:ring-brand-green-500/20"
-              placeholder="naam@denotenman.nl"
+              placeholder="naam@denotenman.com"
               disabled
             />
           </div>
