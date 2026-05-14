@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AdminNav } from "../components/admin-nav";
+import { AdminShell } from "../components/admin-shell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,12 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="nl" className={inter.variable}>
       <body className="admin-layout">
-        <aside className="admin-sidebar" aria-label="Navigatie">
-          <AdminNav />
-        </aside>
-        <main className="admin-main" id="main-content">
-          {children}
-        </main>
+        <AdminShell>{children}</AdminShell>
       </body>
     </html>
   );

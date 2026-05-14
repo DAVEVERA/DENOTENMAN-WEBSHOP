@@ -99,15 +99,16 @@ export default function BestellingDetailPage({ params }: BestellingDetailPagePro
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-6">
+      <div className="mb-5 sm:mb-6">
+        {/* Terugknop: min 44px hoog voor touch */}
         <Link
           href="/bestellingen"
-          className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900 transition-colors"
+          className="inline-flex min-h-[44px] items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 rounded"
         >
           <ChevronLeft size={14} aria-hidden="true" />
           Terug naar bestellingen
         </Link>
-        <h1 className="mt-2 text-2xl font-bold text-neutral-900">
+        <h1 className="mt-2 text-xl font-bold text-neutral-900 sm:text-2xl">
           {order ? `Bestelling ${order.orderNumber}` : "Bestelling"}
         </h1>
       </div>
@@ -126,12 +127,13 @@ export default function BestellingDetailPage({ params }: BestellingDetailPagePro
 
       {order && (
         <div className="space-y-4">
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
+          {/* Overzicht: kleinere padding op mobile */}
+          <div className="rounded-lg border border-neutral-200 bg-white p-4 sm:p-6">
             <h2 className="text-base font-semibold text-neutral-900">Overzicht</h2>
-            <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 text-sm sm:gap-x-6">
               <div>
                 <dt className="font-medium text-neutral-600">Bestelnummer</dt>
-                <dd className="mt-1 font-mono text-neutral-900">{order.orderNumber}</dd>
+                <dd className="mt-1 font-mono text-neutral-900 break-all">{order.orderNumber}</dd>
               </div>
               <div>
                 <dt className="font-medium text-neutral-600">Status</dt>
@@ -141,7 +143,7 @@ export default function BestellingDetailPage({ params }: BestellingDetailPagePro
               </div>
               <div>
                 <dt className="font-medium text-neutral-600">Klant</dt>
-                <dd className="mt-1 text-neutral-900">{klantLabel(order)}</dd>
+                <dd className="mt-1 break-all text-neutral-900">{klantLabel(order)}</dd>
               </div>
               <div>
                 <dt className="font-medium text-neutral-600">Datum</dt>
@@ -169,40 +171,53 @@ export default function BestellingDetailPage({ params }: BestellingDetailPagePro
           </div>
 
           {order.lines.length > 0 && (
-            <div className="rounded-lg border border-neutral-200 bg-white overflow-hidden">
-              <div className="px-6 py-4 border-b border-neutral-200">
+            <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+              <div className="border-b border-neutral-200 px-4 py-3 sm:px-6 sm:py-4">
                 <h2 className="text-base font-semibold text-neutral-900">Orderregels</h2>
               </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-neutral-200 bg-neutral-50">
-                    <th className="px-4 py-3 text-left font-medium text-neutral-600">Product</th>
-                    <th className="px-4 py-3 text-left font-medium text-neutral-600">Variant</th>
-                    <th className="px-4 py-3 text-right font-medium text-neutral-600">Aantal</th>
-                    <th className="px-4 py-3 text-right font-medium text-neutral-600">Stukprijs</th>
-                    <th className="px-4 py-3 text-right font-medium text-neutral-600">Totaal</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {order.lines.map((line) => (
-                    <tr key={line.id}>
-                      <td className="px-4 py-3 text-neutral-900">{line.productName}</td>
-                      <td className="px-4 py-3 text-neutral-600">{line.variantName}</td>
-                      <td className="px-4 py-3 text-right text-neutral-900">{line.quantity}</td>
-                      <td className="px-4 py-3 text-right text-neutral-900">
-                        {formatEuro(line.unitPriceCents)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium text-neutral-900">
-                        {formatEuro(line.totalCents)}
-                      </td>
+              {/* Horizontaal scrollbaar op small screens */}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
+                  <thead>
+                    <tr className="border-b border-neutral-200 bg-neutral-50">
+                      <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-neutral-600">
+                        Product
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-neutral-600">
+                        Variant
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3 text-right font-medium text-neutral-600">
+                        Aantal
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3 text-right font-medium text-neutral-600">
+                        Stukprijs
+                      </th>
+                      <th className="whitespace-nowrap px-4 py-3 text-right font-medium text-neutral-600">
+                        Totaal
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {order.lines.map((line) => (
+                      <tr key={line.id}>
+                        <td className="px-4 py-3 text-neutral-900">{line.productName}</td>
+                        <td className="px-4 py-3 text-neutral-600">{line.variantName}</td>
+                        <td className="px-4 py-3 text-right text-neutral-900">{line.quantity}</td>
+                        <td className="px-4 py-3 text-right text-neutral-900">
+                          {formatEuro(line.unitPriceCents)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-neutral-900">
+                          {formatEuro(line.totalCents)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
+          <div className="rounded-lg border border-neutral-200 bg-white p-4 sm:p-6">
             <h2 className="text-base font-semibold text-neutral-900">Status bijwerken</h2>
 
             {saveSuccess && (
@@ -217,11 +232,12 @@ export default function BestellingDetailPage({ params }: BestellingDetailPagePro
               </Alert>
             )}
 
+            {/* Op mobile: gestapeld; op sm+: naast elkaar */}
             <form
               onSubmit={(e) => {
                 void handleStatusUpdate(e);
               }}
-              className="mt-4 flex items-end gap-3"
+              className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
             >
               <Select
                 label="Nieuwe status"
@@ -230,7 +246,7 @@ export default function BestellingDetailPage({ params }: BestellingDetailPagePro
                   setSelectedStatus(e.target.value);
                   setSaveSuccess(false);
                 }}
-                containerClassName="flex-1 max-w-xs"
+                containerClassName="w-full sm:flex-1 sm:max-w-xs"
               >
                 {orderStatuses.map(({ value, label }) => (
                   <option key={value} value={value}>
@@ -242,6 +258,7 @@ export default function BestellingDetailPage({ params }: BestellingDetailPagePro
                 type="submit"
                 disabled={isSaving || selectedStatus === order.status}
                 loading={isSaving}
+                className="w-full sm:w-auto"
               >
                 Opslaan
               </Button>

@@ -1,15 +1,45 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Leaf, ShieldCheck, Heart } from "lucide-react";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Over Ons",
-  description: "Het verhaal achter De Notenman: passie voor kwaliteit, verse producten en ambacht.",
+  description:
+    "Het verhaal achter De Notenman: passie voor kwaliteit, verse noten en ambachtelijke producten. Van marktkraam tot jouw voordeur.",
+  alternates: {
+    canonical: "https://denotenman.com/over-ons",
+  },
+  openGraph: {
+    title: "Over Ons — De Notenman",
+    description:
+      "Het verhaal achter De Notenman: passie voor kwaliteit, verse noten en ambachtelijke producten. Van marktkraam tot jouw voordeur.",
+    url: "https://denotenman.com/over-ons",
+    type: "website",
+  },
+};
+
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://denotenman.com" },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "Over ons",
+      item: "https://denotenman.com/over-ons",
+    },
+  ],
 };
 
 export default function OverOnsPage() {
   return (
     <div className="bg-surface min-h-screen pb-24">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-brand-primary pt-32 pb-24">
         <div

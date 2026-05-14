@@ -12,7 +12,11 @@ const navItems = [
   { href: "/categorieen", label: "Categorieën", icon: FolderTree },
 ] as const;
 
-export function AdminNav() {
+interface AdminNavProps {
+  onNavigate?: () => void;
+}
+
+export function AdminNav({ onNavigate }: AdminNavProps = {}) {
   const pathname = usePathname();
 
   function isActive(href: string): boolean {
@@ -36,6 +40,7 @@ export function AdminNav() {
           <li key={href}>
             <Link
               href={href}
+              {...(onNavigate ? { onClick: onNavigate } : {})}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive(href)
@@ -60,6 +65,7 @@ export function AdminNav() {
           href="https://denotenman.com"
           target="_blank"
           rel="noopener noreferrer"
+          {...(onNavigate ? { onClick: onNavigate } : {})}
           className="flex items-center gap-2 rounded-md px-3 py-2 text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-colors"
         >
           <ExternalLink size={12} aria-hidden="true" className="shrink-0" />
