@@ -1,5 +1,11 @@
 const path = require("path");
-const { withSentryConfig } = require("@sentry/nextjs");
+
+let withSentryConfig;
+try {
+  withSentryConfig = require("@sentry/nextjs").withSentryConfig;
+} catch {
+  withSentryConfig = (config) => config;
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
