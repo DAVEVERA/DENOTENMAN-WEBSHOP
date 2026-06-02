@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-primary: #2F4F4F;
+    --brand-gold: #CBB899;
+    --brand-highlight: #DAA520;
+    --brand-pattern: #7A9A7A;
+    --surface: #F7F3EC;
+  }
+
+  html {
+    @apply antialiased;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-surface text-neutral-900 font-sans;
+  }
+
+  ::selection {
+    background-color: #cadddd;
+    color: #223939;
+  }
+
+  *:focus-visible {
+    outline: 2px solid #4f7f7f;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .container-shop {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Product Card Premium Bowl Styles */
+  .product-card {
+    @apply flex flex-col gap-4 relative;
+  }
+
+  .product-card__bowl {
+    @apply relative aspect-square w-full overflow-hidden rounded-full bg-white shadow-md transition-shadow duration-300 border-4 border-white;
+  }
+  
+  .product-card:hover .product-card__bowl {
+    @apply shadow-xl border-brand-gold/20;
+  }
+
+  .product-card__vignette {
+    @apply absolute inset-0 z-10 pointer-events-none mix-blend-multiply opacity-20;
+    background: radial-gradient(circle, transparent 40%, #000 120%);
+  }
+
+  .product-card__img {
+    @apply h-full w-full object-cover transition-transform duration-500 scale-100;
+  }
+  
+  .product-card:hover .product-card__img {
+    @apply scale-110;
+  }
+
+  .product-card__rim {
+    @apply absolute inset-0 z-20 rounded-full pointer-events-none border border-neutral-100/50 shadow-[inset_0_4px_12px_rgba(0,0,0,0.1),inset_0_-4px_12px_rgba(255,255,255,0.8)];
+  }
+
+  .product-card__badge {
+    @apply absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full bg-brand-gold px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-brand-primary shadow-sm;
+  }
+
+  .product-card__overlay {
+    @apply absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-brand-primary/80 opacity-0 transition-opacity duration-300 backdrop-blur-sm rounded-full;
+  }
+
+  .product-card__overlay--visible {
+    @apply opacity-100;
+  }
+
+  .product-card__cta {
+    @apply flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-transform hover:scale-105;
+  }
+
+  .product-card__cta--primary {
+    @apply bg-brand-gold text-brand-primary shadow-md;
+  }
+
+  .product-card__cta--secondary {
+    @apply bg-transparent text-white border-2 border-white/50 hover:border-white;
+  }
+
+  .product-card__info {
+    @apply flex flex-col items-center text-center mt-2;
+  }
+
+  .product-card__name {
+    @apply text-base font-bold text-brand-primary transition-colors line-clamp-1;
+  }
+
+  .product-card:hover .product-card__name {
+    @apply text-brand-highlight;
+  }
+
+  .product-card__notes {
+    @apply mt-1 text-xs text-brand-primary/60 line-clamp-1;
+  }
+
+  .product-card__price {
+    @apply mt-2 text-sm font-bold text-brand-gold;
+  }
+}

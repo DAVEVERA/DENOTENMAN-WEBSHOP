@@ -1,0 +1,17 @@
+{
+  "name": "@denotenman/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "author": "MNRV",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.48.2",
+    "typescript": "5.6.3"
+  }
+}

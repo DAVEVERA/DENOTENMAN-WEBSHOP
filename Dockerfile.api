@@ -1,0 +1,24 @@
+FROM node:20-alpine
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && apk add --no-cache openssl
+
+WORKDIR /app
+COPY . .
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+RUN pnpm --filter @denotenman/prisma generate && \
+    pnpm --filter @denotenman/schemas build && \
+    pnpm --filter @denotenman/utils build && \
+    pnpm --filter @denotenman/api build
+
+# Lege .env zodat dotenv-cli niet faalt; DATABASE_URL komt uit container-env
+RUN touch .env
+
+ENV NODE_ENV=production
+EXPOSE 3001
+
+# Migraties draaien vóór start; dotenv-cli leest lege .env, DATABASE_URL is al gezet
+CMD ["sh", "-c", "pnpm --filter @denotenman/prisma migrate:deploy && node apps/api/dist/main.js"]

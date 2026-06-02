@@ -1,0 +1,43 @@
+FROM node:20-alpine AS builder
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+WORKDIR /app
+COPY . .
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+RUN pnpm --filter @denotenman/schemas build && \
+    pnpm --filter @denotenman/utils build
+
+ARG NEXT_PUBLIC_API_URL=/api
+ARG API_INTERNAL_URL=http://api:3001
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG SENTRY_AUTH_TOKEN
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT_STOREFRONT
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV API_INTERNAL_URL=$API_INTERNAL_URL
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+ENV SENTRY_ORG=$SENTRY_ORG
+ENV SENTRY_PROJECT_STOREFRONT=$SENTRY_PROJECT_STOREFRONT
+
+RUN pnpm --filter @denotenman/storefront build
+
+# --- runner ---
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+
+# Next.js standalone bevat alles; kopieer standalone + static + public
+COPY --from=builder /app/apps/storefront/.next/standalone ./
+COPY --from=builder /app/apps/storefront/.next/static ./apps/storefront/.next/static
+COPY --from=builder /app/apps/storefront/public ./apps/storefront/public
+
+EXPOSE 3000
+CMD ["node", "apps/storefront/server.js"]

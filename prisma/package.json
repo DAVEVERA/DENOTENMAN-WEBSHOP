@@ -1,0 +1,32 @@
+{
+  "name": "@denotenman/prisma",
+  "version": "0.1.0",
+  "private": true,
+  "author": "MNRV",
+  "license": "UNLICENSED",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate": "dotenv -e ../.env -- prisma generate",
+    "migrate:dev": "dotenv -e ../.env -- prisma migrate dev",
+    "migrate:deploy": "dotenv -e ../.env -- prisma migrate deploy",
+    "migrate:reset": "dotenv -e ../.env -- prisma migrate reset --force",
+    "seed": "dotenv -e ../.env -- tsx seed.ts",
+    "studio": "dotenv -e ../.env -- prisma studio",
+    "validate": "dotenv -e ../.env -- prisma validate",
+    "format": "prisma format"
+  },
+  "prisma": {
+    "seed": "dotenv -e ../.env -- tsx seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.6",
+    "prisma": "5.22.0",
+    "tsx": "4.19.2",
+    "typescript": "5.6.3"
+  }
+}
