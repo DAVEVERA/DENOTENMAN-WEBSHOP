@@ -16,6 +16,7 @@
     "@denotenman/validation": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@sentry/nextjs": "10.53.0",
+    "lucide-react": "latest",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "latest",
     "next": "latest",
