@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { IdSchema, MoneyCentsSchema } from "./common.js";
-import { ShippingCountrySchema } from "./order.js";
+import { IdSchema, MoneyCentsSchema } from "./common";
+import { ShippingCountrySchema } from "./order";
 
 export const ShippingRuleSchema = z.object({
   id: IdSchema,

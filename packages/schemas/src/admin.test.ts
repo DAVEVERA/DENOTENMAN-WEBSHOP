@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AdminStatsSchema } from "./admin.js";
+import { AdminStatsSchema } from "./admin";
 
 const validStats = {
   totalOrders: 42,

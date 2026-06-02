@@ -7,7 +7,7 @@ import {
   ProductImageSchema,
   CategorySchema,
   TagSchema,
-} from "./product.js";
+} from "./product";
 
 const validCategory = {
   id: "550e8400-e29b-41d4-a716-446655440001",

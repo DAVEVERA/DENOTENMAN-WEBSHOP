@@ -6,7 +6,7 @@ import {
   MoneyCentsSchema,
   PaginationQuerySchema,
   paginated,
-} from "./common.js";
+} from "./common";
 
 describe("IdSchema", () => {
   it("accepts a valid UUID", () => {

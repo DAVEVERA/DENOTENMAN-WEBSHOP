@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IdSchema, MoneyCentsSchema } from "./common.js";
+import { IdSchema, MoneyCentsSchema } from "./common";
 
 export const OrderStatusSchema = z.enum(["pending", "paid", "fulfilled", "cancelled", "refunded"]);
 export type OrderStatus = z.infer<typeof OrderStatusSchema>;

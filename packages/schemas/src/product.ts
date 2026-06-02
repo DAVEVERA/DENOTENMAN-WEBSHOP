@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IdSchema, SlugSchema, MoneyCentsSchema } from "./common.js";
+import { IdSchema, SlugSchema, MoneyCentsSchema } from "./common";
 
 export const ProductStatusSchema = z.enum(["draft", "active", "archived"]);
 export type ProductStatus = z.infer<typeof ProductStatusSchema>;

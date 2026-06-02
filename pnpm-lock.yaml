@@ -199,12 +199,18 @@ importers:
 
   apps/storefront:
     dependencies:
+      '@denotenman/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@denotenman/commerce':
         specifier: workspace:*
         version: link:../../packages/commerce
       '@denotenman/mollie':
         specifier: workspace:*
         version: link:../../packages/mollie
+      '@denotenman/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@denotenman/utils':
         specifier: workspace:*
         version: link:../../packages/utils

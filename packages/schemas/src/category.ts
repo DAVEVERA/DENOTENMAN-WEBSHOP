@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IdSchema, SlugSchema } from "./common.js";
+import { IdSchema, SlugSchema } from "./common";
 
 // Shared base: fields present on every category row returned by the API.
 const CategoryBaseSchema = z.object({

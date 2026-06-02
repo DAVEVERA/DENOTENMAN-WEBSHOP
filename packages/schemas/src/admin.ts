@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MoneyCentsSchema } from "./common.js";
+import { MoneyCentsSchema } from "./common";
 
 export const AdminStatsSchema = z.object({
   totalOrders: z.number().int().nonnegative(),

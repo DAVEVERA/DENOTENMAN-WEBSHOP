@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CartSchema, CartLineSchema, AddToCartSchema, UpdateCartLineSchema } from "./cart.js";
+import { CartSchema, CartLineSchema, AddToCartSchema, UpdateCartLineSchema } from "./cart";
 
 const validLine = {
   id: "550e8400-e29b-41d4-a716-446655440001",

@@ -5,7 +5,7 @@ import {
   OrderStatusSchema,
   CreateOrderSchema,
   AddressSchema,
-} from "./order.js";
+} from "./order";
 
 const validAddress = {
   id: "550e8400-e29b-41d4-a716-446655440010",

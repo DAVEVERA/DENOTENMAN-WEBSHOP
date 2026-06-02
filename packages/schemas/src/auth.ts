@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IdSchema } from "./common.js";
+import { IdSchema } from "./common";
 
 export const UserRoleSchema = z.enum(["owner", "admin", "staff", "customer"]);
 export type UserRole = z.infer<typeof UserRoleSchema>;

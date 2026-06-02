@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createApiClient } from "./client.js";
-import { ApiError } from "./errors.js";
+import { createApiClient } from "./client";
+import { ApiError } from "./errors";
 
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
 const UUID2 = "550e8400-e29b-41d4-a716-446655440001";

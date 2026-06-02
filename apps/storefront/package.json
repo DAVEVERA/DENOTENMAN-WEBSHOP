@@ -10,8 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@denotenman/api-client": "workspace:*",
     "@denotenman/commerce": "workspace:*",
     "@denotenman/mollie": "workspace:*",
+    "@denotenman/schemas": "workspace:*",
     "@denotenman/utils": "workspace:*",
     "@denotenman/validation": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",

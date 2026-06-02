@@ -24,7 +24,7 @@ import type {
   CreateOrder,
   Paginated,
 } from "@denotenman/schemas";
-import { request } from "./request.js";
+import { request } from "./request";
 
 export interface ApiClientOptions {
   baseUrl: string;

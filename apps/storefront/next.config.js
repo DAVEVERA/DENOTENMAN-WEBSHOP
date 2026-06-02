@@ -15,7 +15,7 @@ const nextConfig = {
   // ADR 0011: generate source maps for Sentry upload but do not serve them publicly.
   // Combined with sourcemaps.deleteSourcemapsAfterUpload, no maps remain in deploy.
   productionBrowserSourceMaps: false,
-  transpilePackages: ["@denotenman/ui", "@denotenman/schemas", "@denotenman/utils"],
+  transpilePackages: ["@denotenman/ui", "@denotenman/schemas", "@denotenman/utils", "@denotenman/api-client", "@denotenman/mollie", "@denotenman/commerce", "@denotenman/validation"],
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
