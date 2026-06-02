@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "main": "src/index.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "echo 'no build needed'",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src"
   },
