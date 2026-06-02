@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "ES2022"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./apps/storefront/*"],
+      "@denotenman/ui": ["./packages/ui/src"],
+      "@denotenman/db": ["./packages/db/src"],
+      "@denotenman/commerce": ["./packages/commerce/src"],
+      "@denotenman/config": ["./packages/config/src"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

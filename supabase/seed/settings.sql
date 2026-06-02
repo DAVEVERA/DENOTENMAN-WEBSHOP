@@ -1,0 +1,6 @@
+-- Remote storage buckets observed:
+-- - Products: public
+-- - product-images: public, image/jpeg,image/png,image/webp
+--
+-- Bucket creation is intentionally not scripted here yet, because remote
+-- already contains production-like product images and object counts.

@@ -1,0 +1,199 @@
+# Changelog
+Alle belangrijke wijzigingen aan de DENOTENMAN WEBSHOP worden hier bijgehouden.
+
+### Status
+- Project staat in scaffold- en stabilisatiefase.
+- Hoofdapps zijn typecheck-schoon:
+  - `@denotenman/storefront`
+  - `@denotenman/admin`
+  - `@denotenman/worker`
+- Workspace typecheck is groen voor alle 14 packages/apps.
+- Er zijn nog 184 lege placeholderbestanden buiten `node_modules`, `.next`, `.turbo` en `.git`.
+- Database basis is gestart met een remote Supabase baseline voor catalogusdata, RLS en product-query helpers.
+
+### Toegevoegd
+- Eerste projectstructuur aangemaak
+- Monorepo-opzet toegevoegd.
+- Storefront-app toegevoegd.
+- Admin-app toegevoegd.
+- Worker-app toegevoegd.
+- Packages-structuur toegevoegd.
+- Supabase-structuur toegevoegd.
+- Basisdocumentatie toegevoegd.
+- Productie-env-bestand voorbereid.
+- B2B/Zakelijk-portaal aan storefront toegevoegd.
+- Zakelijke landingspagina toegevoegd (`/zakelijk`).
+- Zakelijke inlogpagina toegevoegd (`/zakelijk/inloggen`).
+- Zakelijk dashboard toegevoegd (`/zakelijk/dashboard`).
+- Zakelijke bestellijsten overzicht toegevoegd (`/zakelijk/bestellijsten`).
+- Zakelijke bestellijst-detailpagina toegevoegd (`/zakelijk/bestellijsten/[id]`).
+- Zakelijke bestellingen overzicht toegevoegd (`/zakelijk/bestellingen`).
+- Zakelijke bestelling-detailpagina toegevoegd (`/zakelijk/bestellingen/[id]`).
+- Zakelijke facturen overzicht toegevoegd (`/zakelijk/facturen`).
+- Zakelijke factuur-detailpagina toegevoegd (`/zakelijk/facturen/[id]`).
+- Zakelijke betaalroute toegevoegd (`/zakelijk/betalen/[id]`).
+- Zakelijke gegevenspagina toegevoegd (`/zakelijk/gegevens`).
+- Adminroutes toegevoegd voor zakelijke klanten, accounts, bestellijsten, offertes, prijzen, staffels, assortiment, facturen en instellingen.
+- Admin-detailpagina's toegevoegd voor zakelijke klanten, accounts, bestellijsten, offertes en facturen.
+- Zakelijke bestelomgeving opgenomen als volwaardig onderdeel van de webshop.
+- Basisnavigatie/Header toegevoegd aan storefront.
+- Mobile-first globale storefront-styling toegevoegd.
+- Mobile-first globale admin-styling toegevoegd.
+- Homepagina voorzien van eerste mobile-first hero-opzet.
+- Zakelijke omgeving voorzien van eerste mobile-first pagina-opbouw.
+- Storefront UI-componenten toegevoegd voor buttons, inputs, select, checkbox, radio, modal, drawer, table, badges, alerts en skeletons.
+- Storefront productdetailcomponenten toegevoegd voor gallery, productinfo, tabs, reviews, varianten, hoeveelheid, voorraadstatus en gerelateerde producten.
+- Storefront winkelwagencomponenten toegevoegd voor cart items, totals, summary, coupon form en drawer.
+- Storefront checkoutcomponenten toegevoegd voor klantgegevens, adres, verzending, betaling, review, summary en layout.
+- Storefront accountcomponenten toegevoegd voor login, registratie en accountnavigatie.
+- Checkoutpagina's voor gegevens, verzending, betaling en controleren ingericht.
+- Winkelwagenpagina ingericht.
+- Merkdetailpagina ingericht.
+- Admin instellingenindex ingericht.
+- Admin nieuwe-categoriepagina ingericht.
+- Projectstatus en vervolgstrategie vastgelegd in `docs/admin-manual.md`.
+- Root-configs toegevoegd voor `pnpm`, `turbo`, `tsconfig` en `.gitignore`.
+- Packagebestanden toegevoegd voor storefront, admin, worker en workspace-packages.
+- Supabase-projectcontext vastgelegd via productieconfiguratie: `https://luablfcmhzykjnxmtlqh.supabase.co`.
+- Lokale Supabase baseline toegevoegd voor remote tabellen `products`, `product_variants`, `product_weights`, `orders` en image-backup tabellen.
+- Lokale policybestanden toegevoegd voor publieke catalogus-read policies en geblokkeerde ordertoegang.
+- `@denotenman/db` producttypes en queryhelpers toegevoegd voor storefront/admin catalogusgebruik.
+- Storefront winkeloverzicht, categoriepagina en productdetailpagina gekoppeld aan remote Supabase catalogusdata.
+- Admin productbeheer gekoppeld aan dezelfde Supabase catalogus met productlijst, nieuw-productformulier, productdetailformulier en media-uploadformulier.
+- Server-side admin Supabase client toegevoegd op basis van de service-role key.
+- Server action toegevoegd voor product upsert en optionele upload naar storage bucket `product-images`.
+- Admin beheer toegevoegd voor productgewichten, varianten, SKU's, voorraadlabels en product zichtbaar/verbergen.
+- Admin login toegevoegd met gesigneerde httpOnly sessie-cookie op basis van `ADMIN_EMAIL`, `ADMIN_PASSWORD` en `ADMIN_SESSION_SECRET`.
+- Admin routebescherming toegevoegd via Next.js `proxy.ts`.
+- Server-side admin guard toegevoegd aan product write-actions voor productgegevens, media-upload, gewichten, varianten en zichtbaar/verbergen.
+- Supabase security migration toegevoegd voor private backup/order-tabellen, service-role policies en storage hardening.
+- Echte TypeScript packagebasis toegevoegd voor `@denotenman/config`, `@denotenman/validation`, `@denotenman/commerce`, `@denotenman/media` en `@denotenman/analytics`.
+- Worker job-, queue- en cron-contracten toegevoegd met veilige dry-run handlers.
+- Unit testinhoud toegevoegd voor pricing, cart, inventory, discounts en checkout.
+- Integratie- en E2E-testdoelen vastgelegd voor account, admin, cart, checkout, Mollie, order-flow, PostNL en product-flow.
+- Storefront cart-cookie en checkout-cookie toegevoegd voor winkelwagen en checkout-draft flow.
+- Storefront server actions toegevoegd voor toevoegen, bijwerken en verwijderen van winkelwagenregels.
+- Storefront checkout server actions toegevoegd voor gegevens, verzending, betaling en gevalideerde order-draft voorbereiding.
+- Mobiel hamburger/flyout-menu toegevoegd aan de storefront header.
+- Responsieve typografie ingesteld via breakpoint-variabelen in plaats van viewport-geschaalde `clamp()` font sizes.
+- Assetlocaties vastgelegd voor logo, favicon, icons en moodboard.
+- Eigen De Notenman-logo, favicon en app-icon gekoppeld aan de storefront metadata, header en footer.
+- Dosis-fonts uit `apps/storefront/public/fonts` als globale storefront-typografie aangescherpt voor body, formulieren, knoppen en UI-elementen.
+- Herbruikbare storefront `Icon`-component toegevoegd en passende iconen toegepast op navigatie, hero-USP's, winkelwagen, checkout, productkaarten, zoekflow en accountacties.
+- Mollie-ready order draft migration toegevoegd met `order_items` en `payments`.
+- Storefront service-role order service toegevoegd voor server-side pending order drafts.
+- `@denotenman/mollie` gevuld met typed API-client, create-payment, get-payment, refund-helper, webhook-handler en statusmapping.
+- Storefront checkout kan na order-draft optioneel een Mollie payment aanmaken en redirecten naar de Mollie checkout URL.
+- Mollie webhookroute toegevoegd op `/api/mollie/webhook` voor server-side statusverwerking naar `payments` en `orders`.
+- Veilige Mollie test-gate toegevoegd: echte payment-aanmaak gebeurt alleen met `MOLLIE_ENABLE_PAYMENTS=true` en een `test_` API key.
+- Mollie webhookstatus beschermd tegen onnodige dubbele updates en late non-terminal downgrades.
+- Checkout succespagina toont nu server-side de actuele orderstatus en betaalstatus uit Supabase wanneer een ordernummer beschikbaar is.
+- Unit tests toegevoegd voor Mollie statusmapping, orderstatusmapping en webhook idempotency-bescherming.
+- Admin dashboard gekoppeld aan echte Supabase-data voor orders, betalingen, voorraad en actieve producten.
+- Admin orderbeheer gekoppeld aan echte `orders`, `order_items` en `payments`, inclusief statuswijziging via beveiligde server action.
+- Admin betalingenoverzicht gekoppeld aan echte `payments` records.
+- Admin klantenoverzicht afgeleid uit echte orderdata in plaats van fictieve klantrecords.
+- Admin voorraadpagina gekoppeld aan echte `product_variants` voorraadlabels en SKU's.
+- Admin categorieoverzicht gekoppeld aan echte productcategorieen uit Supabase.
+- Admin mediabibliotheek gekoppeld aan Supabase Storage bucket `product-images`.
+- Admin order-subpagina's voor verzending, factuur en retour tonen echte orderdata en geen voorbeeldrecords meer.
+- Admin Mollie/refunds-pagina's tonen echte configuratie/paymentdata zonder fake payment/refund records.
+- Admin B2B-pagina's tonen geen fictieve bedrijven/accounts/bestellijsten/offertes/staffels meer; zolang B2B-tabellen ontbreken tonen ze een expliciete "nog niet ingericht" status.
+- Admin zakelijke facturenpagina gebruikt echte orders als factuurbasis in plaats van fake facturen.
+- Admin instellingenpagina's voor algemeen, betalingen, verzending, gebruikers en rollen tonen echte server-side configuratiestatus zonder secrets.
+- Admin verzendingsoverzichten, labels, retouren en reviews tonen geen fake records meer; ontbrekende opslag/integraties worden expliciet gemarkeerd.
+- Admin product-SEO gebruikt echte productdata in plaats van vaste voorbeeldcontent.
+
+### Gewijzigd
+
+- Metadata van storefront bijgewerkt met De Notenman-positionering.
+- Storefront-layout uitgebreid met globale header en footer.
+- Admin-dashboardtekst uitgebreid met zakelijke accounts, bestellijsten en B2B-prijzen.
+- Terminologie aangescherpt naar "Zakelijke bestelomgeving".
+- Vermeden termen: "mini-shop", "klein" en "verkleind".
+- Admin CSS-import hersteld via `apps/admin/app/layout.tsx`.
+- Admin stylesheet opnieuw opgebouwd in `apps/admin/styles/globals.css`.
+- Admin styling mobile-first hersteld voor zakelijke pagina's.
+- Admin layout en styling geforceerd herschreven zonder BOM-encoding.
+- `apps/admin/styles/global.css` gecorrigeerd naar `globals.css`.
+- Storefront homepagina CTA's toegevoegd: `/winkel` en `/zakelijk`.
+- Mobiele winkelwagenknop "Mand" toegevoegd aan header.
+- Eerste dummydata toegevoegd voor zakelijke bestellijsten, producten en facturen.
+- Factuur-downloadknop toegevoegd op zakelijke factuurdetailpagina.
+
+### Gerepareerd
+- Kapotte storefront `Modal.tsx` gerepareerd; verdwaalde CSS vervangen door een geldige React component.
+- Lege adminroute `apps/admin/app/categorieen/nieuw/page.tsx` gevuld met een geldige pagina-export.
+- Lege adminroute `apps/admin/app/instellingen/page.tsx` gevuld met een geldige instellingenindex.
+- Verkeerde inhoud in `apps/storefront/components/checkout/CheckoutLayout.tsx` vervangen door de echte checkout-layout export.
+- Lege storefront route `apps/storefront/app/merken/[slug]/page.tsx` gevuld met een geldige merkdetailpagina.
+- TypeScript build-info artifacts toegevoegd aan `.gitignore` via `*.tsbuildinfo`.
+
+### Technisch
+- Root `package.json` hersteld zonder BOM-encoding.
+- `packageManager` toegevoegd voor Turborepo-workspace-resolutie.
+- Lege `package.json`-bestanden gevuld om `pnpm install` correct te laten draaien.
+- `pnpm install` succesvol uitgevoerd.
+- Dynamische Next.js-routes met `[id]` gecontroleerd via `-LiteralPath`.
+- `.env.example` verwijderd.
+- `.env.prod` toegevoegd voor productieconfiguratie.
+- Productieconfiguratie bevat ingestelde waarden voor Supabase, Mollie, PostNL, mail, site URL, admin URL en `NODE_ENV`.
+- Empty-file audit uitgevoerd en vastgelegd in `docs/admin-manual.md`.
+- Read-only Supabase audit uitgevoerd op project `luablfcmhzykjnxmtlqh`; remote project heet `nutty`, draait Postgres 17.6 en bevat 77 actieve producten, 129 varianten en 98 gewichten.
+- Remote Edge Functions vastgesteld: `products-sync-images` en `products-sync-images-invoke`, beide actief met JWT-verificatie.
+- Remote storage vastgesteld: buckets `Products` en `product-images`.
+- Storefront productiebuild succesvol uitgevoerd met Supabase env vars uit `.env.prod`.
+- Storefront smoke-test succesvol uitgevoerd op `http://localhost:3000/winkel` en een echte productdetailpagina.
+- Admin productiebuild succesvol uitgevoerd met Supabase env vars uit `.env.prod`.
+- Admin smoke-test succesvol uitgevoerd op `http://localhost:3001/producten` en een echte productdetailpagina.
+- Admin typecheck dekt nu productbeheer voor basisgegevens, media, gewichten en varianten.
+- Admin typecheck en productiebuild succesvol uitgevoerd na login/proxy-beveiliging.
+- Admin runtime-smoke succesvol uitgevoerd: `/producten` redirect zonder sessie naar `/login?next=%2Fproducten`; `/login` geeft `200 OK`.
+- Remote Supabase security hardening toegepast op project `luablfcmhzykjnxmtlqh`.
+- Remote Supabase advisor-check uitgevoerd; security-lints staan op `0`.
+- Remote verificatie bevestigd: backup-tabellen en `orders` hebben RLS aan, geen anon/authenticated select-rechten en alleen service-role policies.
+- Remote storage verificatie bevestigd: `product-images` heeft geen brede `storage.objects` listing-policy; bucket blijft publiek voor directe object-URL's.
+- Remote functie `public.rls_auto_enable()` is niet meer uitvoerbaar voor `anon` of `authenticated`.
+- Admin-login env vars toegevoegd aan `.env.prod` voor lokale verificatie.
+- Admin productbeheer end-to-end getest via browser op `http://localhost:3001` met verborgen testproduct `1077` (`codex-test-product-1778856205084`).
+- Testproduct verificatie bevestigd: product opgeslagen, foto geupload naar `product-images`, gewicht `100g test` toegevoegd en variant `Testvariant` toegevoegd.
+- Storefront verificatie bevestigd: verborgen testproduct verschijnt niet in `/winkel` en de productdetailroute rendert als 404.
+- Package `tsconfig.json`-bestanden toegevoegd voor de gevulde gedeelde packages en worker.
+- Brede workspace typecheck succesvol uitgevoerd: `pnpm typecheck` met 14/14 packages/apps groen.
+- Unit tests succesvol uitgevoerd via worker `tsx` bin: 5 tests geslaagd voor cart, checkout, discounts, inventory en pricing.
+- Storefront cart/checkout browser-smoke succesvol uitgevoerd: product toevoegen, winkelwagen tonen, gegevens/verzending/betaling invullen en draft success bereiken.
+- Storefront typecheck en productiebuild succesvol uitgevoerd na cart/checkout-koppeling.
+- Storefront mobiele navigatie smoke-test succesvol uitgevoerd op 390px breedte; hamburger zichtbaar, desktopnavigatie verborgen en flyout opent viewportbreed.
+- Remote Supabase order/payment migration toegepast en read-only geverifieerd.
+- Checkout draft browser-smoke succesvol uitgevoerd; testorder `DNM-20260515-65641` is aangemaakt met 1 orderregel en 1 draft-payment.
+- Supabase security advisor blijft `0` lints na order/payment migration.
+- Storefront typecheck, workspace typecheck en productiebuild succesvol uitgevoerd na Mollie package/webhook-koppeling.
+- Mollie-disabled checkout browser-smoke succesvol uitgevoerd; testorder `DNM-20260515-66974` is aangemaakt als `pending` met `payment_status=draft`, zonder Mollie provider payment id of checkout URL.
+- Supabase read-only verificatie bevestigd voor testorder `DNM-20260515-66974`: payment provider `mollie`, status `draft`, `provider_payment_id = null`.
+- Storefront succespagina smoke-test bevestigd op mobiel: testorder `DNM-20260515-66974` toont remote orderstatus `pending` en betaalstatus `draft`.
+- Unit-suite succesvol uitgevoerd via `tsx --test`: 8/8 tests geslaagd, inclusief Mollie status/idempotency tests.
+- Admin production build succesvol uitgevoerd na koppeling van dashboard, orders, payments, klanten, voorraad, categorieen en media aan echte Supabase-data.
+- Admin browser-smoke succesvol uitgevoerd op dashboard, bestellingen, orderdetail, verzending, factuur, retour, betalingen, Mollie, refunds, klanten, voorraad, categorieen en media.
+- Admin demo-data scan uitgevoerd; vaste voorbeeldnamen/orders/payments zijn verwijderd uit admin runtime-pagina's.
+- Admin browser-smoke succesvol uitgevoerd op B2B, instellingen, verzending, PostNL, labels, retouren en reviews na verwijderen van fake records.
+- Typechecks succesvol uitgevoerd voor:
+  - `pnpm --filter @denotenman/storefront typecheck`
+  - `pnpm --filter @denotenman/admin typecheck`
+  - `pnpm --filter @denotenman/worker typecheck`
+  - `pnpm --filter @denotenman/commerce typecheck`
+  - `pnpm --filter @denotenman/db typecheck`
+
+### Bekende Bouwschuld
+- Supabase branch `main` meldde eerder remote status `MIGRATIONS_FAILED`; lokale migration history en remote migration history moeten nog bewust worden gerepareerd.
+- `public.orders` bevat nog legacy kolom `stripe_payment_intent_id`; deze is nullable gemaakt, maar kan later pas worden opgeschoond na volledige Mollie-livegang.
+- `.env.prod` bevat een niet-standaard `NODE_ENV` waarde; Next.js waarschuwt hiervoor tijdens build.
+- Admin login vereist nog productie-instelling van `ADMIN_EMAIL`, `ADMIN_PASSWORD` en `ADMIN_SESSION_SECRET`.
+- Admin write/upload/delete-flow is bewust niet tegen productie uitgevoerd tijdens verificatie, om geen echte catalogusdata te wijzigen.
+- `packages/postnl`, `packages/email`, `packages/seo` en `packages/ui` bevatten nog veel lege bronbestanden.
+- Mollie create-payment is veilig voorbereid, maar nog niet live getest met een echte Mollie test-key en publieke webhook-URL.
+- Storefront en admin bevatten nog veel hardcoded demo-inhoud.
+- Admin restmodules met resterende productiewerkzaamheden: echte opslag/actions voor B2B, CMS, marketing, kortingen, reviews, shipment labels, retouren, audit-log en persistente instellingen.
+- Worker jobs, queues en cronbestanden hebben nu contracten/dry-run handlers, maar nog geen echte externe side effects.
+- Tests hebben eerste unitinhoud en flowdoelen, maar nog geen volledige runnerconfiguratie voor integratie/E2E.
+- Documentatie buiten `docs/admin-manual.md` is gevuld op hoofdlijnen, maar moet per integratie nog dieper worden uitgewerkt.
+- Remote Supabase-project lijkt voorbereid voor notenman.com, maar schema/data zijn vanuit deze changelog-update nog niet inhoudelijk gevalideerd.

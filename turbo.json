@@ -1,0 +1,52 @@
+{
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "dist/**"],
+      "outputLogs": "new-only"
+    },
+    "@denotenman/analytics#build": {
+      "outputs": []
+    },
+    "@denotenman/commerce#build": {
+      "outputs": []
+    },
+    "@denotenman/config#build": {
+      "outputs": []
+    },
+    "@denotenman/db#build": {
+      "outputs": []
+    },
+    "@denotenman/email#build": {
+      "outputs": []
+    },
+    "@denotenman/media#build": {
+      "outputs": []
+    },
+    "@denotenman/mollie#build": {
+      "outputs": []
+    },
+    "@denotenman/postnl#build": {
+      "outputs": []
+    },
+    "@denotenman/seo#build": {
+      "outputs": []
+    },
+    "@denotenman/ui#build": {
+      "outputs": []
+    },
+    "@denotenman/validation#build": {
+      "outputs": []
+    },
+    "@denotenman/worker#build": {
+      "outputs": []
+    },
+    "lint": {},
+    "typecheck": {},
+    "test": {}
+  }
+}

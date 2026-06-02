@@ -1,0 +1,9 @@
+-- Real product rows already exist in remote Supabase. Do not seed duplicate
+-- catalog data until export/import strategy is chosen.
+--
+-- Remote category counts captured read-only:
+-- - zuidvruchten / Gedroogd fruit: 26
+-- - noten / Noten: 15
+-- - snacks / Snacks: 10
+-- - zaden-pitten / Pitten & Zaden: 8
+-- - superfoods / Superfood: 7

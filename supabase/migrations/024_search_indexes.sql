@@ -1,0 +1,12 @@
+-- Remote public indexes captured in table definitions:
+-- - products_pkey
+-- - products_slug_key
+-- - product_variants_pkey
+-- - product_variants_product_id_variant_id_key
+-- - product_weights_pkey
+-- - product_weights_product_id_grams_key
+-- - orders_pkey
+-- - orders_stripe_payment_intent_id_key
+--
+-- Additional search indexes can be added after storefront search/filter
+-- behaviour is wired to real product queries.

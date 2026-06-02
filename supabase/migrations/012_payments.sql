@@ -1,0 +1,2 @@
+-- Payment records are normalized in 034_mollie_order_drafts.sql because the
+-- remote baseline originally used Stripe-only columns on public.orders.
