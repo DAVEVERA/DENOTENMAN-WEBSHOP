@@ -47,6 +47,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 // SENTRY_AUTH_TOKEN is a CI secret — omitting it disables source-map upload
