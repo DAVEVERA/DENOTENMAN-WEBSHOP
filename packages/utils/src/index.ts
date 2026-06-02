@@ -1,14 +1,14 @@
-export { formatEuroCents } from "./currency.js";
-export { slugify } from "./slug.js";
-export { parseCsv, stringifyCsv } from "./csv.js";
-export type { CsvOptions } from "./csv.js";
-export { formatDateNL, formatDateTimeNL } from "./date.js";
-export { parseEnv } from "./env.js";
+export { formatEuroCents } from "./currency";
+export { slugify } from "./slug";
+export { parseCsv, stringifyCsv } from "./csv";
+export type { CsvOptions } from "./csv";
+export { formatDateNL, formatDateTimeNL } from "./date";
+export { parseEnv } from "./env";
 export {
   redactHeaders,
   redactQueryString,
   shouldRedactBody,
   scrubEvent,
   scrubTransactionEvent,
-} from "./sentry-scrubber.js";
-export type { ScrubbableEvent } from "./sentry-scrubber.js";
+} from "./sentry-scrubber";
+export type { ScrubbableEvent } from "./sentry-scrubber";
