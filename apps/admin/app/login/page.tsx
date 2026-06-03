@@ -9,7 +9,7 @@ type AdminLoginPageProps = {
 
 function getErrorMessage(error?: string) {
   if (error === "config") {
-    return "Admin-login is nog niet geconfigureerd. Zet ADMIN_EMAIL, ADMIN_PASSWORD en ADMIN_SESSION_SECRET.";
+    return "Admin-login is nog niet geconfigureerd. Zet ADMIN_SESSION_SECRET.";
   }
 
   if (error === "invalid") {
@@ -41,8 +41,8 @@ export default async function AdminLoginPage({ searchParams }: AdminLoginPagePro
 
       <form className="admin-form" action={loginAction}>
         <label>
-          E-mailadres
-          <input type="email" name="email" autoComplete="email" required />
+          Gebruikersnaam
+          <input type="text" name="email" autoComplete="username" required />
         </label>
 
         <label>

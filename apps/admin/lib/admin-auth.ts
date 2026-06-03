@@ -26,6 +26,18 @@ type AdminSessionPayload = {
   exp: number;
 };
 
+type AdminCredential = {
+  username: string;
+  password: string;
+  sessionEmail: string;
+};
+
+const FEDOR_ADMIN_CREDENTIAL: AdminCredential = {
+  username: "Fedor",
+  password: "walnoot2",
+  sessionEmail: "Fedor",
+};
+
 function getRequiredEnv(name: string) {
   const value = process.env[name];
 
@@ -80,16 +92,25 @@ function hasValidAdminConfig(email?: string, password?: string, secret?: string)
   );
 }
 
-function getValidAdminConfig() {
+function getValidAdminCredentials() {
   const email = process.env.ADMIN_EMAIL;
   const password = process.env.ADMIN_PASSWORD;
   const secret = process.env.ADMIN_SESSION_SECRET;
+  const credentials: AdminCredential[] = [FEDOR_ADMIN_CREDENTIAL];
 
-  if (!hasValidAdminConfig(email, password, secret)) {
+  if (!secret) {
     return null;
   }
 
-  return { email, password, secret };
+  if (hasValidAdminConfig(email, password, secret)) {
+    credentials.push({
+      username: email,
+      password,
+      sessionEmail: email,
+    });
+  }
+
+  return { credentials, secret };
 }
 
 function createSessionToken(email: string) {
@@ -143,21 +164,24 @@ export async function requireAdmin() {
 }
 
 export async function loginAction(formData: FormData) {
-  const adminConfig = getValidAdminConfig();
+  const adminConfig = getValidAdminCredentials();
 
   if (!adminConfig) {
     redirect("/login?error=config");
   }
 
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const username = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const credential = adminConfig.credentials.find(
+    (item) => username === item.username.toLowerCase() && password === item.password,
+  );
 
-  if (email !== adminConfig.email.toLowerCase() || password !== adminConfig.password) {
+  if (!credential) {
     redirect("/login?error=invalid");
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, createSessionToken(adminConfig.email), {
+  cookieStore.set(SESSION_COOKIE, createSessionToken(credential.sessionEmail), {
     httpOnly: true,
     maxAge: SESSION_TTL_SECONDS,
     path: "/",
