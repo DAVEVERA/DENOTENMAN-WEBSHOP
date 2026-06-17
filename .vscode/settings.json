@@ -1,4 +1,3 @@
 {
-    "markdown.validate.enabled": true,
-    "claudeCode.useTerminal": true
+    "markdown.validate.enabled": true
 }

@@ -2,7 +2,7 @@
 
 Laatst bijgewerkt: 2026-05-15
 
-Dit document is nu het centrale overdrachtspunt voor de bouw van de adminomgeving en de verdere Codex-werkwijze. De applicatie zit in scaffold- en stabilisatiefase: de routes en mappenstructuur staan grotendeels, maar veel domeinlogica, databasekoppelingen en integraties zijn nog placeholders.
+Dit document is het centrale overdrachtspunt voor de bouw van de adminomgeving. De applicatie zit in scaffold- en stabilisatiefase: de routes en mappenstructuur staan grotendeels, maar veel domeinlogica, databasekoppelingen en integraties zijn nog placeholders.
 
 ## Huidige Status
 
@@ -68,12 +68,12 @@ De database-baseline is gestart:
 - Supabase security advisor-check geeft momenteel `0` lints terug.
 - Admin-login env vars staan lokaal in `.env.prod` voor verificatie.
 - Admin productbeheer is end-to-end getest via browser:
-  - Testproduct: `1077`, slug `codex-test-product-1778856205084`.
+  - Testproduct: `1077`, slug `test-product-1778856205084`.
   - Product is bewust verborgen (`is_active = false`) zodat het niet publiek in de winkel verschijnt.
   - Foto-upload naar `product-images` is gelukt.
   - Gewicht `100g test` en variant `Testvariant` zijn opgeslagen.
   - Admin detailroute blijft beschermd en redirect zonder sessie naar login.
-  - Storefront `/winkel` toont het testproduct niet; `/winkel/codex-test-product-1778856205084` rendert als 404.
+  - Storefront `/winkel` toont het testproduct niet; `/winkel/test-product-1778856205084` rendert als 404.
 - Admin dashboard, bestellingen, betalingen, klanten, voorraad, categorieen, media, audit-log, CMS-lijsten, marketinglijsten, reviews, shipment-labels, retouren en refund-requests zijn nu gekoppeld aan echte Supabase-data.
 - Admin orderdetail toont echte klantgegevens, orderregels, betalingen en totalen.
 - Admin orderstatus kan via beveiligde server action worden aangepast.
@@ -153,7 +153,7 @@ Voorgestelde volgorde:
    - E2E tests voor homepage, product, cart, checkout, account en admin.
    - Deployment-, security- en runbook-documentatie vullen.
 
-## Werkafspraken Voor Codex
+## Werkafspraken
 
 Voor elke nieuwe stap:
 

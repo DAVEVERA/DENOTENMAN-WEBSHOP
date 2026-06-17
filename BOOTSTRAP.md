@@ -5,7 +5,7 @@ Tijd: ~10 minuten. Daarna staat het team klaar.
 ## Voorwaarden
 
 - Node 20+, pnpm 9+, Docker, git.
-- Antigravity geopend, Claude Code sub-agent/skill-ondersteuning actief.
+- Editor geopend, tooling actief.
 
 ## Stap 1 — Projectmap aanmaken
 
@@ -49,9 +49,9 @@ git add CLAUDE.md .claude
 git commit -m "chore: bootstrap team directive, agents, skills"
 ```
 
-## Stap 4 — Antigravity openen, Claude Code starten
+## Stap 4 — Editor openen, sessie starten
 
-Open de map in Antigravity. Start de Claude Code sessie. Verifieer:
+Open de map in je editor. Start de sessie. Verifieer:
 
 ```
 /agents

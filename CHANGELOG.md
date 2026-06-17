@@ -155,7 +155,7 @@ Alle belangrijke wijzigingen aan de DENOTENMAN WEBSHOP worden hier bijgehouden.
 - Remote storage verificatie bevestigd: `product-images` heeft geen brede `storage.objects` listing-policy; bucket blijft publiek voor directe object-URL's.
 - Remote functie `public.rls_auto_enable()` is niet meer uitvoerbaar voor `anon` of `authenticated`.
 - Admin-login env vars toegevoegd aan `.env.prod` voor lokale verificatie.
-- Admin productbeheer end-to-end getest via browser op `http://localhost:3001` met verborgen testproduct `1077` (`codex-test-product-1778856205084`).
+- Admin productbeheer end-to-end getest via browser op `http://localhost:3001` met verborgen testproduct `1077` (`test-product-1778856205084`).
 - Testproduct verificatie bevestigd: product opgeslagen, foto geupload naar `product-images`, gewicht `100g test` toegevoegd en variant `Testvariant` toegevoegd.
 - Storefront verificatie bevestigd: verborgen testproduct verschijnt niet in `/winkel` en de productdetailroute rendert als 404.
 - Package `tsconfig.json`-bestanden toegevoegd voor de gevulde gedeelde packages en worker.
