@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "home": "Home",
+    "collections": "Collections",
+    "cart": "Cart",
+    "account": "Account",
+    "articles": "Articles"
+  },
+  "footer": {
+    "aboutTitle": "About us",
+    "contactTitle": "Contact",
+    "legalTitle": "Legal",
+    "copyright": "All rights reserved."
+  },
+  "product": {
+    "addToCart": "Add to cart",
+    "outOfStock": "Out of stock",
+    "price": "Price",
+    "pricePerHundredGrams": "per 100 g"
+  },
+  "cart": {
+    "title": "Cart",
+    "empty": "Your cart is empty.",
+    "checkout": "Checkout",
+    "total": "Total"
+  },
+  "collection": {
+    "filters": "Filters",
+    "noResults": "No products found."
+  },
+  "common": {
+    "loading": "Loading...",
+    "search": "Search"
+  }
+}
