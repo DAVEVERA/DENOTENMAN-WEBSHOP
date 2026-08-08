@@ -18,7 +18,11 @@ Cloud Storage for images. Follow docs/STRUCTURE.md for all placement.
 3. Fill next.config.ts (project root): enable image remotePatterns for the
    CDN host.
 4. Fill .env.example with keys only (no values):
-   DATABASE_URL, GCS_BUCKET, CDN_BASE_URL, DEFAULT_LOCALE.
+   DATABASE_URL, GCS_BUCKET, CDN_BASE_URL, SITE_URL, DEFAULT_LOCALE.
+   CDN_BASE_URL is the image CDN host; SITE_URL is the storefront's own
+   public domain, used by lib/routes.ts BASE_URL for canonical links,
+   hreflang, the sitemap, and robots.txt. The two must never be the same
+   value.
 5. Fill .gitignore for node, next, env, prisma.
 
 ## Phase 2 — Internationalization
@@ -86,9 +90,24 @@ Cloud Storage for images. Follow docs/STRUCTURE.md for all placement.
    instead of failing the build. See docs/ARCHITECTURE.md.
 
 ## Phase 7 — SEO surface
-1. app/sitemap.ts: static + per-locale entries for categories, products,
-   pages, articles, pulled from the data layer.
-2. app/robots.ts: allow all, disallow /cart /account /api, reference sitemap.
+1. app/sitemap.ts: per-locale entries for home, the category index, every
+   category, every product, every content page from lib/pages.ts, the
+   blog index, and every article. Every URL uses the translated segments
+   from lib/segments.ts and the translated slugs, matching what the
+   redirects resolve to and what the user sees. cart, account, and admin
+   are excluded. Each entry's alternates.languages lists the equivalent
+   URL per locale, matching the hreflang set in the page metadata.
+   lastModified comes from updatedAt where available. Product, category,
+   and article listings are pulled from getProductSlugs, getCategorySlugs,
+   and getArticleSlugs in lib/queries.ts, not from the paginated,
+   user-facing queries: those three functions are unpaginated, ordered
+   deterministically, and degrade to an empty list instead of failing
+   when the database is unreachable, so the sitemap always returns a
+   valid (possibly smaller) response.
+2. app/robots.ts: allow all, disallow /{locale}/cart, /{locale}/account,
+   /{locale}/admin for every locale, and /api. Reference the sitemap URL
+   built from BASE_URL in lib/routes.ts, which reads SITE_URL (the
+   storefront's own domain, distinct from CDN_BASE_URL).
 
 ## Out of scope for code (manual, human-performed)
 - Creating the GCP project, Cloud SQL instance, Storage bucket, IAM service

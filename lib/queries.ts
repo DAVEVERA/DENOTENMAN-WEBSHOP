@@ -37,6 +37,7 @@ export type ProductSummaryDto = {
   basePriceCents: number;
   currency: string;
   images: ProductImageDto[];
+  updatedAt: Date;
 };
 
 export type ProductDetailDto = ProductSummaryDto & {
@@ -49,6 +50,7 @@ export type CategoryDto = {
   slug: string;
   name: string;
   description: string | null;
+  updatedAt: Date;
 };
 
 export type CategoryWithProductsDto = CategoryDto & {
@@ -61,12 +63,14 @@ export type PageDto = {
   title: string;
   slug: string;
   body: string;
+  updatedAt: Date;
 };
 
 export type ArticleSummaryDto = {
   id: string;
   slug: string;
   title: string;
+  updatedAt: Date;
 };
 
 export type ArticleDetailDto = ArticleSummaryDto & {
@@ -95,6 +99,12 @@ export type ProductAttributeFilter = {
 export type Paging = {
   limit?: number;
   offset?: number;
+};
+
+export type SlugEntryDto = {
+  id: string;
+  slug: string;
+  updatedAt: Date;
 };
 
 const defaultPageLimit = 20;
@@ -160,6 +170,7 @@ function toProductSummaryDto(
     images: product.images
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(toProductImageDto),
+    updatedAt: product.updatedAt,
   };
 }
 
@@ -197,6 +208,7 @@ function toCategoryDto(
     slug: translation.slug,
     name: translation.name,
     description: translation.description,
+    updatedAt: category.updatedAt,
   };
 }
 
@@ -352,6 +364,7 @@ export async function getPageBySlug(
     title: resolved.title,
     slug: resolved.slug,
     body: resolved.body,
+    updatedAt: translation.page.updatedAt,
   };
 }
 
@@ -381,6 +394,7 @@ export async function getArticles(
         id: article.id,
         slug: translation.slug,
         title: translation.title,
+        updatedAt: article.updatedAt,
       };
     })
     .filter((article): article is ArticleSummaryDto => article !== undefined);
@@ -412,30 +426,59 @@ export async function getArticleBySlug(
     slug: resolved.slug,
     title: resolved.title,
     body: resolved.body,
+    updatedAt: article.updatedAt,
   };
 }
 
-export async function getProductSlugs(locale: Locale): Promise<string[]> {
+export async function getProductSlugs(locale: Locale): Promise<SlugEntryDto[]> {
   try {
     const translations = await prisma.productTranslation.findMany({
       where: { locale, product: { isActive: true } },
-      select: { slug: true },
+      select: { productId: true, slug: true, product: { select: { updatedAt: true } } },
+      orderBy: { slug: "asc" },
     });
 
-    return translations.map((translation) => translation.slug);
+    return translations.map((translation) => ({
+      id: translation.productId,
+      slug: translation.slug,
+      updatedAt: translation.product.updatedAt,
+    }));
   } catch {
     return [];
   }
 }
 
-export async function getCategorySlugs(locale: Locale): Promise<string[]> {
+export async function getCategorySlugs(locale: Locale): Promise<SlugEntryDto[]> {
   try {
     const translations = await prisma.categoryTranslation.findMany({
       where: { locale, category: { isActive: true } },
-      select: { slug: true },
+      select: { categoryId: true, slug: true, category: { select: { updatedAt: true } } },
+      orderBy: { slug: "asc" },
     });
 
-    return translations.map((translation) => translation.slug);
+    return translations.map((translation) => ({
+      id: translation.categoryId,
+      slug: translation.slug,
+      updatedAt: translation.category.updatedAt,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function getArticleSlugs(locale: Locale): Promise<SlugEntryDto[]> {
+  try {
+    const translations = await prisma.articleTranslation.findMany({
+      where: { locale, article: { publishedAt: { not: null } } },
+      select: { articleId: true, slug: true, article: { select: { updatedAt: true } } },
+      orderBy: { slug: "asc" },
+    });
+
+    return translations.map((translation) => ({
+      id: translation.articleId,
+      slug: translation.slug,
+      updatedAt: translation.article.updatedAt,
+    }));
   } catch {
     return [];
   }

@@ -1,7 +1,7 @@
 import type { Locale } from "@/lib/i18n";
 import { categoriesSegment, productsSegment } from "@/lib/segments";
 
-export const BASE_URL = process.env.CDN_BASE_URL ?? "http://localhost:3000";
+export const BASE_URL = process.env.SITE_URL ?? "http://localhost:3000";
 
 export function home(locale: Locale): string {
   return `/${locale}`;

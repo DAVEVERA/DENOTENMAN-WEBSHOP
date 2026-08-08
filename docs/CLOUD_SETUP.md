@@ -62,7 +62,7 @@ names, identifiers, or secret values belong in this repository.
 - Purpose: holds runtime configuration values that must not appear in
   the repository, matching the keys already declared in
   `.env.example`: `DATABASE_URL`, `GCS_BUCKET`, `CDN_BASE_URL`,
-  `DEFAULT_LOCALE`.
+  `SITE_URL`, `DEFAULT_LOCALE`.
 - Minimal setup: one secret per configuration value, versioned, with
   older versions disabled rather than deleted after rotation.
 - Access: the application service account is granted Secret Manager
@@ -79,6 +79,10 @@ names, identifiers, or secret values belong in this repository.
   Storage bucket only.
 - Access: read-only from the public internet; no write path is
   exposed through the CDN.
+- `CDN_BASE_URL` and `SITE_URL` are two distinct hosts and must not be
+  set to the same value: `CDN_BASE_URL` is the image CDN configured
+  here, while `SITE_URL` is the storefront's own public domain, used
+  for canonical links, hreflang alternates, the sitemap, and robots.txt.
 
 ## Out of scope
 

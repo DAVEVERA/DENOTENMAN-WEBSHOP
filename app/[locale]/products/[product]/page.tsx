@@ -8,8 +8,8 @@ import { getProductBySlug, getProductSlugs } from "@/lib/queries";
 export async function generateStaticParams() {
   const params = await Promise.all(
     locales.map(async (locale) => {
-      const slugs = await getProductSlugs(locale);
-      return slugs.map((slug) => ({ locale, product: slug }));
+      const entries = await getProductSlugs(locale);
+      return entries.map((entry) => ({ locale, product: entry.slug }));
     })
   );
 
