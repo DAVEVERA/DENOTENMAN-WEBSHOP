@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { locales, type Locale } from "@/lib/i18n";
-import { account, articles, cart, collections, home } from "@/lib/routes";
+import { account, articles, cart, categories, home } from "@/lib/routes";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -47,7 +47,7 @@ export default async function LocaleLayout({
         <header>
           <nav>
             <a href={home(locale)}>{dictionary.nav.home}</a>
-            <a href={collections(locale)}>{dictionary.nav.collections}</a>
+            <a href={categories(locale)}>{dictionary.nav.categories}</a>
             <a href={articles(locale)}>{dictionary.nav.articles}</a>
             <a href={cart(locale)}>{dictionary.nav.cart}</a>
             <a href={account(locale)}>{dictionary.nav.account}</a>

@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Locale {
+  nl
+  en
+  fr
+}
+
+enum CategoryType {
+  STANDARD
+  PROMOTIONAL
+}
+
+enum Preparation {
+  RAW
+  ROASTED
+}
+
+enum Salting {
+  UNSALTED
+  SALTED
+}
+
+enum Coating {
+  NONE
+  CHOCOLATE
+  YOGHURT
+  FLAVORED
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FULFILLED
+  CANCELLED
+  REFUNDED
+}
+
+enum CompositionSource {
+  TEXT
+  VOICE
+}
+
+model Category {
+  id         String       @id @default(cuid())
+  slug       String       @unique
+  type       CategoryType @default(STANDARD)
+  parentId   String?
+  parent     Category?    @relation("CategoryToChildren", fields: [parentId], references: [id])
+  children   Category[]   @relation("CategoryToChildren")
+  sortOrder  Int          @default(0)
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  translations      CategoryTranslation[]
+  productCategories ProductCategory[]
+
+  @@index([parentId])
+}
+
+model CategoryTranslation {
+  id          String   @id @default(cuid())
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  locale      Locale
+  name        String
+  slug        String
+  description String?
+
+  @@unique([categoryId, locale])
+  @@unique([locale, slug])
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  sku            String   @unique
+  basePriceCents Int
+  currency       String   @default("EUR")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  translations      ProductTranslation[]
+  productCategories ProductCategory[]
+  variants          ProductVariant[]
+  attributes        ProductAttribute[]
+  images            ProductImage[]
+}
+
+model ProductTranslation {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  locale      Locale
+  name        String
+  slug        String
+  description String?
+
+  @@unique([productId, locale])
+  @@unique([locale, slug])
+}
+
+model ProductCategory {
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+}
+
+model ProductVariant {
+  id           String      @id @default(cuid())
+  productId    String
+  product      Product     @relation(fields: [productId], references: [id])
+  sku          String      @unique
+  priceCents   Int
+  stock        Int         @default(0)
+  weightGrams  Int
+  preparation  Preparation
+  salting      Salting
+  coating      Coating     @default(NONE)
+  isActive     Boolean     @default(true)
+
+  translations VariantTranslation[]
+  orderItems   OrderItem[]
+
+  @@index([productId])
+}
+
+model VariantTranslation {
+  id        String         @id @default(cuid())
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  locale    Locale
+  label     String
+
+  @@unique([variantId, locale])
+}
+
+model ProductAttribute {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  key       String
+  value     String
+
+  @@index([key, value])
+  @@index([productId])
+}
+
+model ProductImage {
+  id         String  @id @default(cuid())
+  productId  String
+  product    Product @relation(fields: [productId], references: [id])
+  storageKey String
+  alt        String?
+  sortOrder  Int     @default(0)
+  isPrimary  Boolean @default(false)
+
+  @@index([productId])
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  translations PageTranslation[]
+}
+
+model PageTranslation {
+  id     String @id @default(cuid())
+  pageId String
+  page   Page   @relation(fields: [pageId], references: [id])
+  locale Locale
+  title  String
+  slug   String
+  body   String
+
+  @@unique([pageId, locale])
+  @@unique([locale, slug])
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  translations ArticleTranslation[]
+}
+
+model ArticleTranslation {
+  id        String  @id @default(cuid())
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id])
+  locale    Locale
+  title     String
+  slug      String
+  body      String
+
+  @@unique([articleId, locale])
+  @@unique([locale, slug])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      Role     @default(CUSTOMER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders       Order[]
+  compositions Composition[]
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  status      OrderStatus @default(PENDING)
+  totalCents  Int
+  createdAt   DateTime    @default(now())
+
+  items OrderItem[]
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id             String         @id @default(cuid())
+  orderId        String
+  order          Order          @relation(fields: [orderId], references: [id])
+  variantId      String
+  variant        ProductVariant @relation(fields: [variantId], references: [id])
+  quantity       Int
+  unitPriceCents Int
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+model Composition {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  source    CompositionSource
+  payload   Json
+  createdAt DateTime          @default(now())
+
+  @@index([userId])
+}
