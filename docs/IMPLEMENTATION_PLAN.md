@@ -64,12 +64,26 @@ Cloud Storage for images. Follow docs/STRUCTURE.md for all placement.
 
 ## Phase 6 — Queries and filtering
 1. lib/queries.ts: getProductBySlug(slug, locale), getCategory(slug, locale),
-   getFilteredProducts(categorySlug, locale, filters[]), getPageBySlug(slug,
-   locale), getArticles(locale), getArticleBySlug(slug, locale),
-   getOrdersForUser(userId, locale). getCategory resolves the Category by
-   its (locale, slug) pair, matching CategoryTranslation. Return flat,
-   locale-resolved objects with CDN image URLs. Every query is locale-aware.
-2. Filtering uses ProductAttribute key/value with AND semantics.
+   getFilteredProducts(categorySlug, locale, filters, paging),
+   getPageBySlug(slug, locale), getArticles(locale, paging),
+   getArticleBySlug(slug, locale), getOrdersForUser(userId).
+   getProductBySlug and getCategory resolve their record through the
+   translated slug in ProductTranslation and CategoryTranslation, via a
+   unique lookup on (locale, slug), never on the internal slug. A missing
+   translation for the requested locale falls back to defaultLocale from
+   lib/i18n.ts; if that is also missing, the record is treated as not
+   found. This rule lives in one shared helper and is reused by every
+   query. Return flat, locale-resolved DTOs (never raw Prisma models),
+   with ProductImage.storageKey resolved to a public URL via
+   publicImageUrl() from lib/storage.ts. getOrdersForUser is not
+   locale-aware: orders and order items carry no translatable fields.
+2. Filtering uses ProductAttribute key/value with AND semantics across
+   multiple key/value pairs, and respects isActive. Supports paging with
+   limit and offset, bounded by safe default and maximum values.
+3. Static params for product and category detail routes read known slugs
+   from the database. If the database is unreachable at build time (for
+   example before Cloud SQL exists), the lookup returns an empty list
+   instead of failing the build. See docs/ARCHITECTURE.md.
 
 ## Phase 7 — SEO surface
 1. app/sitemap.ts: static + per-locale entries for categories, products,

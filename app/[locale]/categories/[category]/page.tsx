@@ -1,13 +1,44 @@
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import type { Locale } from "@/lib/i18n";
 import { locales } from "@/lib/i18n";
-import { getCategory } from "@/lib/queries";
+import { category as categoryPath } from "@/lib/routes";
+import { getCategory, getCategorySlugs } from "@/lib/queries";
 
-const categorySlugs = ["puffs", "chips", "pops", "protein", "all"] as const;
-
-export function generateStaticParams() {
-  return locales.flatMap((locale) =>
-    categorySlugs.map((category) => ({ locale, category }))
+export async function generateStaticParams() {
+  const params = await Promise.all(
+    locales.map(async (locale) => {
+      const slugs = await getCategorySlugs(locale);
+      return slugs.map((slug) => ({ locale, category: slug }));
+    })
   );
+
+  return params.flat();
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: Locale; category: string }>;
+}): Promise<Metadata> {
+  const { locale, category } = await params;
+  const data = await getCategory(category, locale);
+
+  if (!data) {
+    return {};
+  }
+
+  return {
+    alternates: {
+      canonical: categoryPath(locale, data.slug),
+      languages: Object.fromEntries(
+        Object.entries(data.slugsByLocale).map(([loc, slug]) => [
+          loc,
+          categoryPath(loc as Locale, slug),
+        ])
+      ),
+    },
+  };
 }
 
 export default async function CategoryPage({
@@ -17,6 +48,10 @@ export default async function CategoryPage({
 }) {
   const { locale, category } = await params;
   const data = await getCategory(category, locale);
+
+  if (!data) {
+    notFound();
+  }
 
   return (
     <div>
