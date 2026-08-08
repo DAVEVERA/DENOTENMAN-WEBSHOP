@@ -23,6 +23,9 @@ This document defines where every kind of file belongs. Do not deviate.
   configurator). Not created yet; this entry only reserves the location.
 - `app/[locale]/admin/` is reserved for a future admin portal. Not created
   yet; this entry only reserves the location.
+- `docs/CLOUD_SETUP.md` holds the manual Google Cloud provisioning
+  checklist (project, Cloud SQL, Storage bucket, service accounts, IAM
+  roles, Secret Manager entries).
 
 ## Hard constraints
 - Code files (.ts, .tsx, .prisma, .json) contain code/data only. No prose,

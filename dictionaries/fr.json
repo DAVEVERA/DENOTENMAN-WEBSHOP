@@ -24,7 +24,7 @@
     "checkout": "Commander",
     "total": "Total"
   },
-  "collection": {
+  "category": {
     "filters": "Filtres",
     "noResults": "Aucun produit trouvé."
   },

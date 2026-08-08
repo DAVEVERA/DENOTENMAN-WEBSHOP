@@ -24,7 +24,7 @@
     "checkout": "Checkout",
     "total": "Total"
   },
-  "collection": {
+  "category": {
     "filters": "Filters",
     "noResults": "No products found."
   },

@@ -10,6 +10,7 @@ export const resources = [
   "articles",
   "users",
   "compositions",
+  "media",
 ] as const;
 
 export type Resource = (typeof resources)[number];
@@ -60,6 +61,12 @@ export const permissions: PermissionMatrix = {
     ADMIN: ["read", "write"],
     STAFF: ["read"],
     CUSTOMER: ["read", "write"],
+  },
+  media: {
+    OWNER: ["read", "write"],
+    ADMIN: ["read", "write"],
+    STAFF: ["read", "write"],
+    CUSTOMER: ["read"],
   },
 };
 
