@@ -3,8 +3,6 @@ import type { Metadata } from "next";
 import { Dosis, Montserrat } from "next/font/google";
 import { locales, isLocale } from "@/lib/i18n";
 import { getAlternates } from "@/lib/alternates";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -66,7 +64,6 @@ export default async function LocaleLayout({
 
   const locale = rawLocale;
   const dictionary = dictionaries[locale];
-  const alternates = await getAlternates(locale, { type: "home" });
 
   return (
     <html lang={locale} className={`${dosis.variable} ${montserrat.variable}`}>
@@ -77,9 +74,7 @@ export default async function LocaleLayout({
         >
           {dictionary.nav.skipToContent}
         </a>
-        <Header locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}} />
         <main id="main-content">{children}</main>
-        <Footer locale={locale} dictionary={dictionary} />
       </body>
     </html>
   );
