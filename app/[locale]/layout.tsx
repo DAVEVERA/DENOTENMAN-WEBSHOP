@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Dosis, Montserrat } from "next/font/google";
 import { locales, isLocale } from "@/lib/i18n";
-import { account, articles, cart, categories, home } from "@/lib/routes";
+import { getAlternates } from "@/lib/alternates";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -29,13 +31,22 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  await params;
+  const { locale: rawLocale } = await params;
+
+  if (!isLocale(rawLocale)) {
+    return {};
+  }
+
+  const alternates = await getAlternates(rawLocale, { type: "home" });
+
+  if (!alternates) {
+    return {};
+  }
 
   return {
     alternates: {
-      languages: Object.fromEntries(
-        locales.map((loc) => [loc, `/${loc}`])
-      ),
+      canonical: alternates.canonical,
+      languages: alternates.languages,
     },
   };
 }
@@ -55,6 +66,7 @@ export default async function LocaleLayout({
 
   const locale = rawLocale;
   const dictionary = dictionaries[locale];
+  const alternates = await getAlternates(locale, { type: "home" });
 
   return (
     <html lang={locale} className={`${dosis.variable} ${montserrat.variable}`}>
@@ -65,22 +77,9 @@ export default async function LocaleLayout({
         >
           {dictionary.nav.skipToContent}
         </a>
-        <header>
-          <nav>
-            <a href={home(locale)}>{dictionary.nav.home}</a>
-            <a href={categories(locale)}>{dictionary.nav.categories}</a>
-            <a href={articles(locale)}>{dictionary.nav.articles}</a>
-            <a href={cart(locale)}>{dictionary.nav.cart}</a>
-            <a href={account(locale)}>{dictionary.nav.account}</a>
-          </nav>
-        </header>
+        <Header locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}} />
         <main id="main-content">{children}</main>
-        <footer>
-          <p>{dictionary.footer.aboutTitle}</p>
-          <p>{dictionary.footer.contactTitle}</p>
-          <p>{dictionary.footer.legalTitle}</p>
-          <p>{dictionary.footer.copyright}</p>
-        </footer>
+        <Footer locale={locale} dictionary={dictionary} />
       </body>
     </html>
   );
