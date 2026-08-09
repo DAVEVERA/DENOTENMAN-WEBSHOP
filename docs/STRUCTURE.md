@@ -27,9 +27,10 @@ This document defines where every kind of file belongs. Do not deviate.
   if a shared `layout.tsx` existed at their parent level. `SiteShell` is
   the only place `Header` and `Footer` are composed together; no other
   file renders them.
-- `public/brand/` holds brand assets (`logo-mark.svg`, `logo-wordmark.svg`)
-  referenced by the `Logo` component. No other component reads from this
-  directory directly.
+- `public/brand/` holds exactly three files: `logo-mark.svg`,
+  `logo-wordmark.svg`, and `favicon.png`. `logo-mark.svg` and
+  `logo-wordmark.svg` are referenced by the `Logo` component; no other
+  component reads from this directory directly.
 - `lib/alternates.ts` is the only source for cross-locale URLs of any kind;
   no other file constructs one.
 - Colors, fonts, and typographic scales are defined exclusively in the
@@ -69,3 +70,7 @@ This document defines where every kind of file belongs. Do not deviate.
   `next.config.ts` outside of the tsconfig path aliases, so `@/*` imports
   do not resolve there. Type-only imports (`import type`) are exempt, as
   they are erased before this resolution matters.
+- Design source files (`.ai`, `.eps`, `.psd`, `.sketch`, `.fig`, and
+  similar editor-native formats) never enter the repository under any
+  path. `public/` is served publicly as-is; only the final exported
+  assets a component actually references belong there.
