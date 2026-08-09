@@ -9,15 +9,53 @@
   --color-surface: #FFFFFF;
   --color-border: #E4DFD5;
   --color-muted: #7A7367;
+  --color-border-hover: #C9A227;
 
   --font-heading: var(--font-dosis);
   --font-body: var(--font-montserrat);
 
   --tracking-heading: 0.02em;
   --font-weight-heading: 600;
+
+  --text-heading-sm: 1.125rem;
+  --text-heading-md: 1.5rem;
+  --text-heading-lg: 2rem;
+  --text-heading-xl: 2.75rem;
+  --text-body-sm: 0.875rem;
+  --text-body-md: 1rem;
+  --text-body-lg: 1.125rem;
+
+  --spacing-card: 1.5rem;
+  --spacing-panel: 2rem;
+  --spacing-gap-sm: 0.5rem;
+  --spacing-gap-md: 1rem;
+  --spacing-gap-lg: 1.5rem;
+
+  --radius-button: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-panel: 1rem;
+
+  --shadow-button: 0 2px 4px rgba(20, 20, 20, 0.18);
+  --shadow-card: 0 1px 2px rgba(20, 20, 20, 0.08);
+  --shadow-card-hover: 0 8px 16px rgba(20, 20, 20, 0.12);
+
+  --ease-hover: cubic-bezier(0.22, 1, 0.36, 1);
+  --transition-duration-hover: 320ms;
+  --transition-duration-hover-fast: 240ms;
 }
 
 *:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
