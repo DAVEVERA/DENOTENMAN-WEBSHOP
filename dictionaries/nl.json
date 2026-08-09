@@ -5,7 +5,11 @@
     "cart": "Winkelwagen",
     "account": "Account",
     "articles": "Artikelen",
-    "skipToContent": "Ga naar hoofdinhoud"
+    "skipToContent": "Ga naar hoofdinhoud",
+    "search": "Zoeken",
+    "openMenu": "Open menu",
+    "closeMenu": "Sluit menu",
+    "mainMenu": "Hoofdmenu"
   },
   "brand": {
     "baseline": "Vers gebrande noten, gedroogde zuidvruchten",
@@ -16,6 +20,13 @@
     "aboutTitle": "Over ons",
     "contactTitle": "Contact",
     "legalTitle": "Juridisch",
+    "categoriesTitle": "Assortiment",
+    "serviceTitle": "Klantenservice",
+    "contactTitleColumn": "Contact",
+    "marketDaysTitle": "Marktdagen",
+    "marketDayThursday": "Donderdag",
+    "marketDayFriday": "Vrijdag",
+    "marketDaySaturday": "Zaterdag",
     "copyright": "Alle rechten voorbehouden.",
     "terms": "Algemene voorwaarden",
     "privacy": "Privacybeleid",
@@ -29,7 +40,12 @@
     "addToCart": "In winkelwagen",
     "outOfStock": "Niet op voorraad",
     "price": "Prijs",
-    "pricePerHundredGrams": "per 100 g"
+    "pricePerHundredGrams": "per 100 g",
+    "addToFavorites": "Toevoegen aan favorieten",
+    "removeFromFavorites": "Verwijderen uit favorieten",
+    "tabDescription": "Omschrijving",
+    "tabNutrition": "Voedingswaarde",
+    "tabFaq": "Veelgestelde vragen"
   },
   "cart": {
     "title": "Winkelwagen",
@@ -43,6 +59,16 @@
   },
   "common": {
     "loading": "Laden...",
-    "search": "Zoeken"
+    "search": "Zoeken",
+    "account": "Account",
+    "cart": "Winkelwagen"
+  },
+  "usp": {
+    "freshRoasted": "Dagelijks vers gebrand",
+    "personalAdvice": "Persoonlijk advies van De Notenman",
+    "experience": "Jarenlange ervaring op de markt"
+  },
+  "loader": {
+    "status": "Laden..."
   }
 }

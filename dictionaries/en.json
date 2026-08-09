@@ -5,7 +5,11 @@
     "cart": "Cart",
     "account": "Account",
     "articles": "Articles",
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "search": "Search",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "mainMenu": "Main menu"
   },
   "brand": {
     "baseline": "Freshly roasted nuts, dried fruit",
@@ -16,6 +20,13 @@
     "aboutTitle": "About us",
     "contactTitle": "Contact",
     "legalTitle": "Legal",
+    "categoriesTitle": "Collections",
+    "serviceTitle": "Customer service",
+    "contactTitleColumn": "Contact",
+    "marketDaysTitle": "Market days",
+    "marketDayThursday": "Thursday",
+    "marketDayFriday": "Friday",
+    "marketDaySaturday": "Saturday",
     "copyright": "All rights reserved.",
     "terms": "Terms and conditions",
     "privacy": "Privacy policy",
@@ -29,7 +40,12 @@
     "addToCart": "Add to cart",
     "outOfStock": "Out of stock",
     "price": "Price",
-    "pricePerHundredGrams": "per 100 g"
+    "pricePerHundredGrams": "per 100 g",
+    "addToFavorites": "Add to favorites",
+    "removeFromFavorites": "Remove from favorites",
+    "tabDescription": "Description",
+    "tabNutrition": "Nutrition",
+    "tabFaq": "FAQ"
   },
   "cart": {
     "title": "Cart",
@@ -43,6 +59,16 @@
   },
   "common": {
     "loading": "Loading...",
-    "search": "Search"
+    "search": "Search",
+    "account": "Account",
+    "cart": "Cart"
+  },
+  "usp": {
+    "freshRoasted": "Freshly roasted daily",
+    "personalAdvice": "Personal advice from De Notenman",
+    "experience": "Years of experience at the market"
+  },
+  "loader": {
+    "status": "Loading..."
   }
 }

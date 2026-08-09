@@ -5,7 +5,11 @@
     "cart": "Panier",
     "account": "Compte",
     "articles": "Articles",
-    "skipToContent": "Aller au contenu principal"
+    "skipToContent": "Aller au contenu principal",
+    "search": "Rechercher",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "mainMenu": "Menu principal"
   },
   "brand": {
     "baseline": "Noix fraîchement torréfiées, fruits secs",
@@ -16,6 +20,13 @@
     "aboutTitle": "À propos",
     "contactTitle": "Contact",
     "legalTitle": "Mentions légales",
+    "categoriesTitle": "Collections",
+    "serviceTitle": "Service client",
+    "contactTitleColumn": "Contact",
+    "marketDaysTitle": "Jours de marché",
+    "marketDayThursday": "Jeudi",
+    "marketDayFriday": "Vendredi",
+    "marketDaySaturday": "Samedi",
     "copyright": "Tous droits réservés.",
     "terms": "Conditions générales",
     "privacy": "Politique de confidentialité",
@@ -29,7 +40,12 @@
     "addToCart": "Ajouter au panier",
     "outOfStock": "Rupture de stock",
     "price": "Prix",
-    "pricePerHundredGrams": "par 100 g"
+    "pricePerHundredGrams": "par 100 g",
+    "addToFavorites": "Ajouter aux favoris",
+    "removeFromFavorites": "Retirer des favoris",
+    "tabDescription": "Description",
+    "tabNutrition": "Valeurs nutritionnelles",
+    "tabFaq": "FAQ"
   },
   "cart": {
     "title": "Panier",
@@ -43,6 +59,16 @@
   },
   "common": {
     "loading": "Chargement...",
-    "search": "Rechercher"
+    "search": "Rechercher",
+    "account": "Compte",
+    "cart": "Panier"
+  },
+  "usp": {
+    "freshRoasted": "Torréfié frais chaque jour",
+    "personalAdvice": "Conseil personnalisé de De Notenman",
+    "experience": "Des années d'expérience sur le marché"
+  },
+  "loader": {
+    "status": "Chargement..."
   }
 }
