@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import type { Locale } from "@/lib/i18n";
-import { locales } from "@/lib/i18n";
+import { locales, isLocale } from "@/lib/i18n";
 import { pageKeys, pagePath, pageSlugs, resolvePageKey } from "@/lib/pages";
 
 export function generateStaticParams() {
@@ -13,9 +12,15 @@ export function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: Locale; slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const { locale, slug } = await params;
+  const { locale: rawLocale, slug } = await params;
+
+  if (!isLocale(rawLocale)) {
+    return {};
+  }
+
+  const locale = rawLocale;
   const key = resolvePageKey(locale, slug);
 
   if (!key) {
@@ -33,9 +38,15 @@ export async function generateMetadata({
 export default async function ContentPage({
   params,
 }: {
-  params: Promise<{ locale: Locale; slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { locale, slug } = await params;
+  const { locale: rawLocale, slug } = await params;
+
+  if (!isLocale(rawLocale)) {
+    notFound();
+  }
+
+  const locale = rawLocale;
   const key = resolvePageKey(locale, slug);
 
   if (!key) {

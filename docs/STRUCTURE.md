@@ -34,3 +34,8 @@ This document defines where every kind of file belongs. Do not deviate.
 - No file may be authored with or reference any tool, generator or author name.
 - Do not create folders outside this contract. If a new concern arises,
   extend an existing folder or propose an addition in `docs/` first.
+- Modules imported by `next.config.ts`, directly or transitively, must use
+  only relative imports for their value imports. Next.js transpiles
+  `next.config.ts` outside of the tsconfig path aliases, so `@/*` imports
+  do not resolve there. Type-only imports (`import type`) are exempt, as
+  they are erased before this resolution matters.

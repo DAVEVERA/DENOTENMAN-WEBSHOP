@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n";
-import { pagesSegment } from "@/lib/segments";
+import { pagesSegment } from "./segments";
 
 export const pageKeys = [
   "about",

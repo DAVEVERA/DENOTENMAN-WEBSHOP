@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
-import { locales } from "@/lib/i18n";
-import { pageKeys, pageSlugs } from "@/lib/pages";
-import { categoriesSegment, pagesSegment, productsSegment } from "@/lib/segments";
+import { locales } from "./lib/i18n";
+import { pageKeys, pageSlugs } from "./lib/pages";
+import { categoriesSegment, pagesSegment, productsSegment } from "./lib/segments";
 
 const cdnBaseUrl = process.env.CDN_BASE_URL;
 const cdnHostname = cdnBaseUrl ? new URL(cdnBaseUrl).hostname : undefined;

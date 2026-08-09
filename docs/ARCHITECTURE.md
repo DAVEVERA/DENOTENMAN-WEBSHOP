@@ -1,5 +1,18 @@
 # Architecture Notes
 
+## Dynamic route parameters are validated, not assumed
+
+Every `page.tsx` and `layout.tsx` under `app/[locale]/` receives `params`
+typed the way Next.js generates it: `locale` arrives as a plain `string`,
+because the filesystem route segment matches any string. The route
+handlers do not narrow that to the `Locale` union in the function
+signature. Instead, each handler reads `params`, then calls `isLocale`
+from `lib/i18n.ts` immediately: on a false result it calls `notFound()`
+(or, in `generateMetadata`, returns an empty metadata object) before any
+other code runs. After that check, TypeScript narrows the value to
+`Locale` for the rest of the function, so the rest of each route body
+stays fully typed against `Locale` without casts.
+
 ## Build-time static params without a database
 
 `generateStaticParams` for the product and category detail routes, and

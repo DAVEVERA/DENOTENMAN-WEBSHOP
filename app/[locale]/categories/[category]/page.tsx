@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import type { Locale } from "@/lib/i18n";
-import { locales } from "@/lib/i18n";
+import { locales, isLocale } from "@/lib/i18n";
 import { category as categoryPath } from "@/lib/routes";
 import { getCategory, getCategorySlugs } from "@/lib/queries";
 
@@ -19,9 +18,15 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: Locale; category: string }>;
+  params: Promise<{ locale: string; category: string }>;
 }): Promise<Metadata> {
-  const { locale, category } = await params;
+  const { locale: rawLocale, category } = await params;
+
+  if (!isLocale(rawLocale)) {
+    return {};
+  }
+
+  const locale = rawLocale;
   const data = await getCategory(category, locale);
 
   if (!data) {
@@ -32,10 +37,10 @@ export async function generateMetadata({
     alternates: {
       canonical: categoryPath(locale, data.slug),
       languages: Object.fromEntries(
-        Object.entries(data.slugsByLocale).map(([loc, slug]) => [
-          loc,
-          categoryPath(loc as Locale, slug),
-        ])
+        locales.flatMap((loc) => {
+          const slug = data.slugsByLocale[loc];
+          return slug ? [[loc, categoryPath(loc, slug)] as const] : [];
+        })
       ),
     },
   };
@@ -44,9 +49,15 @@ export async function generateMetadata({
 export default async function CategoryPage({
   params,
 }: {
-  params: Promise<{ locale: Locale; category: string }>;
+  params: Promise<{ locale: string; category: string }>;
 }) {
-  const { locale, category } = await params;
+  const { locale: rawLocale, category } = await params;
+
+  if (!isLocale(rawLocale)) {
+    notFound();
+  }
+
+  const locale = rawLocale;
   const data = await getCategory(category, locale);
 
   if (!data) {

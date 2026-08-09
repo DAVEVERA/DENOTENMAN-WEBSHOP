@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import type { Locale } from "@/lib/i18n";
-import { locales } from "@/lib/i18n";
+import { locales, isLocale } from "@/lib/i18n";
 import { product as productPath } from "@/lib/routes";
 import { getProductBySlug, getProductSlugs } from "@/lib/queries";
 
@@ -19,9 +18,15 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: Locale; product: string }>;
+  params: Promise<{ locale: string; product: string }>;
 }): Promise<Metadata> {
-  const { locale, product } = await params;
+  const { locale: rawLocale, product } = await params;
+
+  if (!isLocale(rawLocale)) {
+    return {};
+  }
+
+  const locale = rawLocale;
   const data = await getProductBySlug(product, locale);
 
   if (!data) {
@@ -32,10 +37,10 @@ export async function generateMetadata({
     alternates: {
       canonical: productPath(locale, data.slug),
       languages: Object.fromEntries(
-        Object.entries(data.slugsByLocale).map(([loc, slug]) => [
-          loc,
-          productPath(loc as Locale, slug),
-        ])
+        locales.flatMap((loc) => {
+          const slug = data.slugsByLocale[loc];
+          return slug ? [[loc, productPath(loc, slug)] as const] : [];
+        })
       ),
     },
   };
@@ -44,9 +49,15 @@ export async function generateMetadata({
 export default async function ProductPage({
   params,
 }: {
-  params: Promise<{ locale: Locale; product: string }>;
+  params: Promise<{ locale: string; product: string }>;
 }) {
-  const { locale, product } = await params;
+  const { locale: rawLocale, product } = await params;
+
+  if (!isLocale(rawLocale)) {
+    notFound();
+  }
+
+  const locale = rawLocale;
   const data = await getProductBySlug(product, locale);
 
   if (!data) {

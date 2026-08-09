@@ -1,5 +1,5 @@
-import type { Locale } from "@/lib/i18n";
-import { locales } from "@/lib/i18n";
+import { notFound } from "next/navigation";
+import { locales, isLocale } from "@/lib/i18n";
 import { getFilteredProducts } from "@/lib/queries";
 
 export function generateStaticParams() {
@@ -9,9 +9,15 @@ export function generateStaticParams() {
 export default async function CategoriesPage({
   params,
 }: {
-  params: Promise<{ locale: Locale }>;
+  params: Promise<{ locale: string }>;
 }) {
-  const { locale } = await params;
+  const { locale: rawLocale } = await params;
+
+  if (!isLocale(rawLocale)) {
+    notFound();
+  }
+
+  const locale = rawLocale;
   const products = await getFilteredProducts("all", locale, []);
 
   return (

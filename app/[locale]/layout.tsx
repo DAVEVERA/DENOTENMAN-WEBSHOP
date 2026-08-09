@@ -1,15 +1,12 @@
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { locales, type Locale } from "@/lib/i18n";
+import { locales, isLocale } from "@/lib/i18n";
 import { account, articles, cart, categories, home } from "@/lib/routes";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 
 const dictionaries = { nl, en, fr };
-
-function getDictionary(locale: Locale) {
-  return dictionaries[locale];
-}
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -18,7 +15,7 @@ export function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: Locale }>;
+  params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   await params;
 
@@ -36,10 +33,16 @@ export default async function LocaleLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ locale: Locale }>;
+  params: Promise<{ locale: string }>;
 }) {
-  const { locale } = await params;
-  const dictionary = getDictionary(locale);
+  const { locale: rawLocale } = await params;
+
+  if (!isLocale(rawLocale)) {
+    notFound();
+  }
+
+  const locale = rawLocale;
+  const dictionary = dictionaries[locale];
 
   return (
     <html lang={locale}>

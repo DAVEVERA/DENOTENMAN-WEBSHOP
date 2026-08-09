@@ -1,11 +1,16 @@
-import type { Locale } from "@/lib/i18n";
+import { notFound } from "next/navigation";
+import { isLocale } from "@/lib/i18n";
 
 export default async function ArticlesPage({
   params,
 }: {
-  params: Promise<{ locale: Locale }>;
+  params: Promise<{ locale: string }>;
 }) {
-  await params;
+  const { locale } = await params;
+
+  if (!isLocale(locale)) {
+    notFound();
+  }
 
   return <ul></ul>;
 }
