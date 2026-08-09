@@ -19,6 +19,7 @@
 - No file may be authored with or reference any tool, generator, or author name.
 - The mega-menu's per-category "featured block" reads `CategoryTranslation.description` when present and renders nothing (not a placeholder, not an empty box) when absent — seed data does not currently populate this field, so on today's data the slot will typically be empty. This is a deliberate, minimal choice: the schema already has the field, so no migration is needed, and no fake content is invented.
 - Stop after this plan is fully implemented and verified — no additional features beyond what is listed here.
+- Mobile-first throughout: every component's unprefixed (base) Tailwind classes describe the phone layout; `sm:`/`lg:` prefixes only ever ADD or override for larger viewports, never restore something the base layout hid or removed. Concretely: `Header`'s mega-menu/desktop nav is `hidden lg:flex` (absent by default, added at `lg:`) and `MobileNav`'s trigger is unprefixed with `lg:hidden` (present by default, removed at `lg:`) — this is the correct direction and both are already written this way in Tasks 11-13 below. `Footer`'s column grid starts at `grid-cols-1` (unprefixed) and gains columns at `sm:`/`lg:`, never the reverse. Any new class written during implementation that reads as "start wide, shrink down" (e.g. a bare multi-column grid with a `sm:grid-cols-1` override) is wrong and must be rewritten mobile-first before that task is reviewed.
 
 ---
 
