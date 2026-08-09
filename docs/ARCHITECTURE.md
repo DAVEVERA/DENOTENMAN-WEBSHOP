@@ -177,3 +177,21 @@ is shown there.
 `logo-wordmark-inverted.svg` is added, only the `wordmarkSrc` map inside
 `Logo.tsx` needs to change — no caller changes, since every consumer
 already asks for `variant="dark"` where an inverted mark belongs.
+
+## Icon convention
+
+`lucide-react` is the only icon library used anywhere in this project. No
+other icon set, no hand-drawn SVG icon, and no icon font are introduced.
+Every icon is imported directly from `lucide-react` at its default stroke
+width (`strokeWidth={2}`, the library default — never overridden per
+instance) so every icon in the interface reads as part of one consistent
+set. Icon sizes come from the token scale (`h-4 w-4`, `h-5 w-5`, `h-6 w-6`
+— Tailwind's default spacing scale, matched to the icon's role: inline
+with body text uses the smallest size, standalone interactive icons like
+header actions use the middle size, larger decorative or featured icons
+use the largest). Icons that are purely decorative — meaning the same
+information is already conveyed by adjacent visible text — are hidden
+from assistive technology with `aria-hidden="true"`. Icons that are the
+only content of an interactive element (an icon-only button) instead
+carry the accessible name on the parent control (`aria-label` on the
+`<button>`), not on the icon itself.
