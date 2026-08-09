@@ -305,7 +305,7 @@ export async function getCategory(
 
 export async function getMainCategories(locale: Locale): Promise<MainCategoryDto[]> {
   const categories = await prisma.category.findMany({
-    where: { isActive: true },
+    where: { isActive: true, parentId: null },
     include: { translations: true },
     orderBy: { sortOrder: "asc" },
   });
