@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { isLocale } from "@/lib/i18n";
+import { Container } from "@/components/ui/Container";
 
 export default async function CartPage({
   params,
@@ -12,5 +13,5 @@ export default async function CartPage({
     notFound();
   }
 
-  return <div></div>;
+  return <Container className="py-10">{null}</Container>;
 }

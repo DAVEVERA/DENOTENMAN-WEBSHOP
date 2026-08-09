@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { locales, isLocale } from "@/lib/i18n";
-import { pageKeys, pagePath, pageSlugs, resolvePageKey } from "@/lib/pages";
+import { pageKeys, pageSlugs, resolvePageKey } from "@/lib/pages";
+import { getAlternates } from "@/lib/alternates";
+import { Container } from "@/components/ui/Container";
 
 export function generateStaticParams() {
   return locales.flatMap((locale) =>
@@ -27,10 +29,16 @@ export async function generateMetadata({
     return {};
   }
 
+  const alternates = await getAlternates(locale, { type: "page", key });
+
+  if (!alternates) {
+    return {};
+  }
+
   return {
     alternates: {
-      canonical: pagePath(key, locale),
-      languages: Object.fromEntries(locales.map((loc) => [loc, pagePath(key, loc)])),
+      canonical: alternates.canonical,
+      languages: alternates.languages,
     },
   };
 }
@@ -53,5 +61,9 @@ export default async function ContentPage({
     notFound();
   }
 
-  return <article>{key}</article>;
+  return (
+    <Container className="py-10">
+      <article className="font-body text-text">{key}</article>
+    </Container>
+  );
 }

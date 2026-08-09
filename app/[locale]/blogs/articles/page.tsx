@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { isLocale } from "@/lib/i18n";
+import { Container } from "@/components/ui/Container";
 
 export default async function ArticlesPage({
   params,
@@ -12,5 +13,9 @@ export default async function ArticlesPage({
     notFound();
   }
 
-  return <ul></ul>;
+  return (
+    <Container className="py-10">
+      <ul></ul>
+    </Container>
+  );
 }
