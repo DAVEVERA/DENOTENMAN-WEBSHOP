@@ -5,10 +5,23 @@ This document defines where every kind of file belongs. Do not deviate.
 ## Placement rules
 - Route segments live only under `app/[locale]/`. Every user-facing page is a `page.tsx`.
 - `sitemap.ts` and `robots.ts` live at the `app/` root (not inside `[locale]`).
-- `middleware.ts` lives at the project root.
+- `proxy.ts` lives at the project root.
 - All shared, framework-agnostic logic lives in `lib/`. No React components here.
 - All React components live in `components/`, grouped by domain
   (`ui`, `layout`, `product`, `category`).
+- `components/ui/` holds framework-level primitives (`Container`, `Logo`)
+  with no domain knowledge. `components/layout/` holds page-shell
+  components (`Header`, `Footer`, `LocaleSwitcher`). `components/product/`
+  holds product-domain components (`ProductCard`). `components/category/`
+  is reserved for category-domain components, not yet populated.
+- `public/brand/` holds brand assets (`logo-mark.svg`, `logo-wordmark.svg`)
+  referenced by the `Logo` component. No other component reads from this
+  directory directly.
+- `lib/alternates.ts` is the only source for cross-locale URLs of any kind;
+  no other file constructs one.
+- Colors, fonts, and typographic scales are defined exclusively in the
+  single `@theme` block in `app/globals.css`. No component or other CSS
+  file defines a color or font token.
 - Database schema, migrations and seed live only in `prisma/`.
 - Translation JSON lives only in `dictionaries/` (`nl.json`, `en.json`, `fr.json`).
 - All prose, plans and explanations live only in `docs/` and `README.md`.

@@ -60,6 +60,40 @@ across all locales approaches that ceiling, switch to Next.js's
 (products, categories, articles) so each stays well under the limit
 instead of growing a single file toward it.
 
+## Styling: Tailwind v4 with a single token source
+
+All design tokens — the five brand colors, derived border/muted/hover
+tones, font family variables, and heading letter-spacing/weight — are
+defined once, in the `@theme` block in `app/globals.css`. No component
+defines a hex color, a color-carrying inline style, or a font outside
+that block; everything consumes the resulting Tailwind utility classes
+(`bg-background`, `text-accent`, `font-heading`, etc.).
+
+The accent color (`#E0B200`) is restricted to fills, buttons, underlines,
+and highlights. It is never used as text color on the light background,
+because the contrast ratio between the accent yellow and the background
+color fails accessibility guidelines for body text; text placed on an
+accent-colored surface uses `#333333` (the base text color) or the
+contrast black, both of which meet contrast requirements against yellow.
+
+Heading typography (Dosis) and body typography (Montserrat) load once, as
+variable fonts, in `app/[locale]/layout.tsx` via `next/font/google`,
+exposed as CSS variables consumed by the `--font-heading`/`--font-body`
+theme tokens. No page or component loads a font individually.
+
+## Price and date formatting via Intl
+
+`lib/format.ts` formats prices and dates using the platform `Intl` API
+(`Intl.NumberFormat`, `Intl.DateTimeFormat`) rather than a date or
+currency library. `Intl.DateTimeFormat` already covers every locale-aware
+formatting need this project has (long-form dates in `nl`/`en`/`fr`), so a
+dependency like `date-fns` would duplicate functionality the JavaScript
+runtime already provides at zero bundle cost. `formatPrice` takes an
+amount in whole cents — matching the `basePriceCents`/`priceCents`
+integer fields in the Prisma schema — and formats it as EUR currency via
+`Intl.NumberFormat`, avoiding floating-point cent/euro conversion bugs
+anywhere outside this one function.
+
 ## Single source of truth for cross-locale URLs
 
 `lib/alternates.ts` is the only place a cross-locale URL is constructed.
