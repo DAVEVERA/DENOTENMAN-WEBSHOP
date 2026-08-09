@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { locales, isLocale } from "@/lib/i18n";
-import { category as categoryPath } from "@/lib/routes";
 import { getCategory, getCategorySlugs } from "@/lib/queries";
+import { getAlternates } from "@/lib/alternates";
+import { Container } from "@/components/ui/Container";
+import { ProductCard } from "@/components/product/ProductCard";
 
 export async function generateStaticParams() {
   const params = await Promise.all(
@@ -26,22 +28,16 @@ export async function generateMetadata({
     return {};
   }
 
-  const locale = rawLocale;
-  const data = await getCategory(category, locale);
+  const alternates = await getAlternates(rawLocale, { type: "category", slug: category });
 
-  if (!data) {
+  if (!alternates) {
     return {};
   }
 
   return {
     alternates: {
-      canonical: categoryPath(locale, data.slug),
-      languages: Object.fromEntries(
-        locales.flatMap((loc) => {
-          const slug = data.slugsByLocale[loc];
-          return slug ? [[loc, categoryPath(loc, slug)] as const] : [];
-        })
-      ),
+      canonical: alternates.canonical,
+      languages: alternates.languages,
     },
   };
 }
@@ -65,13 +61,13 @@ export default async function CategoryPage({
   }
 
   return (
-    <div>
-      <h1>{data.name}</h1>
-      <ul>
+    <Container className="py-10">
+      <h1 className="font-heading text-3xl tracking-heading text-text">{data.name}</h1>
+      <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
         {data.products.map((item) => (
-          <li key={item.id}>{item.name}</li>
+          <ProductCard key={item.id} product={item} categoryName={data.name} locale={locale} />
         ))}
-      </ul>
-    </div>
+      </div>
+    </Container>
   );
 }
