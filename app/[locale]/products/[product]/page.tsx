@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { locales, isLocale } from "@/lib/i18n";
-import { product as productPath } from "@/lib/routes";
 import { getProductBySlug, getProductSlugs } from "@/lib/queries";
+import { getAlternates } from "@/lib/alternates";
+import { Container } from "@/components/ui/Container";
 
 export async function generateStaticParams() {
   const params = await Promise.all(
@@ -26,22 +27,16 @@ export async function generateMetadata({
     return {};
   }
 
-  const locale = rawLocale;
-  const data = await getProductBySlug(product, locale);
+  const alternates = await getAlternates(rawLocale, { type: "product", slug: product });
 
-  if (!data) {
+  if (!alternates) {
     return {};
   }
 
   return {
     alternates: {
-      canonical: productPath(locale, data.slug),
-      languages: Object.fromEntries(
-        locales.flatMap((loc) => {
-          const slug = data.slugsByLocale[loc];
-          return slug ? [[loc, productPath(loc, slug)] as const] : [];
-        })
-      ),
+      canonical: alternates.canonical,
+      languages: alternates.languages,
     },
   };
 }
@@ -65,9 +60,9 @@ export default async function ProductPage({
   }
 
   return (
-    <div>
-      <h1>{data.name}</h1>
-      <p>{data.description}</p>
-    </div>
+    <Container className="py-10">
+      <h1 className="font-heading text-3xl tracking-heading text-text">{data.name}</h1>
+      <p className="mt-4 text-text">{data.description}</p>
+    </Container>
   );
 }
