@@ -110,6 +110,10 @@ export const getAlternates = cache(
           languages: { [locale]: article(locale, data.slug) },
         };
       }
+      default: {
+        const exhaustiveCheck: never = kind;
+        throw new Error(`Unhandled alternate kind: ${JSON.stringify(exhaustiveCheck)}`);
+      }
     }
   }
 );
