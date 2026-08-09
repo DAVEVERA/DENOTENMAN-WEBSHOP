@@ -59,3 +59,20 @@
     scroll-behavior: auto !important;
   }
 }
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-heading);
+  letter-spacing: var(--tracking-heading);
+  color: var(--color-text);
+}
+
+h1 { font-size: var(--text-heading-xl); }
+h2 { font-size: var(--text-heading-lg); }
+h3 { font-size: var(--text-heading-md); }
+h4 { font-size: var(--text-heading-sm); }
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-body-md);
+}
