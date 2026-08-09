@@ -203,3 +203,78 @@ Every product listing (`app/[locale]/page.tsx`, `app/[locale]/categories/page.ts
 grid: `grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4` — two columns
 on phone, three on tablet, four on desktop. Any future page that lists
 `ProductCard` instances uses this exact class string.
+
+## Design system: tokens, components, and motion
+
+All spacing, radius, shadow, text-size, and motion tokens added in this
+phase live in the single `@theme` block in `app/globals.css`, alongside
+the color and font tokens already established. Two named hover durations
+exist site-wide — declared as `--transition-duration-hover` in
+`app/globals.css` and consumed via the `duration-hover` Tailwind utility
+(320ms, used for card lift/border transitions), and
+`--transition-duration-hover-fast`/`duration-hover-fast` (240ms, used for
+text/icon color and small positional shifts like the mega-menu chevron) —
+matching the two distinct speeds specified by the design reference this
+phase was built from, rather than collapsing them into one blended value.
+
+`Button` has three variants (`primary`, `secondary`, `ghost`) and three
+sizes (`sm`, `md`, `lg`), with hover, focus (via the global
+`:focus-visible` rule), active, disabled, and busy states. `Card` is a
+bare shape-and-hover primitive (4px lift, border color shift, soft
+shadow) with no content opinion; `ProductCard` composes it. `FavoriteButton`
+is a stateful toggle with a color-only (no motion) hover and active
+treatment, using Tailwind's built-in `red-600` directly rather than a
+brand palette token, since a favorite heart's red is a conventional
+micro-interaction color independent of the five-color brand palette — this
+is the one deliberate exception to "colors come from tokens only," and it
+is scoped to this single component. `Tabs` follows the ARIA Authoring
+Practices Guide tabs pattern (roving tabindex, arrow-key navigation,
+`role="tablist"`/`"tab"`/`"tabpanel"`). `USPBar` renders three populated
+points plus an optional fourth slot for shipping copy that is not yet
+supplied by any caller.
+
+Every animated/transform-based hover effect is disabled under
+`prefers-reduced-motion: reduce` via one global rule in `app/globals.css`
+that zeroes all animation and transition durations site-wide — individual
+components do not each re-implement this query. Color and shadow changes
+remain under reduced motion, since they are not zeroed by the duration
+override (an instant color swap still communicates the hover/active state
+without motion).
+
+## Loading indicator: a deliberate exception to token-only styling
+
+`components/ui/LoadingIndicator.tsx` and its sibling
+`components/ui/LoadingIndicator.loader.css` are ported verbatim from a
+pre-built, self-contained truck-and-cargo loading animation supplied
+outside this project's normal design process. Every CSS value — colors,
+timings, easing curves, geometry, keyframe percentages — is copied exactly
+as originally authored and is not expressed as design tokens, and does
+not flow through the `@theme` block. This is the one place in the
+codebase where styling does not originate from a token. The exception
+exists because the loader's visual identity must remain byte-for-byte
+identical to the original demo; tokenizing it would risk subtly altering
+values during the translation to `--variable` references. The CSS file is
+imported only by `LoadingIndicator.tsx`, and every one of its class names
+carries a `dn-` prefix not used anywhere else in the project, so none of
+it leaks into or conflicts with any other component's styling. The
+component is not yet wired into any page, transition, or data-loading
+state — that placement decision is deferred to a later phase.
+
+## Known gaps carried forward from this phase
+
+- The mega-menu's per-category featured block reads
+  `CategoryTranslation.description`, which today's seed data does not
+  populate — the slot renders nothing until a category actually has a
+  description. No fake content was invented to fill the visual space.
+- The mega-menu does not render subcategories, because `getMainCategories`
+  deliberately excludes non-top-level categories (see the "Main category
+  navigation ordering" section above) and no subcategory query exists yet.
+  The mega-menu's layout has room for a subcategory list per category once
+  that query is built.
+- The header's sticky-scroll divider is a permanent, CSS-only border plus
+  backdrop blur, not a border that appears only after the user scrolls
+  past the top of the page — implementing the latter requires converting
+  `Header` (currently a server component that awaits `getMainCategories`)
+  into, or wrapping it in, a client component that tracks scroll position.
+- `LocaleSwitcher`'s locale-specific alternates on non-home routes were
+  already fixed in Phase 8b; this phase only restyled its spacing.

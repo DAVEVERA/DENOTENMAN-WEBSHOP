@@ -36,6 +36,21 @@ This document defines where every kind of file belongs. Do not deviate.
   the footer shows `logo-wordmark.svg` on a light panel inside the dark
   contrast band. Once `logo-wordmark-inverted.svg` is added, the footer
   switches to rendering it directly on the dark band instead.
+- `public/loader/` holds exactly three files: `truck.png`, `cargo.png`,
+  and `puff.png`, referenced only by `components/ui/LoadingIndicator.tsx`.
+  No other component reads from this directory.
+- `components/ui/LoadingIndicator.loader.css` is the one styling file in
+  the project that does not consume tokens from the `@theme` block — it
+  is a verbatim port of a pre-built animation and is imported only by
+  `components/ui/LoadingIndicator.tsx`. Every other CSS or component file
+  in the project uses tokens exclusively.
+- `components/ui/Button.tsx`, `Card.tsx`, `FavoriteButton.tsx`, `Tabs.tsx`,
+  `USPBar.tsx`, and `LoadingIndicator.tsx` are framework-level UI
+  primitives with no domain knowledge, alongside the existing `Container`
+  and `Logo`.
+- `components/layout/MegaMenu.tsx` and `MobileNav.tsx` are page-shell
+  navigation components, alongside the existing `Header`, `Footer`,
+  `LocaleSwitcher`, and `SiteShell`.
 - `lib/alternates.ts` is the only source for cross-locale URLs of any kind;
   no other file constructs one.
 - Colors, fonts, and typographic scales are defined exclusively in the
