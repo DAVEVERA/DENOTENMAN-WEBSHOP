@@ -59,3 +59,28 @@ across all locales approaches that ceiling, switch to Next.js's
 `generateSitemaps`, splitting into one sub-sitemap per content type
 (products, categories, articles) so each stays well under the limit
 instead of growing a single file toward it.
+
+## Single source of truth for cross-locale URLs
+
+`lib/alternates.ts` is the only place a cross-locale URL is constructed.
+`getAlternates(locale, kind)` is wrapped in React's `cache()` so a single
+request computes it once even when both a route's `generateMetadata` and
+its page component call it. Fixed routes and content pages resolve their
+language map from `lib/segments.ts` and `lib/pages.ts` directly, with no
+database lookup, because every locale is guaranteed to have those routes.
+Category and product routes look up `slugsByLocale` through the existing
+`getCategory`/`getProductBySlug` queries. If a locale has no translation,
+that locale is omitted from the `languages` map rather than guessing a URL.
+
+Article routes are a partial exception: `getArticleBySlug` does not
+currently return the article's slug in every other locale, so
+`getAlternates` for an article returns only the requesting locale's own
+canonical URL in `languages`. Extending `ArticleDetailDto` with a
+`slugsByLocale` field, matching the product/category DTOs, would remove
+this limitation.
+
+`app/[locale]/layout.tsx` and every route with translated content
+(`categories/[category]`, `products/[product]`, `pages/[slug]`,
+`blogs/articles/[slug]`) call `getAlternates` for both their
+`generateMetadata` hreflang output and the `LocaleSwitcher` prop, so there
+is exactly one mechanism for cross-locale links, never two.
