@@ -15,7 +15,7 @@ function detectLocaleFromHeader(acceptLanguage: string | null): string {
   return preferred ?? defaultLocale;
 }
 
-export function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const segments = pathname.split("/");
   const firstSegment = segments[1];

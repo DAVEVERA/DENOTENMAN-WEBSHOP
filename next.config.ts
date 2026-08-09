@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 import { locales } from "./lib/i18n";
 import { pageKeys, pageSlugs } from "./lib/pages";
 import { categoriesSegment, pagesSegment, productsSegment } from "./lib/segments";
@@ -53,6 +54,9 @@ function localizedWildcardRedirects(
 }
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: path.resolve(import.meta.dirname),
+  },
   images: {
     remotePatterns: cdnHostname
       ? [
