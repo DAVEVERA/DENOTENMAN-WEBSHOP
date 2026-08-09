@@ -12,7 +12,7 @@ export function LocaleSwitcher({
   languages: Partial<Record<Locale, string>>;
 }) {
   return (
-    <ul className="flex items-center gap-2">
+    <ul className="flex items-center gap-gap-sm text-body-sm">
       {locales.map((locale) => {
         const href = languages[locale] ?? home(locale);
 
@@ -22,8 +22,8 @@ export function LocaleSwitcher({
               href={href}
               aria-current={locale === currentLocale ? "true" : undefined}
               className={cn(
-                "text-sm uppercase text-muted hover:text-text",
-                locale === currentLocale && "text-text font-semibold"
+                "uppercase text-muted transition-colors duration-hover-fast hover:text-text",
+                locale === currentLocale && "font-semibold text-text"
               )}
             >
               {locale}
