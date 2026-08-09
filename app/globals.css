@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #F6F3EE;
+  --color-text: #333333;
+  --color-accent: #E0B200;
+  --color-accent-hover: #C69C00;
+  --color-contrast: #141414;
+  --color-surface: #FFFFFF;
+  --color-border: #E4DFD5;
+  --color-muted: #7A7367;
+
+  --font-heading: var(--font-dosis);
+  --font-body: var(--font-montserrat);
+
+  --tracking-heading: 0.02em;
+  --font-weight-heading: 600;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
