@@ -14,13 +14,19 @@ This document defines where every kind of file belongs. Do not deviate.
   components (`Header`, `Footer`, `LocaleSwitcher`). `components/product/`
   holds product-domain components (`ProductCard`). `components/category/`
   is reserved for category-domain components, not yet populated.
-- Every route under `app/[locale]/` that is not the bare home segment has
-  its own `layout.tsx` rendering `SiteShell` from `components/layout/`,
-  computed from that route's own params. The home route (`app/[locale]/page.tsx`)
-  renders `SiteShell` directly in the page component instead, since it
-  shares its directory with the root layout and has no route segment of
-  its own to hold a separate layout. `SiteShell` is the only place
-  `Header` and `Footer` are composed together; no other file renders them.
+- Every route under `app/[locale]/` that is a standalone segment (not a
+  list page with its own nested detail route) has its own `layout.tsx`
+  rendering `SiteShell` from `components/layout/`, computed from that
+  route's own params. Three routes render `SiteShell` directly in their
+  own page component instead of via a `layout.tsx`: the home route
+  (`app/[locale]/page.tsx`, which shares its directory with the root
+  layout and has no route segment of its own to hold a separate layout),
+  and the categories and articles list pages (`app/[locale]/categories/page.tsx`,
+  `app/[locale]/blogs/articles/page.tsx`), which would otherwise double-wrap
+  their nested detail routes (`categories/[category]/`, `blogs/articles/[slug]/`)
+  if a shared `layout.tsx` existed at their parent level. `SiteShell` is
+  the only place `Header` and `Footer` are composed together; no other
+  file renders them.
 - `public/brand/` holds brand assets (`logo-mark.svg`, `logo-wordmark.svg`)
   referenced by the `Logo` component. No other component reads from this
   directory directly.

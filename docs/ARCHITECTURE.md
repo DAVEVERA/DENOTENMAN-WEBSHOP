@@ -135,16 +135,16 @@ instead of the translated equivalent of the current page.
 The fix follows Next.js's own support for layouts at every route segment.
 `app/[locale]/layout.tsx` now contains only the document shell (html, body,
 fonts, skip-link, globals.css import) and renders no header or footer.
-Every top-level route under `app/[locale]/` — cart, account, categories,
-the category detail route, the product detail route, content pages, and
-both article routes — has its own thin `layout.tsx` that reads its own
+Every standalone route under `app/[locale]/` — cart, account, the
+category detail route, the product detail route, content pages, and the
+article detail route — has its own thin `layout.tsx` that reads its own
 route params, computes the correct `AlternateKind` for `getAlternates`,
 and renders `SiteShell` (the single place `Header` and `Footer` are
-composed) with the resulting `languages` map. The home route is the one
-exception: since `app/[locale]/page.tsx` shares a directory with the root
-layout, it cannot have a more specific layout of its own without
-introducing a route group, so it renders `SiteShell` directly in the page
-component instead of via a separate `layout.tsx`.
+composed) with the resulting `languages` map. Three routes are the
+exception and render `SiteShell` directly in their own page component
+instead of via a separate `layout.tsx`: the home route, and the
+categories and articles list pages (see below for why the list pages
+need this exception too).
 
 `getAlternates` is wrapped in React's `cache()` (see the single-source-of-truth
 section above), so each of these new layout-level calls is deduplicated
