@@ -195,3 +195,11 @@ from assistive technology with `aria-hidden="true"`. Icons that are the
 only content of an interactive element (an icon-only button) instead
 carry the accessible name on the parent control (`aria-label` on the
 `<button>`), not on the icon itself.
+
+## Product grid convention
+
+Every product listing (`app/[locale]/page.tsx`, `app/[locale]/categories/page.tsx`,
+`app/[locale]/categories/[category]/page.tsx`) uses the same responsive
+grid: `grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4` — two columns
+on phone, three on tablet, four on desktop. Any future page that lists
+`ProductCard` instances uses this exact class string.
