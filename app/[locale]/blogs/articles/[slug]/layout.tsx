@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { isLocale } from "@/lib/i18n";
 import { getAlternates } from "@/lib/alternates";
-import { Container } from "@/components/ui/Container";
 import { SiteShell } from "@/components/layout/SiteShell";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
@@ -9,12 +8,14 @@ import fr from "@/dictionaries/fr.json";
 
 const dictionaries = { nl, en, fr };
 
-export default async function ArticlesPage({
+export default async function ArticleDetailLayout({
+  children,
   params,
 }: {
-  params: Promise<{ locale: string }>;
+  children: React.ReactNode;
+  params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { locale: rawLocale } = await params;
+  const { locale: rawLocale, slug } = await params;
 
   if (!isLocale(rawLocale)) {
     notFound();
@@ -22,13 +23,11 @@ export default async function ArticlesPage({
 
   const locale = rawLocale;
   const dictionary = dictionaries[locale];
-  const alternates = await getAlternates(locale, { type: "articles" });
+  const alternates = await getAlternates(locale, { type: "article", slug });
 
   return (
     <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
-      <Container className="py-10">
-        <ul></ul>
-      </Container>
+      {children}
     </SiteShell>
   );
 }
