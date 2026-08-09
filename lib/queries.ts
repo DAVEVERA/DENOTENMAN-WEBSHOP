@@ -53,6 +53,12 @@ export type CategoryDto = {
   updatedAt: Date;
 };
 
+export type MainCategoryDto = {
+  id: string;
+  slug: string;
+  name: string;
+};
+
 export type CategoryWithProductsDto = CategoryDto & {
   products: ProductSummaryDto[];
   slugsByLocale: Partial<Record<Locale, string>>;
@@ -295,6 +301,33 @@ export async function getCategory(
     products,
     slugsByLocale: toSlugsByLocale(category.translations),
   };
+}
+
+export async function getMainCategories(locale: Locale): Promise<MainCategoryDto[]> {
+  const categories = await prisma.category.findMany({
+    where: { isActive: true },
+    include: { translations: true },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const standard = categories.filter((category) => category.type !== "PROMOTIONAL");
+  const promotional = categories.filter((category) => category.type === "PROMOTIONAL");
+
+  return [...standard, ...promotional]
+    .map((category) => {
+      const translation = resolveTranslation(category.translations, locale);
+
+      if (!translation) {
+        return undefined;
+      }
+
+      return {
+        id: category.id,
+        slug: translation.slug,
+        name: translation.name,
+      };
+    })
+    .filter((category): category is MainCategoryDto => category !== undefined);
 }
 
 export async function getFilteredProducts(

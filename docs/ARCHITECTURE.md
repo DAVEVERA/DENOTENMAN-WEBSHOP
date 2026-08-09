@@ -38,6 +38,16 @@ distinguish "no records exist" from "the database was unreachable." Both
 are treated the same way, because either case should degrade to an empty
 result set rather than a failed build or a failed sitemap request.
 
+## Main category navigation ordering
+
+`getMainCategories` in `lib/queries.ts` returns every active category for
+header navigation, ordered by the `sortOrder` field on `Category` ascending,
+with the `PROMOTIONAL` category (`acties`) always appended last regardless
+of its own `sortOrder` value. The seed data assigns `acties` a `sortOrder`
+of `0`, which would otherwise sort it first; the query separates standard
+and promotional categories before concatenating them so the promotional
+entry's position in the list is independent of its sort value.
+
 ## Sitemap size
 
 `app/sitemap.ts` is a single sitemap file, built from `getProductSlugs`,
