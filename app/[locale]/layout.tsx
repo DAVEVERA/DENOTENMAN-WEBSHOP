@@ -37,8 +37,10 @@ export async function generateMetadata({
 
   const alternates = await getAlternates(rawLocale, { type: "home" });
 
+  const icons = { icon: "/brand/favicon.png" };
+
   if (!alternates) {
-    return {};
+    return { icons };
   }
 
   return {
@@ -46,6 +48,7 @@ export async function generateMetadata({
       canonical: alternates.canonical,
       languages: alternates.languages,
     },
+    icons,
   };
 }
 

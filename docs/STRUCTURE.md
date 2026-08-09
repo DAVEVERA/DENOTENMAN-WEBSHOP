@@ -30,7 +30,12 @@ This document defines where every kind of file belongs. Do not deviate.
 - `public/brand/` holds exactly three files: `logo-mark.svg`,
   `logo-wordmark.svg`, and `favicon.png`. `logo-mark.svg` and
   `logo-wordmark.svg` are referenced by the `Logo` component; no other
-  component reads from this directory directly.
+  component reads from this directory directly. A fourth file,
+  `logo-wordmark-inverted.svg`, is planned: an inverted export of the
+  wordmark for placement directly on dark backgrounds. Until it exists,
+  the footer shows `logo-wordmark.svg` on a light panel inside the dark
+  contrast band. Once `logo-wordmark-inverted.svg` is added, the footer
+  switches to rendering it directly on the dark band instead.
 - `lib/alternates.ts` is the only source for cross-locale URLs of any kind;
   no other file constructs one.
 - Colors, fonts, and typographic scales are defined exclusively in the
