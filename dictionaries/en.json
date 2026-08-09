@@ -4,13 +4,26 @@
     "categories": "Collections",
     "cart": "Cart",
     "account": "Account",
-    "articles": "Articles"
+    "articles": "Articles",
+    "skipToContent": "Skip to main content"
+  },
+  "brand": {
+    "baseline": "Freshly roasted nuts, dried fruit",
+    "logoMarkAlt": "De Notenman logomark",
+    "logoWordmarkAlt": "De Notenman"
   },
   "footer": {
     "aboutTitle": "About us",
     "contactTitle": "Contact",
     "legalTitle": "Legal",
-    "copyright": "All rights reserved."
+    "copyright": "All rights reserved.",
+    "terms": "Terms and conditions",
+    "privacy": "Privacy policy",
+    "cookies": "Cookie policy",
+    "withdrawal": "Right of withdrawal",
+    "contact": "Contact",
+    "subscribe": "Newsletter signup",
+    "optOut": "Newsletter opt-out"
   },
   "product": {
     "addToCart": "Add to cart",

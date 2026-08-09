@@ -4,13 +4,26 @@
     "categories": "Assortiment",
     "cart": "Winkelwagen",
     "account": "Account",
-    "articles": "Artikelen"
+    "articles": "Artikelen",
+    "skipToContent": "Ga naar hoofdinhoud"
+  },
+  "brand": {
+    "baseline": "Vers gebrande noten, gedroogde zuidvruchten",
+    "logoMarkAlt": "De Notenman beeldmerk",
+    "logoWordmarkAlt": "De Notenman"
   },
   "footer": {
     "aboutTitle": "Over ons",
     "contactTitle": "Contact",
     "legalTitle": "Juridisch",
-    "copyright": "Alle rechten voorbehouden."
+    "copyright": "Alle rechten voorbehouden.",
+    "terms": "Algemene voorwaarden",
+    "privacy": "Privacybeleid",
+    "cookies": "Cookiebeleid",
+    "withdrawal": "Herroepingsrecht",
+    "contact": "Contact",
+    "subscribe": "Aanmelden nieuwsbrief",
+    "optOut": "Afmelden nieuwsbrief"
   },
   "product": {
     "addToCart": "In winkelwagen",

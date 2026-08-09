@@ -4,13 +4,26 @@
     "categories": "Collections",
     "cart": "Panier",
     "account": "Compte",
-    "articles": "Articles"
+    "articles": "Articles",
+    "skipToContent": "Aller au contenu principal"
+  },
+  "brand": {
+    "baseline": "Noix fraîchement torréfiées, fruits secs",
+    "logoMarkAlt": "Emblème De Notenman",
+    "logoWordmarkAlt": "De Notenman"
   },
   "footer": {
     "aboutTitle": "À propos",
     "contactTitle": "Contact",
     "legalTitle": "Mentions légales",
-    "copyright": "Tous droits réservés."
+    "copyright": "Tous droits réservés.",
+    "terms": "Conditions générales",
+    "privacy": "Politique de confidentialité",
+    "cookies": "Politique de cookies",
+    "withdrawal": "Droit de rétractation",
+    "contact": "Contact",
+    "subscribe": "Inscription newsletter",
+    "optOut": "Désinscription newsletter"
   },
   "product": {
     "addToCart": "Ajouter au panier",
