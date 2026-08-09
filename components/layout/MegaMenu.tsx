@@ -52,7 +52,6 @@ export function MegaMenu({
         aria-expanded={open}
         aria-haspopup="true"
         onFocus={() => setOpen(true)}
-        onClick={() => setOpen((value) => !value)}
         className="font-heading text-body-md text-text transition-colors duration-hover-fast hover:text-accent-hover"
       >
         {label}
