@@ -7,7 +7,7 @@ const variantClasses: Record<"primary" | "secondary" | "ghost", string> = {
   secondary:
     "bg-surface text-text border border-border hover:border-border-hover active:bg-background",
   ghost:
-    "bg-transparent text-text border border-transparent hover:text-accent-hover active:text-accent",
+    "bg-transparent text-text border border-transparent hover:bg-background active:bg-border",
 };
 
 const sizeClasses: Record<"sm" | "md" | "lg", string> = {
