@@ -23,6 +23,8 @@ export async function Header({
         <a href={home(locale)}>
           <Logo
             alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
+            variant="light"
+            parts="full"
           />
         </a>
         <nav aria-label={dictionary.nav.categories}>

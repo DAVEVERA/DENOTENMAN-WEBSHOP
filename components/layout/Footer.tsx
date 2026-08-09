@@ -2,6 +2,7 @@ import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
 import { pagePath } from "@/lib/pages";
 import { Container } from "@/components/ui/Container";
+import { Logo } from "@/components/ui/Logo";
 
 export function Footer({
   locale,
@@ -14,10 +15,10 @@ export function Footer({
     <footer className="bg-contrast text-background">
       <Container className="flex flex-col gap-6 py-10">
         <span className="inline-block w-fit rounded bg-surface p-4">
-          <img
-            src="/brand/logo-wordmark.svg"
-            alt={dictionary.brand.logoWordmarkAlt}
-            className="h-6"
+          <Logo
+            alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
+            variant="dark"
+            parts="wordmark"
           />
         </span>
         <nav aria-label={dictionary.footer.legalTitle}>

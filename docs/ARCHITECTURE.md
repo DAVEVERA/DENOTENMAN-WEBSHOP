@@ -158,3 +158,22 @@ like the home page, because a shared `layout.tsx` at the parent level
 would wrap both the list AND the detail route, and the detail route
 already gets its own more specific `SiteShell` render, which would double
 the header and footer if the parent also rendered one.
+
+## Logo component API
+
+`components/ui/Logo.tsx` is the only file that references a path inside
+`public/brand/`. Every caller goes through two independent props:
+`variant` (`"light" | "dark"`, default `"light"`) selects which wordmark
+asset to render for the background it sits on; `parts`
+(`"mark" | "wordmark" | "full"`, default `"full"`) selects which pieces of
+the logo to render. `Header` renders `variant="light" parts="full"` on the
+light background band. `Footer` renders `variant="dark" parts="wordmark"`
+on the light panel inside the dark contrast band, since only the wordmark
+is shown there.
+
+`variant="dark"` currently resolves to the same `logo-wordmark.svg` as
+`variant="light"`, because no inverted export exists yet (see the
+`public/brand/` placement rule in `docs/STRUCTURE.md`). Once
+`logo-wordmark-inverted.svg` is added, only the `wordmarkSrc` map inside
+`Logo.tsx` needs to change — no caller changes, since every consumer
+already asks for `variant="dark"` where an inverted mark belongs.

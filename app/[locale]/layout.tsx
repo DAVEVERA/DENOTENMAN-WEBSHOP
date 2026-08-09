@@ -20,6 +20,8 @@ const montserrat = Montserrat({
 
 const dictionaries = { nl, en, fr };
 
+const icons = { icon: "/brand/favicon.png" };
+
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
@@ -36,8 +38,6 @@ export async function generateMetadata({
   }
 
   const alternates = await getAlternates(rawLocale, { type: "home" });
-
-  const icons = { icon: "/brand/favicon.png" };
 
   if (!alternates) {
     return { icons };
