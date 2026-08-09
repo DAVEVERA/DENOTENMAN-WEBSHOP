@@ -26,6 +26,10 @@ This document defines where every kind of file belongs. Do not deviate.
 - `docs/CLOUD_SETUP.md` holds the manual Google Cloud provisioning
   checklist (project, Cloud SQL, Storage bucket, service accounts, IAM
   roles, Secret Manager entries).
+- `docs/plans/` holds implementation plans for each build phase, one file
+  per phase, named `phase-<number>-<short-description>.md` (for example
+  `phase-8-ui-foundation.md`). Contains only plan descriptions: no code,
+  no configuration, no generated output.
 
 ## Hard constraints
 - Code files (.ts, .tsx, .prisma, .json) contain code/data only. No prose,
