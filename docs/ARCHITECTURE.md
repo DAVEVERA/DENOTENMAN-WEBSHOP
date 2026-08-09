@@ -118,3 +118,43 @@ this limitation.
 `blogs/articles/[slug]`) call `getAlternates` for both their
 `generateMetadata` hreflang output and the `LocaleSwitcher` prop, so there
 is exactly one mechanism for cross-locale links, never two.
+
+## Why locale-switcher alternates are computed per route layout, not in the root layout
+
+React Server Components cannot pass data from a child route segment up
+into a shared ancestor layout at request time. A layout receives only its
+own segment's `params` — `app/[locale]/layout.tsx` never sees `params.product`
+or `params.category` from a nested dynamic route, and there is no context
+or pathname API that lets a leaf page inform an ancestor layout what route
+is actually being rendered. This means a single shared root layout cannot
+correctly compute the target-language URL for the LocaleSwitcher on every
+page: it would have to guess, and guessing produced a real bug where every
+non-home page's language switcher linked to the target locale's homepage
+instead of the translated equivalent of the current page.
+
+The fix follows Next.js's own support for layouts at every route segment.
+`app/[locale]/layout.tsx` now contains only the document shell (html, body,
+fonts, skip-link, globals.css import) and renders no header or footer.
+Every top-level route under `app/[locale]/` — cart, account, categories,
+the category detail route, the product detail route, content pages, and
+both article routes — has its own thin `layout.tsx` that reads its own
+route params, computes the correct `AlternateKind` for `getAlternates`,
+and renders `SiteShell` (the single place `Header` and `Footer` are
+composed) with the resulting `languages` map. The home route is the one
+exception: since `app/[locale]/page.tsx` shares a directory with the root
+layout, it cannot have a more specific layout of its own without
+introducing a route group, so it renders `SiteShell` directly in the page
+component instead of via a separate `layout.tsx`.
+
+`getAlternates` is wrapped in React's `cache()` (see the single-source-of-truth
+section above), so each of these new layout-level calls is deduplicated
+against the same route's `generateMetadata` call within the same request —
+no route pays for a second database lookup because of this restructuring.
+
+Where a route has both a list and a detail segment (categories, articles),
+only the detail segment's dynamic route gets its own `layout.tsx` — the
+list page renders `SiteShell` directly in its own page component, exactly
+like the home page, because a shared `layout.tsx` at the parent level
+would wrap both the list AND the detail route, and the detail route
+already gets its own more specific `SiteShell` render, which would double
+the header and footer if the parent also rendered one.
