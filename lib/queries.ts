@@ -57,6 +57,7 @@ export type MainCategoryDto = {
   id: string;
   slug: string;
   name: string;
+  description: string | null;
 };
 
 export type CategoryWithProductsDto = CategoryDto & {
@@ -325,6 +326,7 @@ export async function getMainCategories(locale: Locale): Promise<MainCategoryDto
         id: category.id,
         slug: translation.slug,
         name: translation.name,
+        description: translation.description,
       };
     })
     .filter((category): category is MainCategoryDto => category !== undefined);
