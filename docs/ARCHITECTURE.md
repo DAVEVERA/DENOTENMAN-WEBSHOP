@@ -278,3 +278,14 @@ state — that placement decision is deferred to a later phase.
   into, or wrapping it in, a client component that tracks scroll position.
 - `LocaleSwitcher`'s locale-specific alternates on non-home routes were
   already fixed in Phase 8b; this phase only restyled its spacing.
+- `--color-muted` (`#7A7367`) on `--color-background` (`#F6F3EE`) computes
+  to approximately 4.24:1 contrast, which clears the 3:1 WCAG AA threshold
+  for large text and UI components but falls short of the 4.5:1 threshold
+  for normal/small body text. This phase newly applies that pairing at
+  small text size (`text-body-sm`) in two places: `ProductCard`'s category
+  label and `MegaMenu`'s category description. The token itself is a
+  pre-existing brand-palette decision from an earlier phase and is not
+  altered here; this is flagged as a known, unresolved gap for a future
+  accessibility pass to address (for example by darkening the token
+  slightly, or reserving `text-muted` for large-text/UI-only contexts
+  going forward), not fixed in this phase.

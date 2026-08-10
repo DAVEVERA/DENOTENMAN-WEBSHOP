@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { defaultLocale, type Locale } from "@/lib/i18n";
 import { publicImageUrl } from "@/lib/storage";
@@ -304,33 +305,35 @@ export async function getCategory(
   };
 }
 
-export async function getMainCategories(locale: Locale): Promise<MainCategoryDto[]> {
-  const categories = await prisma.category.findMany({
-    where: { isActive: true, parentId: null },
-    include: { translations: true },
-    orderBy: { sortOrder: "asc" },
-  });
+export const getMainCategories = cache(
+  async (locale: Locale): Promise<MainCategoryDto[]> => {
+    const categories = await prisma.category.findMany({
+      where: { isActive: true, parentId: null },
+      include: { translations: true },
+      orderBy: { sortOrder: "asc" },
+    });
 
-  const standard = categories.filter((category) => category.type !== "PROMOTIONAL");
-  const promotional = categories.filter((category) => category.type === "PROMOTIONAL");
+    const standard = categories.filter((category) => category.type !== "PROMOTIONAL");
+    const promotional = categories.filter((category) => category.type === "PROMOTIONAL");
 
-  return [...standard, ...promotional]
-    .map((category) => {
-      const translation = resolveTranslation(category.translations, locale);
+    return [...standard, ...promotional]
+      .map((category) => {
+        const translation = resolveTranslation(category.translations, locale);
 
-      if (!translation) {
-        return undefined;
-      }
+        if (!translation) {
+          return undefined;
+        }
 
-      return {
-        id: category.id,
-        slug: translation.slug,
-        name: translation.name,
-        description: translation.description,
-      };
-    })
-    .filter((category): category is MainCategoryDto => category !== undefined);
-}
+        return {
+          id: category.id,
+          slug: translation.slug,
+          name: translation.name,
+          description: translation.description,
+        };
+      })
+      .filter((category): category is MainCategoryDto => category !== undefined);
+  }
+);
 
 export async function getFilteredProducts(
   categorySlug: string,
