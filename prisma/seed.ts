@@ -1,429 +1,11 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Preparation, Salting, Coating, Locale } from "@prisma/client";
+import { Storage } from "@google-cloud/storage";
 import { pageKeys, pageSlugs } from "../lib/pages";
 
 const prisma = new PrismaClient();
+const storage = new Storage();
 
 const locales = ["nl", "en", "fr"] as const;
-
-const categorySeeds = [
-  {
-    slug: "noten",
-    sortOrder: 1,
-    translations: {
-      nl: { name: "Noten", slug: "noten" },
-      en: { name: "Nuts", slug: "nuts" },
-      fr: { name: "Noix", slug: "noix" },
-    },
-    product: {
-      slug: "amandelen-spanje",
-      sku: "NOT-AMA-ES",
-      basePriceCents: 695,
-      translations: {
-        nl: {
-          name: "Amandelen, Spanje",
-          slug: "amandelen-spanje",
-          description: "Hele amandelen uit Spanje, vers gebrand in eigen huis.",
-        },
-        en: {
-          name: "Almonds, Spain",
-          slug: "almonds-spain",
-          description: "Whole almonds from Spain, roasted in-house.",
-        },
-        fr: {
-          name: "Amandes, Espagne",
-          slug: "amandes-espagne",
-          description: "Amandes entières d'Espagne, torréfiées sur place.",
-        },
-      },
-      variants: [
-        {
-          sku: "NOT-AMA-ES-250-ROA-SAL",
-          priceCents: 395,
-          weightGrams: 250,
-          preparation: "ROASTED",
-          salting: "SALTED",
-          coating: "NONE",
-          labels: { nl: "250 g, geroosterd, gezouten", en: "250 g, roasted, salted", fr: "250 g, torréfié, salé" },
-        },
-        {
-          sku: "NOT-AMA-ES-500-ROA-SAL",
-          priceCents: 695,
-          weightGrams: 500,
-          preparation: "ROASTED",
-          salting: "SALTED",
-          coating: "NONE",
-          labels: { nl: "500 g, geroosterd, gezouten", en: "500 g, roasted, salted", fr: "500 g, torréfié, salé" },
-        },
-      ],
-    },
-  },
-  {
-    slug: "pindas",
-    sortOrder: 2,
-    translations: {
-      nl: { name: "Pinda's", slug: "pindas" },
-      en: { name: "Peanuts", slug: "peanuts" },
-      fr: { name: "Cacahuètes", slug: "cacahuetes" },
-    },
-    product: {
-      slug: "pindas-naturel",
-      sku: "PIN-NAT",
-      basePriceCents: 395,
-      translations: {
-        nl: {
-          name: "Pinda's naturel",
-          slug: "pindas-naturel",
-          description: "Pinda's zonder toevoegingen, geroosterd in eigen huis.",
-        },
-        en: {
-          name: "Peanuts, plain",
-          slug: "peanuts-plain",
-          description: "Peanuts without additions, roasted in-house.",
-        },
-        fr: {
-          name: "Cacahuètes nature",
-          slug: "cacahuetes-nature",
-          description: "Cacahuètes sans additifs, torréfiées sur place.",
-        },
-      },
-      variants: [
-        {
-          sku: "PIN-NAT-250-ROA-UNS",
-          priceCents: 250,
-          weightGrams: 250,
-          preparation: "ROASTED",
-          salting: "UNSALTED",
-          coating: "NONE",
-          labels: { nl: "250 g, geroosterd, ongezouten", en: "250 g, roasted, unsalted", fr: "250 g, torréfié, non salé" },
-        },
-        {
-          sku: "PIN-NAT-500-ROA-SAL",
-          priceCents: 395,
-          weightGrams: 500,
-          preparation: "ROASTED",
-          salting: "SALTED",
-          coating: "NONE",
-          labels: { nl: "500 g, geroosterd, gezouten", en: "500 g, roasted, salted", fr: "500 g, torréfié, salé" },
-        },
-      ],
-    },
-  },
-  {
-    slug: "notenmixen",
-    sortOrder: 3,
-    translations: {
-      nl: { name: "Notenmixen", slug: "notenmixen" },
-      en: { name: "Nut mixes", slug: "nut-mixes" },
-      fr: { name: "Mélanges de noix", slug: "melanges-de-noix" },
-    },
-    product: {
-      slug: "borrelmix",
-      sku: "MIX-BORREL",
-      basePriceCents: 595,
-      translations: {
-        nl: {
-          name: "Borrelmix",
-          slug: "borrelmix",
-          description: "Mix van noten en pinda's, geroosterd en gezouten.",
-        },
-        en: {
-          name: "Party mix",
-          slug: "party-mix",
-          description: "Mix of nuts and peanuts, roasted and salted.",
-        },
-        fr: {
-          name: "Mélange apéritif",
-          slug: "melange-aperitif",
-          description: "Mélange de noix et cacahuètes, torréfié et salé.",
-        },
-      },
-      variants: [
-        {
-          sku: "MIX-BORREL-250-ROA-SAL",
-          priceCents: 350,
-          weightGrams: 250,
-          preparation: "ROASTED",
-          salting: "SALTED",
-          coating: "NONE",
-          labels: { nl: "250 g, geroosterd, gezouten", en: "250 g, roasted, salted", fr: "250 g, torréfié, salé" },
-        },
-        {
-          sku: "MIX-BORREL-500-ROA-SAL",
-          priceCents: 595,
-          weightGrams: 500,
-          preparation: "ROASTED",
-          salting: "SALTED",
-          coating: "NONE",
-          labels: { nl: "500 g, geroosterd, gezouten", en: "500 g, roasted, salted", fr: "500 g, torréfié, salé" },
-        },
-      ],
-    },
-  },
-  {
-    slug: "pitten-zaden",
-    sortOrder: 4,
-    translations: {
-      nl: { name: "Pitten & zaden", slug: "pitten-zaden" },
-      en: { name: "Seeds", slug: "seeds" },
-      fr: { name: "Graines", slug: "graines" },
-    },
-    product: {
-      slug: "pompoenpitten",
-      sku: "ZAA-POMP",
-      basePriceCents: 350,
-      translations: {
-        nl: {
-          name: "Pompoenpitten",
-          slug: "pompoenpitten",
-          description: "Ongebrande pompoenpitten, naturel.",
-        },
-        en: {
-          name: "Pumpkin seeds",
-          slug: "pumpkin-seeds",
-          description: "Raw pumpkin seeds, plain.",
-        },
-        fr: {
-          name: "Graines de courge",
-          slug: "graines-de-courge",
-          description: "Graines de courge crues, nature.",
-        },
-      },
-      variants: [
-        {
-          sku: "ZAA-POMP-250-RAW-UNS",
-          priceCents: 225,
-          weightGrams: 250,
-          preparation: "RAW",
-          salting: "UNSALTED",
-          coating: "NONE",
-          labels: { nl: "250 g, ongebrand, ongezouten", en: "250 g, raw, unsalted", fr: "250 g, cru, non salé" },
-        },
-        {
-          sku: "ZAA-POMP-500-RAW-UNS",
-          priceCents: 350,
-          weightGrams: 500,
-          preparation: "RAW",
-          salting: "UNSALTED",
-          coating: "NONE",
-          labels: { nl: "500 g, ongebrand, ongezouten", en: "500 g, raw, unsalted", fr: "500 g, cru, non salé" },
-        },
-      ],
-    },
-  },
-  {
-    slug: "gedroogd-fruit",
-    sortOrder: 5,
-    translations: {
-      nl: { name: "Gedroogd fruit", slug: "gedroogd-fruit" },
-      en: { name: "Dried fruit", slug: "dried-fruit" },
-      fr: { name: "Fruits secs", slug: "fruits-secs" },
-    },
-    product: {
-      slug: "gedroogde-abrikozen",
-      sku: "FRU-ABRI",
-      basePriceCents: 450,
-      translations: {
-        nl: {
-          name: "Gedroogde abrikozen",
-          slug: "gedroogde-abrikozen",
-          description: "Gedroogde abrikozen zonder toegevoegde suiker.",
-        },
-        en: {
-          name: "Dried apricots",
-          slug: "dried-apricots",
-          description: "Dried apricots without added sugar.",
-        },
-        fr: {
-          name: "Abricots séchés",
-          slug: "abricots-seches",
-          description: "Abricots séchés sans sucre ajouté.",
-        },
-      },
-      variants: [
-        {
-          sku: "FRU-ABRI-250-RAW-UNS",
-          priceCents: 295,
-          weightGrams: 250,
-          preparation: "RAW",
-          salting: "UNSALTED",
-          coating: "NONE",
-          labels: { nl: "250 g", en: "250 g", fr: "250 g" },
-        },
-        {
-          sku: "FRU-ABRI-500-RAW-UNS",
-          priceCents: 450,
-          weightGrams: 500,
-          preparation: "RAW",
-          salting: "UNSALTED",
-          coating: "NONE",
-          labels: { nl: "500 g", en: "500 g", fr: "500 g" },
-        },
-      ],
-    },
-  },
-  {
-    slug: "chocolade",
-    sortOrder: 6,
-    translations: {
-      nl: { name: "Chocolade", slug: "chocolade" },
-      en: { name: "Chocolate", slug: "chocolate" },
-      fr: { name: "Chocolat", slug: "chocolat" },
-    },
-    product: {
-      slug: "amandelen-melkchocolade",
-      sku: "CHO-AMA-MELK",
-      basePriceCents: 595,
-      translations: {
-        nl: {
-          name: "Amandelen in melkchocolade",
-          slug: "amandelen-melkchocolade",
-          description: "Amandelen omhuld met melkchocolade.",
-        },
-        en: {
-          name: "Almonds in milk chocolate",
-          slug: "almonds-milk-chocolate",
-          description: "Almonds coated in milk chocolate.",
-        },
-        fr: {
-          name: "Amandes au chocolat au lait",
-          slug: "amandes-chocolat-au-lait",
-          description: "Amandes enrobées de chocolat au lait.",
-        },
-      },
-      variants: [
-        {
-          sku: "CHO-AMA-MELK-250-ROA-UNS",
-          priceCents: 350,
-          weightGrams: 250,
-          preparation: "ROASTED",
-          salting: "UNSALTED",
-          coating: "CHOCOLATE",
-          labels: { nl: "250 g", en: "250 g", fr: "250 g" },
-        },
-        {
-          sku: "CHO-AMA-MELK-500-ROA-UNS",
-          priceCents: 595,
-          weightGrams: 500,
-          preparation: "ROASTED",
-          salting: "UNSALTED",
-          coating: "CHOCOLATE",
-          labels: { nl: "500 g", en: "500 g", fr: "500 g" },
-        },
-      ],
-    },
-  },
-  {
-    slug: "bakproducten",
-    sortOrder: 7,
-    translations: {
-      nl: { name: "Bakproducten", slug: "bakproducten" },
-      en: { name: "Baking products", slug: "baking-products" },
-      fr: { name: "Produits de pâtisserie", slug: "produits-de-patisserie" },
-    },
-    product: {
-      slug: "amandelschaafsel",
-      sku: "BAK-AMA-SCHAAF",
-      basePriceCents: 350,
-      translations: {
-        nl: {
-          name: "Amandelschaafsel",
-          slug: "amandelschaafsel",
-          description: "Fijn geschaafde amandelen, geschikt om te bakken.",
-        },
-        en: {
-          name: "Flaked almonds",
-          slug: "flaked-almonds",
-          description: "Finely flaked almonds, suitable for baking.",
-        },
-        fr: {
-          name: "Amandes effilées",
-          slug: "amandes-effilees",
-          description: "Amandes finement effilées, adaptées à la pâtisserie.",
-        },
-      },
-      variants: [
-        {
-          sku: "BAK-AMA-SCHAAF-250-RAW-UNS",
-          priceCents: 225,
-          weightGrams: 250,
-          preparation: "RAW",
-          salting: "UNSALTED",
-          coating: "NONE",
-          labels: { nl: "250 g", en: "250 g", fr: "250 g" },
-        },
-        {
-          sku: "BAK-AMA-SCHAAF-500-RAW-UNS",
-          priceCents: 350,
-          weightGrams: 500,
-          preparation: "RAW",
-          salting: "UNSALTED",
-          coating: "NONE",
-          labels: { nl: "500 g", en: "500 g", fr: "500 g" },
-        },
-      ],
-    },
-  },
-  {
-    slug: "hartige-snacks",
-    sortOrder: 8,
-    translations: {
-      nl: { name: "Hartige snacks", slug: "hartige-snacks" },
-      en: { name: "Savoury snacks", slug: "savoury-snacks" },
-      fr: { name: "Snacks salés", slug: "snacks-sales" },
-    },
-    product: {
-      slug: "wasabi-erwten",
-      sku: "SNK-WASABI",
-      basePriceCents: 350,
-      translations: {
-        nl: {
-          name: "Wasabi-erwten",
-          slug: "wasabi-erwten",
-          description: "Krokante erwten met wasabismaak.",
-        },
-        en: {
-          name: "Wasabi peas",
-          slug: "wasabi-peas",
-          description: "Crunchy peas with wasabi flavour.",
-        },
-        fr: {
-          name: "Pois wasabi",
-          slug: "pois-wasabi",
-          description: "Pois croquants au goût wasabi.",
-        },
-      },
-      variants: [
-        {
-          sku: "SNK-WASABI-250-ROA-FLA",
-          priceCents: 225,
-          weightGrams: 250,
-          preparation: "ROASTED",
-          salting: "SALTED",
-          coating: "FLAVORED",
-          labels: { nl: "250 g", en: "250 g", fr: "250 g" },
-        },
-        {
-          sku: "SNK-WASABI-500-ROA-FLA",
-          priceCents: 350,
-          weightGrams: 500,
-          preparation: "ROASTED",
-          salting: "SALTED",
-          coating: "FLAVORED",
-          labels: { nl: "500 g", en: "500 g", fr: "500 g" },
-        },
-      ],
-    },
-  },
-] as const;
-
-const promotionalCategory = {
-  slug: "acties",
-  translations: {
-    nl: { name: "Acties", slug: "acties" },
-    en: { name: "Deals", slug: "deals" },
-    fr: { name: "Promotions", slug: "promotions" },
-  },
-};
 
 const pageTitles: Record<(typeof pageKeys)[number], Record<(typeof locales)[number], string>> = {
   about: { nl: "Over ons", en: "About us", fr: "À propos" },
@@ -447,95 +29,44 @@ const pageTitles: Record<(typeof pageKeys)[number], Record<(typeof locales)[numb
   optOut: { nl: "Afmelden nieuwsbrief", en: "Newsletter opt-out", fr: "Désinscription newsletter" },
 };
 
-async function seedPromotionalCategory() {
-  await prisma.category.upsert({
-    where: { slug: promotionalCategory.slug },
-    create: {
-      slug: promotionalCategory.slug,
-      type: "PROMOTIONAL",
-      sortOrder: 0,
-      translations: {
-        create: locales.map((locale) => ({
-          locale,
-          name: promotionalCategory.translations[locale].name,
-          slug: promotionalCategory.translations[locale].slug,
-        })),
-      },
-    },
-    update: {},
-  });
+function cleanName(str: string): string {
+  let name = str
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+    
+  name = name.replace(/Pinda_s/g, "Pinda's");
+  name = name.replace(/Pinda’s/g, "Pinda's");
+  name = name.replace(/Pasta’s/g, "Pasta's");
+  name = name.replace(/Notenpasta’s/g, "Notenpasta's");
+  
+  return name;
 }
 
-async function seedCategoryWithProduct(category: (typeof categorySeeds)[number]) {
-  const createdCategory = await prisma.category.upsert({
-    where: { slug: category.slug },
-    create: {
-      slug: category.slug,
-      type: "STANDARD",
-      sortOrder: category.sortOrder,
-      translations: {
-        create: locales.map((locale) => ({
-          locale,
-          name: category.translations[locale].name,
-          slug: category.translations[locale].slug,
-        })),
-      },
-    },
-    update: {},
-  });
-
-  const product = category.product;
-
-  const createdProduct = await prisma.product.upsert({
-    where: { slug: product.slug },
-    create: {
-      slug: product.slug,
-      sku: product.sku,
-      basePriceCents: product.basePriceCents,
-      translations: {
-        create: locales.map((locale) => ({
-          locale,
-          name: product.translations[locale].name,
-          slug: product.translations[locale].slug,
-          description: product.translations[locale].description,
-        })),
-      },
-      variants: {
-        create: product.variants.map((variant) => ({
-          sku: variant.sku,
-          priceCents: variant.priceCents,
-          weightGrams: variant.weightGrams,
-          preparation: variant.preparation,
-          salting: variant.salting,
-          coating: variant.coating,
-          translations: {
-            create: locales.map((locale) => ({
-              locale,
-              label: variant.labels[locale],
-            })),
-          },
-        })),
-      },
-    },
-    update: {},
-  });
-
-  await prisma.productCategory.upsert({
-    where: {
-      productId_categoryId: {
-        productId: createdProduct.id,
-        categoryId: createdCategory.id,
-      },
-    },
-    create: {
-      productId: createdProduct.id,
-      categoryId: createdCategory.id,
-    },
-    update: {},
-  });
+function slugify(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 }
+
+// Translations map for categories
+const categoryTranslations: Record<string, Record<(typeof locales)[number], string>> = {
+  "bakproducten": { nl: "Bakproducten", en: "Baking Products", fr: "Produits de Pâtisserie" },
+  "chocolade": { nl: "Chocolade", en: "Chocolate", fr: "Chocolat" },
+  "gedroogd-fruit": { nl: "Gedroogd Fruit", en: "Dried Fruit", fr: "Fruits Secs" },
+  "noten": { nl: "Noten", en: "Nuts", fr: "Noix" },
+  "notenmixen": { nl: "Notenmixen", en: "Nut Mixes", fr: "Mélanges de Noix" },
+  "notenpastas": { nl: "Notenpasta's", en: "Nut Butters", fr: "Beurres de Noix" },
+  "pindas": { nl: "Pinda's", en: "Peanuts", fr: "Cacahuètes" },
+  "pitten-zaden": { nl: "Pitten & Zaden", en: "Seeds & Grains", fr: "Graines" },
+  "snacks": { nl: "Snacks", en: "Snacks", fr: "Snacks" },
+};
 
 async function seedPages() {
+  console.log("Seeding pages...");
   for (const key of pageKeys) {
     const createdPage = await prisma.page.upsert({
       where: { key },
@@ -565,21 +96,267 @@ async function seedPages() {
 }
 
 async function main() {
-  await seedPromotionalCategory();
-
-  for (const category of categorySeeds) {
-    await seedCategoryWithProduct(category);
+  const bucketName = process.env.GCS_BUCKET;
+  if (!bucketName) {
+    throw new Error("GCS_BUCKET environment variable is not configured");
   }
 
+  console.log(`Connecting to GCS bucket: "${bucketName}"...`);
+  const bucket = storage.bucket(bucketName);
+  const [files] = await bucket.getFiles();
+
+  console.log(`Successfully fetched ${files.length} files from GCS.`);
+
+  // Group images by "Category/ProductFolder"
+  const groupedProducts: Record<string, {
+    categoryName: string;
+    productFolderName: string;
+    sku: string;
+    images: string[];
+  }> = {};
+
+  for (const f of files) {
+    const key = f.name;
+    const parts = key.split('/');
+    if (parts.length < 4) continue;
+
+    // e.g., parts = ["Noten", "Amandel", "Gebruikt", "file.webp"]
+    const categoryName = cleanName(parts[0]);
+    const productFolderName = cleanName(parts[1]);
+    const folderKey = `${parts[0].toLowerCase()}/${parts[1].toLowerCase()}`;
+
+    const isUsed = parts[2].toLowerCase().startsWith('gebruikt');
+    if (!isUsed) continue;
+
+    const filenameWithExt = parts[parts.length - 1];
+    const ext = filenameWithExt.substring(filenameWithExt.lastIndexOf('.')).toLowerCase();
+    if (!['.webp', '.jpg', '.jpeg', '.png'].includes(ext)) continue;
+
+    const filename = filenameWithExt.substring(0, filenameWithExt.lastIndexOf('.'));
+
+    if (!groupedProducts[folderKey]) {
+      groupedProducts[folderKey] = {
+        categoryName,
+        productFolderName,
+        sku: '',
+        images: []
+      };
+    }
+
+    // Try to extract SKU if present (e.g. BAK-9002 or SNK-6019)
+    const skuMatch = filename.match(/^([A-Z]{3,4}-\d{3,5})/i);
+    if (skuMatch && !groupedProducts[folderKey].sku) {
+      groupedProducts[folderKey].sku = skuMatch[0].toUpperCase();
+    }
+
+    groupedProducts[folderKey].images.push(key);
+  }
+
+  const parsedProducts = Object.values(groupedProducts);
+  console.log(`Found ${parsedProducts.length} live products with images in GCS.`);
+
+  if (parsedProducts.length === 0) {
+    console.log("No live product images found in GCS. Check folder structures (should be 'Category/Product/Gebruikt/*.webp').");
+    return;
+  }
+
+  // Clear existing catalog data to prevent duplication or obsolete mock items
+  console.log("Cleaning database catalog...");
+  await prisma.productImage.deleteMany();
+  await prisma.productAttribute.deleteMany();
+  await prisma.variantTranslation.deleteMany();
+  await prisma.productVariant.deleteMany();
+  await prisma.productCategory.deleteMany();
+  await prisma.productTranslation.deleteMany();
+  await prisma.product.deleteMany();
+  await prisma.categoryTranslation.deleteMany();
+  await prisma.category.deleteMany();
+
+  // Create standard categories first
+  const categoryMap: Record<string, string> = {}; // maps clean slug to db category ID
+  const uniqueCategoryNames = Array.from(new Set(parsedProducts.map(p => p.categoryName)));
+
+  console.log("Seeding categories...");
+  let sortOrder = 1;
+  for (const rawCatName of uniqueCategoryNames) {
+    const slug = slugify(rawCatName);
+    const trans = categoryTranslations[slug] || {
+      nl: rawCatName,
+      en: rawCatName,
+      fr: rawCatName
+    };
+
+    const createdCat = await prisma.category.create({
+      data: {
+        slug,
+        type: "STANDARD",
+        sortOrder: sortOrder++,
+        translations: {
+          create: locales.map((locale) => ({
+            locale,
+            name: trans[locale],
+            slug: slugify(trans[locale]),
+          })),
+        },
+      }
+    });
+
+    categoryMap[slug] = createdCat.id;
+  }
+
+  // Seed promotional category "acties"
+  console.log("Seeding promotional categories...");
+  const promoCat = await prisma.category.create({
+    data: {
+      slug: "acties",
+      type: "PROMOTIONAL",
+      sortOrder: 0,
+      translations: {
+        create: locales.map((locale) => ({
+          locale,
+          name: locale === "nl" ? "Acties" : locale === "en" ? "Deals" : "Promotions",
+          slug: "acties",
+        })),
+      },
+    }
+  });
+
+  // Seed products
+  console.log("Seeding products, variants and image links...");
+  const usedSkus = new Set<string>();
+
+  for (const pData of parsedProducts) {
+    const catSlug = slugify(pData.categoryName);
+    const categoryId = categoryMap[catSlug];
+    if (!categoryId) continue;
+
+    // Generate unique and deterministic SKU if none extracted from filenames
+    let sku = pData.sku;
+    if (!sku) {
+      const catAbbr = catSlug.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+      const prodAbbr = pData.productFolderName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 8);
+      sku = `${catAbbr}-${prodAbbr}`;
+    }
+
+    let baseSku = sku;
+    let counter = 1;
+    while (usedSkus.has(sku)) {
+      sku = `${baseSku}-${counter}`;
+      counter++;
+    }
+    usedSkus.add(sku);
+
+    const slug = slugify(pData.productFolderName);
+    const productName = pData.productFolderName;
+
+    // Define smart, category-based pricing structure (in cents)
+    let price250 = 295;
+    let price500 = 495;
+
+    if (catSlug.includes("pinda")) {
+      price250 = 250;
+      price500 = 395;
+    } else if (catSlug.includes("noten") || catSlug.includes("mix")) {
+      price250 = 395;
+      price500 = 695;
+    } else if (catSlug.includes("chocolade")) {
+      price250 = 350;
+      price500 = 595;
+    } else if (catSlug.includes("pitten") || catSlug.includes("zaden")) {
+      price250 = 225;
+      price500 = 350;
+    }
+
+    // Determine smart attributes based on text
+    const lowerName = productName.toLowerCase();
+    const preparation: Preparation = (lowerName.includes("geroosterd") || lowerName.includes("gebrand")) ? "ROASTED" : "RAW";
+    const salting: Salting = (lowerName.includes("gezouten") || lowerName.includes("zout")) ? "SALTED" : "UNSALTED";
+    const coating: Coating = catSlug.includes("chocolade") ? "CHOCOLATE" : "NONE";
+
+    const createdProduct = await prisma.product.create({
+      data: {
+        slug,
+        sku,
+        basePriceCents: price500,
+        translations: {
+          create: locales.map((locale) => ({
+            locale,
+            name: productName,
+            slug,
+            description: `${productName} van De Notenman. Vers en ambachtelijk verpakt.`,
+          })),
+        },
+        variants: {
+          create: [
+            {
+              sku: `${sku}-250G`,
+              priceCents: price250,
+              weightGrams: 250,
+              preparation,
+              salting,
+              coating,
+              translations: {
+                create: locales.map((locale) => ({
+                  locale,
+                  label: "250 g",
+                })),
+              },
+            },
+            {
+              sku: `${sku}-500G`,
+              priceCents: price500,
+              weightGrams: 500,
+              preparation,
+              salting,
+              coating,
+              translations: {
+                create: locales.map((locale) => ({
+                  locale,
+                  label: "500 g",
+                })),
+              },
+            },
+          ]
+        }
+      }
+    });
+
+    // Link product to category
+    await prisma.productCategory.create({
+      data: {
+        productId: createdProduct.id,
+        categoryId: categoryId,
+      }
+    });
+
+    // Seed product images
+    let sortIdx = 0;
+    for (const imgKey of pData.images) {
+      await prisma.productImage.create({
+        data: {
+          productId: createdProduct.id,
+          storageKey: imgKey,
+          alt: productName,
+          sortOrder: sortIdx++,
+          isPrimary: sortIdx === 1,
+        }
+      });
+    }
+  }
+
+  console.log(`Seeded ${parsedProducts.length} live products successfully.`);
+
+  // Seed pages
   await seedPages();
 }
 
 main()
   .then(async () => {
     await prisma.$disconnect();
+    console.log("Database seed completed successfully.");
   })
   .catch(async (error) => {
-    console.error(error);
+    console.error("Seeding failed:", error);
     await prisma.$disconnect();
     process.exit(1);
   });
