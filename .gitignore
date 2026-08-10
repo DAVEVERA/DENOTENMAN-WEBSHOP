@@ -10,6 +10,9 @@ tsconfig.tsbuildinfo
 .env.local
 .env.*.local
 
+*-service-account*.json
+gcp-credentials*.json
+
 prisma/*.db
 prisma/migrations/dev/
 
