@@ -147,6 +147,14 @@ async function translateBatch(texts: string[], target: "en" | "fr"): Promise<str
   return texts.map((t) => (t.length === 0 ? "" : translated[cursor++] ?? t));
 }
 
+async function translateBatchWithRetry(texts: string[], target: "en" | "fr"): Promise<string[]> {
+  try {
+    return await translateBatch(texts, target);
+  } catch {
+    return await translateBatch(texts, target);
+  }
+}
+
 function uniqueSlug(candidate: string, taken: Set<string>): string {
   let slug = candidate;
   let counter = 1;
@@ -268,8 +276,12 @@ async function main() {
   const archivedFamilies = new Set(
     archiefRows.map((r) => (r["Productgroep"] || "").trim().toLowerCase()).filter(Boolean)
   );
-  const unverifiedFamilies = new Set(
-    controleRows.map((r) => (r["Productfamilie"] || "").trim().toLowerCase()).filter(Boolean)
+  const variantFlagKey = (family: string, variant: string) =>
+    `${family.trim().toLowerCase()}::${variant.trim().toLowerCase()}`;
+  const unverifiedVariants = new Set(
+    controleRows
+      .map((r) => variantFlagKey(r["Productfamilie"] || "", r["Variantnaam"] || ""))
+      .filter((k) => k !== "::")
   );
 
   console.log("Cleaning database catalog...");
@@ -355,187 +367,214 @@ async function main() {
     fr: new Set(),
   };
 
+  let succeededCount = 0;
+  let skippedCount = 0;
+  const skippedFamilies: string[] = [];
+
   for (const family of families.values()) {
     const categoryId = categoryMap[family.categorySlug];
     if (!categoryId) continue;
 
-    const firstRow = family.rows[0];
-    const productName = firstRow["Productnaam webshop"] || family.familyName;
-    const longDescription = firstRow["Lange producttekst"] || "";
-    const seoTitle = firstRow["SEO titel"] || "";
-    const metaDescription = firstRow["Meta omschrijving"] || "";
-    const faq1Q = firstRow["FAQ vraag 1"] || "";
-    const faq1A = firstRow["FAQ antwoord 1"] || "";
-    const faq2Q = firstRow["FAQ vraag 2"] || "";
-    const faq2A = firstRow["FAQ antwoord 2"] || "";
+    try {
+      const firstRow = family.rows[0];
+      const productName = firstRow["Productnaam webshop"] || family.familyName;
+      const longDescription = firstRow["Lange producttekst"] || "";
+      const seoTitle = firstRow["SEO titel"] || "";
+      const metaDescription = firstRow["Meta omschrijving"] || "";
+      const faq1Q = firstRow["FAQ vraag 1"] || "";
+      const faq1A = firstRow["FAQ antwoord 1"] || "";
+      const faq2Q = firstRow["FAQ vraag 2"] || "";
+      const faq2A = firstRow["FAQ antwoord 2"] || "";
 
-    const dutchFields = [productName, longDescription, seoTitle, metaDescription, faq1Q, faq1A, faq2Q, faq2A];
-    const [enFields, frFields] = await Promise.all([
-      translateBatch(dutchFields, "en"),
-      translateBatch(dutchFields, "fr"),
-    ]);
+      const dutchFields = [productName, longDescription, seoTitle, metaDescription, faq1Q, faq1A, faq2Q, faq2A];
+      const [enFields, frFields] = await Promise.all([
+        translateBatchWithRetry(dutchFields, "en"),
+        translateBatchWithRetry(dutchFields, "fr"),
+      ]);
 
-    const byLocale: Record<(typeof locales)[number], typeof dutchFields> = {
-      nl: dutchFields,
-      en: enFields,
-      fr: frFields,
-    };
-
-    const nlSlugBase = slugify(firstRow["URL slug"] || productName);
-    const productSlugs: Record<(typeof locales)[number], string> = {
-      nl: uniqueSlug(nlSlugBase, usedSlugs.nl),
-      en: uniqueSlug(slugify(enFields[0] || productName), usedSlugs.en),
-      fr: uniqueSlug(slugify(frFields[0] || productName), usedSlugs.fr),
-    };
-
-    const isFamilyFlagged =
-      archivedFamilies.has(family.familyName.trim().toLowerCase()) ||
-      unverifiedFamilies.has(family.familyName.trim().toLowerCase());
-
-    const catAbbr = family.categorySlug.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
-    const prodAbbr = family.familyName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 8);
-    const familyBaseSku = firstRow["SKU"] || `${catAbbr}-${prodAbbr}`;
-    const productSku = uniqueSku(`${familyBaseSku}-P`, usedProductSkus);
-
-    const variantsData = family.rows.map((row) => {
-      const sku = uniqueSku(row["SKU"] || `${catAbbr}-${prodAbbr}`, usedVariantSkus);
-
-      const priceCents = parsePriceCents(row["Prijs"] || "");
-      const weightGrams = Number(row["Gewicht in gram"]) || 0;
-
-      const rowInactive =
-        isFamilyFlagged ||
-        row["Publiceren"].trim().toLowerCase() === "nee" ||
-        row["Zichtbaarheid"].trim().toLowerCase() === "verborgen" ||
-        row["Voorraadstatus"].trim().toLowerCase() === "niet op voorraad" ||
-        priceCents === null;
-
-      const preparation = mapPreparation(row["Bewerking"] || "");
-      const salting = mapSalting(row["Zoutstatus"] || "");
-      const coating = mapCoating(family.categorySlug, row["Producttype"] || "", row["Smaak"] || "");
-
-      return {
-        sku,
-        priceCents: priceCents ?? 0,
-        weightGrams,
-        isActive: !rowInactive,
-        preparation,
-        salting,
-        coating,
-        label: row["Gewicht label"] || `${weightGrams} g`,
+      const byLocale: Record<(typeof locales)[number], typeof dutchFields> = {
+        nl: dutchFields,
+        en: enFields,
+        fr: frFields,
       };
-    });
 
-    const activeWithPrice = variantsData.find((v) => v.priceCents > 0 && v.isActive);
-    const basePriceCents = activeWithPrice?.priceCents ?? 0;
-    const productIsActive = Boolean(activeWithPrice);
+      const nlSlugBase = slugify(firstRow["URL slug"] || productName);
+      const productSlugs: Record<(typeof locales)[number], string> = {
+        nl: uniqueSlug(nlSlugBase, usedSlugs.nl),
+        en: uniqueSlug(slugify(enFields[0] || productName), usedSlugs.en),
+        fr: uniqueSlug(slugify(frFields[0] || productName), usedSlugs.fr),
+      };
 
-    const createdProduct = await prisma.product.create({
-      data: {
-        slug: productSlugs.nl,
-        sku: productSku,
-        basePriceCents,
-        isActive: productIsActive,
-        translations: {
-          create: locales.map((locale) => ({
-            locale,
-            name: byLocale[locale][0] || productName,
-            slug: productSlugs[locale],
-            description: byLocale[locale][1] || longDescription,
-          })),
-        },
-        variants: {
-          create: variantsData.map((v) => ({
-            sku: v.sku,
-            priceCents: v.priceCents,
-            weightGrams: v.weightGrams,
-            preparation: v.preparation,
-            salting: v.salting,
-            coating: v.coating,
-            isActive: v.isActive,
+      const isFamilyArchived = archivedFamilies.has(family.familyName.trim().toLowerCase());
+      const allRowsUnverified = family.rows.every((row) =>
+        unverifiedVariants.has(variantFlagKey(family.familyName, row["Variantnaam"] || ""))
+      );
+
+      const catAbbr = family.categorySlug.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+      const prodAbbr = family.familyName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 8);
+      const familyBaseSku = firstRow["SKU"] || `${catAbbr}-${prodAbbr}`;
+      const productSku = uniqueSku(`${familyBaseSku}-P`, usedProductSkus);
+
+      const variantsData = family.rows.map((row) => {
+        const sku = uniqueSku(row["SKU"] || `${catAbbr}-${prodAbbr}`, usedVariantSkus);
+
+        const priceCents = parsePriceCents(row["Prijs"] || "");
+        const weightGrams = Number(row["Gewicht in gram"]) || 0;
+
+        const isRowUnverified =
+          allRowsUnverified || unverifiedVariants.has(variantFlagKey(family.familyName, row["Variantnaam"] || ""));
+
+        const rowInactive =
+          isFamilyArchived ||
+          isRowUnverified ||
+          row["Publiceren"].trim().toLowerCase() === "nee" ||
+          row["Zichtbaarheid"].trim().toLowerCase() === "verborgen" ||
+          row["Voorraadstatus"].trim().toLowerCase() === "niet op voorraad" ||
+          priceCents === null;
+
+        const preparation = mapPreparation(row["Bewerking"] || "");
+        const salting = mapSalting(row["Zoutstatus"] || "");
+        const coating = mapCoating(family.categorySlug, row["Producttype"] || "", row["Smaak"] || "");
+
+        return {
+          sku,
+          priceCents: priceCents ?? 0,
+          hasPrice: priceCents !== null,
+          weightGrams,
+          isActive: !rowInactive,
+          preparation,
+          salting,
+          coating,
+          label: row["Gewicht label"] || `${weightGrams} g`,
+        };
+      });
+
+      const activeWithPrice = variantsData.find((v) => v.hasPrice && v.isActive);
+      const basePriceCents = activeWithPrice?.priceCents ?? 0;
+      const productIsActive = Boolean(activeWithPrice);
+
+      const attributes: Array<{ key: string; value: string }> = [];
+      if (firstRow["Ingrediënten"]) attributes.push({ key: "ingredients", value: firstRow["Ingrediënten"] });
+      if (firstRow["Allergenen"]) attributes.push({ key: "allergens", value: firstRow["Allergenen"] });
+      if (firstRow["Kan sporen bevatten van"]) {
+        attributes.push({ key: "mayContainTraces", value: firstRow["Kan sporen bevatten van"] });
+      }
+      for (const field of nutritionFields) {
+        const value = firstRow[field.header];
+        if (value) attributes.push({ key: field.key, value });
+      }
+      if (faq1Q) {
+        attributes.push({ key: "faq.1.question.nl", value: faq1Q });
+        attributes.push({ key: "faq.1.question.en", value: enFields[4] });
+        attributes.push({ key: "faq.1.question.fr", value: frFields[4] });
+      }
+      if (faq1A) {
+        attributes.push({ key: "faq.1.answer.nl", value: faq1A });
+        attributes.push({ key: "faq.1.answer.en", value: enFields[5] });
+        attributes.push({ key: "faq.1.answer.fr", value: frFields[5] });
+      }
+      if (faq2Q) {
+        attributes.push({ key: "faq.2.question.nl", value: faq2Q });
+        attributes.push({ key: "faq.2.question.en", value: enFields[6] });
+        attributes.push({ key: "faq.2.question.fr", value: frFields[6] });
+      }
+      if (faq2A) {
+        attributes.push({ key: "faq.2.answer.nl", value: faq2A });
+        attributes.push({ key: "faq.2.answer.en", value: enFields[7] });
+        attributes.push({ key: "faq.2.answer.fr", value: frFields[7] });
+      }
+
+      let images: string[] = [];
+      for (const v of variantsData) {
+        const bySku = imagesBySku[v.sku];
+        if (bySku) images = images.concat(bySku);
+      }
+      if (images.length === 0) {
+        const sameCategoryFolderKey = Object.keys(imagesByFolderKey).find(
+          (k) => k.split('/')[0] === family.categorySlug && slugify(k.split('/')[1] || '') === slugify(family.familyName)
+        );
+        const anyFolderKey = Object.keys(imagesByFolderKey).find(
+          (k) => slugify(k.split('/')[1] || '') === slugify(family.familyName)
+        );
+        const matchingFolderKey = sameCategoryFolderKey || anyFolderKey;
+        if (matchingFolderKey) images = imagesByFolderKey[matchingFolderKey];
+      }
+      images = Array.from(new Set(images));
+
+      await prisma.$transaction(async (tx) => {
+        const createdProduct = await tx.product.create({
+          data: {
+            slug: productSlugs.nl,
+            sku: productSku,
+            basePriceCents,
+            isActive: productIsActive,
             translations: {
               create: locales.map((locale) => ({
                 locale,
-                label: v.label,
+                name: byLocale[locale][0] || productName,
+                slug: productSlugs[locale],
+                description: byLocale[locale][1] || longDescription,
               })),
             },
-          })),
-        },
-      },
-    });
+            variants: {
+              create: variantsData.map((v) => ({
+                sku: v.sku,
+                priceCents: v.priceCents,
+                weightGrams: v.weightGrams,
+                preparation: v.preparation,
+                salting: v.salting,
+                coating: v.coating,
+                isActive: v.isActive,
+                translations: {
+                  create: locales.map((locale) => ({
+                    locale,
+                    label: v.label,
+                  })),
+                },
+              })),
+            },
+          },
+        });
 
-    await prisma.productCategory.create({
-      data: {
-        productId: createdProduct.id,
-        categoryId,
-      },
-    });
+        await tx.productCategory.create({
+          data: {
+            productId: createdProduct.id,
+            categoryId,
+          },
+        });
 
-    const attributes: Array<{ key: string; value: string }> = [];
-    if (firstRow["Ingrediënten"]) attributes.push({ key: "ingredients", value: firstRow["Ingrediënten"] });
-    if (firstRow["Allergenen"]) attributes.push({ key: "allergens", value: firstRow["Allergenen"] });
-    if (firstRow["Kan sporen bevatten van"]) {
-      attributes.push({ key: "mayContainTraces", value: firstRow["Kan sporen bevatten van"] });
-    }
-    for (const field of nutritionFields) {
-      const value = firstRow[field.header];
-      if (value) attributes.push({ key: field.key, value });
-    }
-    if (faq1Q) {
-      attributes.push({ key: "faq.1.question.nl", value: faq1Q });
-      attributes.push({ key: "faq.1.question.en", value: enFields[4] });
-      attributes.push({ key: "faq.1.question.fr", value: frFields[4] });
-    }
-    if (faq1A) {
-      attributes.push({ key: "faq.1.answer.nl", value: faq1A });
-      attributes.push({ key: "faq.1.answer.en", value: enFields[5] });
-      attributes.push({ key: "faq.1.answer.fr", value: frFields[5] });
-    }
-    if (faq2Q) {
-      attributes.push({ key: "faq.2.question.nl", value: faq2Q });
-      attributes.push({ key: "faq.2.question.en", value: enFields[6] });
-      attributes.push({ key: "faq.2.question.fr", value: frFields[6] });
-    }
-    if (faq2A) {
-      attributes.push({ key: "faq.2.answer.nl", value: faq2A });
-      attributes.push({ key: "faq.2.answer.en", value: enFields[7] });
-      attributes.push({ key: "faq.2.answer.fr", value: frFields[7] });
-    }
+        if (attributes.length > 0) {
+          await tx.productAttribute.createMany({
+            data: attributes.map((a) => ({ productId: createdProduct.id, ...a })),
+          });
+        }
 
-    if (attributes.length > 0) {
-      await prisma.productAttribute.createMany({
-        data: attributes.map((a) => ({ productId: createdProduct.id, ...a })),
+        let sortIdx = 0;
+        for (const imgKey of images) {
+          await tx.productImage.create({
+            data: {
+              productId: createdProduct.id,
+              storageKey: imgKey,
+              alt: productName,
+              sortOrder: sortIdx++,
+              isPrimary: sortIdx === 1,
+            },
+          });
+        }
       });
-    }
 
-    let images: string[] = [];
-    for (const v of variantsData) {
-      const bySku = imagesBySku[v.sku];
-      if (bySku) images = images.concat(bySku);
-    }
-    if (images.length === 0) {
-      const matchingFolderKey = Object.keys(imagesByFolderKey).find(
-        (k) => slugify(k.split('/')[1] || '') === slugify(family.familyName)
-      );
-      if (matchingFolderKey) images = imagesByFolderKey[matchingFolderKey];
-    }
-    images = Array.from(new Set(images));
-
-    let sortIdx = 0;
-    for (const imgKey of images) {
-      await prisma.productImage.create({
-        data: {
-          productId: createdProduct.id,
-          storageKey: imgKey,
-          alt: productName,
-          sortOrder: sortIdx++,
-          isPrimary: sortIdx === 1,
-        },
-      });
+      succeededCount++;
+    } catch (error) {
+      skippedCount++;
+      skippedFamilies.push(family.familyName);
+      console.error(`Skipping product family "${family.familyName}" after import failure:`, error);
     }
   }
 
-  console.log(`Seeded ${families.size} products successfully.`);
+  console.log(`Seeded ${succeededCount} products successfully, skipped ${skippedCount} due to errors.`);
+  if (skippedFamilies.length > 0) {
+    console.log(`Skipped families: ${skippedFamilies.join(", ")}`);
+  }
 
   await seedPages();
 }
