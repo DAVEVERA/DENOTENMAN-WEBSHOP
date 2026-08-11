@@ -45,7 +45,20 @@
     "removeFromFavorites": "Retirer des favoris",
     "tabDescription": "Description",
     "tabNutrition": "Valeurs nutritionnelles",
-    "tabFaq": "FAQ"
+    "tabFaq": "FAQ",
+    "nutritionEnergy": "Énergie",
+    "nutritionFat": "Lipides",
+    "nutritionSaturatedFat": "dont acides gras saturés",
+    "nutritionCarbohydrates": "Glucides",
+    "nutritionSugars": "dont sucres",
+    "nutritionFiber": "Fibres",
+    "nutritionProtein": "Protéines",
+    "nutritionSalt": "Sel",
+    "ingredients": "Ingrédients",
+    "allergens": "Allergènes",
+    "mayContainTraces": "Peut contenir des traces de",
+    "weight": "Poids",
+    "perHundredGrams": "Valeurs nutritionnelles pour 100 g"
   },
   "cart": {
     "title": "Panier",

@@ -45,7 +45,20 @@
     "removeFromFavorites": "Verwijderen uit favorieten",
     "tabDescription": "Omschrijving",
     "tabNutrition": "Voedingswaarde",
-    "tabFaq": "Veelgestelde vragen"
+    "tabFaq": "Veelgestelde vragen",
+    "nutritionEnergy": "Energie",
+    "nutritionFat": "Vet",
+    "nutritionSaturatedFat": "Waarvan verzadigd",
+    "nutritionCarbohydrates": "Koolhydraten",
+    "nutritionSugars": "Waarvan suikers",
+    "nutritionFiber": "Vezels",
+    "nutritionProtein": "Eiwitten",
+    "nutritionSalt": "Zout",
+    "ingredients": "Ingrediënten",
+    "allergens": "Allergenen",
+    "mayContainTraces": "Kan sporen bevatten van",
+    "weight": "Gewicht",
+    "perHundredGrams": "Voedingswaarde per 100 g"
   },
   "cart": {
     "title": "Winkelwagen",

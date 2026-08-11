@@ -45,7 +45,20 @@
     "removeFromFavorites": "Remove from favorites",
     "tabDescription": "Description",
     "tabNutrition": "Nutrition",
-    "tabFaq": "FAQ"
+    "tabFaq": "FAQ",
+    "nutritionEnergy": "Energy",
+    "nutritionFat": "Fat",
+    "nutritionSaturatedFat": "of which saturated",
+    "nutritionCarbohydrates": "Carbohydrates",
+    "nutritionSugars": "of which sugars",
+    "nutritionFiber": "Fiber",
+    "nutritionProtein": "Protein",
+    "nutritionSalt": "Salt",
+    "ingredients": "Ingredients",
+    "allergens": "Allergens",
+    "mayContainTraces": "May contain traces of",
+    "weight": "Weight",
+    "perHundredGrams": "Nutritional value per 100 g"
   },
   "cart": {
     "title": "Cart",
