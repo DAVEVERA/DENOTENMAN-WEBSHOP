@@ -58,7 +58,8 @@
     "allergens": "Allergenen",
     "mayContainTraces": "Kan sporen bevatten van",
     "weight": "Gewicht",
-    "perHundredGrams": "Voedingswaarde per 100 g"
+    "perHundredGrams": "Voedingswaarde per 100 g",
+    "faqFallback": "Nog geen vragen beantwoord voor dit product. Neem contact op voor meer informatie."
   },
   "cart": {
     "title": "Winkelwagen",

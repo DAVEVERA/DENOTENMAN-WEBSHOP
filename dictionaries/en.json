@@ -58,7 +58,8 @@
     "allergens": "Allergens",
     "mayContainTraces": "May contain traces of",
     "weight": "Weight",
-    "perHundredGrams": "Nutritional value per 100 g"
+    "perHundredGrams": "Nutritional value per 100 g",
+    "faqFallback": "No questions answered yet for this product. Contact us for more information."
   },
   "cart": {
     "title": "Cart",

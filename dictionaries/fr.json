@@ -58,7 +58,8 @@
     "allergens": "Allergènes",
     "mayContainTraces": "Peut contenir des traces de",
     "weight": "Poids",
-    "perHundredGrams": "Valeurs nutritionnelles pour 100 g"
+    "perHundredGrams": "Valeurs nutritionnelles pour 100 g",
+    "faqFallback": "Aucune question répondue pour ce produit. Contactez-nous pour plus d'informations."
   },
   "cart": {
     "title": "Panier",
