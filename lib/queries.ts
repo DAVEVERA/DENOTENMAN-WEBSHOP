@@ -6,6 +6,7 @@ import type {
   Category,
   CategoryTranslation,
   Product,
+  ProductAttribute,
   ProductImage,
   ProductTranslation,
   ProductVariant,
@@ -16,6 +17,11 @@ export type ProductImageDto = {
   url: string;
   alt: string | null;
   isPrimary: boolean;
+};
+
+export type ProductAttributeDto = {
+  key: string;
+  value: string;
 };
 
 export type ProductVariantDto = {
@@ -44,6 +50,7 @@ export type ProductSummaryDto = {
 export type ProductDetailDto = ProductSummaryDto & {
   variants: ProductVariantDto[];
   slugsByLocale: Partial<Record<Locale, string>>;
+  attributes: ProductAttributeDto[];
 };
 
 export type CategoryDto = {
@@ -201,6 +208,42 @@ function toProductVariantDto(
   };
 }
 
+function toProductAttributesDto(
+  attributes: ProductAttribute[],
+  locale: Locale
+): ProductAttributeDto[] {
+  const nonLocalizedKeys = new Set([
+    "ingredients",
+    "allergens",
+    "mayContainTraces",
+  ]);
+  const localizedPattern = /\.(?:nl|en|fr)$/;
+
+  return attributes
+    .map((attr) => {
+      const key = attr.key;
+      const isNonLocalized = nonLocalizedKeys.has(key) || key.startsWith("nutrition.");
+
+      if (isNonLocalized) {
+        return { key, value: attr.value };
+      }
+
+      if (localizedPattern.test(key)) {
+        const localeSuffix = `.${locale}`;
+        if (key.endsWith(localeSuffix)) {
+          return {
+            key: key.replace(localizedPattern, ""),
+            value: attr.value,
+          };
+        }
+        return undefined;
+      }
+
+      return { key, value: attr.value };
+    })
+    .filter((attr): attr is ProductAttributeDto => attr !== undefined);
+}
+
 function toCategoryDto(
   category: Category & { translations: CategoryTranslation[] },
   locale: Locale
@@ -232,6 +275,7 @@ export async function getProductBySlug(
           translations: true,
           images: true,
           variants: { include: { translations: true } },
+          attributes: true,
         },
       },
     },
@@ -255,6 +299,7 @@ export async function getProductBySlug(
       .filter((variant) => variant.isActive)
       .map((variant) => toProductVariantDto(variant, locale)),
     slugsByLocale: toSlugsByLocale(product.translations),
+    attributes: toProductAttributesDto(product.attributes, locale),
   };
 }
 
