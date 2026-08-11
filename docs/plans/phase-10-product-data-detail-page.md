@@ -101,13 +101,17 @@ Replace the current category-inference/synthetic-generation logic
 smart-attribute-inference blocks) with a spreadsheet-driven import. Keep
 `seedPages()` and the top-of-file `pageTitles`/locale constants untouched.
 
-**Spreadsheet access:** Read tab `Developer_export` from spreadsheet ID
-`1vAOAxa3YsQy_u5M5_gHL4rBr_MTUtp7a` via the Sheets API v4
+**Spreadsheet access:** Read tab `Developer_export` from the project's
+master product spreadsheet (identifier configured at execution time, not
+recorded here — see `docs/CLOUD_SETUP.md`) via the Sheets API v4
 (`spreadsheets.values.get`, range covering the full used range of that
-tab). This tab is the trimmed, import-intended copy of `Productlijst`
-(same data, drops internal-only notes columns). Do not use any cached
-text export — fetch fresh, per-row, per-column values directly from the
-API so row boundaries and cell values are unambiguous.
+tab). The source must be a native Google Sheet, not an uploaded Office
+file — the Sheets API cannot read `.xlsx` uploads at all; convert via
+Drive's "Save as Google Sheets" first if needed. This tab is the trimmed,
+import-intended copy of `Productlijst` (same data, drops internal-only
+notes columns). Do not use any cached text export — fetch fresh, per-row,
+per-column values directly from the API so row boundaries and cell values
+are unambiguous.
 
 **Column → field mapping** (`Developer_export` header row, in order):
 `Product ID`, `SKU`, `EAN code`, `Publiceren`, `Zichtbaarheid`,
