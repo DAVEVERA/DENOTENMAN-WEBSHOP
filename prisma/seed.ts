@@ -258,6 +258,7 @@ async function main() {
 
   const imagesByFolderKey: Record<string, string[]> = {};
   const imagesBySku: Record<string, string[]> = {};
+  const gatePathsBySegment: Record<string, Set<string>> = {};
 
   // "gebruikt" marker can sit at any depth below category/product; "niet gebruikt" means explicitly not used.
   const isUsedGate = (segment: string) => segment.toLowerCase().startsWith('gebruikt');
@@ -274,7 +275,6 @@ async function main() {
 
     const dirParts = parts.slice(0, -1);
     const gateIdx = dirParts.findIndex((p, i) => i >= 2 && isGate(p));
-    if (dirParts.length < 2) continue;
 
     const isUsed = gateIdx === -1 || isUsedGate(dirParts[gateIdx]);
     if (!isUsed) continue;
@@ -287,7 +287,15 @@ async function main() {
 
     // product-name folder: the one right before the gate, or the file's own parent folder when there's no gate
     const productSegment = gateIdx >= 2 ? dirParts[gateIdx - 1] : dirParts[dirParts.length - 1];
-    const folderKey = `${parts[0].toLowerCase()}/${productSegment.toLowerCase()}`;
+    const categorySegment = parts[0].toLowerCase();
+    const folderKey = `${categorySegment}/${productSegment.toLowerCase()}`;
+
+    if (slugify(productSegment) === slugify(parts[0])) {
+      console.warn(`Suspicious product-name folder segment (matches category name) at: ${key}`);
+    }
+    const gateSegmentKey = `${categorySegment}::${productSegment.toLowerCase()}`;
+    if (!gatePathsBySegment[gateSegmentKey]) gatePathsBySegment[gateSegmentKey] = new Set();
+    gatePathsBySegment[gateSegmentKey].add(dirParts.join('/'));
 
     if (!imagesByFolderKey[folderKey]) imagesByFolderKey[folderKey] = [];
     imagesByFolderKey[folderKey].push(key);
@@ -297,6 +305,16 @@ async function main() {
       const sku = skuMatch[0].toUpperCase();
       if (!imagesBySku[sku]) imagesBySku[sku] = [];
       imagesBySku[sku].push(key);
+    }
+  }
+
+  const genericSegmentPathThreshold = 3;
+  for (const [gateSegmentKey, paths] of Object.entries(gatePathsBySegment)) {
+    if (paths.size >= genericSegmentPathThreshold) {
+      const [category, segment] = gateSegmentKey.split('::');
+      console.warn(
+        `Suspicious product-name folder segment "${segment}" recurs across ${paths.size} distinct paths under category "${category}" — likely a structural folder, not a product name.`
+      );
     }
   }
 
@@ -537,6 +555,9 @@ async function main() {
           matchingFolderKey = Object.keys(imagesByFolderKey).find(
             (k) => k.split('/')[0] === family.categorySlug && normalizeWordSet(k.split('/')[1] || '') === familyWordSet
           );
+          if (matchingFolderKey) {
+            console.log(`Fuzzy-matched images for "${family.familyName}" via folder "${matchingFolderKey}"`);
+          }
         }
         if (matchingFolderKey) images = imagesByFolderKey[matchingFolderKey];
       }
