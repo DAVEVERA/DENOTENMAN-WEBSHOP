@@ -4,7 +4,13 @@ const globals = require("globals");
 const tseslint = require("typescript-eslint");
 
 const nextAppFiles = ["apps/{admin,storefront}/**/*.{js,jsx,mjs,ts,tsx,mts,cts}"];
-const packageFiles = ["apps/worker/src/**/*.{ts,tsx}", "packages/*/src/**/*.{ts,tsx}"];
+const packageFiles = [
+  "apps/api/src/**/*.{ts,tsx}",
+  "apps/e2e/**/*.{ts,tsx}",
+  "apps/worker/src/**/*.{ts,tsx}",
+  "packages/*/src/**/*.{ts,tsx}",
+  "prisma/**/*.ts",
+];
 
 const scopedNextVitals = nextVitals.map((config) => {
   if (config.ignores) {
