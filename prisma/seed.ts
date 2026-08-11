@@ -100,13 +100,11 @@ const sheetsClient = google.sheets({
   }),
 });
 
-const SPREADSHEET_ID = "1UjdDn71rQhOOnusNWiH5-SHp8-PGBdZjntr4-RDv4_Q";
-
 type SheetRow = Record<string, string>;
 
-async function fetchTab(tabName: string): Promise<SheetRow[]> {
+async function fetchTab(spreadsheetId: string, tabName: string): Promise<SheetRow[]> {
   const res = await sheetsClient.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
+    spreadsheetId,
     range: tabName,
   });
   const rows = res.data.values || [];
@@ -251,6 +249,11 @@ async function main() {
     throw new Error("GCS_BUCKET environment variable is not configured");
   }
 
+  const spreadsheetId = process.env.SPREADSHEET_ID;
+  if (!spreadsheetId) {
+    throw new Error("SPREADSHEET_ID environment variable is not configured");
+  }
+
   console.log(`Connecting to GCS bucket: "${bucketName}"...`);
   const bucket = storage.bucket(bucketName);
   const [files] = await bucket.getFiles();
@@ -320,9 +323,9 @@ async function main() {
 
   console.log("Fetching spreadsheet tabs...");
   const [exportRows, archiefRows, controleRows] = await Promise.all([
-    fetchTab("Developer_export"),
-    fetchTab("Archief_niet_actief"),
-    fetchTab("Nog_te_controleren"),
+    fetchTab(spreadsheetId, "Developer_export"),
+    fetchTab(spreadsheetId, "Archief_niet_actief"),
+    fetchTab(spreadsheetId, "Nog_te_controleren"),
   ]);
   console.log(`Fetched ${exportRows.length} rows from Developer_export.`);
 

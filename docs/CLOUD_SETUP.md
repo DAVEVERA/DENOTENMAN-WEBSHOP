@@ -61,8 +61,11 @@ names, identifiers, or secret values belong in this repository.
 
 - Purpose: holds runtime configuration values that must not appear in
   the repository, matching the keys already declared in
-  `.env.example`: `DATABASE_URL`, `GCS_BUCKET`, `CDN_BASE_URL`,
-  `SITE_URL`, `DEFAULT_LOCALE`.
+  `.env.example`: `DATABASE_URL`, `GCS_BUCKET`, `SPREADSHEET_ID`,
+  `CDN_BASE_URL`, `SITE_URL`, `DEFAULT_LOCALE`. `SPREADSHEET_ID`
+  identifies the master product spreadsheet the catalog import reads
+  from; like every other value in this list, the identifier itself
+  lives only in the runtime environment, never in the repository.
 - Minimal setup: one secret per configuration value, versioned, with
   older versions disabled rather than deleted after rotation.
 - Access: the application service account is granted Secret Manager
