@@ -55,6 +55,26 @@ function slugify(str: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
+// spreadsheet SKUs carry a weight suffix (e.g. CHO-5005-250) that bucket filenames never embed.
+function stripWeightSuffix(sku: string): string {
+  return sku.replace(/-\d+$/, '');
+}
+
+function lookupImagesBySku(imagesBySku: Record<string, string[]>, sku: string): string[] | undefined {
+  return imagesBySku[sku] || imagesBySku[stripWeightSuffix(sku)];
+}
+
+// simple word-set comparison: lowercase, strip a trailing en/s per word, ignore order.
+function normalizeWordSet(str: string): string {
+  return str
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((w) => w.replace(/(en|s)$/, ''))
+    .sort()
+    .join(' ');
+}
+
 // Translations map for categories
 const categoryTranslations: Record<string, Record<(typeof locales)[number], string>> = {
   "bakproducten": { nl: "Bakproducten", en: "Baking Products", fr: "Produits de Pâtisserie" },
@@ -501,7 +521,7 @@ async function main() {
 
       let images: string[] = [];
       for (const v of variantsData) {
-        const bySku = imagesBySku[v.sku];
+        const bySku = lookupImagesBySku(imagesBySku, v.sku);
         if (bySku) images = images.concat(bySku);
       }
       if (images.length === 0) {
@@ -511,7 +531,13 @@ async function main() {
         const anyFolderKey = Object.keys(imagesByFolderKey).find(
           (k) => slugify(k.split('/')[1] || '') === slugify(family.familyName)
         );
-        const matchingFolderKey = sameCategoryFolderKey || anyFolderKey;
+        let matchingFolderKey = sameCategoryFolderKey || anyFolderKey;
+        if (!matchingFolderKey) {
+          const familyWordSet = normalizeWordSet(family.familyName);
+          matchingFolderKey = Object.keys(imagesByFolderKey).find(
+            (k) => k.split('/')[0] === family.categorySlug && normalizeWordSet(k.split('/')[1] || '') === familyWordSet
+          );
+        }
         if (matchingFolderKey) images = imagesByFolderKey[matchingFolderKey];
       }
       images = Array.from(new Set(images));
