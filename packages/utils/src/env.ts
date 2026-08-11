@@ -18,7 +18,9 @@ export function parseEnv<T>(
 ): T {
   const result = schema.safeParse(source);
 
-  if (result.success) {
+  // Narrow on the property rather than the `success` discriminant: consumers
+  // that compile without strictNullChecks do not narrow boolean literals.
+  if (!("error" in result)) {
     return result.data;
   }
 
