@@ -239,13 +239,24 @@ async function main() {
   const imagesByFolderKey: Record<string, string[]> = {};
   const imagesBySku: Record<string, string[]> = {};
 
+  // "gebruikt" marker can sit at any depth below category/product; "niet gebruikt" means explicitly not used.
+  const isUsedGate = (segment: string) => segment.toLowerCase().startsWith('gebruikt');
+  const isUnusedGate = (segment: string) => {
+    const s = segment.toLowerCase();
+    return s.startsWith('niet gebruikt') || s.startsWith('niet-gebruikt') || s.startsWith('niet_gebruikt');
+  };
+  const isGate = (segment: string) => isUsedGate(segment) || isUnusedGate(segment);
+
   for (const f of files) {
     const key = f.name;
     const parts = key.split('/');
-    if (parts.length < 4) continue;
+    if (parts.length < 3) continue;
 
-    const folderKey = `${parts[0].toLowerCase()}/${parts[1].toLowerCase()}`;
-    const isUsed = parts[2].toLowerCase().startsWith('gebruikt');
+    const dirParts = parts.slice(0, -1);
+    const gateIdx = dirParts.findIndex((p, i) => i >= 2 && isGate(p));
+    if (dirParts.length < 2) continue;
+
+    const isUsed = gateIdx === -1 || isUsedGate(dirParts[gateIdx]);
     if (!isUsed) continue;
 
     const filenameWithExt = parts[parts.length - 1];
@@ -253,6 +264,10 @@ async function main() {
     if (!['.webp', '.jpg', '.jpeg', '.png'].includes(ext)) continue;
 
     const filename = filenameWithExt.substring(0, filenameWithExt.lastIndexOf('.'));
+
+    // product-name folder: the one right before the gate, or the file's own parent folder when there's no gate
+    const productSegment = gateIdx >= 2 ? dirParts[gateIdx - 1] : dirParts[dirParts.length - 1];
+    const folderKey = `${parts[0].toLowerCase()}/${productSegment.toLowerCase()}`;
 
     if (!imagesByFolderKey[folderKey]) imagesByFolderKey[folderKey] = [];
     imagesByFolderKey[folderKey].push(key);
