@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getAdminSession, loginAction } from "../../../../lib/admin-auth";
+import { getAdminSession, loginAction } from "../../../lib/admin-auth";
 
 type AdminLoginPageProps = {
   searchParams?: Promise<{
