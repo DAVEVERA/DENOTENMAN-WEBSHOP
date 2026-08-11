@@ -12,7 +12,8 @@ This document defines where every kind of file belongs. Do not deviate.
 - `components/ui/` holds framework-level primitives (`Container`, `Logo`)
   with no domain knowledge. `components/layout/` holds page-shell
   components (`Header`, `Footer`, `LocaleSwitcher`). `components/product/`
-  holds product-domain components (`ProductCard`). `components/category/`
+  holds product-domain components (`ProductCard`, `ProductGallery`,
+  `VariantSelector`). `components/category/`
   is reserved for category-domain components, not yet populated.
 - Every route under `app/[locale]/` that is a standalone segment (not a
   list page with its own nested detail route) has its own `layout.tsx`

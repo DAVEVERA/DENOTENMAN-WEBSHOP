@@ -84,6 +84,46 @@ names, identifiers, or secret values belong in this repository.
   here, while `SITE_URL` is the storefront's own public domain, used
   for canonical links, hreflang alternates, the sitemap, and robots.txt.
 
+## 7. Google Sheets API read access
+
+- Purpose: lets `prisma/seed.ts` read the product catalog spreadsheet
+  maintained by the site owner as the source of truth for the import
+  described in `docs/ARCHITECTURE.md`.
+- Minimal setup: the source spreadsheet must be a native spreadsheet in
+  the operator's account, not an uploaded Office file — the Sheets API
+  cannot read the contents of an uploaded file, only a spreadsheet
+  actually created in or converted to the native format. The
+  spreadsheet is shared with the service account below at Viewer level
+  only; no write access is granted.
+- Access: a dedicated service account is granted read access to the
+  spreadsheet directly (via spreadsheet sharing, not a project-level
+  IAM role) and no other Sheets or Drive scope. The application relies
+  on Application Default Credentials, consistent with the credential
+  approach already used for Storage above: no key file is committed to
+  the repository. For local development, a key file for this service
+  account is generated and referenced through
+  `GOOGLE_APPLICATION_CREDENTIALS` in the local environment only; the
+  key file itself is excluded from version control by a dedicated
+  `.gitignore` pattern and never distributed outside the machine that
+  needs it.
+
+## 8. Google Cloud Translation API
+
+- Purpose: lets `prisma/seed.ts` translate the spreadsheet's Dutch
+  source text into English and French once, at import time, as
+  documented in `docs/ARCHITECTURE.md`. Nothing at request time depends
+  on this API.
+- Minimal setup: the Cloud Translation API is enabled on the project.
+  No translation glossary, custom model, or additional configuration is
+  required beyond the base API.
+- Access: the same dedicated service account used for Sheets access is
+  granted the Cloud Translation API User role (or an equivalent minimal
+  role scoped to issuing translation requests), not a broader
+  Translation admin role. Credentials follow the same Application
+  Default Credentials pattern: no key file in the repository, and the
+  same local-development key file and `GOOGLE_APPLICATION_CREDENTIALS`
+  reference used for Sheets access above.
+
 ## Out of scope
 
 Provisioning steps, console clicks, and command-line invocations are

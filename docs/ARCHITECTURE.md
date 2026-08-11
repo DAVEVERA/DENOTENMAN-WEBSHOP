@@ -289,3 +289,156 @@ state — that placement decision is deferred to a later phase.
   accessibility pass to address (for example by darkening the token
   slightly, or reserving `text-muted` for large-text/UI-only contexts
   going forward), not fixed in this phase.
+
+## The spreadsheet as catalog source of truth, imported one-way
+
+The product catalog originates in a spreadsheet maintained by the site
+owner, not in `prisma/schema.prisma` seed literals. `prisma/seed.ts` reads
+that spreadsheet through the Google Sheets API and writes the result into
+the database; there is no path in the other direction. Nothing in the
+application reads the spreadsheet at request time, and no runtime code
+writes back to it. This keeps catalog authoring in a tool the site owner
+already knows, while the storefront itself only ever depends on the
+database, exactly like every other content type in this project.
+
+The source must be a native spreadsheet in the operator's account, not an
+uploaded Office file: the Sheets API cannot read the contents of an
+uploaded `.xlsx` file, only a spreadsheet actually created in or converted
+to the native format. This is a one-time authoring constraint on the
+source file, not something the import script can work around.
+
+## Google Cloud Translation as an import-time step, not a runtime dependency
+
+Dutch is the spreadsheet's only language. `prisma/seed.ts` calls the
+Google Cloud Translation API to produce the English and French text
+stored in the database, once, at import time. The storefront never calls
+the Translation API while serving a request; every locale's copy already
+exists as a `ProductTranslation` row (or a locale-suffixed
+`ProductAttribute`, see below) by the time a page renders. This keeps
+translation cost and latency out of the request path entirely and means a
+translation outage never degrades the storefront.
+
+Translation calls are batched per product rather than issued per field.
+A product has multiple translatable fields (name, description, and any
+localized attributes); requesting all of them in one call per product per
+target language keeps the total call volume proportional to the catalog
+size rather than to the catalog size times the field count.
+
+## `isActive: false` as the sole exclusion mechanism
+
+Every condition that should keep a spreadsheet row out of the live
+storefront is represented the same way: the imported row is still written
+to the database, with `isActive: false`, never omitted from the import.
+Product listing and detail queries already filter on `isActive`, so a
+`false` value is sufficient to keep a row out of the storefront without
+introducing a second mechanism for "exists but hidden." This applies to:
+
+- Rows from the spreadsheet's archived tab.
+- Rows from the spreadsheet's not-yet-verified tab, matched to the
+  correct product variant by family name plus variant name, not applied
+  to an entire product family at once — a family can have some variants
+  verified and others not.
+- Rows whose price is missing or does not parse as a number. An
+  unparseable price never produces an invented or zero price value; it
+  produces an inactive row instead, so a pricing gap in the source data
+  cannot silently reach the storefront as a wrong price.
+
+Keeping every row in the database, rather than dropping the ones that
+fail one of these checks, means re-running the import after the
+spreadsheet is corrected (a variant gets verified, a price is fixed) only
+has to flip `isActive`, not recreate a row that import previously
+discarded.
+
+## `ProductAttribute` as the model for nutrition, regulated text, and FAQ content
+
+`ProductAttribute` (a generic per-product key/value table) is the storage
+for three kinds of content the spreadsheet carries that do not fit the
+existing typed columns, without a schema migration:
+
+- Nutrition facts: up to nine `nutrition.*`-prefixed keys, one row per
+  field. A row is only created when the spreadsheet actually has a value
+  for that field; a product with fewer than nine known nutrition values
+  gets fewer than nine rows, never blank-padded to a fixed count.
+- `ingredients`, `allergens`, and `mayContainTraces`: stored as
+  Dutch-only text under those exact keys, deliberately not passed through
+  the Translation API. This is regulated, technical content; it is
+  imported as-is so a human can review and translate it deliberately,
+  rather than shipping a machine translation of allergen text
+  unreviewed.
+- FAQ content: up to two question/answer pairs, keyed
+  `faq.1.question`, `faq.1.answer`, `faq.2.question`, `faq.2.answer`.
+
+Content that varies by locale is stored as separate rows per locale,
+using a locale-suffixed key (`faq.1.question.nl`, `faq.1.question.en`,
+`faq.1.question.fr`), the same convention introduced for
+`ProductTranslation`-style data but applied to the key/value table instead
+of a dedicated column set. `toProductAttributesDto` in `lib/queries.ts` is
+the one place that resolves this: for a locale-suffixed key it keeps only
+the row matching the current request locale and strips the suffix before
+returning it, so every caller of the product query sees a plain `faq.1.question`
+key already resolved to the right language, never the suffixed form.
+Nutrition keys and the three regulated-text keys are treated as
+non-localized and pass through unchanged, since they carry no locale
+suffix to begin with.
+
+## Product images matched from the existing bucket, not the spreadsheet
+
+The spreadsheet's own image-link column is empty on every row, so
+`prisma/seed.ts` does not use it. Instead, product and variant images are
+matched from the Cloud Storage bucket described in `docs/CLOUD_SETUP.md`,
+using the product's SKU and category to locate the right files. Three
+refinements to that matching were needed once real bucket contents were
+imported against:
+
+- The bucket marks which images are live (as opposed to superseded or
+  draft) with a "Gebruikt" folder, but that folder does not sit at a
+  fixed depth in every product's path. Matching searches a file's full
+  path for that marker at any depth, rather than assuming a fixed
+  folder structure. A product folder that contains no marker at all is
+  treated as fully live — every image under it is used — rather than
+  treated as having no live images.
+- A variant's SKU in the spreadsheet includes a weight suffix that a
+  bucket filename's base SKU does not always carry. When the full
+  spreadsheet SKU does not match any filename, matching falls back to
+  the SKU with that suffix stripped.
+- As a last resort, when neither SKU match succeeds, a product family
+  is matched to a bucket folder by comparing the words in the family
+  name against the words in candidate folder names within the same
+  category, rather than requiring an exact slug match. This only
+  applies within the product's own category, so it cannot match a
+  folder belonging to an unrelated product line.
+
+## Known gap: seeded stock is always zero
+
+Every `ProductVariant.stock` value written by the import is `0`. The
+spreadsheet's stock-status column is read and used only as one of the
+inputs to the `isActive` decision (an out-of-stock or discontinued status
+can make a row inactive); it is never mapped to an actual numeric stock
+count, because no such count exists in the source data yet. This is a
+deliberate, known gap, not a bug: real inventory counts are still being
+gathered by the site owner and will be wired into the import once they
+exist. Any future phase that adds stock display or stock-based
+availability logic needs a real count source before that column can be
+anything other than a hardcoded zero.
+
+## Product detail page composition
+
+`app/[locale]/products/[product]/page.tsx` composes the product detail
+view from existing and new pieces rather than introducing a new page
+pattern: `ProductGallery` (image thumbnails with a main-image swap) and
+`VariantSelector` (the product's weight/variant options) are new,
+product-domain-specific components; `FavoriteButton` and `Tabs` are
+reused as-is from the design-system work in the previous phase. The three
+`Tabs` panels are each driven by data that may or may not exist per
+product rather than being unconditionally rendered: the description tab
+reads the product's translated description directly; the nutrition tab
+builds its table only from whichever `nutrition.*` attributes that
+product actually has; the FAQ tab builds its list from whichever `faq.*`
+attributes exist for that product's locale, falling back to a short
+static set of questions only for a product that genuinely has none.
+
+The Add to Cart control on this page has no click handler and creates no
+cart state. This is intentional, not an oversight: cart and checkout
+logic remains out of scope for this phase, consistent with earlier
+phases' deferral of checkout, and the button exists at this point only to
+complete the page's visual layout.
