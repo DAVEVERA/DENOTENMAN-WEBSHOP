@@ -28,10 +28,7 @@ pnpm-debug.log*
 next-env.d.ts
 AGENTS.md
 CLAUDE.md
-.codex/ralph-loop.local.md
 TODO.md
 .playwright-cli/console-2026-08-11T23-47-28-542Z.log
-.codex/logs/next-dev.err.log
-.codex/logs/next-dev.out.log
-.codex
 .claude
+.worktrees/
