@@ -9,7 +9,11 @@
     "search": "Zoeken",
     "openMenu": "Open menu",
     "closeMenu": "Sluit menu",
-    "mainMenu": "Hoofdmenu"
+    "mainMenu": "Hoofdmenu",
+    "contact": "Contact",
+    "favorites": "Favorieten",
+    "favoritesWithCount": "Favorieten ({count})",
+    "cartWithCount": "Winkelwagen ({count})"
   },
   "brand": {
     "baseline": "Vers gebrande noten, gedroogde zuidvruchten",
@@ -43,6 +47,16 @@
     "pricePerHundredGrams": "per 100 g",
     "addToFavorites": "Toevoegen aan favorieten",
     "removeFromFavorites": "Verwijderen uit favorieten",
+    "quickViewTitle": "Kies je variant",
+    "viewProduct": "Bekijk product",
+    "fullDetails": "Bekijk alle productdetails",
+    "quantity": "Aantal",
+    "addedToCart": "Toegevoegd aan je winkelwagen",
+    "added": "Toegevoegd",
+    "order": "Bestellen",
+    "addProductToCart": "Voeg {product} toe aan winkelwagen",
+    "openQuickView": "Open snelle productinformatie voor {product}",
+    "closeQuickView": "Sluit productinformatie",
     "tabDescription": "Omschrijving",
     "tabNutrition": "Voedingswaarde",
     "tabFaq": "Veelgestelde vragen",
@@ -65,7 +79,16 @@
     "title": "Winkelwagen",
     "empty": "Nog niets in je winkelwagen.",
     "checkout": "Afrekenen",
-    "total": "Totaal"
+    "total": "Totaal",
+    "remove": "Verwijderen",
+    "decrease": "Verlaag aantal",
+    "increase": "Verhoog aantal"
+  },
+  "account": {
+    "title": "Mijn account",
+    "favorites": "Mijn favorieten",
+    "favoritesEmpty": "Je hebt nog geen favoriete producten.",
+    "savedOnDevice": "Je favorieten worden op dit apparaat bewaard."
   },
   "category": {
     "filters": "Filters",
@@ -84,5 +107,30 @@
   },
   "loader": {
     "status": "Laden..."
+  },
+  "hero": {
+    "headline": "Heerlijke vers gebrande noten & gedroogde zuidvruchten!",
+    "cta": "Bestel nu",
+    "previous": "Vorige dia",
+    "next": "Volgende dia",
+    "goToSlide": "Ga naar dia {n}"
+  },
+  "home": {
+    "fedorsFavorite": "Fedor's Favoriet!",
+    "fedorsFavoriteViewAll": "Bekijk alle acties"
+  },
+  "filters": {
+    "preparationLabel": "Bereiding",
+    "preparationRaw": "Rauw",
+    "preparationRoasted": "Gebrand",
+    "saltingLabel": "Zout",
+    "saltingSalted": "Gezouten",
+    "saltingUnsalted": "Ongezouten",
+    "coatingLabel": "Coating",
+    "coatingNone": "Naturel",
+    "coatingChocolate": "Chocolade",
+    "coatingYoghurt": "Yoghurt",
+    "coatingFlavored": "Gearomatiseerd",
+    "reset": "Filters wissen"
   }
 }

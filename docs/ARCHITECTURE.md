@@ -48,6 +48,44 @@ of `0`, which would otherwise sort it first; the query separates standard
 and promotional categories before concatenating them so the promotional
 entry's position in the list is independent of its sort value.
 
+## Header category groups
+
+`lib/categoryGroups.ts` groups the flat list `getMainCategories` returns
+into the header's dropdown nav items, entirely at the presentation layer:
+`Category.parentId` is never set by `prisma/seed.ts` (every seeded
+category is top-level), so there is no real parent/child relationship to
+read. `categoryGroupSlugs` is a curated list of slug arrays, one per
+dropdown item, matching the reference design's eight top-level nav labels;
+`groupMainCategories` resolves each array against the categories actually
+returned for the current locale, so a group is skipped rather than shown
+empty if none of its slugs match. Any real category not covered by
+`categoryGroupSlugs` — for example a category added to the spreadsheet
+after this grouping was written — still appears, as its own single-item
+group appended after the curated ones, so the nav can never silently drop
+a category. The promotional category (`acties`) is excluded from grouping
+entirely and rendered as its own trailing link, consistent with its
+special-cased ordering in `getMainCategories`.
+
+A group with more than one member category renders as a dropdown trigger;
+a group with exactly one renders as a plain link, since a dropdown
+containing only the same destination the trigger already links to would
+add a click with no new information.
+
+## Hero slider: one real slide today, multi-slide-ready
+
+`components/layout/Hero.tsx` accepts a `slides: HeroSlide[]` prop and
+renders arrows/dots only when `slides.length > 1`; today
+`app/[locale]/page.tsx` builds exactly one slide, so the component
+renders without them. The single slide's image is not a placeholder
+asset: it is the primary image of the first product with any image in
+the `noten` category (falling back to the first image found across the
+already-fetched homepage product list, and to a text-only hero if neither
+source has an image), because no dedicated marketing hero photograph
+exists in `public/` and `public/brand/` is reserved for the logo and
+favicon only (see `docs/STRUCTURE.md`). Autoplay is skipped entirely when
+`prefers-reduced-motion: reduce` is set, consistent with the
+reduced-motion handling already established for hover transitions.
+
 ## Sitemap size
 
 `app/sitemap.ts` is a single sitemap file, built from `getProductSlugs`,
@@ -166,17 +204,53 @@ the header and footer if the parent also rendered one.
 `variant` (`"light" | "dark"`, default `"light"`) selects which wordmark
 asset to render for the background it sits on; `parts`
 (`"mark" | "wordmark" | "full"`, default `"full"`) selects which pieces of
-the logo to render. `Header` renders `variant="light" parts="full"` on the
-light background band. `Footer` renders `variant="dark" parts="wordmark"`
+the logo to render. `Header` renders `variant="light" parts="wordmark"` on
+the light background band — the circular `logo-mark.svg` is not shown in
+the header, only the wordmark. `Footer` renders `variant="dark" parts="wordmark"`
 on the light panel inside the dark contrast band, since only the wordmark
 is shown there.
+
+`size` (`"sm" | "lg" | "responsive"`, default `"sm"`) selects fixed
+height classes for `"sm"`/`"lg"` (used by `Footer` and other fixed-size
+callers), or a mobile-first responsive pair (`h-7 sm:h-12` wordmark,
+`h-9 w-9 sm:h-12 sm:w-12` mark) for `"responsive"`. `Header` is the only
+`size="responsive"` caller: at the smallest phone widths the identity
+bar needs the logo to share a row with three 44px icon buttons, so the
+mobile tier stays at `h-7` (28px) — measured to leave roughly 17px of
+slack against those icon buttons in a 320px-wide identity bar, so it
+never wraps to a second line — while the `sm:` tier jumps straight to
+`h-12` (48px, matching the `"lg"` fixed height) once the icon row has
+room to spare. `Footer`'s default `"sm"` size is `h-8` (32px): tall
+enough to read clearly on its own light panel, but deliberately smaller
+than the header's `sm:` tier since a footer logo is conventionally
+secondary.
+
+These height numbers only tell half the story — `size` scales the
+`<img>` box, but what that box actually shows depends on how tightly
+`logo-wordmark.svg`'s `viewBox` is cropped to the artwork. The asset
+originally shipped with a `viewBox` sized to a much larger export
+canvas than the logotype itself: the visible "DE NOTENMAN" wordmark and
+its tagline only occupied roughly the top-left 39% (width) × 37%
+(height) of the declared `515.385 × 132.168` viewBox, with the rest
+pure transparent padding. Every `h-*` class scales that whole
+viewBox uniformly, so the box height was never the wordmark's real
+on-screen height — at `h-10` the glyphs rendered at roughly 15px, not
+40px, which is why an earlier pass that only bumped Tailwind height
+classes still read as too small. The fix was to re-crop the SVG's
+`viewBox` (now `4.246 3.309 208.930 54.695`, a few units of padding
+around the artwork's measured bounding box) so the visible logotype
+fills the box the `size` classes actually declare. `logo-mark.svg`
+does not have this problem — its circular badge artwork already fills
+~99% of its own viewBox — so it was left untouched.
 
 `variant="dark"` currently resolves to the same `logo-wordmark.svg` as
 `variant="light"`, because no inverted export exists yet (see the
 `public/brand/` placement rule in `docs/STRUCTURE.md`). Once
 `logo-wordmark-inverted.svg` is added, only the `wordmarkSrc` map inside
 `Logo.tsx` needs to change — no caller changes, since every consumer
-already asks for `variant="dark"` where an inverted mark belongs.
+already asks for `variant="dark"` where an inverted mark belongs. Any
+replacement or inverted export must be cropped the same way (viewBox
+tight to the artwork) or the same undersized-logo bug returns.
 
 ## Icon convention
 
@@ -196,6 +270,27 @@ only content of an interactive element (an icon-only button) instead
 carry the accessible name on the parent control (`aria-label` on the
 `<button>`), not on the icon itself.
 
+`components/layout/HeaderActions.tsx` renders its contact, favorites,
+and cart buttons with `lucide-react`'s `MessageCircle`, `Heart`, and
+`ShoppingCart` — the `favorite.png`/`shoppingcart.png`/`whatsapp.png`
+exports in `public/brand/icons/` were tried as a scoped exception to
+this rule and reverted; none of the three is referenced by any component
+today (see `docs/STRUCTURE.md`).
+
+## Full-width header on large screens
+
+`components/ui/Container.tsx` takes an optional `fullWidth` boolean
+(default `false`) that omits its `max-w-6xl` cap while keeping the same
+responsive horizontal padding. Every existing caller is unaffected;
+`components/layout/Header.tsx` is the only caller that passes
+`fullWidth`, for both its identity bar and its nav bar, so the logo and
+nav items reach the actual viewport edge on large screens instead of
+sitting inside a centered 1152px column with dead space on either side
+on wide monitors — matching how `Hero` already renders edge-to-edge.
+Every other `Container` usage (product grid, footer, content pages)
+keeps the default centered, width-capped behavior, since a full-bleed
+product grid or line length is not what this change was asked for.
+
 ## Product grid convention
 
 Every product listing (`app/[locale]/page.tsx`, `app/[locale]/categories/page.tsx`,
@@ -203,6 +298,38 @@ Every product listing (`app/[locale]/page.tsx`, `app/[locale]/categories/page.ts
 grid: `grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4` — two columns
 on phone, three on tablet, four on desktop. Any future page that lists
 `ProductCard` instances uses this exact class string.
+
+## Homepage search and filter: client-side over the already-fetched list
+
+`components/product/ProductBrowser.tsx` adds a search input and a
+Preparation/Salting/Coating filter above the homepage product grid. Both
+operate entirely client-side over the `ProductSummaryDto[]` the homepage
+already fetched via `getFilteredProducts("all", locale, [])` — no new
+query, no URL state, no server round-trip. This is a deliberate scope
+choice, not an oversight: `getFilteredProducts`'s existing `filters`
+parameter matches against `ProductAttribute` key/value pairs (nutrition,
+ingredients, FAQ content), not the `ProductVariant.preparation`/
+`salting`/`coating` enums a nut shop's customers actually want to filter
+by, and `ProductVariantDto` already carries all three fields on every
+fetched product, so no backend change was needed to make filtering work
+today. The homepage's default page size (`getFilteredProducts`'s
+unpaginated-`Paging` default of 20) still applies, so search and filter
+narrow down the same first page of products the grid would otherwise
+show, not the full catalog — extending this to the full catalog would
+require paginating or removing that default limit, which is out of scope
+here.
+
+## "Fedor's Favoriet!" banner sources from the promotional category
+
+`components/product/FeaturedBanner.tsx` renders between `Hero` and
+`ProductBrowser` on the homepage. There is no "featured" flag on
+`Product` in the schema, so rather than inventing one, the banner is
+given the products already returned by `getCategory("acties", locale)`
+— the same promotional category `getMainCategories` already
+special-cases to sort last in the nav (see "Main category navigation
+ordering" above). The banner renders nothing (`null`) when that category
+has no active products, instead of showing an empty or placeholder
+banner.
 
 ## Design system: tokens, components, and motion
 
@@ -262,15 +389,13 @@ state — that placement decision is deferred to a later phase.
 
 ## Known gaps carried forward from this phase
 
-- The mega-menu's per-category featured block reads
-  `CategoryTranslation.description`, which today's seed data does not
-  populate — the slot renders nothing until a category actually has a
-  description. No fake content was invented to fill the visual space.
-- The mega-menu does not render subcategories, because `getMainCategories`
-  deliberately excludes non-top-level categories (see the "Main category
-  navigation ordering" section above) and no subcategory query exists yet.
-  The mega-menu's layout has room for a subcategory list per category once
-  that query is built.
+- The mega-menu no longer reads `CategoryTranslation.description`; its
+  dropdown panels list category names only (see "Header category groups"
+  above).
+- The mega-menu's grouping is a presentation-layer mapping of flat
+  category slugs (see "Header category groups" above), not a real
+  database subcategory relationship — `Category.parentId` still goes
+  unused by the seed import.
 - The header's sticky-scroll divider is a permanent, CSS-only border plus
   backdrop blur, not a border that appears only after the user scrolls
   past the top of the page — implementing the latter requires converting

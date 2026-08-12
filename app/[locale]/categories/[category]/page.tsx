@@ -63,7 +63,7 @@ export default async function CategoryPage({
   return (
     <Container className="py-10">
       <h1 className="font-heading text-3xl tracking-heading text-text">{data.name}</h1>
-      <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
         {data.products.map((item) => (
           <ProductCard key={item.id} product={item} categoryName={data.name} locale={locale} />
         ))}

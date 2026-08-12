@@ -9,7 +9,11 @@
     "search": "Search",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "mainMenu": "Main menu"
+    "mainMenu": "Main menu",
+    "contact": "Contact",
+    "favorites": "Favorites",
+    "favoritesWithCount": "Favorites ({count})",
+    "cartWithCount": "Cart ({count})"
   },
   "brand": {
     "baseline": "Freshly roasted nuts, dried fruit",
@@ -43,6 +47,16 @@
     "pricePerHundredGrams": "per 100 g",
     "addToFavorites": "Add to favorites",
     "removeFromFavorites": "Remove from favorites",
+    "quickViewTitle": "Choose your option",
+    "viewProduct": "View product",
+    "fullDetails": "View all product details",
+    "quantity": "Quantity",
+    "addedToCart": "Added to your cart",
+    "added": "Added",
+    "order": "Order",
+    "addProductToCart": "Add {product} to cart",
+    "openQuickView": "Open quick product information for {product}",
+    "closeQuickView": "Close product information",
     "tabDescription": "Description",
     "tabNutrition": "Nutrition",
     "tabFaq": "FAQ",
@@ -65,7 +79,16 @@
     "title": "Cart",
     "empty": "Your cart is empty.",
     "checkout": "Checkout",
-    "total": "Total"
+    "total": "Total",
+    "remove": "Remove",
+    "decrease": "Decrease quantity",
+    "increase": "Increase quantity"
+  },
+  "account": {
+    "title": "My account",
+    "favorites": "My favorites",
+    "favoritesEmpty": "You do not have any favorite products yet.",
+    "savedOnDevice": "Your favorites are saved on this device."
   },
   "category": {
     "filters": "Filters",
@@ -84,5 +107,30 @@
   },
   "loader": {
     "status": "Loading..."
+  },
+  "hero": {
+    "headline": "Delicious freshly roasted nuts & dried fruit!",
+    "cta": "Shop now",
+    "previous": "Previous slide",
+    "next": "Next slide",
+    "goToSlide": "Go to slide {n}"
+  },
+  "home": {
+    "fedorsFavorite": "Fedor's Favorite!",
+    "fedorsFavoriteViewAll": "View all deals"
+  },
+  "filters": {
+    "preparationLabel": "Preparation",
+    "preparationRaw": "Raw",
+    "preparationRoasted": "Roasted",
+    "saltingLabel": "Salt",
+    "saltingSalted": "Salted",
+    "saltingUnsalted": "Unsalted",
+    "coatingLabel": "Coating",
+    "coatingNone": "Plain",
+    "coatingChocolate": "Chocolate",
+    "coatingYoghurt": "Yoghurt",
+    "coatingFlavored": "Flavored",
+    "reset": "Clear filters"
   }
 }

@@ -34,7 +34,7 @@ export default async function CategoriesPage({
   return (
     <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
       <Container className="py-10">
-        <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
           {products.map((item) => (
             <ProductCard key={item.id} product={item} locale={locale} />
           ))}

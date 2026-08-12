@@ -5,14 +5,16 @@ const wordmarkSrc: Record<"light" | "dark", string> = {
   dark: "/brand/logo-wordmark.svg",
 };
 
-const wordmarkSizeClasses: Record<"sm" | "lg", string> = {
-  sm: "h-6",
-  lg: "h-10",
+const wordmarkSizeClasses: Record<"sm" | "lg" | "responsive", string> = {
+  sm: "h-8",
+  lg: "h-12",
+  responsive: "h-7 sm:h-12",
 };
 
-const markSizeClasses: Record<"sm" | "lg", string> = {
+const markSizeClasses: Record<"sm" | "lg" | "responsive", string> = {
   sm: "h-8 w-8",
   lg: "h-12 w-12",
+  responsive: "h-9 w-9 sm:h-12 sm:w-12",
 };
 
 export function Logo({
@@ -25,7 +27,7 @@ export function Logo({
   alt: { mark: string; wordmark: string };
   variant?: "light" | "dark";
   parts?: "mark" | "wordmark" | "full";
-  size?: "sm" | "lg";
+  size?: "sm" | "lg" | "responsive";
   className?: string;
 }) {
   const showMark = parts === "mark" || parts === "full";

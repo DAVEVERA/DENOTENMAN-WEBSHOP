@@ -1,0 +1,289 @@
+- generic [active] [ref=e1]:
+  - link "Ga naar hoofdinhoud" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - main [ref=e3]:
+    - generic [ref=e5]:
+      - link [ref=e7] [cursor=pointer]:
+        - /url: /nl
+        - generic [ref=e8]:
+          - img "De Notenman beeldmerk" [ref=e9]
+          - img "De Notenman" [ref=e10]
+      - navigation "Assortiment" [ref=e11]:
+        - button "Assortiment" [ref=e13]
+        - link "Artikelen" [ref=e14] [cursor=pointer]:
+          - /url: /nl/blogs/articles
+      - generic [ref=e15]:
+        - button "Zoeken" [ref=e16]
+        - link "Account" [ref=e20] [cursor=pointer]:
+          - /url: /nl/account
+        - link "Winkelwagen" [ref=e24] [cursor=pointer]:
+          - /url: /nl/cart
+        - list [ref=e30]:
+          - listitem [ref=e31]:
+            - link "nl" [ref=e32] [cursor=pointer]:
+              - /url: /nl
+          - listitem [ref=e33]:
+            - link "en" [ref=e34] [cursor=pointer]:
+              - /url: /en
+          - listitem [ref=e35]:
+            - link "fr" [ref=e36] [cursor=pointer]:
+              - /url: /fr
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - button "Open snelle productinformatie voor Amandelstiften" [ref=e40]:
+          - generic [ref=e43]: Amandelstiften
+        - generic [ref=e44]:
+          - paragraph [ref=e45]: € 5,00
+          - generic [ref=e46]:
+            - button "Toevoegen aan favorieten" [ref=e47]
+            - button "Voeg Amandelstiften toe aan winkelwagen" [ref=e50]
+      - generic [ref=e52]:
+        - button "Open snelle productinformatie voor Sinaasappelschijven" [ref=e53]:
+          - img "Sinaasappelschijven" [ref=e55]
+          - generic [ref=e56]: Sinaasappelschijven
+        - generic [ref=e57]:
+          - paragraph [ref=e58]: € 4,00
+          - generic [ref=e59]:
+            - button "Toevoegen aan favorieten" [ref=e60]
+            - button "Voeg Sinaasappelschijven toe aan winkelwagen" [ref=e63]
+      - generic [ref=e65]:
+        - button "Open snelle productinformatie voor Sinaasappelschil" [ref=e66]:
+          - img "Sinaasappelschil" [ref=e68]
+          - generic [ref=e69]: Sinaasappelschil
+        - generic [ref=e70]:
+          - paragraph [ref=e71]: € 4,00
+          - generic [ref=e72]:
+            - button "Toevoegen aan favorieten" [ref=e73]
+            - button "Voeg Sinaasappelschil toe aan winkelwagen" [ref=e76]
+      - generic [ref=e78]:
+        - button "Open snelle productinformatie voor Sukade blokjes" [ref=e79]:
+          - img "Sukade blokjes" [ref=e81]
+          - generic [ref=e82]: Sukade blokjes
+        - generic [ref=e83]:
+          - paragraph [ref=e84]: € 3,00
+          - generic [ref=e85]:
+            - button "Toevoegen aan favorieten" [ref=e86]
+            - button "Voeg Sukade blokjes toe aan winkelwagen" [ref=e89]
+      - generic [ref=e91]:
+        - button "Open snelle productinformatie voor Amarene Kersen" [ref=e92]:
+          - img "Amarene Kersen" [ref=e94]
+          - generic [ref=e95]: Amarene Kersen
+        - generic [ref=e96]:
+          - paragraph [ref=e97]: € 4,00
+          - generic [ref=e98]:
+            - button "Toevoegen aan favorieten" [ref=e99]
+            - button "Voeg Amarene Kersen toe aan winkelwagen" [ref=e102]
+      - generic [ref=e104]:
+        - button "Open snelle productinformatie voor Bigarreaux Groen" [ref=e105]:
+          - img "Bigarreaux Groen" [ref=e107]
+          - generic [ref=e108]: Bigarreaux Groen
+        - generic [ref=e109]:
+          - paragraph [ref=e110]: € 4,00
+          - generic [ref=e111]:
+            - button "Toevoegen aan favorieten" [ref=e112]
+            - button "Voeg Bigarreaux Groen toe aan winkelwagen" [ref=e115]
+      - generic [ref=e117]:
+        - button "Open snelle productinformatie voor Krenten" [ref=e118]:
+          - img "Krenten" [ref=e120]
+          - generic [ref=e121]: Krenten
+        - generic [ref=e122]:
+          - paragraph [ref=e123]: € 2,50
+          - generic [ref=e124]:
+            - button "Toevoegen aan favorieten" [ref=e125]
+            - button "Voeg Krenten toe aan winkelwagen" [ref=e128]
+      - generic [ref=e130]:
+        - button "Open snelle productinformatie voor Sultana Rozijnen" [ref=e131]:
+          - img "Sultana Rozijnen" [ref=e133]
+          - generic [ref=e134]: Sultana Rozijnen
+        - generic [ref=e135]:
+          - paragraph [ref=e136]: € 7,00
+          - generic [ref=e137]:
+            - button "Toevoegen aan favorieten" [ref=e138]
+            - button "Voeg Sultana Rozijnen toe aan winkelwagen" [ref=e141]
+      - generic [ref=e143]:
+        - button "Open snelle productinformatie voor Amandelmeel" [ref=e144]:
+          - img "Amandelmeel" [ref=e146]
+          - generic [ref=e147]: Amandelmeel
+        - generic [ref=e148]:
+          - paragraph [ref=e149]: € 4,50
+          - generic [ref=e150]:
+            - button "Toevoegen aan favorieten" [ref=e151]
+            - button "Voeg Amandelmeel toe aan winkelwagen" [ref=e154]
+      - generic [ref=e156]:
+        - button "Open snelle productinformatie voor Vruchtengriesmeel" [ref=e157]:
+          - img "Vruchtengriesmeel" [ref=e159]
+          - generic [ref=e160]: Vruchtengriesmeel
+        - generic [ref=e161]:
+          - paragraph [ref=e162]: € 1,75
+          - generic [ref=e163]:
+            - button "Toevoegen aan favorieten" [ref=e164]
+            - button "Voeg Vruchtengriesmeel toe aan winkelwagen" [ref=e167]
+      - generic [ref=e169]:
+        - button "Open snelle productinformatie voor Amandel Nougat" [ref=e170]:
+          - img "Amandel Nougat" [ref=e172]
+          - generic [ref=e173]: Amandel Nougat
+        - generic [ref=e174]:
+          - paragraph [ref=e175]: € 4,50
+          - generic [ref=e176]:
+            - button "Toevoegen aan favorieten" [ref=e177]
+            - button "Voeg Amandel Nougat toe aan winkelwagen" [ref=e180]
+      - generic [ref=e182]:
+        - button "Open snelle productinformatie voor Chocolade Amandelen Caramel-Zeezout" [ref=e183]:
+          - img "Chocolade Amandelen Caramel-Zeezout" [ref=e185]
+          - generic [ref=e186]: Chocolade Amandelen Caramel-Zeezout
+        - generic [ref=e187]:
+          - paragraph [ref=e188]: € 6,00
+          - generic [ref=e189]:
+            - button "Toevoegen aan favorieten" [ref=e190]
+            - button "Voeg Chocolade Amandelen Caramel-Zeezout toe aan winkelwagen" [ref=e193]
+      - generic [ref=e195]:
+        - button "Open snelle productinformatie voor Chocolade Amandelen Puur" [ref=e196]:
+          - img "Chocolade Amandelen Puur" [ref=e198]
+          - generic [ref=e199]: Chocolade Amandelen Puur
+        - generic [ref=e200]:
+          - paragraph [ref=e201]: € 6,00
+          - generic [ref=e202]:
+            - button "Toevoegen aan favorieten" [ref=e203]
+            - button "Voeg Chocolade Amandelen Puur toe aan winkelwagen" [ref=e206]
+      - generic [ref=e208]:
+        - button "Open snelle productinformatie voor Chocolade Amandelen Tiramisu" [ref=e209]:
+          - img "Chocolade Amandelen Tiramisu" [ref=e211]
+          - generic [ref=e212]: Chocolade Amandelen Tiramisu
+        - generic [ref=e213]:
+          - paragraph [ref=e214]: € 6,00
+          - generic [ref=e215]:
+            - button "Toevoegen aan favorieten" [ref=e216]
+            - button "Voeg Chocolade Amandelen Tiramisu toe aan winkelwagen" [ref=e219]
+      - generic [ref=e221]:
+        - button "Open snelle productinformatie voor Chocolade Hazelnoten" [ref=e222]:
+          - img "Chocolade Hazelnoten" [ref=e224]
+          - generic [ref=e225]: Chocolade Hazelnoten
+        - generic [ref=e226]:
+          - paragraph [ref=e227]: € 5,50
+          - generic [ref=e228]:
+            - button "Toevoegen aan favorieten" [ref=e229]
+            - button "Voeg Chocolade Hazelnoten toe aan winkelwagen" [ref=e232]
+      - generic [ref=e234]:
+        - button "Open snelle productinformatie voor Chocolade Kaneelamandelen" [ref=e235]:
+          - img "Chocolade Kaneelamandelen" [ref=e237]
+          - generic [ref=e238]: Chocolade Kaneelamandelen
+        - generic [ref=e239]:
+          - paragraph [ref=e240]: € 5,50
+          - generic [ref=e241]:
+            - button "Toevoegen aan favorieten" [ref=e242]
+            - button "Voeg Chocolade Kaneelamandelen toe aan winkelwagen" [ref=e245]
+      - generic [ref=e247]:
+        - button "Open snelle productinformatie voor Chocolade Pecan Truffel" [ref=e248]:
+          - img "Chocolade Pecan Truffel" [ref=e250]
+          - generic [ref=e251]: Chocolade Pecan Truffel
+        - generic [ref=e252]:
+          - paragraph [ref=e253]: € 5,50
+          - generic [ref=e254]:
+            - button "Toevoegen aan favorieten" [ref=e255]
+            - button "Voeg Chocolade Pecan Truffel toe aan winkelwagen" [ref=e258]
+      - generic [ref=e260]:
+        - button "Open snelle productinformatie voor Chocolade Sneeuwamandelen" [ref=e261]:
+          - img "Chocolade Sneeuwamandelen" [ref=e263]
+          - generic [ref=e264]: Chocolade Sneeuwamandelen
+        - generic [ref=e265]:
+          - paragraph [ref=e266]: € 6,00
+          - generic [ref=e267]:
+            - button "Toevoegen aan favorieten" [ref=e268]
+            - button "Voeg Chocolade Sneeuwamandelen toe aan winkelwagen" [ref=e271]
+      - generic [ref=e273]:
+        - button "Open snelle productinformatie voor Marsepein" [ref=e274]:
+          - generic [ref=e277]: Marsepein
+        - generic [ref=e278]:
+          - paragraph [ref=e279]: € 9,50
+          - generic [ref=e280]:
+            - button "Toevoegen aan favorieten" [ref=e281]
+            - button "Voeg Marsepein toe aan winkelwagen" [ref=e284]
+      - generic [ref=e286]:
+        - button "Open snelle productinformatie voor Ambachtelijke Pindarotsjes Caramel-Zeezout" [ref=e287]:
+          - img "Ambachtelijke Pindarotsjes Caramel-Zeezout" [ref=e289]
+          - generic [ref=e290]: Ambachtelijke Pindarotsjes Caramel-Zeezout
+        - generic [ref=e291]:
+          - paragraph [ref=e292]: € 6,50
+          - generic [ref=e293]:
+            - button "Toevoegen aan favorieten" [ref=e294]
+            - button "Voeg Ambachtelijke Pindarotsjes Caramel-Zeezout toe aan winkelwagen" [ref=e297]
+    - generic [ref=e299]:
+      - generic [ref=e300]:
+        - generic [ref=e301]:
+          - img "De Notenman" [ref=e304]
+          - paragraph [ref=e305]: Vers gebrande noten, gedroogde zuidvruchten
+        - generic [ref=e306]:
+          - heading "Assortiment" [level=2] [ref=e307]
+          - list [ref=e308]:
+            - listitem [ref=e309]:
+              - link "Bakproducten" [ref=e310] [cursor=pointer]:
+                - /url: /nl/categorie/bakproducten
+            - listitem [ref=e311]:
+              - link "Chocolade & Zoet" [ref=e312] [cursor=pointer]:
+                - /url: /nl/categorie/chocolade-zoet
+            - listitem [ref=e313]:
+              - link "Gedroogd Fruit" [ref=e314] [cursor=pointer]:
+                - /url: /nl/categorie/gedroogd-fruit
+            - listitem [ref=e315]:
+              - link "Honing & Natuurvoeding" [ref=e316] [cursor=pointer]:
+                - /url: /nl/categorie/honing-natuurvoeding
+            - listitem [ref=e317]:
+              - link "Muesli & Granen" [ref=e318] [cursor=pointer]:
+                - /url: /nl/categorie/muesli-granen
+            - listitem [ref=e319]:
+              - link "Noten" [ref=e320] [cursor=pointer]:
+                - /url: /nl/categorie/noten
+            - listitem [ref=e321]:
+              - link "Notenmixen" [ref=e322] [cursor=pointer]:
+                - /url: /nl/categorie/notenmixen
+            - listitem [ref=e323]:
+              - link "Notenpasta's" [ref=e324] [cursor=pointer]:
+                - /url: /nl/categorie/notenpasta-s
+            - listitem [ref=e325]:
+              - link "Pinda's" [ref=e326] [cursor=pointer]:
+                - /url: /nl/categorie/pinda-s
+            - listitem [ref=e327]:
+              - link "Pitten & Zaden" [ref=e328] [cursor=pointer]:
+                - /url: /nl/categorie/pitten-zaden
+            - listitem [ref=e329]:
+              - link "Snacks & Zoutjes" [ref=e330] [cursor=pointer]:
+                - /url: /nl/categorie/snacks-zoutjes
+            - listitem [ref=e331]:
+              - link "Superfood" [ref=e332] [cursor=pointer]:
+                - /url: /nl/categorie/superfood
+            - listitem [ref=e333]:
+              - link "Acties" [ref=e334] [cursor=pointer]:
+                - /url: /nl/categorie/acties
+        - generic [ref=e335]:
+          - heading "Klantenservice" [level=2] [ref=e336]
+          - navigation "Juridisch" [ref=e337]:
+            - list [ref=e338]:
+              - listitem [ref=e339]:
+                - link "Algemene voorwaarden" [ref=e340] [cursor=pointer]:
+                  - /url: /nl/paginas/algemene-voorwaarden
+              - listitem [ref=e341]:
+                - link "Privacybeleid" [ref=e342] [cursor=pointer]:
+                  - /url: /nl/paginas/privacybeleid
+              - listitem [ref=e343]:
+                - link "Cookiebeleid" [ref=e344] [cursor=pointer]:
+                  - /url: /nl/paginas/cookiebeleid
+              - listitem [ref=e345]:
+                - link "Herroepingsrecht" [ref=e346] [cursor=pointer]:
+                  - /url: /nl/paginas/herroepingsrecht
+              - listitem [ref=e347]:
+                - link "Aanmelden nieuwsbrief" [ref=e348] [cursor=pointer]:
+                  - /url: /nl/paginas/aanmelden-nieuwsbrief
+              - listitem [ref=e349]:
+                - link "Afmelden nieuwsbrief" [ref=e350] [cursor=pointer]:
+                  - /url: /nl/paginas/afmelden-nieuwsbrief
+        - generic [ref=e351]:
+          - heading "Contact" [level=2] [ref=e352]
+          - link "Contact" [ref=e353] [cursor=pointer]:
+            - /url: /nl/paginas/contact
+          - heading "Marktdagen" [level=3] [ref=e354]
+          - list [ref=e355]:
+            - listitem [ref=e356]: Donderdag
+            - listitem [ref=e357]: Vrijdag
+            - listitem [ref=e358]: Zaterdag
+      - paragraph [ref=e360]: Alle rechten voorbehouden.
+  - button "Open Next.js Dev Tools" [ref=e366] [cursor=pointer]

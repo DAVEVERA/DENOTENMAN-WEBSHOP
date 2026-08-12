@@ -9,7 +9,11 @@
     "search": "Rechercher",
     "openMenu": "Ouvrir le menu",
     "closeMenu": "Fermer le menu",
-    "mainMenu": "Menu principal"
+    "mainMenu": "Menu principal",
+    "contact": "Contact",
+    "favorites": "Favoris",
+    "favoritesWithCount": "Favoris ({count})",
+    "cartWithCount": "Panier ({count})"
   },
   "brand": {
     "baseline": "Noix fraîchement torréfiées, fruits secs",
@@ -43,6 +47,16 @@
     "pricePerHundredGrams": "par 100 g",
     "addToFavorites": "Ajouter aux favoris",
     "removeFromFavorites": "Retirer des favoris",
+    "quickViewTitle": "Choisissez votre option",
+    "viewProduct": "Voir le produit",
+    "fullDetails": "Voir tous les détails du produit",
+    "quantity": "Quantité",
+    "addedToCart": "Ajouté à votre panier",
+    "added": "Ajouté",
+    "order": "Commander",
+    "addProductToCart": "Ajouter {product} au panier",
+    "openQuickView": "Ouvrir les informations rapides pour {product}",
+    "closeQuickView": "Fermer les informations produit",
     "tabDescription": "Description",
     "tabNutrition": "Valeurs nutritionnelles",
     "tabFaq": "FAQ",
@@ -65,7 +79,16 @@
     "title": "Panier",
     "empty": "Votre panier est vide.",
     "checkout": "Commander",
-    "total": "Total"
+    "total": "Total",
+    "remove": "Supprimer",
+    "decrease": "Diminuer la quantité",
+    "increase": "Augmenter la quantité"
+  },
+  "account": {
+    "title": "Mon compte",
+    "favorites": "Mes favoris",
+    "favoritesEmpty": "Vous n'avez pas encore de produits favoris.",
+    "savedOnDevice": "Vos favoris sont enregistrés sur cet appareil."
   },
   "category": {
     "filters": "Filtres",
@@ -84,5 +107,30 @@
   },
   "loader": {
     "status": "Chargement..."
+  },
+  "hero": {
+    "headline": "Délicieuses noix fraîchement torréfiées & fruits secs !",
+    "cta": "Commander",
+    "previous": "Diapositive précédente",
+    "next": "Diapositive suivante",
+    "goToSlide": "Aller à la diapositive {n}"
+  },
+  "home": {
+    "fedorsFavorite": "Le favori de Fedor !",
+    "fedorsFavoriteViewAll": "Voir toutes les promotions"
+  },
+  "filters": {
+    "preparationLabel": "Préparation",
+    "preparationRaw": "Cru",
+    "preparationRoasted": "Torréfié",
+    "saltingLabel": "Sel",
+    "saltingSalted": "Salé",
+    "saltingUnsalted": "Non salé",
+    "coatingLabel": "Enrobage",
+    "coatingNone": "Nature",
+    "coatingChocolate": "Chocolat",
+    "coatingYoghurt": "Yaourt",
+    "coatingFlavored": "Aromatisé",
+    "reset": "Réinitialiser les filtres"
   }
 }

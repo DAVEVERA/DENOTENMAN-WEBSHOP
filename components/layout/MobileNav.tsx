@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Menu, X, ChevronDown } from "lucide-react";
 import type nl from "@/dictionaries/nl.json";
 import type { MainCategoryDto } from "@/lib/queries";
 import type { Locale } from "@/lib/i18n";
 import { account, articles, cart, category as categoryPath, categories as categoriesPath, home } from "@/lib/routes";
 import { cn } from "@/lib/cn";
+import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 
 const focusableSelector =
   'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -15,16 +16,22 @@ export function MobileNav({
   categories,
   locale,
   dictionary,
+  languages,
 }: {
   categories: MainCategoryDto[];
   locale: Locale;
   dictionary: typeof nl;
+  languages: Partial<Record<Locale, string>>;
 }) {
   const [open, setOpen] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeMenu = useCallback(() => {
+    setOpen(false);
+    window.requestAnimationFrame(() => triggerRef.current?.focus());
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -36,8 +43,7 @@ export function MobileNav({
     function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (!open) return;
       if (event.key === "Escape") {
-        setOpen(false);
-        triggerRef.current?.focus();
+        closeMenu();
         return;
       }
       if (event.key !== "Tab" || !panelRef.current) return;
@@ -57,7 +63,7 @@ export function MobileNav({
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open]);
+  }, [closeMenu, open]);
 
   return (
     <>
@@ -65,8 +71,10 @@ export function MobileNav({
         ref={triggerRef}
         type="button"
         aria-label={dictionary.nav.openMenu}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => setOpen(true)}
-        className="inline-flex h-10 w-10 items-center justify-center text-text lg:hidden"
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-40 inline-flex h-14 min-w-14 -translate-x-1/2 items-center justify-center rounded-full border border-contrast bg-contrast px-4 text-surface shadow-card-hover lg:hidden"
       >
         <Menu className="h-6 w-6" aria-hidden="true" />
       </button>
@@ -74,7 +82,7 @@ export function MobileNav({
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
             className="absolute inset-0 bg-contrast/50"
-            onClick={() => setOpen(false)}
+            onClick={closeMenu}
             aria-hidden="true"
           />
           <div
@@ -82,19 +90,23 @@ export function MobileNav({
             role="dialog"
             aria-modal="true"
             aria-label={dictionary.nav.mainMenu}
-            className="absolute right-0 top-0 h-full w-[min(85vw,20rem)] overflow-y-auto bg-surface p-panel shadow-card-hover"
+            className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 right-4 max-h-[min(70dvh,36rem)] overflow-y-auto rounded-panel border border-border bg-surface p-5 shadow-card-hover"
           >
             <button
               ref={closeButtonRef}
               type="button"
               aria-label={dictionary.nav.closeMenu}
-              onClick={() => setOpen(false)}
-              className="ml-auto flex h-10 w-10 items-center justify-center text-text"
+              onClick={closeMenu}
+              className="ml-auto flex h-11 w-11 items-center justify-center rounded-full text-text hover:bg-background"
             >
               <X className="h-6 w-6" aria-hidden="true" />
             </button>
-            <nav className="mt-gap-md flex flex-col gap-gap-md">
-              <a href={home(locale)} onClick={() => setOpen(false)}>
+            <nav className="mt-2 flex flex-col gap-1">
+              <a
+                href={home(locale)}
+                onClick={closeMenu}
+                className="min-h-11 rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+              >
                 {dictionary.nav.home}
               </a>
               <div>
@@ -102,7 +114,7 @@ export function MobileNav({
                   type="button"
                   aria-expanded={categoriesExpanded}
                   onClick={() => setCategoriesExpanded((value) => !value)}
-                  className="flex w-full items-center justify-between"
+                  className="flex min-h-11 w-full items-center justify-between rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
                 >
                   {dictionary.nav.categories}
                   <ChevronDown
@@ -111,15 +123,23 @@ export function MobileNav({
                   />
                 </button>
                 {categoriesExpanded ? (
-                  <ul className="mt-gap-sm flex flex-col gap-gap-sm pl-gap-md">
+                  <ul className="mb-2 ml-3 flex flex-col border-l border-border pl-3">
                     <li>
-                      <a href={categoriesPath(locale)} onClick={() => setOpen(false)}>
+                      <a
+                        href={categoriesPath(locale)}
+                        onClick={closeMenu}
+                        className="block min-h-11 rounded-button px-3 py-3 font-heading font-semibold hover:bg-background"
+                      >
                         {dictionary.nav.categories}
                       </a>
                     </li>
                     {categories.map((item) => (
                       <li key={item.id}>
-                        <a href={categoryPath(locale, item.slug)} onClick={() => setOpen(false)}>
+                        <a
+                          href={categoryPath(locale, item.slug)}
+                          onClick={closeMenu}
+                          className="block min-h-11 rounded-button px-3 py-3 font-heading font-semibold hover:bg-background"
+                        >
                           {item.name}
                         </a>
                       </li>
@@ -127,15 +147,30 @@ export function MobileNav({
                   </ul>
                 ) : null}
               </div>
-              <a href={articles(locale)} onClick={() => setOpen(false)}>
+              <a
+                href={articles(locale)}
+                onClick={closeMenu}
+                className="min-h-11 rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+              >
                 {dictionary.nav.articles}
               </a>
-              <a href={cart(locale)} onClick={() => setOpen(false)}>
+              <a
+                href={cart(locale)}
+                onClick={closeMenu}
+                className="min-h-11 rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+              >
                 {dictionary.nav.cart}
               </a>
-              <a href={account(locale)} onClick={() => setOpen(false)}>
+              <a
+                href={account(locale)}
+                onClick={closeMenu}
+                className="min-h-11 rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+              >
                 {dictionary.nav.account}
               </a>
+              <div className="mt-2 border-t border-border px-3 pt-4">
+                <LocaleSwitcher currentLocale={locale} languages={languages} />
+              </div>
             </nav>
           </div>
         </div>

@@ -44,11 +44,11 @@ export type ProductSummaryDto = {
   basePriceCents: number;
   currency: string;
   images: ProductImageDto[];
+  variants: ProductVariantDto[];
   updatedAt: Date;
 };
 
 export type ProductDetailDto = ProductSummaryDto & {
-  variants: ProductVariantDto[];
   slugsByLocale: Partial<Record<Locale, string>>;
   attributes: ProductAttributeDto[];
 };
@@ -166,6 +166,7 @@ function toProductSummaryDto(
   product: Product & {
     translations: ProductTranslation[];
     images: ProductImage[];
+    variants: (ProductVariant & { translations: VariantTranslation[] })[];
   },
   locale: Locale
 ): ProductSummaryDto | undefined {
@@ -185,6 +186,9 @@ function toProductSummaryDto(
     images: product.images
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(toProductImageDto),
+    variants: product.variants
+      .filter((variant) => variant.isActive)
+      .map((variant) => toProductVariantDto(variant, locale)),
     updatedAt: product.updatedAt,
   };
 }
@@ -295,9 +299,6 @@ export async function getProductBySlug(
 
   return {
     ...summary,
-    variants: product.variants
-      .filter((variant) => variant.isActive)
-      .map((variant) => toProductVariantDto(variant, locale)),
     slugsByLocale: toSlugsByLocale(product.translations),
     attributes: toProductAttributesDto(product.attributes, locale),
   };
@@ -316,7 +317,11 @@ export async function getCategory(
           productCategories: {
             include: {
               product: {
-                include: { translations: true, images: true },
+                include: {
+                  translations: true,
+                  images: true,
+                  variants: { include: { translations: true } },
+                },
               },
             },
           },
@@ -413,7 +418,11 @@ export async function getFilteredProducts(
       ...categoryFilter,
       AND: attributeFilters,
     },
-    include: { translations: true, images: true },
+    include: {
+      translations: true,
+      images: true,
+      variants: { include: { translations: true } },
+    },
     take: limit,
     skip: offset,
   });

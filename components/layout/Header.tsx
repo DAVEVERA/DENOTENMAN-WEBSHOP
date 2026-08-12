@@ -1,13 +1,14 @@
 import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
-import { account, articles, cart, home } from "@/lib/routes";
+import { articles, home } from "@/lib/routes";
 import { getMainCategories } from "@/lib/queries";
+import { groupMainCategories } from "@/lib/categoryGroups";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { MegaMenu } from "@/components/layout/MegaMenu";
 import { MobileNav } from "@/components/layout/MobileNav";
-import { Search, User, ShoppingCart } from "lucide-react";
+import { HeaderActions } from "@/components/layout/HeaderActions";
 
 export async function Header({
   locale,
@@ -19,40 +20,60 @@ export async function Header({
   languages: Partial<Record<Locale, string>>;
 }) {
   const mainCategories = await getMainCategories(locale);
+  const { groups, promotional } = groupMainCategories(mainCategories);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <Container className="flex items-center justify-between gap-gap-md py-gap-md">
-        <div className="flex items-center gap-gap-lg">
-          <MobileNav categories={mainCategories} locale={locale} dictionary={dictionary} />
-          <a href={home(locale)}>
-            <Logo
-              alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
-              variant="light"
-              parts="full"
-              size="lg"
-            />
-          </a>
+    <>
+      <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+        <div className="border-y-2 border-contrast bg-surface">
+          <Container
+            fullWidth
+            className="flex flex-wrap items-center justify-between gap-gap-md py-3 sm:py-gap-md"
+          >
+            <div className="flex min-w-0 items-center gap-2 sm:gap-gap-md">
+              <a href={home(locale)} className="shrink-0">
+                <Logo
+                  alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
+                  variant="light"
+                  parts="wordmark"
+                  size="responsive"
+                />
+              </a>
+              <p className="hidden min-w-0 text-body-sm text-muted sm:block">
+                {dictionary.brand.baseline}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-3 sm:gap-gap-md">
+              <div className="hidden sm:block">
+                <LocaleSwitcher currentLocale={locale} languages={languages} />
+              </div>
+              <HeaderActions locale={locale} dictionary={dictionary} />
+            </div>
+          </Container>
         </div>
-        <nav aria-label={dictionary.nav.categories} className="hidden lg:flex lg:items-center lg:gap-gap-lg">
-          <MegaMenu categories={mainCategories} locale={locale} label={dictionary.nav.categories} />
-          <a href={articles(locale)} className="font-heading text-body-md text-text hover:text-accent-hover">
-            {dictionary.nav.articles}
-          </a>
-        </nav>
-        <div className="flex items-center gap-gap-md">
-          <button type="button" aria-label={dictionary.nav.search} className="text-text hover:text-accent-hover">
-            <Search className="h-5 w-5" aria-hidden="true" />
-          </button>
-          <a href={account(locale)} aria-label={dictionary.common.account} className="text-text hover:text-accent-hover">
-            <User className="h-5 w-5" aria-hidden="true" />
-          </a>
-          <a href={cart(locale)} aria-label={dictionary.common.cart} className="text-text hover:text-accent-hover">
-            <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-          </a>
-          <LocaleSwitcher currentLocale={locale} languages={languages} />
+        <div className="hidden border-b-2 border-contrast bg-surface lg:block">
+          <Container fullWidth className="py-3">
+            <nav
+              aria-label={dictionary.nav.categories}
+              className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3"
+            >
+              <MegaMenu groups={groups} promotional={promotional} locale={locale} />
+              <a
+                href={articles(locale)}
+                className="font-heading text-body-md font-bold text-text transition-colors duration-hover-fast hover:text-accent-hover"
+              >
+                {dictionary.nav.articles}
+              </a>
+            </nav>
+          </Container>
         </div>
-      </Container>
-    </header>
+      </header>
+      <MobileNav
+        categories={mainCategories}
+        locale={locale}
+        dictionary={dictionary}
+        languages={languages}
+      />
+    </>
   );
 }

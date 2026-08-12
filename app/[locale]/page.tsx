@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import { locales, isLocale, type Locale } from "@/lib/i18n";
-import { getFilteredProducts } from "@/lib/queries";
+import { getCategory, getFilteredProducts } from "@/lib/queries";
 import { getAlternates } from "@/lib/alternates";
+import { categories as categoriesPath } from "@/lib/routes";
 import { Container } from "@/components/ui/Container";
-import { ProductCard } from "@/components/product/ProductCard";
+import { ProductBrowser } from "@/components/product/ProductBrowser";
+import { FeaturedBanner } from "@/components/product/FeaturedBanner";
 import { SiteShell } from "@/components/layout/SiteShell";
+import { Hero, type HeroSlide } from "@/components/layout/Hero";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -30,15 +33,37 @@ export default async function HomePage({
   const dictionary = dictionaries[locale];
   const alternates = await getAlternates(locale, { type: "home" });
   const products = await getFilteredProducts("all", locale, []);
+  const heroCategory = await getCategory("noten", locale);
+  const featuredCategory = await getCategory("acties", locale);
+
+  const heroProduct =
+    heroCategory?.products.find((item) => item.images.length > 0) ??
+    products.find((item) => item.images.length > 0);
+  const heroImage = heroProduct?.images.find((image) => image.isPrimary) ?? heroProduct?.images[0];
+
+  const heroSlides: HeroSlide[] = heroProduct
+    ? [
+        {
+          id: heroProduct.id,
+          image: heroImage?.url ?? null,
+          imageAlt: heroImage?.alt ?? heroProduct.name,
+          heading: dictionary.hero.headline,
+          ctaLabel: dictionary.hero.cta,
+          ctaHref: categoriesPath(locale),
+        },
+      ]
+    : [];
 
   return (
     <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
-      <Container className="py-10">
-        <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
-          {products.map((item) => (
-            <ProductCard key={item.id} product={item} locale={locale} />
-          ))}
-        </div>
+      {heroSlides.length > 0 ? <Hero slides={heroSlides} dictionary={dictionary} /> : null}
+      <FeaturedBanner
+        products={featuredCategory?.products ?? []}
+        locale={locale}
+        dictionary={dictionary}
+      />
+      <Container className="py-8 sm:py-10">
+        <ProductBrowser products={products} locale={locale} dictionary={dictionary} />
       </Container>
     </SiteShell>
   );

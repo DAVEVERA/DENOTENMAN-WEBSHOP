@@ -13,7 +13,7 @@ This document defines where every kind of file belongs. Do not deviate.
   with no domain knowledge. `components/layout/` holds page-shell
   components (`Header`, `Footer`, `LocaleSwitcher`). `components/product/`
   holds product-domain components (`ProductCard`, `ProductGallery`,
-  `VariantSelector`). `components/category/`
+  `VariantSelector`, `ProductBrowser`, `FeaturedBanner`). `components/category/`
   is reserved for category-domain components, not yet populated.
 - Every route under `app/[locale]/` that is a standalone segment (not a
   list page with its own nested detail route) has its own `layout.tsx`
@@ -28,15 +28,36 @@ This document defines where every kind of file belongs. Do not deviate.
   if a shared `layout.tsx` existed at their parent level. `SiteShell` is
   the only place `Header` and `Footer` are composed together; no other
   file renders them.
-- `public/brand/` holds exactly three files: `logo-mark.svg`,
-  `logo-wordmark.svg`, and `favicon.png`. `logo-mark.svg` and
-  `logo-wordmark.svg` are referenced by the `Logo` component; no other
-  component reads from this directory directly. A fourth file,
+- `public/brand/` holds `logo-mark.svg`, `logo-wordmark.svg`, and
+  `favicon.png`, referenced only by the `Logo` component, plus the
+  `icons/` subfolder described below. A fourth file,
   `logo-wordmark-inverted.svg`, is planned: an inverted export of the
   wordmark for placement directly on dark backgrounds. Until it exists,
   the footer shows `logo-wordmark.svg` on a light panel inside the dark
   contrast band. Once `logo-wordmark-inverted.svg` is added, the footer
-  switches to rendering it directly on the dark band instead.
+  switches to rendering it directly on the dark band instead. `Header`
+  renders `parts="wordmark"` only — the circular `logo-mark.svg` is not
+  shown in the header, only referenced there via unused `alt` text passed
+  through the `Logo` API.
+  `public/brand/refimageheader.png` is a working design reference, not an
+  asset any component reads.
+  `logo-wordmark.svg`'s `viewBox` is cropped tight to the artwork's
+  measured bounding box (plus a few units of padding), not left at the
+  size of the original export canvas — a prior version had a `viewBox`
+  more than twice as tall and wide as the visible logotype, which made
+  every `Logo` `size` class scale a mostly-empty box and rendered the
+  wordmark far smaller than its height class implied. Any future
+  replacement of this file must be re-cropped the same way, or the
+  same undersized-logo bug returns regardless of what `size` callers
+  pass. See "Logo component API" in `docs/ARCHITECTURE.md` for the
+  exact numbers.
+- `public/brand/icons/` holds `favorite.png`, `shoppingcart.png`, and
+  `whatsapp.png` — none currently referenced by any component.
+  `components/layout/HeaderActions.tsx` uses `lucide-react` icons
+  (`Heart`, `ShoppingCart`, `MessageCircle`) for all three actions instead,
+  matching the icon convention below. `favorite.png` additionally carries
+  a stock-site watermark and is not usable until replaced with a clean
+  export.
 - `public/loader/` holds exactly three files: `truck.png`, `cargo.png`,
   and `puff.png`, referenced only by `components/ui/LoadingIndicator.tsx`.
   No other component reads from this directory.
@@ -51,9 +72,16 @@ This document defines where every kind of file belongs. Do not deviate.
   and `Logo`.
 - `components/layout/MegaMenu.tsx` and `MobileNav.tsx` are page-shell
   navigation components, alongside the existing `Header`, `Footer`,
-  `LocaleSwitcher`, and `SiteShell`.
+  `LocaleSwitcher`, and `SiteShell`. `components/layout/HeaderActions.tsx`
+  is the client-side icon-button cluster (contact, favorites, cart) `Header`
+  renders for its live badge counts. `components/layout/Hero.tsx` is the
+  homepage hero slider, rendered only by `app/[locale]/page.tsx`.
 - `lib/alternates.ts` is the only source for cross-locale URLs of any kind;
   no other file constructs one.
+- `lib/categoryGroups.ts` is the only source for the header's presentation
+  grouping of main categories into dropdown nav items; it does not touch
+  the database and operates only on `MainCategoryDto[]` already returned
+  by `getMainCategories`.
 - Colors, fonts, and typographic scales are defined exclusively in the
   single `@theme` block in `app/globals.css`. No component or other CSS
   file defines a color or font token.

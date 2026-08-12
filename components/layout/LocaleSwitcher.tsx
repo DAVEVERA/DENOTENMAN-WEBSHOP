@@ -22,7 +22,7 @@ export function LocaleSwitcher({
               href={href}
               aria-current={locale === currentLocale ? "true" : undefined}
               className={cn(
-                "uppercase text-muted transition-colors duration-hover-fast hover:text-text",
+                "inline-flex min-h-11 min-w-11 items-center justify-center rounded-button uppercase text-muted transition-colors duration-hover-fast hover:bg-surface hover:text-text",
                 locale === currentLocale && "font-semibold text-text"
               )}
             >
