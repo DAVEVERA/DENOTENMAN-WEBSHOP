@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-green: #2f6b3f;
+    --brand-earth: #7c5c3b;
+    --surface: #faf8f5;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-neutral-50 text-neutral-900 font-sans;
+    overflow-x: hidden;
+  }
+
+  /* Voorkom automatisch zoomen op mobile bij focus op inputs */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1rem);
+  }
+
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue-600;
+  }
+}
+
+@layer components {
+  .admin-layout {
+    @apply flex min-h-screen;
+  }
+
+  /* Sidebar: verborgen op mobile (< md), zichtbaar op desktop */
+  .admin-sidebar {
+    @apply hidden md:block w-64 shrink-0 bg-white border-r border-neutral-200;
+  }
+
+  /* Sidebar als mobile overlay */
+  .admin-sidebar--open {
+    @apply fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-neutral-200 shadow-xl;
+  }
+
+  .admin-main {
+    @apply flex-1 min-w-0 p-4 md:p-6;
+  }
+}
