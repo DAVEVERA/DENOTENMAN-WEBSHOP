@@ -129,29 +129,38 @@ export async function renderOrderConfirmationEmail(
   const total = formatPrice(order.totalCents, locale);
   const shipping =
     order.shippingCents === 0 ? copy.shippingFree : formatPrice(order.shippingCents, locale);
+  const formattedItems = items.map((item) => ({
+    productName: item.productName,
+    variantLabel: item.variantLabel,
+    quantity: item.quantity,
+    lineTotal: formatPrice(item.unitPriceCents * item.quantity, locale),
+  }));
+  const shippingAddress = [
+    order.contactName,
+    `${order.shippingStreet} ${order.shippingHouseNumber}`,
+    `${order.shippingPostalCode} ${order.shippingCity}`,
+    countryName(order.shippingCountry, locale),
+  ];
+  const greeting = copy.greeting(order.contactName);
+  const orderDate = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(order.createdAt);
 
   const email = createElement(OrderConfirmationEmail, {
     locale,
     preview: copy.preview(order.id, total),
-    greeting: copy.greeting(order.contactName),
+    greeting,
     intro: copy.intro,
     orderNumberLabel: copy.orderNumber,
     orderNumber: order.id,
     orderDateLabel: copy.orderDate,
-    orderDate: new Intl.DateTimeFormat(locale, {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(order.createdAt),
+    orderDate,
     itemsTitle: copy.itemsTitle,
     productLabel: copy.product,
     amountLabel: copy.amount,
-    items: items.map((item) => ({
-      productName: item.productName,
-      variantLabel: item.variantLabel,
-      quantity: item.quantity,
-      lineTotal: formatPrice(item.unitPriceCents * item.quantity, locale),
-    })),
+    items: formattedItems,
     subtotalLabel: copy.subtotal,
     subtotal: formatPrice(order.subtotalCents, locale),
     shippingLabel: copy.shipping,
@@ -159,21 +168,38 @@ export async function renderOrderConfirmationEmail(
     totalLabel: copy.total,
     total,
     shippingHeading: copy.shippingHeading,
-    shippingAddress: [
-      order.contactName,
-      `${order.shippingStreet} ${order.shippingHouseNumber}`,
-      `${order.shippingPostalCode} ${order.shippingCity}`,
-      countryName(order.shippingCountry, locale),
-    ],
+    shippingAddress,
     viewOrderCta: copy.viewOrderCta,
     orderUrl,
     footer: copy.footer,
   });
 
-  const [html, text] = await Promise.all([
-    render(email),
-    render(email, { plainText: true }),
-  ]);
+  const html = await render(email);
+  const text = [
+    greeting,
+    "",
+    copy.intro,
+    "",
+    `${copy.orderNumber}: ${order.id}`,
+    `${copy.orderDate}: ${orderDate}`,
+    "",
+    copy.itemsTitle,
+    ...formattedItems.map(
+      (item) =>
+        `${item.quantity}× ${item.productName} (${item.variantLabel}) — ${item.lineTotal}`
+    ),
+    "",
+    `${copy.subtotal}: ${formatPrice(order.subtotalCents, locale)}`,
+    `${copy.shipping}: ${shipping}`,
+    `${copy.total}: ${total}`,
+    "",
+    copy.shippingHeading,
+    ...shippingAddress,
+    "",
+    `${copy.viewOrderCta}: ${orderUrl}`,
+    "",
+    copy.footer,
+  ].join("\n");
 
   return {
     subject: copy.subject(order.id),
