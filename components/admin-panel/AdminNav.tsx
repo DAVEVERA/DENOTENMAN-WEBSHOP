@@ -10,6 +10,7 @@ const links = [
   { href: "/admin/producten", label: "Producten" },
   { href: "/admin/bestellingen", label: "Bestellingen" },
   { href: "/admin/categorieen", label: "Categorieën" },
+  { href: "/admin/instellingen", label: "Instellingen" },
 ];
 
 export function AdminNav() {

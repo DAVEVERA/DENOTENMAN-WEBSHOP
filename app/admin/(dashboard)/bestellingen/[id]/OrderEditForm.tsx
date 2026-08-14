@@ -25,10 +25,12 @@ async function patchOrder(orderId: string, body: Record<string, unknown>) {
 export function OrderEditForm({
   orderId,
   initialTrackingCode,
+  hasLabel,
   currentStatus,
 }: {
   orderId: string;
   initialTrackingCode: string;
+  hasLabel: boolean;
   currentStatus: OrderStatus;
 }) {
   const router = useRouter();
@@ -36,6 +38,40 @@ export function OrderEditForm({
   const [trackingCode, setTrackingCode] = useState(initialTrackingCode);
   const [trackingState, setTrackingState] = useState<SaveState>("idle");
   const [trackingError, setTrackingError] = useState<string | null>(null);
+
+  const [labelState, setLabelState] = useState<SaveState>("idle");
+  const [labelError, setLabelError] = useState<string | null>(null);
+  const [labelDetails, setLabelDetails] = useState<string | null>(null);
+  const [labelReady, setLabelReady] = useState(hasLabel);
+
+  async function handleCreateLabel() {
+    setLabelState("saving");
+    setLabelError(null);
+    setLabelDetails(null);
+
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}/postnl-label`, {
+        method: "POST",
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setLabelState("error");
+        setLabelError(data?.message ?? `Aanmaken mislukt (${response.status})`);
+        if (data?.details) {
+          setLabelDetails(JSON.stringify(data.details, null, 2));
+        }
+        return;
+      }
+
+      setLabelState("saved");
+      setLabelReady(true);
+      router.refresh();
+    } catch (error) {
+      setLabelState("error");
+      setLabelError(error instanceof Error ? error.message : "Onbekende fout");
+    }
+  }
 
   const [statusState, setStatusState] = useState<SaveState>("idle");
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -77,6 +113,44 @@ export function OrderEditForm({
 
   return (
     <div className="space-y-8">
+      <div>
+        <h2 className="font-heading text-heading-sm text-text">PostNL verzendlabel</h2>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleCreateLabel}
+            disabled={labelState === "saving"}
+            className="inline-flex items-center justify-center rounded-button border border-accent bg-accent px-4 py-2 font-heading text-body-sm font-semibold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {labelState === "saving"
+              ? "Bezig…"
+              : labelReady
+                ? "Label opnieuw aanmaken"
+                : "Verzendlabel aanmaken"}
+          </button>
+          {labelReady ? (
+            <a
+              href={`/api/admin/orders/${orderId}/postnl-label`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-heading text-body-sm font-semibold text-accent-hover underline underline-offset-4"
+            >
+              Bekijk label (PDF)
+            </a>
+          ) : null}
+        </div>
+        {labelState === "error" && (
+          <div className="mt-3 max-w-xl rounded-button border border-red-200 bg-red-50 p-3">
+            <p className="text-body-sm text-red-700">{labelError}</p>
+            {labelDetails ? (
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-red-600">
+                {labelDetails}
+              </pre>
+            ) : null}
+          </div>
+        )}
+      </div>
+
       <div>
         <h2 className="font-heading text-heading-sm text-text">PostNL trackingcode</h2>
         <form onSubmit={handleTrackingSubmit} className="mt-3 flex flex-wrap items-center gap-3">

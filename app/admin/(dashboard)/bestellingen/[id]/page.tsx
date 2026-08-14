@@ -111,6 +111,7 @@ export default async function OrderDetailPage({
             <OrderEditForm
               orderId={order.id}
               initialTrackingCode={order.postnlTrackingCode ?? ""}
+              hasLabel={Boolean(order.postnlLabelBase64)}
               currentStatus={order.status}
             />
           </div>

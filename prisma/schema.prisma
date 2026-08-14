@@ -304,3 +304,11 @@ model Composition {
 
   @@index([userId])
 }
+
+// Runtime-editable admin config (e.g. PostNL account details) — unlike
+// process.env, values here can be changed from /admin without a redeploy.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
