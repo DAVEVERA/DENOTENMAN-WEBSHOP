@@ -31,7 +31,7 @@ export function ProductGallery({
       <img
         src={selected.url}
         alt={selected.alt ?? productName}
-        className="aspect-square w-full rounded-card object-cover"
+        className="mx-auto h-40 w-40 rounded-card object-cover sm:aspect-square sm:h-auto sm:w-full"
       />
       {images.length > 1 ? (
         <div className="mt-3 flex flex-wrap gap-2">
