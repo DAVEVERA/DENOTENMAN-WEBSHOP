@@ -6,6 +6,13 @@ export default async function AdminSettingsPage() {
     "postnl.customerCode",
     "postnl.customerNumber",
     "postnl.collectionLocation",
+    "postnl.barcodeSerie",
+    "postnl.senderName",
+    "postnl.senderStreet",
+    "postnl.senderHouseNumber",
+    "postnl.senderPostalCode",
+    "postnl.senderCity",
+    "postnl.senderCountry",
   ]);
 
   return (
@@ -16,7 +23,7 @@ export default async function AdminSettingsPage() {
         <h2 className="text-heading-lg text-text">PostNL</h2>
         <p className="mt-1 text-body-sm text-muted">
           Accountgegevens voor het aanmaken van verzendlabels. De API-key staat al
-          geconfigureerd; deze drie velden ontbraken nog.
+          geconfigureerd.
         </p>
 
         <div className="mt-4">
@@ -24,6 +31,7 @@ export default async function AdminSettingsPage() {
             customerCode={settings["postnl.customerCode"] ?? ""}
             customerNumber={settings["postnl.customerNumber"] ?? ""}
             collectionLocation={settings["postnl.collectionLocation"] ?? ""}
+            barcodeSerie={settings["postnl.barcodeSerie"] ?? "00000000-99999999"}
           />
         </div>
       </div>

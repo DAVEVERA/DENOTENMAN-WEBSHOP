@@ -39,11 +39,13 @@ async function getAccountSettings() {
     "postnl.customerCode",
     "postnl.customerNumber",
     "postnl.collectionLocation",
+    "postnl.barcodeSerie",
   ]);
 
   const customerCode = settings["postnl.customerCode"];
   const customerNumber = settings["postnl.customerNumber"];
   const collectionLocation = settings["postnl.collectionLocation"];
+  const barcodeSerie = settings["postnl.barcodeSerie"] ?? "00000000-99999999";
 
   if (!customerCode || !customerNumber || !collectionLocation) {
     throw new PostnlError(
@@ -51,15 +53,45 @@ async function getAccountSettings() {
     );
   }
 
-  return { customerCode, customerNumber, collectionLocation };
+  return { customerCode, customerNumber, collectionLocation, barcodeSerie };
 }
 
-async function generateBarcode(customerCode: string, customerNumber: string): Promise<string> {
+async function getSenderAddress() {
+  const settings = await getSettings([
+    "postnl.senderName",
+    "postnl.senderStreet",
+    "postnl.senderHouseNumber",
+    "postnl.senderPostalCode",
+    "postnl.senderCity",
+    "postnl.senderCountry",
+  ]);
+
+  const senderName = settings["postnl.senderName"];
+  const senderStreet = settings["postnl.senderStreet"];
+  const senderHouseNumber = settings["postnl.senderHouseNumber"];
+  const senderPostalCode = settings["postnl.senderPostalCode"];
+  const senderCity = settings["postnl.senderCity"];
+  const senderCountry = settings["postnl.senderCountry"] ?? "NL";
+
+  if (!senderName || !senderStreet || !senderHouseNumber || !senderPostalCode || !senderCity) {
+    throw new PostnlError(
+      "Afzenderadres ontbreekt. Vul de afzendergegevens (naam, straat, huisnummer, postcode, plaats) in bij Instellingen."
+    );
+  }
+
+  return { senderName, senderStreet, senderHouseNumber, senderPostalCode, senderCity, senderCountry };
+}
+
+async function generateBarcode(
+  customerCode: string,
+  customerNumber: string,
+  barcodeSerie: string
+): Promise<string> {
   const params = new URLSearchParams({
     CustomerCode: customerCode,
     CustomerNumber: customerNumber,
     Type: "3S",
-    Serie: "000000000-999999999",
+    Serie: barcodeSerie,
   });
 
   const response = await fetch(`${BASE_URL}/shipment/v1_1/barcode?${params.toString()}`, {
@@ -84,8 +116,10 @@ function formatTimestamp(date: Date): string {
 export async function createShipmentLabel(
   order: Order
 ): Promise<{ barcode: string; labelBase64: string }> {
-  const { customerCode, customerNumber, collectionLocation } = await getAccountSettings();
-  const barcode = await generateBarcode(customerCode, customerNumber);
+  const { customerCode, customerNumber, collectionLocation, barcodeSerie } =
+    await getAccountSettings();
+  const sender = await getSenderAddress();
+  const barcode = await generateBarcode(customerCode, customerNumber, barcodeSerie);
 
   const payload = {
     Customer: {
@@ -109,6 +143,15 @@ export async function createShipmentLabel(
             Street: order.shippingStreet,
             Zipcode: order.shippingPostalCode.replace(/\s+/g, ""),
             Name: order.contactName,
+          },
+          {
+            AddressType: "02",
+            City: sender.senderCity,
+            Countrycode: sender.senderCountry,
+            HouseNr: sender.senderHouseNumber,
+            Street: sender.senderStreet,
+            Zipcode: sender.senderPostalCode.replace(/\s+/g, ""),
+            Name: sender.senderName,
           },
         ],
         Barcode: barcode,

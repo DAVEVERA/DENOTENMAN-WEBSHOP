@@ -7,6 +7,13 @@ const SETTING_KEYS = [
   "postnl.customerCode",
   "postnl.customerNumber",
   "postnl.collectionLocation",
+  "postnl.barcodeSerie",
+  "postnl.senderName",
+  "postnl.senderStreet",
+  "postnl.senderHouseNumber",
+  "postnl.senderPostalCode",
+  "postnl.senderCity",
+  "postnl.senderCountry",
 ];
 
 async function requireAdmin(request: NextRequest): Promise<boolean> {

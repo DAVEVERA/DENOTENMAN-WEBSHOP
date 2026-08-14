@@ -6,10 +6,12 @@ export function SettingsForm({
   customerCode,
   customerNumber,
   collectionLocation,
+  barcodeSerie,
 }: {
   customerCode: string;
   customerNumber: string;
   collectionLocation: string;
+  barcodeSerie: string;
 }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -27,6 +29,7 @@ export function SettingsForm({
           "postnl.customerCode": form.get("customerCode"),
           "postnl.customerNumber": form.get("customerNumber"),
           "postnl.collectionLocation": form.get("collectionLocation"),
+          "postnl.barcodeSerie": form.get("barcodeSerie"),
         }),
       });
 
@@ -78,6 +81,18 @@ export function SettingsForm({
           name="collectionLocation"
           type="text"
           defaultValue={collectionLocation}
+          className="mt-1 w-full rounded-button border border-border px-3 py-2 font-mono"
+        />
+      </div>
+      <div>
+        <label htmlFor="barcodeSerie" className="block text-body-sm font-semibold text-text">
+          Barcode serie
+        </label>
+        <input
+          id="barcodeSerie"
+          name="barcodeSerie"
+          type="text"
+          defaultValue={barcodeSerie}
           className="mt-1 w-full rounded-button border border-border px-3 py-2 font-mono"
         />
       </div>
