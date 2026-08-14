@@ -295,9 +295,11 @@ export async function syncOrderPaymentStatus(order: Order): Promise<Order> {
   });
 
   if (count === 1 && nextStatus === "PAID") {
-    sendOrderConfirmationEmail(updated, updated.items).catch((error) => {
+    try {
+      await sendOrderConfirmationEmail(updated, updated.items);
+    } catch (error) {
       console.error(`Failed to send order confirmation email for order ${order.id}`, error);
-    });
+    }
   }
 
   return updated;
