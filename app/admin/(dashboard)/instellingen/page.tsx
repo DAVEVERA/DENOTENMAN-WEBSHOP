@@ -32,6 +32,12 @@ export default async function AdminSettingsPage() {
             customerNumber={settings["postnl.customerNumber"] ?? ""}
             collectionLocation={settings["postnl.collectionLocation"] ?? ""}
             barcodeSerie={settings["postnl.barcodeSerie"] ?? "00000000-99999999"}
+            senderName={settings["postnl.senderName"] ?? ""}
+            senderStreet={settings["postnl.senderStreet"] ?? ""}
+            senderHouseNumber={settings["postnl.senderHouseNumber"] ?? ""}
+            senderPostalCode={settings["postnl.senderPostalCode"] ?? ""}
+            senderCity={settings["postnl.senderCity"] ?? ""}
+            senderCountry={settings["postnl.senderCountry"] ?? "NL"}
           />
         </div>
       </div>

@@ -7,11 +7,23 @@ export function SettingsForm({
   customerNumber,
   collectionLocation,
   barcodeSerie,
+  senderName,
+  senderStreet,
+  senderHouseNumber,
+  senderPostalCode,
+  senderCity,
+  senderCountry,
 }: {
   customerCode: string;
   customerNumber: string;
   collectionLocation: string;
   barcodeSerie: string;
+  senderName: string;
+  senderStreet: string;
+  senderHouseNumber: string;
+  senderPostalCode: string;
+  senderCity: string;
+  senderCountry: string;
 }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -30,6 +42,12 @@ export function SettingsForm({
           "postnl.customerNumber": form.get("customerNumber"),
           "postnl.collectionLocation": form.get("collectionLocation"),
           "postnl.barcodeSerie": form.get("barcodeSerie"),
+          "postnl.senderName": form.get("senderName"),
+          "postnl.senderStreet": form.get("senderStreet"),
+          "postnl.senderHouseNumber": form.get("senderHouseNumber"),
+          "postnl.senderPostalCode": form.get("senderPostalCode"),
+          "postnl.senderCity": form.get("senderCity"),
+          "postnl.senderCountry": form.get("senderCountry"),
         }),
       });
 
@@ -94,6 +112,96 @@ export function SettingsForm({
           type="text"
           defaultValue={barcodeSerie}
           className="mt-1 w-full rounded-button border border-border px-3 py-2 font-mono"
+        />
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <p className="font-heading text-body-sm font-bold text-text">Afzenderadres</p>
+        <p className="mt-1 text-body-sm text-muted">
+          Komt op het verzendlabel te staan als afzender.
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="senderName" className="block text-body-sm font-semibold text-text">
+          Naam / bedrijfsnaam
+        </label>
+        <input
+          id="senderName"
+          name="senderName"
+          type="text"
+          defaultValue={senderName}
+          className="mt-1 w-full rounded-button border border-border px-3 py-2"
+        />
+      </div>
+      <div className="grid grid-cols-[1fr_auto] gap-3">
+        <div>
+          <label htmlFor="senderStreet" className="block text-body-sm font-semibold text-text">
+            Straatnaam
+          </label>
+          <input
+            id="senderStreet"
+            name="senderStreet"
+            type="text"
+            defaultValue={senderStreet}
+            className="mt-1 w-full rounded-button border border-border px-3 py-2"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="senderHouseNumber"
+            className="block text-body-sm font-semibold text-text"
+          >
+            Huisnummer
+          </label>
+          <input
+            id="senderHouseNumber"
+            name="senderHouseNumber"
+            type="text"
+            defaultValue={senderHouseNumber}
+            className="mt-1 w-24 rounded-button border border-border px-3 py-2"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label
+            htmlFor="senderPostalCode"
+            className="block text-body-sm font-semibold text-text"
+          >
+            Postcode
+          </label>
+          <input
+            id="senderPostalCode"
+            name="senderPostalCode"
+            type="text"
+            defaultValue={senderPostalCode}
+            className="mt-1 w-full rounded-button border border-border px-3 py-2 font-mono"
+          />
+        </div>
+        <div>
+          <label htmlFor="senderCity" className="block text-body-sm font-semibold text-text">
+            Plaats
+          </label>
+          <input
+            id="senderCity"
+            name="senderCity"
+            type="text"
+            defaultValue={senderCity}
+            className="mt-1 w-full rounded-button border border-border px-3 py-2"
+          />
+        </div>
+      </div>
+      <div>
+        <label htmlFor="senderCountry" className="block text-body-sm font-semibold text-text">
+          Land (ISO-code)
+        </label>
+        <input
+          id="senderCountry"
+          name="senderCountry"
+          type="text"
+          defaultValue={senderCountry}
+          className="mt-1 w-24 rounded-button border border-border px-3 py-2 font-mono"
         />
       </div>
 
