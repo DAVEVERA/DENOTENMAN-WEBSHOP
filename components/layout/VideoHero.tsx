@@ -69,7 +69,6 @@ export function VideoHero({ locale }: { locale: Locale }) {
             <h2 id="favorites-title" className="video-hero__favorites-title">
               Onze favorieten
             </h2>
-            <p className="video-hero__favorites-hint">Swipe om te bekijken</p>
           </div>
 
           <div className="video-hero__grid">

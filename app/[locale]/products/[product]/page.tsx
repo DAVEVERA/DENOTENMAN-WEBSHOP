@@ -169,7 +169,11 @@ export default async function ProductPage({
                   label: dictionary.product.tabNutrition,
                   content: (
                     <div>
-                      <p className="text-body-sm text-muted">{dictionary.product.perHundredGrams}</p>
+                      <p className="text-body-sm text-muted">
+                        {data.unit === "VOLUME"
+                          ? dictionary.product.perHundredMilliliters
+                          : dictionary.product.perHundredGrams}
+                      </p>
                       {nutritionEntries.length > 0 ? (
                         <dl className="mt-3 divide-y divide-border">
                           {nutritionEntries.map((entry) => (

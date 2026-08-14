@@ -77,6 +77,7 @@
     "mayContainTraces": "Peut contenir des traces de",
     "weight": "Poids",
     "perHundredGrams": "Valeurs nutritionnelles pour 100 g",
+    "perHundredMilliliters": "Valeurs nutritionnelles pour 100 ml",
     "faqFallback": "Aucune question répondue pour ce produit. Contactez-nous pour plus d'informations."
   },
   "cart": {
