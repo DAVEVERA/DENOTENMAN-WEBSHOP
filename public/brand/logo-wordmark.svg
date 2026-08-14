@@ -5,7 +5,7 @@
    style="background-color: transparent"
    xmlns="http://www.w3.org/2000/svg">
   <style>
-    path[fill="rgb(11.372375%, 11.372375%, 10.588074%)"] { fill: #e0b200; }
+    path[fill="rgb(11.372375%, 11.372375%, 10.588074%)"] { fill: #333333; }
   </style>
   <defs>
     <mask id="nut-cutout" maskUnits="userSpaceOnUse" x="70" y="11" width="25" height="25">

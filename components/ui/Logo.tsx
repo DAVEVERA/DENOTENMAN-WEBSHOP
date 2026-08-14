@@ -11,6 +11,11 @@ const wordmarkSizeClasses: Record<"sm" | "lg" | "responsive", string> = {
   responsive: "h-7 sm:h-12",
 };
 
+const wordmarkColorClasses: Record<"light" | "dark", string> = {
+  light: "bg-[#333333]",
+  dark: "bg-[#e0b200]",
+};
+
 const markSizeClasses: Record<"sm" | "lg" | "responsive", string> = {
   sm: "h-8 w-8",
   lg: "h-12 w-12",
@@ -39,7 +44,20 @@ export function Logo({
         <img src="/brand/logo-mark.svg" alt={alt.mark} className={markSizeClasses[size]} />
       ) : null}
       {showWordmark ? (
-        <img src={wordmarkSrc[variant]} alt={alt.wordmark} className={wordmarkSizeClasses[size]} />
+        <span
+          role="img"
+          aria-label={alt.wordmark}
+          className={cn(
+            "block shrink-0 bg-center bg-no-repeat [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]",
+            wordmarkSizeClasses[size],
+            wordmarkColorClasses[variant]
+          )}
+          style={{
+            aspectRatio: "208.93 / 54.695",
+            maskImage: `url(${wordmarkSrc[variant]})`,
+            WebkitMaskImage: `url(${wordmarkSrc[variant]})`,
+          }}
+        />
       ) : null}
     </span>
   );

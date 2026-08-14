@@ -8,6 +8,7 @@ import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
 import { cn } from "@/lib/cn";
 import { ProductCard } from "@/components/product/ProductCard";
+import { CATALOG_SEARCH_EVENT } from "@/components/layout/NavbarSearch";
 
 type FacetOption = { value: string; label: string };
 type Facet = {
@@ -43,13 +44,31 @@ export function ProductBrowser({
   // filters/search from the URL so reloading, sharing a link, or navigating
   // back preserves what the shopper had set up.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const q = params.get(QUERY_PARAM);
-    const f = params.get(FILTERS_PARAM);
-    if (q) setQuery(q);
-    if (f) setSelected(new Set(f.split(",").filter(Boolean)));
-    setHydrated(true);
+    const restoreFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      setQuery(params.get(QUERY_PARAM) ?? "");
+      setSelected(new Set((params.get(FILTERS_PARAM) ?? "").split(",").filter(Boolean)));
+      setHydrated(true);
+    };
+    const applyNavbarSearch = (event: Event) => {
+      const searchEvent = event as CustomEvent<{ query: string }>;
+      setQuery(searchEvent.detail.query);
+    };
+
+    restoreFromUrl();
+    window.addEventListener("popstate", restoreFromUrl);
+    window.addEventListener(CATALOG_SEARCH_EVENT, applyNavbarSearch);
+
+    return () => {
+      window.removeEventListener("popstate", restoreFromUrl);
+      window.removeEventListener(CATALOG_SEARCH_EVENT, applyNavbarSearch);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    window.dispatchEvent(new CustomEvent(CATALOG_SEARCH_EVENT, { detail: { query } }));
+  }, [query, hydrated]);
 
   // Keep the URL in sync with the current search/filter state so it stays
   // shareable and survives reloads. Debounced so fast typing doesn't spam
@@ -224,7 +243,7 @@ export function ProductBrowser({
       : dictionary.filters.resultsCountPlural.replace("{count}", String(filtered.length));
 
   return (
-    <div>
+    <div id="product-search" className="scroll-mt-36">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <label className="relative flex-1">
           <span className="sr-only">{dictionary.common.search}</span>

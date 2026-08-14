@@ -10,6 +10,7 @@ import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { MegaMenu } from "@/components/layout/MegaMenu";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { HeaderActions } from "@/components/layout/HeaderActions";
+import { NavbarSearch } from "@/components/layout/NavbarSearch";
 
 export async function Header({
   locale,
@@ -52,13 +53,14 @@ export async function Header({
           </Container>
         </div>
         <div className="hidden border-b-2 border-contrast bg-surface lg:block">
-          <Container fullWidth className="py-3">
+          <Container fullWidth className="relative py-3">
             <nav
               aria-label={dictionary.nav.categories}
               className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3"
             >
               <MegaMenu groups={groups} promotional={promotional} locale={locale} />
             </nav>
+            <NavbarSearch locale={locale} label={dictionary.common.search} />
           </Container>
         </div>
       </header>

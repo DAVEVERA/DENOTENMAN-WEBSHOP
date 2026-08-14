@@ -19,7 +19,7 @@ export async function Footer({
     <footer className="bg-contrast text-background">
       <Container className="grid grid-cols-1 gap-gap-lg py-panel sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-gap-md">
-          <span className="inline-block w-fit rounded bg-surface p-gap-sm">
+          <span className="inline-block w-fit">
             <Logo
               alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
               variant="dark"
