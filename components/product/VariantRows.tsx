@@ -1,22 +1,43 @@
 "use client";
 
 import Image from "next/image";
+import { Droplet, Droplets } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import type { Locale } from "@/lib/i18n";
 import type { ProductVariantDto } from "@/lib/queries";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
-const quantityIcons = {
+const weightIcons = {
   small: "/icons/quantity/bowl-nuts.png",
   medium: "/icons/quantity/bag-nuts.png",
   large: "/icons/quantity/wheelbarrow-nuts.png",
 } as const;
 
-function getIcon(index: number, total: number) {
-  if (index === 0) return quantityIcons.small;
-  if (index === total - 1) return quantityIcons.large;
-  return quantityIcons.medium;
+function getIcon(index: number, total: number, unit: "WEIGHT" | "VOLUME") {
+  const tier = index === 0 ? "small" : index === total - 1 ? "large" : "medium";
+
+  if (unit === "VOLUME") {
+    const DropletIcon = tier === "small" ? Droplet : Droplets;
+    return (
+      <DropletIcon
+        className={tier === "large" ? "h-9 w-9 sm:h-10 sm:w-10" : "h-7 w-7 sm:h-8 sm:w-8"}
+        strokeWidth={1.5}
+        aria-hidden="true"
+      />
+    );
+  }
+
+  return (
+    <Image
+      src={weightIcons[tier]}
+      alt=""
+      width={64}
+      height={64}
+      className="h-full w-full object-contain"
+      aria-hidden="true"
+    />
+  );
 }
 
 export function VariantRows({
@@ -24,6 +45,7 @@ export function VariantRows({
   selectedId,
   onSelect,
   locale,
+  unit,
   inStockLabel,
   outOfStockLabel,
   ariaLabel,
@@ -32,6 +54,7 @@ export function VariantRows({
   selectedId: string | undefined;
   onSelect: (id: string) => void;
   locale: Locale;
+  unit: "WEIGHT" | "VOLUME";
   inStockLabel: string;
   outOfStockLabel: string;
   ariaLabel: string;
@@ -66,10 +89,12 @@ export function VariantRows({
       {sortedVariants.map((variant, index) => {
         const isSelected = variant.id === selectedId;
         const isAvailable = variant.stock > 0;
-        const pricePerKilo =
+        const pricePerBaseUnit =
           variant.weightGrams > 0
             ? Math.round((variant.priceCents * 1000) / variant.weightGrams)
             : null;
+        const baseUnitSuffix = unit === "VOLUME" ? "/l" : "/kg";
+        const fallbackLabel = `${variant.weightGrams} ${unit === "VOLUME" ? "ml" : "g"}`;
 
         return (
           <button
@@ -88,19 +113,12 @@ export function VariantRows({
             )}
           >
             <span className="flex h-14 w-14 items-center justify-center sm:h-16 sm:w-16">
-              <Image
-                src={getIcon(index, sortedVariants.length)}
-                alt=""
-                width={64}
-                height={64}
-                className="h-full w-full object-contain"
-                aria-hidden="true"
-              />
+              {getIcon(index, sortedVariants.length, unit)}
             </span>
 
             <span className="min-w-0">
               <span className="block font-heading text-[1.05rem] font-bold leading-tight text-black sm:text-lg">
-                {variant.label ?? `${variant.weightGrams} g`}
+                {variant.label ?? fallbackLabel}
               </span>
               <span
                 className={cn(
@@ -117,9 +135,10 @@ export function VariantRows({
               <span className="block font-heading text-xl font-bold leading-none text-black">
                 {formatPrice(variant.priceCents, locale)}
               </span>
-              {pricePerKilo ? (
+              {pricePerBaseUnit ? (
                 <span className="mt-2 block text-xs text-[#9A948B] sm:text-sm">
-                  {formatPrice(pricePerKilo, locale)}/kg
+                  {formatPrice(pricePerBaseUnit, locale)}
+                  {baseUnitSuffix}
                 </span>
               ) : null}
             </span>

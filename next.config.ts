@@ -54,6 +54,27 @@ function localizedWildcardRedirects(
     }));
 }
 
+// Same idea as the wildcard variants above, but for the bare index page
+// itself (e.g. "all categories"), which has no :slug to match on.
+function localizedIndexRewrites(segment: Record<string, string>, physicalSegment: string) {
+  return locales
+    .filter((locale) => segment[locale] !== physicalSegment)
+    .map((locale) => ({
+      source: `/${locale}/${segment[locale]}`,
+      destination: `/${locale}/${physicalSegment}`,
+    }));
+}
+
+function localizedIndexRedirects(segment: Record<string, string>, physicalSegment: string) {
+  return locales
+    .filter((locale) => segment[locale] !== physicalSegment)
+    .map((locale) => ({
+      source: `/${locale}/${physicalSegment}`,
+      destination: `/${locale}/${segment[locale]}`,
+      permanent: true,
+    }));
+}
+
 const nextConfig: NextConfig = {
   output: "standalone",
   turbopack: {
@@ -74,6 +95,7 @@ const nextConfig: NextConfig = {
       ...localizedPageRewrites(),
       ...localizedWildcardRewrites(productsSegment, "products"),
       ...localizedWildcardRewrites(categoriesSegment, "categories"),
+      ...localizedIndexRewrites(categoriesSegment, "categories"),
     ];
   },
   async redirects() {
@@ -82,6 +104,7 @@ const nextConfig: NextConfig = {
       ...localizedPageRedirects(),
       ...localizedWildcardRedirects(productsSegment, "products"),
       ...localizedWildcardRedirects(categoriesSegment, "categories"),
+      ...localizedIndexRedirects(categoriesSegment, "categories"),
     ];
   },
 };

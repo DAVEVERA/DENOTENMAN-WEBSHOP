@@ -145,6 +145,7 @@ export default async function ProductPage({
               <VariantSelector
                 variants={data.variants}
                 locale={locale}
+                unit={data.unit}
                 product={{
                   id: data.id,
                   slug: data.slug,

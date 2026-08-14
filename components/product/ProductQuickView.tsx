@@ -97,7 +97,7 @@ export function ProductQuickView({
         productId: product.id,
         slug: product.slug,
         name: product.name,
-        variantLabel: selected.label ?? `${selected.weightGrams} g`,
+        variantLabel: selected.label ?? `${selected.weightGrams} ${product.unit === "VOLUME" ? "ml" : "g"}`,
         priceCents: selected.priceCents,
         imageUrl: primaryImage?.url ?? null,
         locale,
@@ -168,6 +168,7 @@ export function ProductQuickView({
                 selectedId={selected?.id}
                 onSelect={selectVariant}
                 locale={locale}
+                unit={product.unit}
                 inStockLabel={dictionary.product.inStock}
                 outOfStockLabel={dictionary.product.outOfStock}
                 ariaLabel={dictionary.product.selectQuantity}

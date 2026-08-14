@@ -16,10 +16,12 @@ const dictionaries = { nl, en, fr };
 export function VariantSelector({
   variants,
   locale,
+  unit,
   product,
 }: {
   variants: ProductVariantDto[];
   locale: Locale;
+  unit: "WEIGHT" | "VOLUME";
   product: {
     id: string;
     slug: string;
@@ -53,7 +55,7 @@ export function VariantSelector({
         productId: product.id,
         slug: product.slug,
         name: product.name,
-        variantLabel: selected.label ?? `${selected.weightGrams} g`,
+        variantLabel: selected.label ?? `${selected.weightGrams} ${unit === "VOLUME" ? "ml" : "g"}`,
         priceCents: selected.priceCents,
         imageUrl: product.imageUrl,
         locale,
@@ -70,6 +72,7 @@ export function VariantSelector({
         selectedId={selected.id}
         onSelect={selectVariant}
         locale={locale}
+        unit={unit}
         inStockLabel={dictionary.product.inStock}
         outOfStockLabel={dictionary.product.outOfStock}
         ariaLabel={dictionary.product.selectQuantity}

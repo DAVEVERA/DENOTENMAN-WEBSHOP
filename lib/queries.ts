@@ -50,6 +50,7 @@ export type ProductSummaryDto = {
   shortDescription: string | null;
   basePriceCents: number;
   currency: string;
+  unit: "WEIGHT" | "VOLUME";
   images: ProductImageDto[];
   variants: ProductVariantDto[];
   category: ProductCategoryDto | null;
@@ -219,6 +220,7 @@ function toProductSummaryDto(
       toShortDescription(translation.description),
     basePriceCents: product.basePriceCents,
     currency: product.currency,
+    unit: product.unit,
     images: product.images
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(toProductImageDto),

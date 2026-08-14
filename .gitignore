@@ -29,6 +29,7 @@ next-env.d.ts
 AGENTS.md
 CLAUDE.md
 TODO.md
-.playwright-cli/console-2026-08-11T23-47-28-542Z.log
+.playwright-cli/
+output/
 .claude
 .worktrees/
