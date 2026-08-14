@@ -1,10 +1,9 @@
 "use client";
 
-import { Heart, MessageCircle, ShoppingCart } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
 import { account as accountPath, cart as cartPath } from "@/lib/routes";
-import { pagePath } from "@/lib/pages";
 import { useStorefrontState } from "@/lib/storefront-state";
 
 const iconButtonClass =
@@ -43,9 +42,6 @@ export function HeaderActions({
 
   return (
     <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-      <a href={pagePath("contact", locale)} aria-label={dictionary.nav.contact} className={iconButtonClass}>
-        <MessageCircle className="h-5 w-5" aria-hidden="true" />
-      </a>
       <a
         href={`https://wa.me/${whatsappNumber}`}
         target="_blank"

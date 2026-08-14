@@ -64,25 +64,17 @@ export function ProductCard({
           aria-label={dictionary.product.openQuickView.replace("{product}", product.name)}
           className="flex min-w-0 flex-1 flex-col text-left focus-visible:rounded-card"
         >
-          <span className="relative mx-auto block aspect-square w-full overflow-hidden rounded-full border border-border bg-background">
+          <span className="mx-auto block aspect-square w-full overflow-hidden rounded-full border border-border bg-background">
             {primaryImage ? (
               <img
                 src={primaryImage.url}
                 alt={primaryImage.alt ?? product.name}
                 style={getProductImageStyle(primaryImage.url)}
-                className={cn(
-                  "product-image-focal product-image-focal--zoomable h-full w-full rounded-full object-cover transition-transform duration-hover",
-                  !product.isActive && "opacity-50 grayscale"
-                )}
+                className="product-image-focal product-image-focal--zoomable h-full w-full rounded-full object-cover transition-transform duration-hover"
               />
             ) : (
               <span className="block h-full w-full rounded-full bg-background" aria-hidden="true" />
             )}
-            {!product.isActive ? (
-              <span className="absolute inset-x-0 bottom-1 mx-auto w-fit rounded-full bg-red-600 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-white shadow-card sm:text-xs">
-                {dictionary.product.outOfStock}
-              </span>
-            ) : null}
           </span>
           {categoryName ? (
             <span className="mt-3 text-xs text-muted sm:text-body-sm">{categoryName}</span>
@@ -98,8 +90,15 @@ export function ProductCard({
         </button>
 
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
-          <p className="min-w-0 text-sm font-semibold text-text sm:text-base">
-            {formatPrice(product.basePriceCents, locale)}
+          <p className="min-w-0">
+            {!product.isActive ? (
+              <span className="block text-xs font-semibold text-red-600">
+                {dictionary.product.outOfStock}
+              </span>
+            ) : null}
+            <span className="text-sm font-semibold text-text sm:text-base">
+              {formatPrice(product.basePriceCents, locale)}
+            </span>
           </p>
           <button
             type="button"

@@ -423,7 +423,8 @@ export async function getCategory(
   const products = category.productCategories
     .map(({ product }) => product)
     .map((product) => toProductSummaryDto(product, locale))
-    .filter((product): product is ProductSummaryDto => product !== undefined);
+    .filter((product): product is ProductSummaryDto => product !== undefined)
+    .sort((a, b) => Number(b.isActive) - Number(a.isActive));
 
   return {
     ...dto,
@@ -509,7 +510,8 @@ export async function getFilteredProducts(
 
   return products
     .map((product) => toProductSummaryDto(product, locale))
-    .filter((product): product is ProductSummaryDto => product !== undefined);
+    .filter((product): product is ProductSummaryDto => product !== undefined)
+    .sort((a, b) => Number(b.isActive) - Number(a.isActive));
 }
 
 export async function getPageBySlug(

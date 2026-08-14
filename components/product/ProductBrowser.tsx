@@ -160,26 +160,28 @@ export function ProductBrowser({
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return products.filter((product) => {
-      if (normalizedQuery && !product.name.toLowerCase().includes(normalizedQuery)) {
-        return false;
-      }
+    return products
+      .filter((product) => {
+        if (normalizedQuery && !product.name.toLowerCase().includes(normalizedQuery)) {
+          return false;
+        }
 
-      for (const facet of facets) {
-        const selectedInFacet = facet.options
-          .map((option) => option.value)
-          .filter((value) => selected.has(value));
+        for (const facet of facets) {
+          const selectedInFacet = facet.options
+            .map((option) => option.value)
+            .filter((value) => selected.has(value));
 
-        if (selectedInFacet.length === 0) continue;
+          if (selectedInFacet.length === 0) continue;
 
-        const values = facet.getValues(product);
-        const matches = values.some((value) => selectedInFacet.includes(value));
+          const values = facet.getValues(product);
+          const matches = values.some((value) => selectedInFacet.includes(value));
 
-        if (!matches) return false;
-      }
+          if (!matches) return false;
+        }
 
-      return true;
-    });
+        return true;
+      })
+      .sort((a, b) => Number(b.isActive) - Number(a.isActive));
   }, [products, query, selected, facets]);
 
   const activeCount = selected.size;
