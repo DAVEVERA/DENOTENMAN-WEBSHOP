@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { product as productPath, categories as categoriesPath } from "@/lib/routes";
 
@@ -85,12 +86,12 @@ export function VideoHero({ locale }: { locale: Locale }) {
                   <p className="video-hero__card-meta">{item.meta}</p>
                   <h3 className="video-hero__card-title">{item.name}</h3>
                   <p className="video-hero__card-copy">{item.copy}</p>
-                  <a
+                  <Link
                     className="video-hero__button video-hero__button--product"
                     href={productPath(locale, item.slug)}
                   >
                     {item.ctaLabel}
-                  </a>
+                  </Link>
                 </div>
               </article>
             ))}

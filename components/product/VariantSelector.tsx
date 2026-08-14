@@ -127,7 +127,7 @@ export function VariantSelector({
             {added
               ? dictionary.product.addedToCart
               : isActive
-                ? dictionary.product.addToCart
+                ? dictionary.product.order
                 : dictionary.product.outOfStock}
           </span>
         </button>

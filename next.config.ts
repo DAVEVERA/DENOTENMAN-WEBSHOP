@@ -93,7 +93,6 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       ...localizedPageRewrites(),
-      ...localizedWildcardRewrites(productsSegment, "products"),
       ...localizedWildcardRewrites(categoriesSegment, "categories"),
       ...localizedIndexRewrites(categoriesSegment, "categories"),
     ];

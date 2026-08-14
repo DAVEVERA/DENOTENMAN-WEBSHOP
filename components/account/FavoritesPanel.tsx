@@ -48,7 +48,10 @@ export function FavoritesPanel({
               key={item.productId}
               className="relative flex min-w-0 flex-col rounded-card border border-border bg-surface p-3 shadow-card sm:p-card"
             >
-              <Link href={productPath(item.locale, item.slug)} className="min-w-0 flex-1">
+              <Link
+                href={productPath(item.locale, item.slug)}
+                className="min-w-0 flex-1"
+              >
                 <span className="block aspect-square overflow-hidden rounded-full border border-border bg-background">
                   {item.imageUrl ? (
                     <img

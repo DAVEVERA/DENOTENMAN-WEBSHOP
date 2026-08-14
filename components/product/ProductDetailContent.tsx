@@ -1,5 +1,7 @@
 import type { Locale } from "@/lib/i18n";
 import type { ProductDetailDto } from "@/lib/queries";
+import { ShoppingCart } from "lucide-react";
+import { productActionButtonClass } from "@/lib/product-action-button";
 import { FavoriteButton } from "@/components/ui/FavoriteButton";
 import { Tabs } from "@/components/ui/Tabs";
 import { ProductGallery } from "@/components/product/ProductGallery";
@@ -67,9 +69,16 @@ export function ProductDetailContent({
 
       <div className="min-w-0">
         <div className="flex items-start justify-between gap-4">
-          <h1 className="font-heading text-2xl font-bold tracking-heading text-text sm:text-3xl">
-            {data.name}
-          </h1>
+          <div>
+            <h1 className="font-heading text-2xl font-bold tracking-heading text-text sm:text-3xl">
+              {data.name}
+            </h1>
+            {!data.isActive ? (
+              <span className="mt-2 inline-flex rounded-full bg-red-600 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                {dictionary.product.outOfStock}
+              </span>
+            ) : null}
+          </div>
           <FavoriteButton
             label={{
               on: dictionary.product.removeFromFavorites,
@@ -90,6 +99,7 @@ export function ProductDetailContent({
               variants={data.variants}
               locale={locale}
               unit={data.unit}
+              isActive={data.isActive}
               product={{
                 id: data.id,
                 slug: data.slug,
@@ -98,7 +108,21 @@ export function ProductDetailContent({
               }}
             />
           </div>
-        ) : null}
+        ) : (
+          <div className="mt-5">
+            <button
+              type="button"
+              disabled
+              className={`${productActionButtonClass} h-12 w-full opacity-60`}
+            >
+              <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+              {dictionary.product.order}
+            </button>
+            <p className="mt-2 text-center text-body-sm font-semibold text-red-700">
+              {dictionary.product.outOfStock}
+            </p>
+          </div>
+        )}
 
         <div className="mt-8">
           <Tabs

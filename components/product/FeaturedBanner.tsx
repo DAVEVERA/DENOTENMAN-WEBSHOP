@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
@@ -36,7 +37,10 @@ export function FeaturedBanner({
 
             return (
               <li key={product.id}>
-                <a href={productPath(locale, product.slug)} className="group flex flex-col items-center gap-2">
+                <Link
+                  href={productPath(locale, product.slug)}
+                  className="group flex flex-col items-center gap-2"
+                >
                   <span className="block h-20 w-20 overflow-hidden rounded-full border-2 border-contrast bg-surface shadow-card transition-transform duration-hover group-hover:scale-105 sm:h-24 sm:w-24">
                     {image ? (
                       <img
@@ -50,7 +54,7 @@ export function FeaturedBanner({
                   <span className="line-clamp-2 max-w-24 text-center text-body-sm font-semibold text-text">
                     {product.name}
                   </span>
-                </a>
+                </Link>
               </li>
             );
           })}
