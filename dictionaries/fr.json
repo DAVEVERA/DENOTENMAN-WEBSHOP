@@ -52,6 +52,8 @@
     "inStock": "En stock",
     "quickOrder": "Commander rapidement",
     "moreInfo": "Plus d’infos",
+    "backToProducts": "Retour aux produits",
+    "closeDetails": "Fermer les détails du produit",
     "viewProduct": "Voir le produit",
     "fullDetails": "Voir tous les détails du produit",
     "quantity": "Quantité",

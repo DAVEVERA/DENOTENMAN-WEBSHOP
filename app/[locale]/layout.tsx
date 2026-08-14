@@ -57,9 +57,11 @@ export async function generateMetadata({
 
 export default async function LocaleLayout({
   children,
+  modal,
   params,
 }: {
   children: React.ReactNode;
+  modal: React.ReactNode;
   params: Promise<{ locale: string }>;
 }) {
   const { locale: rawLocale } = await params;
@@ -92,7 +94,10 @@ export default async function LocaleLayout({
         >
           {dictionary.nav.skipToContent}
         </a>
-        <main id="main-content">{children}</main>
+        <main id="main-content">
+          {children}
+          {modal}
+        </main>
       </body>
     </html>
   );

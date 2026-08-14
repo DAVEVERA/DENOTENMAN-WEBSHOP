@@ -17,11 +17,13 @@ export function VariantSelector({
   variants,
   locale,
   unit,
+  isActive,
   product,
 }: {
   variants: ProductVariantDto[];
   locale: Locale;
   unit: "WEIGHT" | "VOLUME";
+  isActive: boolean;
   product: {
     id: string;
     slug: string;
@@ -48,7 +50,7 @@ export function VariantSelector({
   }
 
   function addSelectedToCart() {
-    if (selected.stock <= 0) return;
+    if (!isActive || selected.stock <= 0) return;
     addCartItem(
       {
         variantId: selected.id,
@@ -112,7 +114,7 @@ export function VariantSelector({
 
         <button
           type="button"
-          disabled={selected.stock <= 0}
+          disabled={!isActive || selected.stock <= 0}
           onClick={addSelectedToCart}
           className={`${productActionButtonClass} h-12 flex-1`}
         >
@@ -122,7 +124,11 @@ export function VariantSelector({
             <ShoppingCart className="h-5 w-5" aria-hidden="true" />
           )}
           <span aria-live="polite">
-            {added ? dictionary.product.addedToCart : dictionary.product.addToCart}
+            {added
+              ? dictionary.product.addedToCart
+              : isActive
+                ? dictionary.product.addToCart
+                : dictionary.product.outOfStock}
           </span>
         </button>
       </div>

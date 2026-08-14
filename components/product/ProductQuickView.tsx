@@ -153,6 +153,11 @@ export function ProductQuickView({
               <h3 className="font-heading text-base font-bold leading-tight text-black sm:text-lg">
                 {product.name}
               </h3>
+              {!product.isActive ? (
+                <span className="mt-1 inline-flex rounded-full bg-red-600 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-white">
+                  {dictionary.product.outOfStock}
+                </span>
+              ) : null}
               {product.shortDescription ? (
                 <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#6E675C] sm:text-sm">
                   {product.shortDescription}
@@ -211,7 +216,7 @@ export function ProductQuickView({
             </div>
             <button
               type="button"
-              disabled={!selected || selected.stock <= 0}
+              disabled={!product.isActive || !selected || selected.stock <= 0}
               onClick={addSelectedToCart}
               className={`${productActionButtonClass} h-12 min-w-0 flex-1 px-3 sm:px-6`}
             >

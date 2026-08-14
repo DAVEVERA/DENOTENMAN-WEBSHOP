@@ -51,6 +51,7 @@ export type ProductSummaryDto = {
   basePriceCents: number;
   currency: string;
   unit: "WEIGHT" | "VOLUME";
+  isActive: boolean;
   images: ProductImageDto[];
   variants: ProductVariantDto[];
   category: ProductCategoryDto | null;
@@ -221,6 +222,7 @@ function toProductSummaryDto(
     basePriceCents: product.basePriceCents,
     currency: product.currency,
     unit: product.unit,
+    isActive: product.isActive,
     images: product.images
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(toProductImageDto),
@@ -356,7 +358,7 @@ export async function getProductBySlug(
 
   const product = translation?.product;
 
-  if (!product || !product.isActive) {
+  if (!product) {
     return null;
   }
 
@@ -420,7 +422,6 @@ export async function getCategory(
 
   const products = category.productCategories
     .map(({ product }) => product)
-    .filter((product) => product.isActive)
     .map((product) => toProductSummaryDto(product, locale))
     .filter((product): product is ProductSummaryDto => product !== undefined);
 
@@ -490,7 +491,6 @@ export async function getFilteredProducts(
 
   const products = await prisma.product.findMany({
     where: {
-      isActive: true,
       ...categoryFilter,
       AND: attributeFilters,
     },
@@ -605,7 +605,7 @@ export async function getArticleBySlug(
 export async function getProductSlugs(locale: Locale): Promise<SlugEntryDto[]> {
   try {
     const translations = await prisma.productTranslation.findMany({
-      where: { locale, product: { isActive: true } },
+      where: { locale },
       select: { productId: true, slug: true, product: { select: { updatedAt: true } } },
       orderBy: { slug: "asc" },
     });

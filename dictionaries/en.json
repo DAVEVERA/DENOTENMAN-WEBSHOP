@@ -52,6 +52,8 @@
     "inStock": "In stock",
     "quickOrder": "Quick order",
     "moreInfo": "More info",
+    "backToProducts": "Back to products",
+    "closeDetails": "Close product details",
     "viewProduct": "View product",
     "fullDetails": "View all product details",
     "quantity": "Quantity",
