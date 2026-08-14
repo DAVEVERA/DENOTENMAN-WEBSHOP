@@ -7,8 +7,11 @@ import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
 import { cn } from "@/lib/cn";
+import {
+  CATALOG_SEARCH_EVENT,
+  type CatalogSearchEventDetail,
+} from "@/lib/catalogSearch";
 import { ProductCard } from "@/components/product/ProductCard";
-import { CATALOG_SEARCH_EVENT } from "@/components/layout/NavbarSearch";
 
 type FacetOption = { value: string; label: string };
 type Facet = {
@@ -51,7 +54,7 @@ export function ProductBrowser({
       setHydrated(true);
     };
     const applyNavbarSearch = (event: Event) => {
-      const searchEvent = event as CustomEvent<{ query: string }>;
+      const searchEvent = event as CustomEvent<CatalogSearchEventDetail>;
       setQuery(searchEvent.detail.query);
     };
 

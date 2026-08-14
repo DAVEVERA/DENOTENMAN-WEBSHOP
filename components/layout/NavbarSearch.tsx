@@ -5,10 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 import { home } from "@/lib/routes";
+import {
+  CATALOG_SEARCH_EVENT,
+  type CatalogSearchEventDetail,
+} from "@/lib/catalogSearch";
 
-export const CATALOG_SEARCH_EVENT = "notenman:catalog-search";
-
-type CatalogSearchEvent = CustomEvent<{ query: string }>;
+type CatalogSearchEvent = CustomEvent<CatalogSearchEventDetail>;
 
 export function NavbarSearch({ locale, label }: { locale: Locale; label: string }) {
   const router = useRouter();
@@ -102,7 +104,7 @@ export function NavbarSearch({ locale, label }: { locale: Locale; label: string 
   return (
     <div
       ref={rootRef}
-      className="absolute right-8 top-1/2 z-20 hidden -translate-y-1/2 min-[1440px]:block"
+      className="absolute right-8 top-1/2 z-20 hidden -translate-y-1/2 xl:block"
     >
       <form
         role="search"
