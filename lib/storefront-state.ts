@@ -136,3 +136,8 @@ export function removeCartItem(variantId: string) {
   ensureLoaded();
   emit({ ...state, cart: state.cart.filter((item) => item.variantId !== variantId) });
 }
+
+export function clearCart() {
+  ensureLoaded();
+  emit({ ...state, cart: [] });
+}

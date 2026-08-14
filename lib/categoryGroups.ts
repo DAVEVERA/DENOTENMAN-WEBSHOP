@@ -5,7 +5,7 @@ export const promotionalCategorySlug = "acties";
 export const categoryGroupSlugs: readonly (readonly string[])[] = [
   ["noten", "notenmixen", "pinda-s", "pitten-zaden"],
   ["snacks-zoutjes"],
-  ["gedroogd-fruit"],
+  ["gedroogd-fruit", "gekonfijt-fruit", "meel-griesmeel", "gedroogde-vruchten"],
   ["muesli-granen", "superfood"],
   ["chocolade-zoet"],
   ["honing-natuurvoeding"],

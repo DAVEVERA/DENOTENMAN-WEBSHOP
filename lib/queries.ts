@@ -7,6 +7,7 @@ import type {
   CategoryTranslation,
   Product,
   ProductAttribute,
+  ProductCategory,
   ProductImage,
   ProductTranslation,
   ProductVariant,
@@ -22,6 +23,11 @@ export type ProductImageDto = {
 export type ProductAttributeDto = {
   key: string;
   value: string;
+};
+
+export type ProductCategoryDto = {
+  slug: string;
+  name: string;
 };
 
 export type ProductVariantDto = {
@@ -41,10 +47,12 @@ export type ProductSummaryDto = {
   slug: string;
   name: string;
   description: string | null;
+  shortDescription: string | null;
   basePriceCents: number;
   currency: string;
   images: ProductImageDto[];
   variants: ProductVariantDto[];
+  category: ProductCategoryDto | null;
   updatedAt: Date;
 };
 
@@ -123,8 +131,30 @@ export type SlugEntryDto = {
 };
 
 const defaultPageLimit = 20;
-const maxPageLimit = 100;
+const maxShortDescriptionLength = 160;
+// Raised from 100: the homepage's "browse everything" grid (see
+// app/[locale]/page.tsx) explicitly requests every active product in one
+// call so client-side search/filtering has the full catalog to work with.
+// The catalog is already ~120 active products (191 total) — above the old
+// cap — so this ceiling now leaves headroom for growth while still guarding
+// against a truly unbounded query.
+const maxPageLimit = 500;
 const defaultPageOffset = 0;
+
+function toShortDescription(value: string | null | undefined): string | null {
+  const normalized = value?.replace(/\s+/g, " ").trim();
+
+  if (!normalized) return null;
+  const characters = Array.from(normalized);
+  if (characters.length <= maxShortDescriptionLength) return normalized;
+
+  const clipped = characters.slice(0, maxShortDescriptionLength - 1).join("");
+  const lastSpace = clipped.lastIndexOf(" ");
+
+  if (lastSpace <= 0) return null;
+
+  return `${clipped.slice(0, lastSpace).trimEnd()}…`;
+}
 
 function resolvePaging(paging?: Paging): { limit: number; offset: number } {
   const limit = Math.min(
@@ -136,7 +166,7 @@ function resolvePaging(paging?: Paging): { limit: number; offset: number } {
   return { limit, offset };
 }
 
-function resolveTranslation<T extends { locale: Locale }>(
+export function resolveTranslation<T extends { locale: Locale }>(
   translations: T[],
   locale: Locale
 ): T | undefined {
@@ -167,6 +197,9 @@ function toProductSummaryDto(
     translations: ProductTranslation[];
     images: ProductImage[];
     variants: (ProductVariant & { translations: VariantTranslation[] })[];
+    productCategories: (ProductCategory & {
+      category: Category & { translations: CategoryTranslation[] };
+    })[];
   },
   locale: Locale
 ): ProductSummaryDto | undefined {
@@ -181,6 +214,9 @@ function toProductSummaryDto(
     slug: translation.slug,
     name: translation.name,
     description: translation.description,
+    shortDescription:
+      toShortDescription(translation.shortDescription) ??
+      toShortDescription(translation.description),
     basePriceCents: product.basePriceCents,
     currency: product.currency,
     images: product.images
@@ -189,8 +225,34 @@ function toProductSummaryDto(
     variants: product.variants
       .filter((variant) => variant.isActive)
       .map((variant) => toProductVariantDto(variant, locale)),
+    category: toProductCategoryDto(product.productCategories, locale),
     updatedAt: product.updatedAt,
   };
+}
+
+// Picks the product's primary category for display/filtering: the first
+// active category once sorted STANDARD-before-PROMOTIONAL, then by the
+// category's own sortOrder (see productCategories `orderBy` at call sites).
+function toProductCategoryDto(
+  productCategories: (ProductCategory & {
+    category: Category & { translations: CategoryTranslation[] };
+  })[],
+  locale: Locale
+): ProductCategoryDto | null {
+  const active = productCategories.filter((link) => link.category.isActive);
+  const primary = active[0] ?? productCategories[0];
+
+  if (!primary) {
+    return null;
+  }
+
+  const translation = resolveTranslation(primary.category.translations, locale);
+
+  if (!translation) {
+    return null;
+  }
+
+  return { slug: translation.slug, name: translation.name };
 }
 
 function toProductVariantDto(
@@ -203,7 +265,8 @@ function toProductVariantDto(
     id: variant.id,
     sku: variant.sku,
     priceCents: variant.priceCents,
-    stock: variant.stock,
+    // TEMPORARY: see UNLIMITED_STOCK note in lib/orders.ts.
+    stock: process.env.UNLIMITED_STOCK === "true" ? 999 : variant.stock,
     weightGrams: variant.weightGrams,
     preparation: variant.preparation,
     salting: variant.salting,
@@ -280,6 +343,10 @@ export async function getProductBySlug(
           images: true,
           variants: { include: { translations: true } },
           attributes: true,
+          productCategories: {
+            include: { category: { include: { translations: true } } },
+            orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
+          },
         },
       },
     },
@@ -321,6 +388,13 @@ export async function getCategory(
                   translations: true,
                   images: true,
                   variants: { include: { translations: true } },
+                  productCategories: {
+                    include: { category: { include: { translations: true } } },
+                    orderBy: [
+                      { category: { type: "asc" } },
+                      { category: { sortOrder: "asc" } },
+                    ],
+                  },
                 },
               },
             },
@@ -422,6 +496,10 @@ export async function getFilteredProducts(
       translations: true,
       images: true,
       variants: { include: { translations: true } },
+      productCategories: {
+        include: { category: { include: { translations: true } } },
+        orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
+      },
     },
     take: limit,
     skip: offset,

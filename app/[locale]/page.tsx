@@ -2,12 +2,11 @@ import { notFound } from "next/navigation";
 import { locales, isLocale, type Locale } from "@/lib/i18n";
 import { getCategory, getFilteredProducts } from "@/lib/queries";
 import { getAlternates } from "@/lib/alternates";
-import { categories as categoriesPath } from "@/lib/routes";
 import { Container } from "@/components/ui/Container";
 import { ProductBrowser } from "@/components/product/ProductBrowser";
 import { FeaturedBanner } from "@/components/product/FeaturedBanner";
 import { SiteShell } from "@/components/layout/SiteShell";
-import { Hero, type HeroSlide } from "@/components/layout/Hero";
+import { VideoHero } from "@/components/layout/VideoHero";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -32,31 +31,15 @@ export default async function HomePage({
   const locale = rawLocale;
   const dictionary = dictionaries[locale];
   const alternates = await getAlternates(locale, { type: "home" });
-  const products = await getFilteredProducts("all", locale, []);
-  const heroCategory = await getCategory("noten", locale);
+  // Explicit high limit: this grid is meant to show the full active catalog
+  // (client-side search/filters below narrow it down), not a paginated
+  // slice — the default page size would otherwise silently drop most of it.
+  const products = await getFilteredProducts("all", locale, [], { limit: 300 });
   const featuredCategory = await getCategory("acties", locale);
-
-  const heroProduct =
-    heroCategory?.products.find((item) => item.images.length > 0) ??
-    products.find((item) => item.images.length > 0);
-  const heroImage = heroProduct?.images.find((image) => image.isPrimary) ?? heroProduct?.images[0];
-
-  const heroSlides: HeroSlide[] = heroProduct
-    ? [
-        {
-          id: heroProduct.id,
-          image: heroImage?.url ?? null,
-          imageAlt: heroImage?.alt ?? heroProduct.name,
-          heading: dictionary.hero.headline,
-          ctaLabel: dictionary.hero.cta,
-          ctaHref: categoriesPath(locale),
-        },
-      ]
-    : [];
 
   return (
     <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
-      {heroSlides.length > 0 ? <Hero slides={heroSlides} dictionary={dictionary} /> : null}
+      <VideoHero locale={locale} />
       <FeaturedBanner
         products={featuredCategory?.products ?? []}
         locale={locale}

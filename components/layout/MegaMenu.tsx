@@ -19,6 +19,21 @@ export function MegaMenu({
 }) {
   const [openSlug, setOpenSlug] = useState<string | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearCloseTimeout = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleClose = (slug: string) => {
+    clearCloseTimeout();
+    closeTimeoutRef.current = setTimeout(() => {
+      setOpenSlug((current) => (current === slug ? null : current));
+    }, 200);
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -36,6 +51,7 @@ export function MegaMenu({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
+      clearCloseTimeout();
     };
   }, []);
 
@@ -45,20 +61,33 @@ export function MegaMenu({
         group.categories.length > 1 ? (
           <div
             key={group.primarySlug}
-            className="relative"
-            onMouseEnter={() => setOpenSlug(group.primarySlug)}
-            onMouseLeave={() =>
-              setOpenSlug((current) => (current === group.primarySlug ? null : current))
-            }
+            className="relative flex items-center"
+            onMouseEnter={() => {
+              clearCloseTimeout();
+              setOpenSlug(group.primarySlug);
+            }}
+            onMouseLeave={() => scheduleClose(group.primarySlug)}
           >
+            <a
+              href={categoryPath(locale, group.primarySlug)}
+              className="font-heading text-body-md font-bold text-text transition-colors duration-hover-fast hover:text-accent-hover"
+            >
+              {group.label}
+            </a>
             <button
               type="button"
               aria-expanded={openSlug === group.primarySlug}
               aria-haspopup="true"
-              onFocus={() => setOpenSlug(group.primarySlug)}
-              className="flex items-center gap-1 font-heading text-body-md font-bold text-text transition-colors duration-hover-fast hover:text-accent-hover"
+              aria-label={`${group.label} submenu`}
+              onClick={() =>
+                setOpenSlug((current) => (current === group.primarySlug ? null : group.primarySlug))
+              }
+              onFocus={() => {
+                clearCloseTimeout();
+                setOpenSlug(group.primarySlug);
+              }}
+              className="flex items-center p-1 text-text transition-colors duration-hover-fast hover:text-accent-hover"
             >
-              {group.label}
               <ChevronDown
                 className={cn(
                   "h-4 w-4 transition-transform duration-hover-fast",
@@ -68,19 +97,25 @@ export function MegaMenu({
               />
             </button>
             {openSlug === group.primarySlug ? (
-              <div className="absolute left-1/2 top-full z-40 mt-2 w-56 -translate-x-1/2 rounded-panel border border-border bg-surface p-3 shadow-card-hover">
+              <div
+                className="absolute left-1/2 top-full z-40 mt-2 w-56 -translate-x-1/2 rounded-panel border border-border bg-surface p-3 shadow-card-hover"
+                onMouseEnter={clearCloseTimeout}
+                onMouseLeave={() => scheduleClose(group.primarySlug)}
+              >
                 <ul className="flex flex-col">
-                  {group.categories.map((item) => (
-                    <li key={item.id}>
-                      <a
-                        href={categoryPath(locale, item.slug)}
-                        onClick={() => setOpenSlug(null)}
-                        className="block rounded-button px-3 py-2 font-heading text-body-sm font-semibold text-text hover:bg-background hover:text-accent-hover"
-                      >
-                        {item.name}
-                      </a>
-                    </li>
-                  ))}
+                  {group.categories
+                    .filter((item) => item.slug !== group.primarySlug)
+                    .map((item) => (
+                      <li key={item.id}>
+                        <a
+                          href={categoryPath(locale, item.slug)}
+                          onClick={() => setOpenSlug(null)}
+                          className="block rounded-button px-3 py-2 font-heading text-body-sm font-semibold text-text hover:bg-background hover:text-accent-hover"
+                        >
+                          {item.name}
+                        </a>
+                      </li>
+                    ))}
                 </ul>
               </div>
             ) : null}

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Dosis, Montserrat } from "next/font/google";
 import { locales, isLocale } from "@/lib/i18n";
 import { getAlternates } from "@/lib/alternates";
@@ -21,6 +22,8 @@ const montserrat = Montserrat({
 const dictionaries = { nl, en, fr };
 
 const icons = { icon: "/brand/favicon.png" };
+
+const gaMeasurementId = "G-5YW8C6Y7F4";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -71,9 +74,21 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${dosis.variable} ${montserrat.variable}`}>
       <body className="bg-background font-body text-text">
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${gaMeasurementId}');
+          `}
+        </Script>
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-accent focus:px-4 focus:py-2 focus:text-text"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded focus:bg-accent focus:px-4 focus:py-2 focus:text-text"
         >
           {dictionary.nav.skipToContent}
         </a>

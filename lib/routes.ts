@@ -31,6 +31,14 @@ export function cart(locale: Locale): string {
   return `/${locale}/cart`;
 }
 
+export function checkout(locale: Locale): string {
+  return `/${locale}/checkout`;
+}
+
+export function orderConfirmation(locale: Locale, orderId: string): string {
+  return `/${locale}/order/${orderId}`;
+}
+
 export function account(locale: Locale): string {
   return `/${locale}/account`;
 }

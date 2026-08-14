@@ -2,12 +2,14 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { Heart, Plus } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
 import { formatPrice } from "@/lib/format";
 import { product as productPath } from "@/lib/routes";
 import { cn } from "@/lib/cn";
+import { getProductImageStyle } from "@/lib/image-focal";
+import { productActionButtonClass } from "@/lib/product-action-button";
 import {
   toggleFavorite,
   useStorefrontState,
@@ -67,7 +69,8 @@ export function ProductCard({
               <img
                 src={primaryImage.url}
                 alt={primaryImage.alt ?? product.name}
-                className="h-full w-full rounded-full object-cover transition-transform duration-hover group-hover:scale-[1.03]"
+                style={getProductImageStyle(primaryImage.url)}
+                className="product-image-focal product-image-focal--zoomable h-full w-full rounded-full object-cover transition-transform duration-hover"
               />
             ) : (
               <span className="block h-full w-full rounded-full bg-background" aria-hidden="true" />
@@ -79,48 +82,53 @@ export function ProductCard({
           <span className="mt-3 line-clamp-3 min-w-0 font-heading text-[clamp(0.82rem,3.8vw,1.125rem)] font-semibold leading-[1.15] tracking-heading text-text [hyphens:auto] [overflow-wrap:break-word] sm:text-heading-sm">
             {product.name}
           </span>
+          {product.shortDescription ? (
+            <span className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted sm:text-body-sm">
+              {product.shortDescription}
+            </span>
+          ) : null}
         </button>
 
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3 max-[359px]:flex-col max-[359px]:items-stretch">
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
           <p className="min-w-0 text-sm font-semibold text-text sm:text-base">
             {formatPrice(product.basePriceCents, locale)}
           </p>
-          <div className="flex shrink-0 items-center gap-1 max-[359px]:justify-end">
-            <button
-              type="button"
-              aria-pressed={favorite}
-              aria-label={
-                favorite
-                  ? dictionary.product.removeFromFavorites
-                  : dictionary.product.addToFavorites
-              }
-              onClick={() => toggleFavorite(favoriteItem)}
-              className={cn(
-                "inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-muted shadow-card transition-colors duration-hover-fast hover:border-border-hover hover:text-red-600",
-                favorite && "border-red-200 bg-red-50 text-red-600"
-              )}
-            >
-              <Heart
-                className="h-5 w-5"
-                fill={favorite ? "currentColor" : "none"}
-                aria-hidden="true"
-              />
-            </button>
-            <button
-              type="button"
-              aria-label={dictionary.product.addProductToCart.replace("{product}", product.name)}
-              onClick={openQuickView}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-accent bg-accent text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover"
-            >
-              <Plus className="h-5 w-5" aria-hidden="true" />
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-pressed={favorite}
+            aria-label={
+              favorite
+                ? dictionary.product.removeFromFavorites
+                : dictionary.product.addToFavorites
+            }
+            onClick={() => toggleFavorite(favoriteItem)}
+            className={cn(
+              "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted shadow-card transition-colors duration-hover-fast hover:border-border-hover hover:text-red-600",
+              favorite && "border-red-200 bg-red-50 text-red-600"
+            )}
+          >
+            <Heart
+              className="h-5 w-5"
+              fill={favorite ? "currentColor" : "none"}
+              aria-hidden="true"
+            />
+          </button>
         </div>
+
+        <button
+          type="button"
+          aria-label={dictionary.product.openQuickView.replace("{product}", product.name)}
+          onClick={openQuickView}
+          className={`${productActionButtonClass} mt-3 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs`}
+        >
+          <ShoppingCart className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {dictionary.product.quickOrder}
+        </button>
         <Link
           href={productPath(locale, product.slug)}
-          className="mt-2 flex min-h-11 items-center justify-center rounded-button text-center font-heading text-xs font-semibold text-muted underline decoration-border-hover underline-offset-4 hover:bg-background hover:text-text"
+          className={`${productActionButtonClass} mt-3 w-full text-center text-sm max-[420px]:px-2 max-[420px]:text-xs`}
         >
-          {dictionary.product.viewProduct}
+          {dictionary.product.moreInfo}
         </Link>
       </Card>
 

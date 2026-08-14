@@ -1,8 +1,9 @@
 import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
-import { articles, home } from "@/lib/routes";
+import { home } from "@/lib/routes";
 import { getMainCategories } from "@/lib/queries";
 import { groupMainCategories } from "@/lib/categoryGroups";
+import { hiddenNavCategorySlugs } from "@/lib/navVisibility";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
@@ -19,7 +20,9 @@ export async function Header({
   dictionary: typeof nl;
   languages: Partial<Record<Locale, string>>;
 }) {
-  const mainCategories = await getMainCategories(locale);
+  const mainCategories = (await getMainCategories(locale)).filter(
+    (category) => !hiddenNavCategorySlugs.has(category.slug)
+  );
   const { groups, promotional } = groupMainCategories(mainCategories);
 
   return (
@@ -39,9 +42,6 @@ export async function Header({
                   size="responsive"
                 />
               </a>
-              <p className="hidden min-w-0 text-body-sm text-muted sm:block">
-                {dictionary.brand.baseline}
-              </p>
             </div>
             <div className="flex shrink-0 items-center gap-3 sm:gap-gap-md">
               <div className="hidden sm:block">
@@ -58,12 +58,6 @@ export async function Header({
               className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3"
             >
               <MegaMenu groups={groups} promotional={promotional} locale={locale} />
-              <a
-                href={articles(locale)}
-                className="font-heading text-body-md font-bold text-text transition-colors duration-hover-fast hover:text-accent-hover"
-              >
-                {dictionary.nav.articles}
-              </a>
             </nav>
           </Container>
         </div>

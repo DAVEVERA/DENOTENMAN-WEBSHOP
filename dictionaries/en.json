@@ -48,6 +48,10 @@
     "addToFavorites": "Add to favorites",
     "removeFromFavorites": "Remove from favorites",
     "quickViewTitle": "Choose your option",
+    "selectQuantity": "Select quantity",
+    "inStock": "In stock",
+    "quickOrder": "Quick order",
+    "moreInfo": "More info",
     "viewProduct": "View product",
     "fullDetails": "View all product details",
     "quantity": "Quantity",
@@ -84,11 +88,61 @@
     "decrease": "Decrease quantity",
     "increase": "Increase quantity"
   },
+  "checkout": {
+    "title": "Checkout",
+    "contactHeading": "Contact details",
+    "name": "Name",
+    "email": "Email address",
+    "phone": "Phone number (optional)",
+    "shippingHeading": "Shipping address",
+    "street": "Street name",
+    "houseNumber": "House number",
+    "postalCode": "Postal code",
+    "city": "City",
+    "summaryHeading": "Order summary",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "shippingFree": "Free",
+    "total": "Total",
+    "submit": "Continue to payment",
+    "submitting": "Processing...",
+    "emptyCart": "Your cart is empty.",
+    "backToCart": "Back to cart",
+    "genericError": "Something went wrong. Please try again.",
+    "errorOutOfStock": "One or more products are no longer available in the requested quantity.",
+    "errorInvalidContact": "Please check the details you entered."
+  },
+  "order": {
+    "paidTitle": "Thank you for your order!",
+    "paidBody": "We've received your payment. You'll receive a confirmation by email.",
+    "pendingTitle": "Payment is being processed",
+    "pendingBody": "We're still waiting for confirmation of your payment. This page refreshes automatically.",
+    "cancelledTitle": "Payment unsuccessful",
+    "cancelledBody": "The payment was cancelled, expired, or failed. You can try again.",
+    "orderNumber": "Order number",
+    "backToShop": "Continue shopping",
+    "tryAgain": "Try again"
+  },
   "account": {
     "title": "My account",
     "favorites": "My favorites",
     "favoritesEmpty": "You do not have any favorite products yet.",
     "savedOnDevice": "Your favorites are saved on this device."
+  },
+  "accountOrders": {
+    "title": "Look up an order",
+    "intro": "There is no login account. Enter your email address and order number to check your order status.",
+    "orderIdLabel": "Order number",
+    "orderIdHint": "You can find this on the confirmation page after checkout.",
+    "submit": "View order",
+    "submitting": "Looking up...",
+    "notFound": "No order found with this email address and order number. Please check both.",
+    "itemsTitle": "Ordered products",
+    "trackingLabel": "Track & trace",
+    "trackingCta": "Track your parcel with PostNL",
+    "newLookup": "Look up another order",
+    "confirmationHint": "Save your order number — you can look up its status later via",
+    "confirmationLinkLabel": "My account"
   },
   "category": {
     "filters": "Filters",
@@ -120,6 +174,7 @@
     "fedorsFavoriteViewAll": "View all deals"
   },
   "filters": {
+    "categoryLabel": "Category",
     "preparationLabel": "Preparation",
     "preparationRaw": "Raw",
     "preparationRoasted": "Roasted",
@@ -131,6 +186,11 @@
     "coatingChocolate": "Chocolate",
     "coatingYoghurt": "Yoghurt",
     "coatingFlavored": "Flavored",
-    "reset": "Clear filters"
+    "reset": "Clear filters",
+    "clearAll": "Clear all",
+    "closeFilters": "Close filters",
+    "removeFilter": "Remove filter: {label}",
+    "resultsCountSingular": "1 product found",
+    "resultsCountPlural": "{count} products found"
   }
 }

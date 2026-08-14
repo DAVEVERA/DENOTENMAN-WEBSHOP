@@ -48,6 +48,10 @@
     "addToFavorites": "Ajouter aux favoris",
     "removeFromFavorites": "Retirer des favoris",
     "quickViewTitle": "Choisissez votre option",
+    "selectQuantity": "Sélectionnez la quantité",
+    "inStock": "En stock",
+    "quickOrder": "Commander rapidement",
+    "moreInfo": "Plus d’infos",
     "viewProduct": "Voir le produit",
     "fullDetails": "Voir tous les détails du produit",
     "quantity": "Quantité",
@@ -84,11 +88,61 @@
     "decrease": "Diminuer la quantité",
     "increase": "Augmenter la quantité"
   },
+  "checkout": {
+    "title": "Commander",
+    "contactHeading": "Coordonnées",
+    "name": "Nom",
+    "email": "Adresse e-mail",
+    "phone": "Numéro de téléphone (facultatif)",
+    "shippingHeading": "Adresse de livraison",
+    "street": "Rue",
+    "houseNumber": "Numéro",
+    "postalCode": "Code postal",
+    "city": "Ville",
+    "summaryHeading": "Récapitulatif de la commande",
+    "subtotal": "Sous-total",
+    "shipping": "Frais de livraison",
+    "shippingFree": "Gratuit",
+    "total": "Total",
+    "submit": "Passer au paiement",
+    "submitting": "Traitement...",
+    "emptyCart": "Votre panier est vide.",
+    "backToCart": "Retour au panier",
+    "genericError": "Une erreur s'est produite. Veuillez réessayer.",
+    "errorOutOfStock": "Un ou plusieurs produits ne sont plus disponibles dans la quantité demandée.",
+    "errorInvalidContact": "Veuillez vérifier les informations saisies."
+  },
+  "order": {
+    "paidTitle": "Merci pour votre commande !",
+    "paidBody": "Nous avons bien reçu votre paiement. Vous recevrez une confirmation par e-mail.",
+    "pendingTitle": "Paiement en cours de traitement",
+    "pendingBody": "Nous attendons encore la confirmation de votre paiement. Cette page s'actualise automatiquement.",
+    "cancelledTitle": "Paiement échoué",
+    "cancelledBody": "Le paiement a été annulé, a expiré ou a échoué. Vous pouvez réessayer.",
+    "orderNumber": "Numéro de commande",
+    "backToShop": "Continuer mes achats",
+    "tryAgain": "Réessayer"
+  },
   "account": {
     "title": "Mon compte",
     "favorites": "Mes favoris",
     "favoritesEmpty": "Vous n'avez pas encore de produits favoris.",
     "savedOnDevice": "Vos favoris sont enregistrés sur cet appareil."
+  },
+  "accountOrders": {
+    "title": "Retrouver une commande",
+    "intro": "Il n'y a pas de compte de connexion. Indiquez votre e-mail et votre numéro de commande pour consulter le statut de votre commande.",
+    "orderIdLabel": "Numéro de commande",
+    "orderIdHint": "Vous le trouverez sur la page de confirmation après le paiement.",
+    "submit": "Voir la commande",
+    "submitting": "Recherche en cours...",
+    "notFound": "Aucune commande trouvée avec cet e-mail et ce numéro de commande. Vérifiez les deux.",
+    "itemsTitle": "Produits commandés",
+    "trackingLabel": "Suivi de colis",
+    "trackingCta": "Suivez votre colis chez PostNL",
+    "newLookup": "Retrouver une autre commande",
+    "confirmationHint": "Conservez votre numéro de commande — vous pourrez suivre son statut plus tard via",
+    "confirmationLinkLabel": "Mon compte"
   },
   "category": {
     "filters": "Filtres",
@@ -120,6 +174,7 @@
     "fedorsFavoriteViewAll": "Voir toutes les promotions"
   },
   "filters": {
+    "categoryLabel": "Catégorie",
     "preparationLabel": "Préparation",
     "preparationRaw": "Cru",
     "preparationRoasted": "Torréfié",
@@ -131,6 +186,11 @@
     "coatingChocolate": "Chocolat",
     "coatingYoghurt": "Yaourt",
     "coatingFlavored": "Aromatisé",
-    "reset": "Réinitialiser les filtres"
+    "reset": "Réinitialiser les filtres",
+    "clearAll": "Tout effacer",
+    "closeFilters": "Fermer les filtres",
+    "removeFilter": "Supprimer le filtre : {label}",
+    "resultsCountSingular": "1 produit trouvé",
+    "resultsCountPlural": "{count} produits trouvés"
   }
 }

@@ -1,0 +1,26 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        docker build \
+          --build-arg DATABASE_URL="$$DATABASE_URL" \
+          --build-arg CDN_BASE_URL="${_CDN_BASE_URL}" \
+          --build-arg SITE_URL="${_SITE_URL}" \
+          -t "${_IMAGE}" \
+          .
+    secretEnv: ["DATABASE_URL"]
+
+images:
+  - "${_IMAGE}"
+
+substitutions:
+  _IMAGE: europe-west4-docker.pkg.dev/project-5dc79156-4200-4528-bfc/denotenman-webshop/storefront:latest
+  _CDN_BASE_URL: https://storage.googleapis.com/notenbucket
+  _SITE_URL: https://denotenman.com
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/project-5dc79156-4200-4528-bfc/secrets/denotenman-database-url/versions/latest
+      env: "DATABASE_URL"

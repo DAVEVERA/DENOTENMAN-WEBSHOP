@@ -38,7 +38,10 @@ export function Tabs({
 
   return (
     <div>
-      <div role="tablist" className="flex gap-2 border-b border-border">
+      <div
+        role="tablist"
+        className="flex w-full max-w-full gap-2 overflow-x-auto border-b border-border"
+      >
         {tabs.map((tab, index) => (
           <button
             key={tab.id}

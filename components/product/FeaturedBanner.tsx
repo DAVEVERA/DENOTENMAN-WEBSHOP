@@ -3,6 +3,7 @@ import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
 import { category as categoryPath, product as productPath } from "@/lib/routes";
 import { Container } from "@/components/ui/Container";
+import { getProductImageStyle } from "@/lib/image-focal";
 
 export function FeaturedBanner({
   products,
@@ -41,7 +42,8 @@ export function FeaturedBanner({
                       <img
                         src={image.url}
                         alt={image.alt ?? product.name}
-                        className="h-full w-full object-cover"
+                        style={getProductImageStyle(image.url)}
+                        className="product-image-focal h-full w-full object-cover"
                       />
                     ) : null}
                   </span>

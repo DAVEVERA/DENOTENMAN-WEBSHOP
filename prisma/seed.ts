@@ -9,6 +9,7 @@ const storage = new Storage();
 const translateClient = new v3.TranslationServiceClient();
 
 const locales = ["nl", "en", "fr"] as const;
+const maxShortDescriptionLength = 160;
 
 const pageTitles: Record<(typeof pageKeys)[number], Record<(typeof locales)[number], string>> = {
   about: { nl: "Over ons", en: "About us", fr: "À propos" },
@@ -46,6 +47,21 @@ function cleanName(str: string): string {
   name = name.replace(/Notenpasta’s/g, "Notenpasta's");
 
   return name;
+}
+
+function toShortDescription(value: string): string | null {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const characters = Array.from(normalized);
+
+  if (!normalized) return null;
+  if (characters.length <= maxShortDescriptionLength) return normalized;
+
+  const clipped = characters.slice(0, maxShortDescriptionLength - 1).join("");
+  const lastSpace = clipped.lastIndexOf(" ");
+
+  if (lastSpace <= 0) return null;
+
+  return `${clipped.slice(0, lastSpace).trimEnd()}…`;
 }
 
 function slugify(str: string): string {
@@ -579,6 +595,7 @@ async function main() {
                 name: byLocale[locale][0] || productName,
                 slug: productSlugs[locale],
                 description: byLocale[locale][1] || longDescription,
+                shortDescription: toShortDescription(byLocale[locale][3] || metaDescription),
               })),
             },
             variants: {

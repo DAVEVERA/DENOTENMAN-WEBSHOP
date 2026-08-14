@@ -104,13 +104,14 @@ model Product {
 }
 
 model ProductTranslation {
-  id          String   @id @default(cuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id])
-  locale      Locale
-  name        String
-  slug        String
-  description String?
+  id               String  @id @default(cuid())
+  productId        String
+  product          Product @relation(fields: [productId], references: [id])
+  locale           Locale
+  name             String
+  slug             String
+  description      String?
+  shortDescription String?
 
   @@unique([productId, locale])
   @@unique([locale, slug])
@@ -236,16 +237,40 @@ model User {
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  userId      String
-  user        User        @relation(fields: [userId], references: [id])
-  status      OrderStatus @default(PENDING)
-  totalCents  Int
-  createdAt   DateTime    @default(now())
+  id     String      @id @default(cuid())
+  userId String
+  user   User        @relation(fields: [userId], references: [id])
+  status OrderStatus @default(PENDING)
+
+  locale        String @default("nl")
+  currency      String @default("EUR")
+  subtotalCents Int
+  shippingCents Int    @default(0)
+  totalCents    Int
+
+  contactName  String
+  contactEmail String
+  contactPhone String?
+
+  shippingStreet      String
+  shippingHouseNumber String
+  shippingPostalCode  String
+  shippingCity        String
+  shippingCountry     String @default("NL")
+
+  molliePaymentId String?   @unique
+  paidAt          DateTime?
+
+  postnlTrackingCode String?
+  postnlLabelBase64  String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   items OrderItem[]
 
   @@index([userId])
+  @@index([status])
 }
 
 model OrderItem {
@@ -254,6 +279,8 @@ model OrderItem {
   order          Order          @relation(fields: [orderId], references: [id])
   variantId      String
   variant        ProductVariant @relation(fields: [variantId], references: [id])
+  productName    String
+  variantLabel   String
   quantity       Int
   unitPriceCents Int
 

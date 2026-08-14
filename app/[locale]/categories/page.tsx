@@ -29,7 +29,7 @@ export default async function CategoriesPage({
   const locale = rawLocale;
   const dictionary = dictionaries[locale];
   const alternates = await getAlternates(locale, { type: "categories" });
-  const products = await getFilteredProducts("all", locale, []);
+  const products = await getFilteredProducts("all", locale, [], { limit: 300 });
 
   return (
     <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>

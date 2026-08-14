@@ -48,6 +48,10 @@
     "addToFavorites": "Toevoegen aan favorieten",
     "removeFromFavorites": "Verwijderen uit favorieten",
     "quickViewTitle": "Kies je variant",
+    "selectQuantity": "Selecteer hoeveelheid",
+    "inStock": "Op voorraad",
+    "quickOrder": "Snel bestellen",
+    "moreInfo": "Meer info",
     "viewProduct": "Bekijk product",
     "fullDetails": "Bekijk alle productdetails",
     "quantity": "Aantal",
@@ -84,11 +88,61 @@
     "decrease": "Verlaag aantal",
     "increase": "Verhoog aantal"
   },
+  "checkout": {
+    "title": "Afrekenen",
+    "contactHeading": "Contactgegevens",
+    "name": "Naam",
+    "email": "E-mailadres",
+    "phone": "Telefoonnummer (optioneel)",
+    "shippingHeading": "Verzendadres",
+    "street": "Straatnaam",
+    "houseNumber": "Huisnummer",
+    "postalCode": "Postcode",
+    "city": "Plaats",
+    "summaryHeading": "Besteloverzicht",
+    "subtotal": "Subtotaal",
+    "shipping": "Verzendkosten",
+    "shippingFree": "Gratis",
+    "total": "Totaal",
+    "submit": "Doorgaan naar betalen",
+    "submitting": "Bezig...",
+    "emptyCart": "Je winkelwagen is leeg.",
+    "backToCart": "Terug naar winkelwagen",
+    "genericError": "Er ging iets mis. Probeer het opnieuw.",
+    "errorOutOfStock": "Eén of meer producten zijn niet meer op voorraad in het gevraagde aantal.",
+    "errorInvalidContact": "Controleer de ingevulde gegevens."
+  },
+  "order": {
+    "paidTitle": "Bedankt voor je bestelling!",
+    "paidBody": "We hebben je betaling ontvangen. Je ontvangt een bevestiging per e-mail.",
+    "pendingTitle": "Betaling wordt verwerkt",
+    "pendingBody": "We wachten nog op bevestiging van je betaling. Deze pagina ververst automatisch.",
+    "cancelledTitle": "Betaling niet gelukt",
+    "cancelledBody": "De betaling is geannuleerd, verlopen of mislukt. Je kunt het opnieuw proberen.",
+    "orderNumber": "Bestelnummer",
+    "backToShop": "Verder winkelen",
+    "tryAgain": "Probeer opnieuw"
+  },
   "account": {
     "title": "Mijn account",
     "favorites": "Mijn favorieten",
     "favoritesEmpty": "Je hebt nog geen favoriete producten.",
     "savedOnDevice": "Je favorieten worden op dit apparaat bewaard."
+  },
+  "accountOrders": {
+    "title": "Bestelling opzoeken",
+    "intro": "We werken zonder inlogaccount. Vul je e-mailadres en bestelnummer in om de status van je bestelling te bekijken.",
+    "orderIdLabel": "Bestelnummer",
+    "orderIdHint": "Te vinden op de bevestigingspagina na het afrekenen.",
+    "submit": "Bestelling bekijken",
+    "submitting": "Bezig met zoeken...",
+    "notFound": "Geen bestelling gevonden met dit e-mailadres en bestelnummer. Controleer beide gegevens.",
+    "itemsTitle": "Bestelde producten",
+    "trackingLabel": "Track & trace",
+    "trackingCta": "Volg je pakket bij PostNL",
+    "newLookup": "Andere bestelling opzoeken",
+    "confirmationHint": "Bewaar je bestelnummer — je kunt de status later opzoeken via",
+    "confirmationLinkLabel": "Mijn account"
   },
   "category": {
     "filters": "Filters",
@@ -120,6 +174,7 @@
     "fedorsFavoriteViewAll": "Bekijk alle acties"
   },
   "filters": {
+    "categoryLabel": "Categorie",
     "preparationLabel": "Bereiding",
     "preparationRaw": "Rauw",
     "preparationRoasted": "Gebrand",
@@ -131,6 +186,11 @@
     "coatingChocolate": "Chocolade",
     "coatingYoghurt": "Yoghurt",
     "coatingFlavored": "Gearomatiseerd",
-    "reset": "Filters wissen"
+    "reset": "Filters wissen",
+    "clearAll": "Alles wissen",
+    "closeFilters": "Sluit filters",
+    "removeFilter": "Verwijder filter: {label}",
+    "resultsCountSingular": "1 product gevonden",
+    "resultsCountPlural": "{count} producten gevonden"
   }
 }

@@ -30,6 +30,7 @@ export default async function CartPage({
           labels={{
             empty: dictionary.cart.empty,
             total: dictionary.cart.total,
+            checkout: dictionary.cart.checkout,
             remove: dictionary.cart.remove,
             decrease: dictionary.cart.decrease,
             increase: dictionary.cart.increase,

@@ -5,7 +5,7 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import type nl from "@/dictionaries/nl.json";
 import type { MainCategoryDto } from "@/lib/queries";
 import type { Locale } from "@/lib/i18n";
-import { account, articles, cart, category as categoryPath, categories as categoriesPath, home } from "@/lib/routes";
+import { account, cart, category as categoryPath, categories as categoriesPath, home } from "@/lib/routes";
 import { cn } from "@/lib/cn";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 
@@ -147,13 +147,6 @@ export function MobileNav({
                   </ul>
                 ) : null}
               </div>
-              <a
-                href={articles(locale)}
-                onClick={closeMenu}
-                className="min-h-11 rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
-              >
-                {dictionary.nav.articles}
-              </a>
               <a
                 href={cart(locale)}
                 onClick={closeMenu}

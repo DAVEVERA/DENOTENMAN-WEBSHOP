@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 import { formatPrice } from "@/lib/format";
-import { product as productPath } from "@/lib/routes";
+import { product as productPath, checkout as checkoutPath } from "@/lib/routes";
 import {
   removeCartItem,
   updateCartQuantity,
@@ -19,6 +19,7 @@ export function CartPanel({
   labels: {
     empty: string;
     total: string;
+    checkout: string;
     remove: string;
     decrease: string;
     increase: string;
@@ -107,6 +108,12 @@ export function CartPanel({
         <span className="font-heading text-lg font-semibold">{labels.total}</span>
         <span className="font-heading text-xl font-semibold">{formatPrice(total, locale)}</span>
       </div>
+      <Link
+        href={checkoutPath(locale)}
+        className="mt-4 flex min-h-11 items-center justify-center rounded-button border border-accent bg-accent px-6 py-3 font-heading tracking-heading text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover"
+      >
+        {labels.checkout}
+      </Link>
     </div>
   );
 }

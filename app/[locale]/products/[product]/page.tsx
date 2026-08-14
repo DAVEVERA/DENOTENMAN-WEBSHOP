@@ -36,13 +36,18 @@ export async function generateMetadata({
     return {};
   }
 
-  const alternates = await getAlternates(rawLocale, { type: "product", slug: product });
+  const [alternates, data] = await Promise.all([
+    getAlternates(rawLocale, { type: "product", slug: product }),
+    getProductBySlug(product, rawLocale),
+  ]);
 
-  if (!alternates) {
+  if (!alternates || !data) {
     return {};
   }
 
   return {
+    title: data.name,
+    description: data.shortDescription ?? data.description ?? undefined,
     alternates: {
       canonical: alternates.canonical,
       languages: alternates.languages,
@@ -80,6 +85,7 @@ export default async function ProductPage({
   }
 
   const attributes = new Map(data.attributes.map((attr) => [attr.key, attr.value]));
+  const primaryImage = data.images.find((image) => image.isPrimary) ?? data.images[0];
   const energyKj = attributes.get("nutrition.energyKj");
   const energyKcal = attributes.get("nutrition.energyKcal");
 
@@ -128,13 +134,23 @@ export default async function ProductPage({
             />
           </div>
 
+          {data.shortDescription ? (
+            <p className="mt-4 max-w-2xl text-body-md leading-relaxed text-text">
+              {data.shortDescription}
+            </p>
+          ) : null}
+
           {data.variants.length > 0 ? (
             <div className="mt-6">
               <VariantSelector
                 variants={data.variants}
                 locale={locale}
-                outOfStockLabel={dictionary.product.outOfStock}
-                addToCartLabel={dictionary.product.addToCart}
+                product={{
+                  id: data.id,
+                  slug: data.slug,
+                  name: data.name,
+                  imageUrl: primaryImage?.url ?? null,
+                }}
               />
             </div>
           ) : null}

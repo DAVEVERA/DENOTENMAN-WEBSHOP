@@ -3,6 +3,7 @@ import path from "node:path";
 import { locales } from "./lib/i18n";
 import { pageKeys, pageSlugs } from "./lib/pages";
 import { categoriesSegment, pagesSegment, productsSegment } from "./lib/segments";
+import { legacyWordpressRedirects } from "./lib/legacyRedirects";
 
 const cdnBaseUrl = process.env.CDN_BASE_URL;
 const cdnHostname = cdnBaseUrl ? new URL(cdnBaseUrl).hostname : undefined;
@@ -54,6 +55,7 @@ function localizedWildcardRedirects(
 }
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   turbopack: {
     root: path.resolve(import.meta.dirname),
   },
@@ -76,6 +78,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      ...legacyWordpressRedirects(),
       ...localizedPageRedirects(),
       ...localizedWildcardRedirects(productsSegment, "products"),
       ...localizedWildcardRedirects(categoriesSegment, "categories"),
