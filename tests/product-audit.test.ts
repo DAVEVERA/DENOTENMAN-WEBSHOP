@@ -4,6 +4,7 @@ import {
   buildDeterministicProductAudit,
   generateStructuredProductProposals,
   prepareAuditProposalApplication,
+  productAuditProposalJsonSchema,
   type ProductAuditAiBoundary,
   type ProductAuditSnapshot,
 } from "../lib/product-audit-core";
@@ -304,6 +305,14 @@ async function testOpenAIBoundarySendsStrictSchemaAndParsesResponsesOutput() {
   });
 }
 
+async function testStructuredSchemaCarriesEditorialLengthLimitsUpstream() {
+  const proposal = productAuditProposalJsonSchema.properties.proposals.items.properties;
+  assert.equal(proposal.shortDescription.maxLength, 220);
+  assert.equal(proposal.fullDescriptionHtml.maxLength, 6000);
+  assert.equal(proposal.seoTitle.maxLength, 70);
+  assert.equal(proposal.metaDescription.maxLength, 180);
+}
+
 async function testOpenAIBoundaryDistinguishesExhaustedCreditsFromRateLimiting() {
   const boundary = createOpenAIProductAuditBoundary({
     apiKey: "test-key-never-sent",
@@ -421,6 +430,7 @@ async function main() {
   await testReviewApplyRejectsStaleAndOnlyReturnsEditorialUpdates();
   await testMissingOpenAIKeyFailsClearlyWithoutNetworkCall();
   await testOpenAIBoundarySendsStrictSchemaAndParsesResponsesOutput();
+  await testStructuredSchemaCarriesEditorialLengthLimitsUpstream();
   await testOpenAIBoundaryDistinguishesExhaustedCreditsFromRateLimiting();
   await testStructuredProposalRejectsProtectedMutationFields();
   await testStructuredProposalRejectsUngroundedSensitiveClaims();

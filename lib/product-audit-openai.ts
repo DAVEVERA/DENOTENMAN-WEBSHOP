@@ -2,7 +2,7 @@ import type { ProductAuditAiBoundary } from "@/lib/product-audit-core";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5-mini";
-const REQUEST_TIMEOUT_MS = 45_000;
+const REQUEST_TIMEOUT_MS = 120_000;
 const MAX_RESPONSE_BYTES = 1_000_000;
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;

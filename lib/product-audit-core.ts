@@ -384,7 +384,7 @@ export const productAuditProposalJsonSchema = {
   additionalProperties: false,
   required: ["overallRecommendations", "proposals"],
   properties: {
-    overallRecommendations: { type: "array", minItems: 1, maxItems: 8, items: { type: "string" } },
+    overallRecommendations: { type: "array", minItems: 1, maxItems: 8, items: { type: "string", minLength: 1, maxLength: 300 } },
     proposals: {
       type: "array",
       minItems: 3,
@@ -395,11 +395,11 @@ export const productAuditProposalJsonSchema = {
         required: ["locale", "shortDescription", "fullDescriptionHtml", "seoTitle", "metaDescription", "rationale", "languageFindings", "evidencePaths"],
         properties: {
           locale: { type: "string", enum: [...auditLocales] },
-          shortDescription: { type: "string" },
-          fullDescriptionHtml: { type: "string" },
-          seoTitle: { type: "string" },
-          metaDescription: { type: "string" },
-          rationale: { type: "array", items: { type: "string" } },
+          shortDescription: { type: "string", minLength: 40, maxLength: 220 },
+          fullDescriptionHtml: { type: "string", minLength: 80, maxLength: 6000 },
+          seoTitle: { type: "string", minLength: 20, maxLength: 70 },
+          metaDescription: { type: "string", minLength: 70, maxLength: 180 },
+          rationale: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 1, maxLength: 300 } },
           languageFindings: {
             type: "array",
             items: {
@@ -408,12 +408,12 @@ export const productAuditProposalJsonSchema = {
               required: ["kind", "message", "evidencePath"],
               properties: {
                 kind: { type: "string", enum: ["grammar", "spelling", "style", "translation"] },
-                message: { type: "string" },
-                evidencePath: { type: "string" },
+                message: { type: "string", minLength: 1, maxLength: 300 },
+                evidencePath: { type: "string", minLength: 1, maxLength: 160 },
               },
             },
           },
-          evidencePaths: { type: "array", items: { type: "string" } },
+          evidencePaths: { type: "array", minItems: 1, maxItems: 12, items: { type: "string", minLength: 1, maxLength: 160 } },
         },
       },
     },
