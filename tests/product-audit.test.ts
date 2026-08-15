@@ -414,6 +414,7 @@ async function testStructuredProposalRetriesOnceAfterUngroundedOutput() {
   const result = await generateStructuredProductProposals(snapshot(), fake);
   assert.equal(calls, 2);
   assert.match(retrySystem, /vorig voorstel is door de output- of feitelijke controle afgewezen/i);
+  assert.match(retrySystem, /biologisch/i);
   assert.equal(result.proposals.length, 3);
 }
 

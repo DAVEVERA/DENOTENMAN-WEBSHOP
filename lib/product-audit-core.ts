@@ -595,6 +595,21 @@ function isRetryableProposalOutputError(error: unknown): boolean {
   return code === "OPENAI_INVALID_STRUCTURED_OUTPUT";
 }
 
+function proposalRejectionReason(error: unknown): string {
+  return error instanceof UngroundedProductClaimError ? error.reason : "invalid-output";
+}
+
+function proposalCorrection(reasons: Set<string>): string {
+  const corrections = [...reasons].map((reason) => {
+    if (reason === "origin") return "Noem nergens een land, regio, oorsprong of herkomst, ook niet als vertaling.";
+    if (reason === "weight") return "Noem nergens een gewicht, gram, kilogram, inhoudsmaat of voedingswaarde per gewicht.";
+    if (reason === "price") return "Noem nergens een prijs, eurobedrag, korting of actiebedrag.";
+    if (reason.startsWith("sensitive:")) return `Gebruik de afgewezen claim '${reason.slice("sensitive:".length)}' en synoniemen daarvan nergens.`;
+    return "Lever alle drie talen volledig, geldig en beknopt binnen iedere schemalimiet.";
+  });
+  return `Een vorig voorstel is door de output- of feitelijke controle afgewezen. ${corrections.join(" ")}`;
+}
+
 export async function generateStructuredProductProposals(
   snapshot: ProductAuditSnapshot,
   boundary: ProductAuditAiBoundary,
@@ -613,6 +628,7 @@ export async function generateStructuredProductProposals(
       "Onderbouw ieder voorstel met exacte evidencePaths uit de aangeleverde brondata.",
     ].join(" ");
   const prompt = JSON.stringify({ task: "Maak per locale één redactioneel voorstel en een taalkundige toetsing. Alle output wordt eerst door een beheerder beoordeeld.", source: aiGroundingPayload(snapshot, audit, renderedPages) });
+  const rejectionReasons = new Set<string>();
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
@@ -620,7 +636,7 @@ export async function generateStructuredProductProposals(
         task: "product-content-audit",
         system: attempt === 0
           ? systemInstructions
-          : `${systemInstructions} Een vorig voorstel is door de output- of feitelijke controle afgewezen. Schrijf beknopt en volledig binnen alle schemalimieten. Vermijd alle prijzen, gewichten, herkomstclaims, keurmerken, allergenen-, voorraad- en gezondheidsclaims, tenzij die letterlijk en in dezelfde taal in de brondata staan.`,
+          : `${systemInstructions} ${proposalCorrection(rejectionReasons)} Schrijf beknopt en volledig binnen alle schemalimieten. Vermijd daarnaast alle prijzen, gewichten, herkomstclaims, keurmerken, allergenen-, voorraad- en gezondheidsclaims, tenzij die letterlijk en in dezelfde taal in de brondata staan.`,
         prompt,
         schema: productAuditProposalJsonSchema as unknown as Record<string, unknown>,
       });
@@ -647,9 +663,10 @@ export async function generateStructuredProductProposals(
       };
     } catch (error) {
       if (attempt < 2 && isRetryableProposalOutputError(error)) {
+        rejectionReasons.add(proposalRejectionReason(error));
         console.warn("AI product proposal rejected; retrying safely", {
           attempt: attempt + 1,
-          reason: error instanceof UngroundedProductClaimError ? error.reason : "invalid-output",
+          reason: proposalRejectionReason(error),
         });
         continue;
       }
