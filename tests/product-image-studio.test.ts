@@ -7,6 +7,7 @@ import {
   StudioConflictError,
   StudioValidationError,
   buildStudioVersionKey,
+  buildRestoredImageKey,
   createOpenAIImageGateway,
   consumeStudioRateLimit,
   parseStudioRequest,
@@ -26,6 +27,13 @@ test("studio outputs use a new traversal-safe version key", () => {
     () => buildStudioVersionKey("../../", "crop", "image_123"),
     (error: unknown) => error instanceof StudioValidationError && error.code === "VALIDATION_ERROR"
   );
+});
+
+test("restored images receive a new safe active storage key", () => {
+  const key = buildRestoredImageKey("products/amandelen/source.png");
+  assert.match(key, /^products\/amandelen\/restored-[0-9a-f-]+-source\.png$/);
+  assert.notEqual(key, "products/amandelen/source.png");
+  assert.throws(() => buildRestoredImageKey("source.png"), /ongeldige opslaglocatie/i);
 });
 
 test("AI operations fail with CONFIGURATION_MISSING before making an HTTP request", async () => {

@@ -121,6 +121,7 @@ model Product {
   variants               ProductVariant[]
   attributes             ProductAttribute[]
   images                 ProductImage[]
+  trashedImages          ProductImageTrash[]
   slugAliases            ProductSlugAlias[]
   recommendations        ProductRecommendation[] @relation("RecommendationSource")
   recommendedBy          ProductRecommendation[] @relation("RecommendationTarget")
@@ -274,6 +275,21 @@ model ProductImage {
   isPrimary  Boolean @default(false)
 
   @@index([productId])
+}
+
+model ProductImageTrash {
+  id                 String   @id @default(cuid())
+  productId          String
+  product            Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  originalImageId    String
+  originalStorageKey String
+  archiveStorageKey  String   @unique
+  alt                String?
+  sortOrder          Int
+  wasPrimary         Boolean  @default(false)
+  deletedAt          DateTime @default(now())
+
+  @@index([productId, deletedAt])
 }
 
 model Page {

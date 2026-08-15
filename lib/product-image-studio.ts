@@ -563,6 +563,21 @@ export async function validateStudioImage(bytes: Buffer): Promise<{ width: numbe
 
 export type ArchivedProductImage = { sourceKey: string; archiveKey: string };
 
+export function buildRestoredImageKey(originalStorageKey: string): string {
+  const parts = originalStorageKey.split("/");
+  const filename = parts.pop();
+  const directory = parts.join("/");
+  if (
+    !filename ||
+    !directory.startsWith("products/") ||
+    originalStorageKey.includes("..") ||
+    !/^[A-Za-z0-9._-]+$/.test(filename)
+  ) {
+    throw new StudioValidationError("VALIDATION_ERROR", "De afbeelding heeft een ongeldige opslaglocatie.");
+  }
+  return `${directory}/restored-${randomUUID()}-${filename}`;
+}
+
 export async function archiveProductImage(storageKey: string): Promise<ArchivedProductImage> {
   const bucket = configuredBucket();
   const safeName = storageKey.split("/").pop()?.replace(/[^A-Za-z0-9._-]/g, "-") || "image";
@@ -576,6 +591,17 @@ export async function archiveProductImage(storageKey: string): Promise<ArchivedP
     await archive.delete({ ignoreNotFound: true }).catch(() => undefined);
     console.error("Failed to archive product image", { storageKey, error });
     throw new ProductImageStudioError("STORAGE_FAILED", "De afbeelding kon niet veilig naar de prullenbak worden verplaatst.", 502);
+  }
+}
+
+export async function restoreArchivedProductImage(archiveKey: string, activeStorageKey: string): Promise<void> {
+  const bucket = configuredBucket();
+  try {
+    await bucket.file(archiveKey).copy(bucket.file(activeStorageKey));
+  } catch (error) {
+    await bucket.file(activeStorageKey).delete({ ignoreNotFound: true }).catch(() => undefined);
+    console.error("Failed to restore product image archive", { archiveKey, activeStorageKey, error });
+    throw new ProductImageStudioError("STORAGE_FAILED", "De afbeelding kon niet uit de prullenbak worden hersteld.", 502);
   }
 }
 

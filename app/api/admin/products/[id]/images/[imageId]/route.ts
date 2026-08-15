@@ -93,6 +93,17 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       if (!target) throw new ProductImageStudioError("NOT_FOUND", "De productafbeelding bestaat niet.", 404);
 
       archived = await archiveProductImage(target.storageKey);
+      await tx.productImageTrash.create({
+        data: {
+          productId: id,
+          originalImageId: target.id,
+          originalStorageKey: target.storageKey,
+          archiveStorageKey: archived.archiveKey,
+          alt: target.alt,
+          sortOrder: target.sortOrder,
+          wasPrimary: target.isPrimary,
+        },
+      });
       await tx.productImage.delete({ where: { id: imageId } });
       await applyProductImageOrder(tx, updates);
       return getOrderedProductImages(tx, id);

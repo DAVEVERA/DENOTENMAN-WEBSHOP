@@ -68,4 +68,5 @@ test("the image studio names primary, secondary and tertiary positions explicitl
   assert.match(html, /Schaalmethode/);
   assert.match(html, /Labelachtergrond/);
   assert.match(html, /Icoontype/);
+  assert.match(html, /Herstelbare prullenbak/);
 });

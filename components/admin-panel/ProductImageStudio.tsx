@@ -9,6 +9,7 @@ import {
   Save,
   Sparkles,
   Star,
+  Undo2,
   Trash2,
 } from "lucide-react";
 
@@ -43,6 +44,17 @@ type StudioResponse = {
   image: ProductImageStudioImage;
   versionOf: string | null;
 };
+
+type TrashedImage = {
+  id: string;
+  url: string;
+  alt: string | null;
+  deletedAt: string;
+  originalPosition: number;
+  wasPrimary: boolean;
+};
+
+type TrashResponse = { trash: TrashedImage[] };
 
 type ErrorResponse = { error?: string; message?: string };
 
@@ -100,6 +112,8 @@ export function ProductImageStudio({
   onImagesChange?: (images: ProductImageStudioImage[]) => void;
 }) {
   const [images, setImagesState] = useState(() => canonical(initialImages));
+  const [trash, setTrash] = useState<TrashedImage[]>([]);
+  const [trashLoaded, setTrashLoaded] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState(initialImages[0]?.id ?? "");
   const [operation, setOperation] = useState<StudioOperation>("edit");
   const [prompt, setPrompt] = useState("");
@@ -156,6 +170,19 @@ export function ProductImageStudio({
       setError(cause instanceof Error ? cause.message : "Afbeeldingen vernieuwen is niet gelukt.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function refreshTrash(showMessage = true) {
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/products/${productId}/images/trash`, { cache: "no-store" });
+      const body = await responseJson<TrashResponse>(response);
+      setTrash(body.trash);
+      setTrashLoaded(true);
+      if (showMessage) setMessage("Prullenbak is bijgewerkt.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "De prullenbak kon niet worden geladen.");
     }
   }
 
@@ -259,9 +286,28 @@ export function ProductImageStudio({
       const response = await fetch(`/api/admin/products/${productId}/images/${image.id}`, { method: "DELETE" });
       const body = await responseJson<ImagesResponse>(response);
       setImages(body.images);
+      await refreshTrash(false);
       setMessage("Afbeelding naar de herstelbare prullenbak verplaatst.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Verwijderen is niet gelukt.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function restore(image: TrashedImage) {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/admin/products/${productId}/images/trash/${image.id}/restore`, { method: "POST" });
+      const body = await responseJson<{ image: ProductImageStudioImage }>(response);
+      setImages([...images, body.image]);
+      setSelectedImageId(body.image.id);
+      setTrash((current) => current.filter((item) => item.id !== image.id));
+      setMessage("Afbeelding uit de prullenbak hersteld en achteraan toegevoegd.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Herstellen is niet gelukt.");
     } finally {
       setBusy(false);
     }
@@ -369,6 +415,32 @@ export function ProductImageStudio({
             </div>
           </article>
         ))}
+      </div>
+
+      <div className="mt-6 rounded-card border border-border bg-background p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-heading-sm text-text">Herstelbare prullenbak</h3>
+            <p className="mt-1 text-body-sm text-muted">Verwijderde foto&apos;s blijven hier beschikbaar totdat je ze herstelt.</p>
+          </div>
+          <button type="button" onClick={() => void refreshTrash()} disabled={busy} className={buttonClass}>
+            {trashLoaded ? "Prullenbak vernieuwen" : "Prullenbak laden"}
+          </button>
+        </div>
+        {trashLoaded && trash.length === 0 ? <p className="mt-4 text-body-sm text-muted">De prullenbak is leeg.</p> : null}
+        {trash.length > 0 ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {trash.map((image) => (
+              <article key={image.id} className="rounded-button border border-border bg-surface p-3">
+                <img src={image.url} alt={image.alt || `${productName} verwijderd`} loading="lazy" decoding="async" className="aspect-square w-full rounded-button object-contain" />
+                <p className="mt-2 text-caption text-muted">Verwijderd {new Date(image.deletedAt).toLocaleString("nl-NL")}</p>
+                <button type="button" onClick={() => void restore(image)} disabled={busy} className={`${buttonClass} mt-3 w-full`}>
+                  <Undo2 className="h-4 w-4" />Herstellen
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-6 rounded-card border border-border bg-background p-4">

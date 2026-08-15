@@ -17,8 +17,8 @@ const bucket = storage.bucket(bucketName);
 
 async function main() {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const primaryKey = `integration-tests/product-image-delete/${suffix}-primary.png`;
-  const secondaryKey = `integration-tests/product-image-delete/${suffix}-secondary.png`;
+  const primaryKey = `products/integration-tests/product-image-delete/${suffix}-primary.png`;
+  const secondaryKey = `products/integration-tests/product-image-delete/${suffix}-secondary.png`;
   const archiveSuffix = `-${suffix}-primary.png`;
   let productId: string | undefined;
 
@@ -95,9 +95,41 @@ async function main() {
     assert.equal(secondaryExists, true);
     assert.equal(trashFiles.filter((file) => file.name.endsWith(archiveSuffix)).length, 1);
 
+    const trashRows = await prisma.productImageTrash.findMany({ where: { productId: product.id } });
+    assert.equal(trashRows.length, 1);
+    assert.equal(trashRows[0]?.originalImageId, primary.id);
+
+    const listTrashResponse = await fetch(
+      `${baseUrl}/api/admin/products/${product.id}/images/trash`,
+      { headers: { cookie } }
+    );
+    assert.equal(listTrashResponse.status, 200, await listTrashResponse.clone().text());
+    const listedTrash = await listTrashResponse.json() as { trash: Array<{ id: string }> };
+    assert.equal(listedTrash.trash[0]?.id, trashRows[0]?.id);
+
+    const restoreResponse = await fetch(
+      `${baseUrl}/api/admin/products/${product.id}/images/trash/${trashRows[0]?.id}/restore`,
+      { method: "POST", headers: { cookie } }
+    );
+    assert.equal(restoreResponse.status, 200, await restoreResponse.clone().text());
+    const restoredBody = await restoreResponse.json() as { image: { storageKey: string; sortOrder: number; isPrimary: boolean } };
+    assert.match(restoredBody.image.storageKey, /^products\//);
+    assert.equal(restoredBody.image.sortOrder, 1);
+    assert.equal(restoredBody.image.isPrimary, false);
+    assert.equal(await prisma.productImageTrash.count({ where: { productId: product.id } }), 0);
+    assert.equal(await prisma.productImage.count({ where: { productId: product.id } }), 2);
+
+    const [restoredExists] = await bucket.file(restoredBody.image.storageKey).exists();
+    assert.equal(restoredExists, true);
+    const [trashAfterRestore] = await bucket.getFiles({ prefix: "trash/product-images/" });
+    assert.equal(trashAfterRestore.filter((file) => file.name.endsWith(archiveSuffix)).length, 0);
+
     console.log("product image delete integration flow: ok");
   } finally {
     if (productId) {
+      const imageKeys = await prisma.productImage.findMany({ where: { productId }, select: { storageKey: true } });
+      await Promise.all(imageKeys.map((image) => deleteProductImage(image.storageKey).catch(() => undefined)));
+      await prisma.productImageTrash.deleteMany({ where: { productId } });
       await prisma.productImage.deleteMany({ where: { productId } });
       await prisma.product.deleteMany({ where: { id: productId } });
     }
