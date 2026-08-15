@@ -1,4 +1,4 @@
-import type { Order } from "@prisma/client";
+import type { Order, OrderStatus } from "@prisma/client";
 import { getSettings } from "@/lib/settings";
 
 // NOTE: built from PostNL's public developer docs and third-party client
@@ -24,6 +24,37 @@ export class PostnlError extends Error {
     this.name = "PostnlError";
     this.details = details;
   }
+}
+
+export type ShipmentWeightLine = {
+  quantity: number;
+  variant: { weightGrams: number };
+};
+
+export type ShipmentOrder = Order & { items: ShipmentWeightLine[] };
+
+export function calculateShipmentWeightGrams(items: ShipmentWeightLine[]): number {
+  const weightGrams = items.reduce(
+    (total, item) => total + item.quantity * item.variant.weightGrams,
+    0
+  );
+
+  if (!Number.isSafeInteger(weightGrams) || weightGrams <= 0) {
+    throw new PostnlError("Geen geldig verzendgewicht beschikbaar voor deze bestelling.");
+  }
+
+  return weightGrams;
+}
+
+export function determineLabelAction(
+  status: OrderStatus,
+  hasExistingLabel: boolean
+): "create" | "reuse" | "reject" {
+  if (status !== "PAID" && status !== "FULFILLED") {
+    return "reject";
+  }
+
+  return hasExistingLabel ? "reuse" : "create";
 }
 
 function apiKey(): string {
@@ -114,12 +145,13 @@ function formatTimestamp(date: Date): string {
 }
 
 export async function createShipmentLabel(
-  order: Order
+  order: ShipmentOrder
 ): Promise<{ barcode: string; labelBase64: string }> {
   const { customerCode, customerNumber, collectionLocation, barcodeSerie } =
     await getAccountSettings();
   const sender = await getSenderAddress();
   const barcode = await generateBarcode(customerCode, customerNumber, barcodeSerie);
+  const weightGrams = calculateShipmentWeightGrams(order.items);
 
   const payload = {
     Customer: {
@@ -155,7 +187,7 @@ export async function createShipmentLabel(
           },
         ],
         Barcode: barcode,
-        Dimension: { Weight: "1000" },
+        Dimension: { Weight: String(weightGrams) },
         ProductCodeDelivery: DEFAULT_PRODUCT_CODE,
       },
     ],

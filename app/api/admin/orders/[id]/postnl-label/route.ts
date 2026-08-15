@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth";
-import { createShipmentLabel, PostnlError } from "@/lib/postnl";
+import { PostnlError } from "@/lib/postnl";
+import { ensurePostnlLabel, PostnlLabelGuardError } from "@/lib/postnl-labels";
 
 async function requireAdmin(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
@@ -46,22 +47,20 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const order = await prisma.order.findUnique({ where: { id } });
-
-  if (!order) {
-    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  }
-
   try {
-    const { barcode, labelBase64 } = await createShipmentLabel(order);
-
-    await prisma.order.update({
-      where: { id },
-      data: { postnlTrackingCode: barcode, postnlLabelBase64: labelBase64 },
+    const label = await ensurePostnlLabel(id);
+    return NextResponse.json({
+      ok: true,
+      barcode: label.barcode,
+      reused: label.reused,
     });
-
-    return NextResponse.json({ ok: true, barcode });
   } catch (error) {
+    if (error instanceof PostnlLabelGuardError) {
+      return NextResponse.json(
+        { error: error.code, message: error.message },
+        { status: error.code === "ORDER_NOT_FOUND" ? 404 : 409 }
+      );
+    }
     if (error instanceof PostnlError) {
       return NextResponse.json(
         { error: "POSTNL_ERROR", message: error.message, details: error.details },

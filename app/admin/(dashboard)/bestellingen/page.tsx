@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { StatusBadge } from "./StatusBadge";
+import { BulkLabelPrint } from "./BulkLabelPrint";
+import { OrderLabelButton } from "./OrderLabelButton";
 
 const VALID_STATUSES = new Set<string>([
   "PENDING",
@@ -40,12 +42,18 @@ export default async function BestellingenPage({
       status: true,
       totalCents: true,
       createdAt: true,
+      postnlTrackingCode: true,
+      postnlLabelBase64: true,
     },
   });
 
   return (
     <div>
       <h1 className="text-heading-xl text-text">Bestellingen</h1>
+
+      <div className="mt-6">
+        <BulkLabelPrint />
+      </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
         {STATUS_TABS.map((tab) => {
@@ -79,6 +87,8 @@ export default async function BestellingenPage({
                 <th className="px-4 py-3 font-heading">Klant</th>
                 <th className="px-4 py-3 font-heading">Status</th>
                 <th className="px-4 py-3 font-heading">Datum</th>
+                <th className="px-4 py-3 font-heading">Trackingcode</th>
+                <th className="px-4 py-3 font-heading">Label</th>
                 <th className="px-4 py-3 text-right font-heading">Totaal</th>
               </tr>
             </thead>
@@ -108,6 +118,28 @@ export default async function BestellingenPage({
                       hour: "2-digit",
                       minute: "2-digit",
                     }).format(order.createdAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {order.postnlTrackingCode ? (
+                      <Link
+                        href={`/admin/bestellingen/${order.id}`}
+                        className="font-mono text-text underline decoration-border-hover underline-offset-4"
+                      >
+                        {order.postnlTrackingCode}
+                      </Link>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {order.status === "PAID" || order.status === "FULFILLED" ? (
+                      <OrderLabelButton
+                        orderId={order.id}
+                        hasLabel={Boolean(order.postnlLabelBase64)}
+                      />
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-text">
                     {formatPrice(order.totalCents, "nl")}

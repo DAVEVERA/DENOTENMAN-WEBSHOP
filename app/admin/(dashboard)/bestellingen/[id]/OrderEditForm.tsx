@@ -43,6 +43,7 @@ export function OrderEditForm({
   const [labelError, setLabelError] = useState<string | null>(null);
   const [labelDetails, setLabelDetails] = useState<string | null>(null);
   const [labelReady, setLabelReady] = useState(hasLabel);
+  const canCreateLabel = currentStatus === "PAID" || currentStatus === "FULFILLED";
 
   async function handleCreateLabel() {
     setLabelState("saving");
@@ -116,18 +117,16 @@ export function OrderEditForm({
       <div>
         <h2 className="font-heading text-heading-sm text-text">PostNL verzendlabel</h2>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleCreateLabel}
-            disabled={labelState === "saving"}
-            className="inline-flex items-center justify-center rounded-button border border-accent bg-accent px-4 py-2 font-heading text-body-sm font-semibold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {labelState === "saving"
-              ? "Bezig…"
-              : labelReady
-                ? "Label opnieuw aanmaken"
-                : "Verzendlabel aanmaken"}
-          </button>
+          {!labelReady && canCreateLabel ? (
+            <button
+              type="button"
+              onClick={handleCreateLabel}
+              disabled={labelState === "saving"}
+              className="inline-flex items-center justify-center rounded-button border border-accent bg-accent px-4 py-2 font-heading text-body-sm font-semibold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {labelState === "saving" ? "Bezig…" : "Verzendlabel aanmaken"}
+            </button>
+          ) : null}
           {labelReady ? (
             <a
               href={`/api/admin/orders/${orderId}/postnl-label`}
@@ -139,6 +138,11 @@ export function OrderEditForm({
             </a>
           ) : null}
         </div>
+        {!labelReady && !canCreateLabel ? (
+          <p className="mt-3 text-body-sm text-muted">
+            Een verzendlabel kan pas worden aangemaakt nadat de bestelling is betaald.
+          </p>
+        ) : null}
         {labelState === "error" && (
           <div className="mt-3 max-w-xl rounded-button border border-red-200 bg-red-50 p-3">
             <p className="text-body-sm text-red-700">{labelError}</p>
