@@ -10,7 +10,7 @@ export function LogoutButton() {
     <button
       type="button"
       onClick={handleLogout}
-      className="font-heading text-body-sm font-semibold text-muted underline decoration-border-hover underline-offset-4 hover:text-text"
+      className="inline-flex min-h-11 items-center font-heading text-body-sm font-semibold text-muted underline decoration-border-hover underline-offset-4 hover:text-text"
     >
       Uitloggen
     </button>

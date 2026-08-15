@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { Languages } from "lucide-react";
 import { RichTextEditor } from "@/components/admin-panel/RichTextEditor";
 
@@ -23,12 +23,26 @@ const localeLabels: Record<ProductLocale, string> = {
   fr: "Frans",
 };
 
+const productLocales = ["nl", "en", "fr"] as const;
+
+export function nextProductLocale(
+  current: ProductLocale,
+  key: "ArrowLeft" | "ArrowRight" | "Home" | "End"
+): ProductLocale {
+  if (key === "Home") return productLocales[0];
+  if (key === "End") return productLocales[productLocales.length - 1];
+  const currentIndex = productLocales.indexOf(current);
+  const offset = key === "ArrowRight" ? 1 : -1;
+  return productLocales[(currentIndex + offset + productLocales.length) % productLocales.length];
+}
+
 const inputClass = "mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2 text-body-sm text-text";
 const labelClass = "block text-body-sm font-semibold text-text";
 
 function translationStatus(translation: ProductTranslationDraft): "empty" | "partial" | "complete" {
   const values = [
     translation.name,
+    translation.slug,
     translation.shortDescription,
     translation.descriptionHtml || translation.description,
     translation.seoTitle,
@@ -49,6 +63,7 @@ export function ProductTranslationsEditor({
   onSlugFromName: (locale: ProductLocale) => void;
 }) {
   const [activeLocale, setActiveLocale] = useState<ProductLocale>("nl");
+  const tabRefs = useRef<Record<ProductLocale, HTMLButtonElement | null>>({ nl: null, en: null, fr: null });
   const current = translations[activeLocale];
   const status = translationStatus(current);
 
@@ -57,6 +72,14 @@ export function ProductTranslationsEditor({
     value: ProductTranslationDraft[K]
   ) {
     onChange(activeLocale, { ...current, [key]: value });
+  }
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, locale: ProductLocale) {
+    if (!(["ArrowLeft", "ArrowRight", "Home", "End"] as const).includes(event.key as "ArrowLeft" | "ArrowRight" | "Home" | "End")) return;
+    event.preventDefault();
+    const next = nextProductLocale(locale, event.key as "ArrowLeft" | "ArrowRight" | "Home" | "End");
+    setActiveLocale(next);
+    tabRefs.current[next]?.focus();
   }
 
   return (
@@ -74,15 +97,20 @@ export function ProductTranslationsEditor({
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Producttaal">
-        {(["nl", "en", "fr"] as const).map((locale) => {
+        {productLocales.map((locale) => {
           const localeStatus = translationStatus(translations[locale]);
           return (
             <button
               key={locale}
               type="button"
               role="tab"
+              id={`product-language-tab-${locale}`}
+              aria-controls={`product-language-panel-${locale}`}
               aria-selected={activeLocale === locale}
+              tabIndex={activeLocale === locale ? 0 : -1}
+              ref={(element) => { tabRefs.current[locale] = element; }}
               onClick={() => setActiveLocale(locale)}
+              onKeyDown={(event) => handleTabKeyDown(event, locale)}
               className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-body-sm font-semibold ${
                 activeLocale === locale
                   ? "border-accent bg-accent text-contrast"
@@ -105,7 +133,12 @@ export function ProductTranslationsEditor({
         })}
       </div>
 
-      <div className="mt-5" role="tabpanel">
+      <div
+        className="mt-5"
+        role="tabpanel"
+        id={`product-language-panel-${activeLocale}`}
+        aria-labelledby={`product-language-tab-${activeLocale}`}
+      >
         <div className="mb-4 inline-flex rounded-full bg-background px-3 py-1 text-xs font-semibold text-muted">
           Status: {status === "complete" ? "compleet" : status === "partial" ? "deels ingevuld" : "nog leeg"}
         </div>

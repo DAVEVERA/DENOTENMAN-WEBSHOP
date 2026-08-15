@@ -27,7 +27,7 @@ export function AdminNav() {
             </p>
             <p className="text-body-sm text-muted">Admin</p>
           </div>
-          <nav className="flex max-w-[calc(100vw-2rem)] items-center gap-1 overflow-x-auto whitespace-nowrap pb-1 sm:max-w-none sm:flex-wrap sm:overflow-visible sm:pb-0">
+          <nav className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-x-auto whitespace-nowrap pb-1 sm:w-auto sm:max-w-none sm:flex-wrap sm:overflow-visible sm:pb-0">
             {links.map((link) => {
               const active =
                 link.href === "/admin" ? pathname === "/admin" : pathname.startsWith(link.href);
@@ -36,7 +36,7 @@ export function AdminNav() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "rounded-button px-3 py-2 font-heading text-body-sm font-semibold transition-colors duration-hover-fast",
+                    "inline-flex min-h-11 items-center rounded-button px-3 py-2 font-heading text-body-sm font-semibold transition-colors duration-hover-fast",
                     active ? "bg-accent text-contrast" : "text-text hover:bg-background"
                   )}
                 >

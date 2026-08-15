@@ -21,7 +21,8 @@ export const productNutritionKeys = [
 const nutritionValueSchema = z
   .string()
   .trim()
-  .max(64)
+  .max(12)
+  .regex(/^(?:\d+(?:[.,]\d{1,3})?)?$/, "Gebruik een positief getal met maximaal drie decimalen.")
   .transform((value) => value || null)
   .or(z.null());
 

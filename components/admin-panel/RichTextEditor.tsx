@@ -73,7 +73,12 @@ export function RichTextEditor({ id, value, onChange, ariaLabel }: RichTextEdito
               event.preventDefault();
               runCommand(command, commandValue);
             }}
-            className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-button border border-transparent text-text hover:border-border hover:bg-white"
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              runCommand(command, commandValue);
+            }}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-button border border-transparent text-text hover:border-border hover:bg-white"
           >
             <Icon className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -86,7 +91,12 @@ export function RichTextEditor({ id, value, onChange, ariaLabel }: RichTextEdito
             event.preventDefault();
             addLink();
           }}
-          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-button border border-transparent text-text hover:border-border hover:bg-white"
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            addLink();
+          }}
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-button border border-transparent text-text hover:border-border hover:bg-white"
         >
           <LinkIcon className="h-4 w-4" aria-hidden="true" />
         </button>

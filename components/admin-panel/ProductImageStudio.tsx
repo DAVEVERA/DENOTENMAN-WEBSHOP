@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -123,9 +123,19 @@ export function ProductImageStudio({
   );
 
   async function refreshImages() {
-    const response = await fetch(`/api/admin/products/${productId}/images`, { cache: "no-store" });
-    const body = await responseJson<ImagesResponse>(response);
-    setImages(body.images);
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/admin/products/${productId}/images`, { cache: "no-store" });
+      const body = await responseJson<ImagesResponse>(response);
+      setImages(body.images);
+      setMessage("Afbeeldingen zijn bijgewerkt.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Afbeeldingen vernieuwen is niet gelukt.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function persistOrder(next: ProductImageStudioImage[], nextPrimaryId = primaryId) {
@@ -236,8 +246,7 @@ export function ProductImageStudio({
     }
   }
 
-  async function runStudio(event: FormEvent) {
-    event.preventDefault();
+  async function runStudio() {
     if (needsSource && !selected) {
       setError("Kies eerst een bronafbeelding.");
       return;
@@ -280,7 +289,7 @@ export function ProductImageStudio({
   }
 
   return (
-    <section className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6" aria-labelledby="product-image-studio-title">
+    <section className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6" aria-labelledby="product-image-studio-title" aria-busy={busy}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="product-image-studio-title" className="text-heading-md text-text">Beeldstudio</h2>
@@ -288,7 +297,7 @@ export function ProductImageStudio({
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void refreshImages()} disabled={busy} className={buttonClass}>Vernieuwen</button>
-          <label className={`${buttonClass} cursor-pointer bg-accent text-contrast`}>
+          <label className={`${buttonClass} cursor-pointer bg-accent text-contrast focus-within:outline-none focus-within:ring-2 focus-within:ring-accent-hover focus-within:ring-offset-2`}>
             <ImagePlus className="h-4 w-4" /> Uploaden
             <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={upload} disabled={busy} className="sr-only" />
           </label>
@@ -296,10 +305,16 @@ export function ProductImageStudio({
       </div>
 
       <div aria-live="polite" className="mt-3 min-h-6 text-body-sm">
-        {error ? <p className="font-semibold text-red-700">{error}</p> : message ? <p className="font-semibold text-green-700">{message}</p> : null}
+        {busy ? <p className="font-semibold text-muted">Bezig&hellip;</p> : error ? <p className="font-semibold text-red-700">{error}</p> : message ? <p className="font-semibold text-green-700">{message}</p> : null}
       </div>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {images.length === 0 ? (
+          <div className="sm:col-span-2 xl:col-span-3 rounded-card border border-dashed border-border bg-background p-6 text-center">
+            <p className="font-semibold text-text">Nog geen productafbeeldingen</p>
+            <p className="mt-1 text-body-sm text-muted">Upload een foto of genereer een nieuwe afbeelding om te beginnen.</p>
+          </div>
+        ) : null}
         {images.map((image, index) => (
           <article
             key={image.id}
@@ -309,9 +324,9 @@ export function ProductImageStudio({
             onDrop={() => dropOn(image.id)}
             className={`rounded-card border p-3 ${selected?.id === image.id ? "border-accent ring-2 ring-accent/20" : "border-border"}`}
           >
-            <button type="button" onClick={() => setSelectedImageId(image.id)} className="block w-full text-left" aria-label={`Afbeelding ${index + 1} als bron selecteren`}>
+            <button type="button" onClick={() => setSelectedImageId(image.id)} className="block min-h-11 w-full text-left" aria-label={`Afbeelding ${index + 1} als bron selecteren`} aria-pressed={selected?.id === image.id}>
               <div className="relative">
-                <img src={image.url} alt={image.alt || productName} className="aspect-square w-full rounded-button bg-background object-contain" />
+                <img src={image.url} alt={image.alt || productName} loading="lazy" decoding="async" className="aspect-square w-full rounded-button bg-background object-contain" />
                 <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-surface/90 px-2 py-1 text-xs font-bold text-text shadow"><GripVertical className="h-3.5 w-3.5" />{index + 1}</span>
                 {image.isPrimary ? <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-1 text-xs font-bold text-contrast"><Star className="h-3.5 w-3.5 fill-current" />Primair</span> : null}
               </div>
@@ -330,7 +345,7 @@ export function ProductImageStudio({
         ))}
       </div>
 
-      <form onSubmit={runStudio} className="mt-6 rounded-card border border-border bg-background p-4">
+      <div className="mt-6 rounded-card border border-border bg-background p-4">
         <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent" /><h3 className="text-heading-sm text-text">Nieuwe versie maken</h3></div>
         <p className="mt-1 text-body-sm text-muted">AI-bewerkingen gebruiken GPT Image 2. Bijsnijden, schalen, achtergrond verwijderen, labels en iconen zijn deterministisch.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -347,8 +362,8 @@ export function ProductImageStudio({
           {operation === "text_label" || operation === "icon" ? <label className="text-body-sm font-semibold text-text">Kleur<input type="color" value={color} onChange={(event) => setColor(event.target.value)} className={`${inputClass} p-1`} /></label> : null}
         </div>
         {needsPrompt ? <label className="mt-4 block text-body-sm font-semibold text-text">Opdracht<textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={2000} rows={4} placeholder="Beschrijf alleen wat moet veranderen en wat exact gelijk moet blijven." className={`${inputClass} py-3`} /></label> : null}
-        <button type="submit" disabled={busy || (needsSource && !selected)} className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-accent px-5 font-bold text-contrast disabled:opacity-50"><Sparkles className="h-4 w-4" />{busy ? "Bezig…" : "Nieuwe versie maken"}</button>
-      </form>
+        <button type="button" onClick={() => void runStudio()} disabled={busy || (needsSource && !selected)} className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-accent px-5 font-bold text-contrast disabled:opacity-50"><Sparkles className="h-4 w-4" />{busy ? "Bezig…" : "Nieuwe versie maken"}</button>
+      </div>
     </section>
   );
 }

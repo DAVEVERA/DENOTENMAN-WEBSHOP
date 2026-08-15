@@ -108,6 +108,32 @@ test("rejects nutrition keys outside the fixed nine-key contract", () => {
   assert.equal(result.success, false);
 });
 
+test("accepts Dutch decimal nutrition values and empty unknown values", () => {
+  const result = productAdminInputSchema.safeParse({
+    ...additiveProduct,
+    nutrition: {
+      ...additiveProduct.nutrition,
+      "nutrition.fat": "52,4",
+      "nutrition.salt": "0,01",
+      "nutrition.fiber": "",
+    },
+  });
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  assert.equal(result.data.nutrition?.["nutrition.fat"], "52,4");
+  assert.equal(result.data.nutrition?.["nutrition.fiber"], null);
+});
+
+test("rejects negative, nonnumeric and implausibly long nutrition values", () => {
+  for (const invalidValue of ["-1", "veel", "12 gram", "1234567890123"]) {
+    const result = productAdminInputSchema.safeParse({
+      ...additiveProduct,
+      nutrition: { ...additiveProduct.nutrition, "nutrition.fat": invalidValue },
+    });
+    assert.equal(result.success, false, `Expected ${invalidValue} to be rejected`);
+  }
+});
+
 test("rejects more than one primary category assignment", () => {
   const result = productAdminInputSchema.safeParse({
     ...additiveProduct,

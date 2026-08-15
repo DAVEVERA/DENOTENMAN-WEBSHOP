@@ -143,7 +143,7 @@ export default async function AdminProductEditPage({
     <div>
       <Link
         href="/admin/producten"
-        className="text-body-sm text-accent-hover underline underline-offset-4"
+        className="inline-flex min-h-11 items-center text-body-sm font-semibold text-text underline decoration-accent underline-offset-4"
       >
         ← Terug naar producten
       </Link>

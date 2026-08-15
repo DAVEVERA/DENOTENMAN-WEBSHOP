@@ -87,6 +87,22 @@ function plainTextFromHtml(html: string): string {
   return element.textContent?.replace(/\s+/g, " ").trim() ?? "";
 }
 
+export function productSaveErrorMessage(cause: unknown): string {
+  if (cause && typeof cause === "object") {
+    const payload = cause as { error?: unknown; message?: unknown };
+    if (payload.error === "STALE_PRODUCT") {
+      return "Dit product is intussen elders gewijzigd. Herlaad de pagina voordat je opnieuw opslaat.";
+    }
+    if (typeof payload.message === "string" && payload.message.trim() && !(cause instanceof TypeError)) {
+      return payload.message.trim().slice(0, 240);
+    }
+  }
+  if (cause instanceof TypeError) {
+    return "Geen verbinding met de server. Controleer je internetverbinding en probeer opnieuw.";
+  }
+  return "Opslaan is niet gelukt. Controleer de invoer en probeer opnieuw.";
+}
+
 export function createEmptyVariant(skuPrefix = ""): Variant {
   return { clientKey: crypto.randomUUID(), sku: skuPrefix ? `${skuPrefix}-` : "", label: "", weightGrams: "250", preparation: "RAW", salting: "UNSALTED", coating: "NONE", isActive: true, priceEuro: "0.00", salePriceEuro: "", stock: "0" };
 }
@@ -191,32 +207,37 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
       setMessage("Elke ingevulde taal heeft een productnaam en slug nodig.");
       return;
     }
-    const response = await fetch(mode === "create" ? "/api/admin/products" : `/api/admin/products/${productId}`, {
-      method: mode === "create" ? "POST" : "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        version: product.version,
-        sku: product.sku.trim(),
-        slug: translations.nl.slug.trim(),
-        basePriceCents,
-        salePriceCents,
-        unit: product.unit,
-        isActive: product.isActive,
-        translations: localizedContent,
-        nutrition,
-        categories: categoryAssignments,
-        recommendationIds: product.recommendationIds.filter(Boolean),
-        variants,
-      }),
-    });
-    const body = await response.json().catch(() => null) as { productId?: string; version?: string; variants?: { id: string; sku: string }[]; error?: string; message?: string } | null;
-    if (!response.ok) { setStatus("error"); setMessage(body?.error === "STALE_PRODUCT" ? "Dit product is intussen elders gewijzigd. Herlaad de pagina voordat je opnieuw opslaat." : body?.message ?? "Opslaan is niet gelukt. Controleer de invoer."); return; }
-    if (mode === "create" && body?.productId) { router.push(`/admin/producten/${body.productId}`); return; }
-    if (body?.version) setProduct((current) => ({
-      ...current,
-      version: body.version,
-      variants: current.variants.map((variant) => ({ ...variant, id: body.variants?.find((saved) => saved.sku === variant.sku)?.id ?? variant.id })),
-    }));
-    setStatus("saved"); setMessage("Alle productinstellingen zijn opgeslagen."); router.refresh();
+    try {
+      const response = await fetch(mode === "create" ? "/api/admin/products" : `/api/admin/products/${productId}`, {
+        method: mode === "create" ? "POST" : "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          version: product.version,
+          sku: product.sku.trim(),
+          slug: translations.nl.slug.trim(),
+          basePriceCents,
+          salePriceCents,
+          unit: product.unit,
+          isActive: product.isActive,
+          translations: localizedContent,
+          nutrition,
+          categories: categoryAssignments,
+          recommendationIds: product.recommendationIds.filter(Boolean),
+          variants,
+        }),
+      });
+      const body = await response.json().catch(() => null) as { productId?: string; version?: string; variants?: { id: string; sku: string }[]; error?: string; message?: string } | null;
+      if (!response.ok) { setStatus("error"); setMessage(productSaveErrorMessage(body)); return; }
+      if (mode === "create" && body?.productId) { router.push(`/admin/producten/${body.productId}`); return; }
+      if (body?.version) setProduct((current) => ({
+        ...current,
+        version: body.version,
+        variants: current.variants.map((variant) => ({ ...variant, id: body.variants?.find((saved) => saved.sku === variant.sku)?.id ?? variant.id })),
+      }));
+      setStatus("saved"); setMessage("Alle productinstellingen zijn opgeslagen."); router.refresh();
+    } catch (cause) {
+      setStatus("error");
+      setMessage(productSaveErrorMessage(cause));
+    }
   }
 
   return <form onSubmit={saveProduct} className="space-y-6 pb-28">

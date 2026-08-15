@@ -33,6 +33,9 @@ export function NutritionEditor({
       <p className="mt-1 text-body-sm text-muted">
         Vul waarden per {unit === "VOLUME" ? "100 ml" : "100 gram"} in. Laat onbekende waarden leeg; AI mag deze nooit verzinnen.
       </p>
+      <p id="nutrition-format-help" className="mt-1 text-body-sm text-muted">
+        Gebruik alleen positieve getallen, met maximaal drie decimalen (bijvoorbeeld 0,01).
+      </p>
       <div className="mt-5 overflow-hidden rounded-button border border-border">
         {nutritionFields.map((field) => (
           <label
@@ -42,10 +45,13 @@ export function NutritionEditor({
             <span className="font-semibold text-text">{field.label}</span>
             <input
               inputMode="decimal"
+              pattern="[0-9]+([.,][0-9]{1,3})?"
+              maxLength={12}
               value={values[field.key]}
               onChange={(event) => onChange({ ...values, [field.key]: event.target.value })}
               aria-label={field.label}
-              className="min-h-10 min-w-0 rounded-button border border-border px-2 text-right text-text"
+              aria-describedby="nutrition-format-help"
+              className="min-h-11 min-w-0 rounded-button border border-border px-2 text-right text-text"
             />
             <span className="text-muted">{field.suffix}</span>
           </label>
