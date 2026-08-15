@@ -9,9 +9,15 @@ import { cart as cartPath } from "@/lib/routes";
 import { useStorefrontState } from "@/lib/storefront-state";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
 import { Button } from "@/components/ui/Button";
-import { calculateDiscount } from "@/lib/discounts";
 
 type CheckoutDictionary = (typeof nl)["checkout"];
+type AppliedDiscountPreview = {
+  code: string;
+  discountCents: number;
+  shippingCents: number;
+  totalCents: number;
+  isTest: boolean;
+};
 
 export function CheckoutForm({
   locale,
@@ -24,30 +30,44 @@ export function CheckoutForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [discountInput, setDiscountInput] = useState("");
-  const [appliedDiscountCode, setAppliedDiscountCode] = useState<string | null>(null);
+  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscountPreview | null>(null);
+  const [checkingDiscount, setCheckingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState<string | null>(null);
 
   const subtotalCents = cart.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
-  const shippingCents =
+  const regularShippingCents =
     subtotalCents === 0 || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
       ? 0
       : FLAT_SHIPPING_CENTS;
-  const appliedDiscount = calculateDiscount(subtotalCents, appliedDiscountCode);
   const discountCents = appliedDiscount?.discountCents ?? 0;
-  const totalCents = subtotalCents - discountCents + shippingCents;
+  const shippingCents = appliedDiscount?.shippingCents ?? regularShippingCents;
+  const totalCents = appliedDiscount?.totalCents ?? subtotalCents + regularShippingCents;
 
-  function applyDiscountCode() {
-    const discount = calculateDiscount(subtotalCents, discountInput);
-
-    if (!discount) {
-      setAppliedDiscountCode(null);
-      setDiscountError(dictionary.discountInvalid);
-      return;
-    }
-
-    setDiscountInput(discount.code);
-    setAppliedDiscountCode(discount.code);
+  async function applyDiscountCode() {
+    setCheckingDiscount(true);
     setDiscountError(null);
+    try {
+      const response = await fetch("/api/discounts/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: discountInput, subtotalCents }),
+      });
+      const result = (await response.json().catch(() => null)) as AppliedDiscountPreview | null;
+
+      if (!response.ok || !result) {
+        setAppliedDiscount(null);
+        setDiscountError(dictionary.discountInvalid);
+        return;
+      }
+
+      setDiscountInput(result.code);
+      setAppliedDiscount(result);
+    } catch {
+      setAppliedDiscount(null);
+      setDiscountError(dictionary.discountInvalid);
+    } finally {
+      setCheckingDiscount(false);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -76,7 +96,7 @@ export function CheckoutForm({
             country: "NL",
           },
           lines: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity })),
-          discountCode: appliedDiscountCode ?? undefined,
+          discountCode: appliedDiscount?.code ?? undefined,
         }),
       });
 
@@ -90,7 +110,7 @@ export function CheckoutForm({
         } else if (data.error === "INVALID_DISCOUNT_CODE") {
           setError(dictionary.discountInvalid);
         } else if (data.error === "DISCOUNT_NOT_ELIGIBLE") {
-          setAppliedDiscountCode(null);
+          setAppliedDiscount(null);
           setDiscountError(dictionary.discountNotEligible);
           setError(dictionary.discountNotEligible);
         } else {
@@ -257,7 +277,7 @@ export function CheckoutForm({
                 value={discountInput}
                 onChange={(event) => {
                   setDiscountInput(event.target.value);
-                  setAppliedDiscountCode(null);
+                  setAppliedDiscount(null);
                   setDiscountError(null);
                 }}
                 onKeyDown={(event) => {
@@ -273,9 +293,10 @@ export function CheckoutForm({
               <button
                 type="button"
                 onClick={applyDiscountCode}
+                disabled={checkingDiscount}
                 className="shrink-0 rounded-button border border-text bg-text px-4 py-2 font-heading text-body-sm font-semibold text-surface transition-colors hover:bg-accent-hover hover:text-contrast"
               >
-                {dictionary.applyDiscount}
+                {checkingDiscount ? "Controleren…" : dictionary.applyDiscount}
               </button>
             </div>
             <p

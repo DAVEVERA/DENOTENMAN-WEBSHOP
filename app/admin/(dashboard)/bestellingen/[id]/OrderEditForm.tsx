@@ -27,11 +27,13 @@ export function OrderEditForm({
   initialTrackingCode,
   hasLabel,
   currentStatus,
+  isTest,
 }: {
   orderId: string;
   initialTrackingCode: string;
   hasLabel: boolean;
   currentStatus: OrderStatus;
+  isTest: boolean;
 }) {
   const router = useRouter();
 
@@ -43,7 +45,7 @@ export function OrderEditForm({
   const [labelError, setLabelError] = useState<string | null>(null);
   const [labelDetails, setLabelDetails] = useState<string | null>(null);
   const [labelReady, setLabelReady] = useState(hasLabel);
-  const canCreateLabel = currentStatus === "PAID" || currentStatus === "FULFILLED";
+  const canCreateLabel = !isTest && (currentStatus === "PAID" || currentStatus === "FULFILLED");
 
   async function handleCreateLabel() {
     setLabelState("saving");
@@ -138,7 +140,11 @@ export function OrderEditForm({
             </a>
           ) : null}
         </div>
-        {!labelReady && !canCreateLabel ? (
+        {isTest ? (
+          <p className="mt-3 text-body-sm font-semibold text-violet-800">
+            Testbestelling: PostNL-label en verzending zijn geblokkeerd.
+          </p>
+        ) : !labelReady && !canCreateLabel ? (
           <p className="mt-3 text-body-sm text-muted">
             Een verzendlabel kan pas worden aangemaakt nadat de bestelling is betaald.
           </p>
@@ -166,11 +172,12 @@ export function OrderEditForm({
               setTrackingState("idle");
             }}
             placeholder="Bijv. 3SDNL1234567890"
+            disabled={isTest}
             className="w-full max-w-xs rounded-button border border-border bg-surface px-3 py-2 font-mono text-body-sm text-text focus:border-accent focus:outline-none sm:w-auto"
           />
           <button
             type="submit"
-            disabled={trackingState === "saving"}
+            disabled={isTest || trackingState === "saving"}
             className="inline-flex items-center justify-center rounded-button border border-accent bg-accent px-4 py-2 font-heading text-body-sm font-semibold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {trackingState === "saving" ? "Opslaan…" : "Opslaan"}
@@ -195,7 +202,7 @@ export function OrderEditForm({
                 "Weet je zeker dat je deze bestelling wilt markeren als verzonden?"
               )
             }
-            disabled={statusState === "saving" || currentStatus === "FULFILLED"}
+            disabled={isTest || statusState === "saving" || currentStatus === "FULFILLED"}
             className={cn(
               "inline-flex items-center justify-center rounded-button border border-border px-4 py-2 font-heading text-body-sm font-semibold text-text transition-colors duration-hover-fast hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50"
             )}
@@ -212,7 +219,7 @@ export function OrderEditForm({
                 "Weet je zeker dat je deze bestelling wilt annuleren?"
               )
             }
-            disabled={statusState === "saving" || currentStatus === "CANCELLED"}
+            disabled={isTest || statusState === "saving" || currentStatus === "CANCELLED"}
             className="inline-flex items-center justify-center rounded-button border border-red-300 bg-red-50 px-4 py-2 font-heading text-body-sm font-semibold text-red-700 transition-colors duration-hover-fast hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {statusState === "saving" && pendingStatus === "CANCELLED"

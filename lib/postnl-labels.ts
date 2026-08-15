@@ -43,11 +43,17 @@ export async function ensurePostnlLabel(orderId: string): Promise<EnsuredPostnlL
         },
       });
 
-      const action = determineLabelAction(order.status, Boolean(order.postnlLabelBase64));
+      const action = determineLabelAction(
+        order.status,
+        Boolean(order.postnlLabelBase64),
+        order.isTest
+      );
       if (action === "reject") {
         throw new PostnlLabelGuardError(
           "ORDER_NOT_SHIPPABLE",
-          "Alleen betaalde of verzonden bestellingen kunnen een PostNL-label krijgen."
+          order.isTest
+            ? "Testbestellingen krijgen nooit een PostNL-label."
+            : "Alleen betaalde of verzonden bestellingen kunnen een PostNL-label krijgen."
         );
       }
       if (action === "reuse" && order.postnlLabelBase64) {

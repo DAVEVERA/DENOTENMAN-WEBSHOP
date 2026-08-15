@@ -1,0 +1,54 @@
+import { NextResponse } from "next/server";
+import { evaluateCheckoutDiscount } from "@/lib/discounts";
+import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
+
+type DiscountValidationBody = {
+  code?: unknown;
+  subtotalCents?: unknown;
+};
+
+export async function POST(request: Request) {
+  let body: DiscountValidationBody;
+  try {
+    body = (await request.json()) as DiscountValidationBody;
+  } catch {
+    return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+  }
+
+  if (
+    typeof body.code !== "string" ||
+    typeof body.subtotalCents !== "number" ||
+    !Number.isSafeInteger(body.subtotalCents) ||
+    body.subtotalCents < 0 ||
+    body.subtotalCents > 100_000_000
+  ) {
+    return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+  }
+
+  // This subtotal only powers the checkout preview. createOrderWithPayment
+  // always recalculates every price from the database before saving an order.
+  const evaluation = evaluateCheckoutDiscount(
+    body.subtotalCents,
+    body.code,
+    false,
+    process.env.TEST_ORDER_DISCOUNT_CODE
+  );
+
+  if (evaluation.status !== "applied") {
+    return NextResponse.json({ error: "INVALID_DISCOUNT_CODE" }, { status: 422 });
+  }
+
+  const regularShippingCents =
+    body.subtotalCents === 0 || body.subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
+      ? 0
+      : FLAT_SHIPPING_CENTS;
+  const shippingCents = evaluation.isTest ? 0 : regularShippingCents;
+
+  return NextResponse.json({
+    code: evaluation.discount.code,
+    discountCents: evaluation.discount.discountCents,
+    shippingCents,
+    totalCents: body.subtotalCents - evaluation.discount.discountCents + shippingCents,
+    isTest: evaluation.isTest,
+  });
+}

@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
 
   const orders = await prisma.order.findMany({
     where: {
+      isTest: false,
       createdAt: { gte: from, lte: to },
       status: { in: [...SHIPPABLE_STATUSES] },
     },

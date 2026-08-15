@@ -7,7 +7,11 @@ import type { Locale } from "@/lib/i18n";
 import type { Order, OrderStatus } from "@prisma/client";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
 import { sendOrderConfirmationEmail } from "@/lib/mail";
-import { evaluateFirstOrderDiscount, hasDiscountCode } from "@/lib/discounts";
+import {
+  evaluateCheckoutDiscount,
+  hasDiscountCode,
+  resolvePaymentDisposition,
+} from "@/lib/discounts";
 
 export class CheckoutError extends Error {
   constructor(
@@ -135,11 +139,13 @@ export async function priceCartLines(
     (sum, line) => sum + line.unitPriceCents * line.quantity,
     0
   );
-  const shippingCents = subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_SHIPPING_CENTS;
-  const discountEvaluation = evaluateFirstOrderDiscount(
+  const regularShippingCents =
+    subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_SHIPPING_CENTS;
+  const discountEvaluation = evaluateCheckoutDiscount(
     subtotalCents,
     discountCode,
-    hasPreviousPaidOrder
+    hasPreviousPaidOrder,
+    process.env.TEST_ORDER_DISCOUNT_CODE
   );
 
   if (discountEvaluation.status === "invalid") {
@@ -154,6 +160,8 @@ export async function priceCartLines(
 
   const discount = discountEvaluation.status === "applied" ? discountEvaluation.discount : null;
   const discountCents = discount?.discountCents ?? 0;
+  const isTest = discountEvaluation.status === "applied" && discountEvaluation.isTest;
+  const shippingCents = isTest ? 0 : regularShippingCents;
 
   return {
     lines: priced,
@@ -162,6 +170,7 @@ export async function priceCartLines(
     discountCents,
     shippingCents,
     totalCents: subtotalCents - discountCents + shippingCents,
+    isTest,
   };
 }
 
@@ -180,6 +189,7 @@ export async function createOrderWithPayment(
   const previousPaidOrder = hasDiscountCode(discountCode)
     ? await prisma.order.findFirst({
         where: {
+          isTest: false,
           status: { in: ["PAID", "FULFILLED"] },
           OR: [
             ...(existingUser ? [{ userId: existingUser.id }] : []),
@@ -190,7 +200,15 @@ export async function createOrderWithPayment(
       })
     : null;
 
-  const { lines, subtotalCents, discountCode: appliedDiscountCode, discountCents, shippingCents, totalCents } = await priceCartLines(
+  const {
+    lines,
+    subtotalCents,
+    discountCode: appliedDiscountCode,
+    discountCents,
+    shippingCents,
+    totalCents,
+    isTest,
+  } = await priceCartLines(
     cartLines,
     locale,
     discountCode,
@@ -211,7 +229,8 @@ export async function createOrderWithPayment(
   const order = await prisma.order.create({
     data: {
       userId: user.id,
-      status: "PENDING",
+      status: isTest ? "PAID" : "PENDING",
+      isTest,
       locale,
       currency: "EUR",
       subtotalCents,
@@ -219,6 +238,7 @@ export async function createOrderWithPayment(
       discountCents,
       shippingCents,
       totalCents,
+      paidAt: isTest ? new Date() : null,
       contactName: contact.name,
       contactEmail: normalizedEmail,
       contactPhone: contact.phone,
@@ -238,6 +258,13 @@ export async function createOrderWithPayment(
       },
     },
   });
+
+  if (resolvePaymentDisposition(isTest, totalCents) === "TEST_COMPLETE") {
+    return {
+      orderId: order.id,
+      checkoutUrl: `${BASE_URL}/${locale}/order/${order.id}`,
+    };
+  }
 
   // Mollie requires the webhook URL to be publicly reachable and rejects
   // localhost. In local dev we skip it; the order confirmation page still

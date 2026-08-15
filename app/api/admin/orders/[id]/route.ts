@@ -63,6 +63,13 @@ export async function PATCH(
   if (!existing) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   }
+  if (
+    existing.isTest &&
+    ((data.postnlTrackingCode !== undefined && data.postnlTrackingCode !== null) ||
+      data.status === "FULFILLED")
+  ) {
+    return NextResponse.json({ error: "TEST_ORDER_NOT_SHIPPABLE" }, { status: 409 });
+  }
 
   const updated = await prisma.order.update({
     where: { id },

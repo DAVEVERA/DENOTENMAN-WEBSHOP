@@ -26,5 +26,7 @@ assert.equal(determineLabelAction("PENDING", false), "reject");
 assert.equal(determineLabelAction("CANCELLED", false), "reject");
 assert.equal(determineLabelAction("CANCELLED", true), "reject");
 assert.equal(determineLabelAction("REFUNDED", false), "reject");
+assert.equal(determineLabelAction("PAID", false, true), "reject");
+assert.equal(determineLabelAction("FULFILLED", true, true), "reject");
 
 console.log("postnl tests passed");

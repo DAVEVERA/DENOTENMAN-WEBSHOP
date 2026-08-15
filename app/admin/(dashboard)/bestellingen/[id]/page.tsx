@@ -58,7 +58,14 @@ export default async function OrderDetailPage({
           </Link>
           <h1 className="mt-2 font-mono text-heading-lg text-text">{order.id}</h1>
         </div>
-        <StatusBadge status={order.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={order.status} />
+          {order.isTest ? (
+            <span className="rounded-full border border-violet-300 bg-violet-50 px-3 py-1 text-body-sm font-semibold text-violet-800">
+              Testbestelling — niet verzenden
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -119,6 +126,7 @@ export default async function OrderDetailPage({
               initialTrackingCode={order.postnlTrackingCode ?? ""}
               hasLabel={Boolean(order.postnlLabelBase64)}
               currentStatus={order.status}
+              isTest={order.isTest}
             />
           </div>
         </div>
@@ -133,6 +141,12 @@ export default async function OrderDetailPage({
                   <StatusBadge status={order.status} />
                 </dd>
               </div>
+              {order.isTest ? (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted">Ordertype</dt>
+                  <dd className="font-semibold text-violet-800">Test — geen betaling/verzending</dd>
+                </div>
+              ) : null}
               <div className="flex justify-between">
                 <dt className="text-muted">Betaald op</dt>
                 <dd className="text-text">

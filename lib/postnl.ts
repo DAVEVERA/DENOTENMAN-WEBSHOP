@@ -48,8 +48,12 @@ export function calculateShipmentWeightGrams(items: ShipmentWeightLine[]): numbe
 
 export function determineLabelAction(
   status: OrderStatus,
-  hasExistingLabel: boolean
+  hasExistingLabel: boolean,
+  isTest = false
 ): "create" | "reuse" | "reject" {
+  if (isTest) {
+    return "reject";
+  }
   if (status !== "PAID" && status !== "FULFILLED") {
     return "reject";
   }

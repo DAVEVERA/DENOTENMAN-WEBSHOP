@@ -40,6 +40,7 @@ export default async function BestellingenPage({
       contactName: true,
       contactEmail: true,
       status: true,
+      isTest: true,
       totalCents: true,
       createdAt: true,
       postnlTrackingCode: true,
@@ -108,7 +109,14 @@ export default async function BestellingenPage({
                     <div className="text-muted">{order.contactEmail}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={order.status} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={order.status} />
+                      {order.isTest ? (
+                        <span className="rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">
+                          Test
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted">
                     {new Intl.DateTimeFormat("nl-NL", {
@@ -132,7 +140,7 @@ export default async function BestellingenPage({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {order.status === "PAID" || order.status === "FULFILLED" ? (
+                    {!order.isTest && (order.status === "PAID" || order.status === "FULFILLED") ? (
                       <OrderLabelButton
                         orderId={order.id}
                         hasLabel={Boolean(order.postnlLabelBase64)}

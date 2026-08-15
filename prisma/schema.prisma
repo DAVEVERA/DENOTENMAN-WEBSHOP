@@ -329,6 +329,7 @@ model Order {
   userId String
   user   User        @relation(fields: [userId], references: [id])
   status OrderStatus @default(PENDING)
+  isTest Boolean     @default(false)
 
   locale        String  @default("nl")
   currency      String  @default("EUR")
