@@ -16,6 +16,7 @@ type CheckoutRequestBody = {
     country: string;
   };
   lines: CartLineInput[];
+  discountCode?: string;
 };
 
 function isCheckoutRequestBody(value: unknown): value is CheckoutRequestBody {
@@ -25,7 +26,8 @@ function isCheckoutRequestBody(value: unknown): value is CheckoutRequestBody {
     typeof candidate.locale === "string" &&
     typeof candidate.contact === "object" &&
     candidate.contact !== null &&
-    Array.isArray(candidate.lines)
+    Array.isArray(candidate.lines) &&
+    (candidate.discountCode === undefined || typeof candidate.discountCode === "string")
   );
 }
 
@@ -53,7 +55,8 @@ export async function POST(request: NextRequest) {
     const { orderId, checkoutUrl } = await createOrderWithPayment(
       body.locale,
       body.contact,
-      lines
+      lines,
+      body.discountCode
     );
     return NextResponse.json({ orderId, checkoutUrl });
   } catch (error) {

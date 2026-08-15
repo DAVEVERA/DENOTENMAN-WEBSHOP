@@ -7,6 +7,7 @@ import type { Locale } from "@/lib/i18n";
 import type { Order, OrderStatus } from "@prisma/client";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
 import { sendOrderConfirmationEmail } from "@/lib/mail";
+import { evaluateFirstOrderDiscount, hasDiscountCode } from "@/lib/discounts";
 
 export class CheckoutError extends Error {
   constructor(
@@ -16,6 +17,8 @@ export class CheckoutError extends Error {
       | "VARIANT_NOT_FOUND"
       | "VARIANT_INACTIVE"
       | "OUT_OF_STOCK"
+      | "INVALID_DISCOUNT_CODE"
+      | "DISCOUNT_NOT_ELIGIBLE"
       | "PAYMENT_CREATE_FAILED",
     message: string
   ) {
@@ -68,7 +71,12 @@ function validateContact(contact: CheckoutContactInput) {
  * availability submitted by the client — a tampered request must not be
  * able to change what it pays.
  */
-async function priceCartLines(lines: CartLineInput[], locale: Locale) {
+export async function priceCartLines(
+  lines: CartLineInput[],
+  locale: Locale,
+  discountCode?: string,
+  hasPreviousPaidOrder = false
+) {
   if (lines.length === 0) {
     throw new CheckoutError("EMPTY_CART", "Cart is empty");
   }
@@ -126,26 +134,77 @@ async function priceCartLines(lines: CartLineInput[], locale: Locale) {
     0
   );
   const shippingCents = subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_SHIPPING_CENTS;
+  const discountEvaluation = evaluateFirstOrderDiscount(
+    subtotalCents,
+    discountCode,
+    hasPreviousPaidOrder
+  );
 
-  return { lines: priced, subtotalCents, shippingCents, totalCents: subtotalCents + shippingCents };
+  if (discountEvaluation.status === "invalid") {
+    throw new CheckoutError("INVALID_DISCOUNT_CODE", "Unknown discount code");
+  }
+  if (discountEvaluation.status === "ineligible") {
+    throw new CheckoutError(
+      "DISCOUNT_NOT_ELIGIBLE",
+      "Discount code is only valid on a first order"
+    );
+  }
+
+  const discount = discountEvaluation.status === "applied" ? discountEvaluation.discount : null;
+  const discountCents = discount?.discountCents ?? 0;
+
+  return {
+    lines: priced,
+    subtotalCents,
+    discountCode: discount?.code ?? null,
+    discountCents,
+    shippingCents,
+    totalCents: subtotalCents - discountCents + shippingCents,
+  };
 }
 
 export async function createOrderWithPayment(
   locale: Locale,
   contact: CheckoutContactInput,
-  cartLines: CartLineInput[]
+  cartLines: CartLineInput[],
+  discountCode?: string
 ): Promise<{ orderId: string; checkoutUrl: string }> {
   validateContact(contact);
-  const { lines, subtotalCents, shippingCents, totalCents } = await priceCartLines(
+  const normalizedEmail = contact.email.trim().toLocaleLowerCase("nl-NL");
+  const existingUser = await prisma.user.findFirst({
+    where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+    select: { id: true },
+  });
+  const previousPaidOrder = hasDiscountCode(discountCode)
+    ? await prisma.order.findFirst({
+        where: {
+          status: { in: ["PAID", "FULFILLED"] },
+          OR: [
+            ...(existingUser ? [{ userId: existingUser.id }] : []),
+            { contactEmail: { equals: normalizedEmail, mode: "insensitive" as const } },
+          ],
+        },
+        select: { id: true },
+      })
+    : null;
+
+  const { lines, subtotalCents, discountCode: appliedDiscountCode, discountCents, shippingCents, totalCents } = await priceCartLines(
     cartLines,
-    locale
+    locale,
+    discountCode,
+    Boolean(previousPaidOrder)
   );
 
-  const user = await prisma.user.upsert({
-    where: { email: contact.email },
-    update: { name: contact.name },
-    create: { email: contact.email, name: contact.name },
-  });
+  const user = existingUser
+    ? await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { name: contact.name },
+      })
+    : await prisma.user.upsert({
+        where: { email: normalizedEmail },
+        update: { name: contact.name },
+        create: { email: normalizedEmail, name: contact.name },
+      });
 
   const order = await prisma.order.create({
     data: {
@@ -154,10 +213,12 @@ export async function createOrderWithPayment(
       locale,
       currency: "EUR",
       subtotalCents,
+      discountCode: appliedDiscountCode,
+      discountCents,
       shippingCents,
       totalCents,
       contactName: contact.name,
-      contactEmail: contact.email,
+      contactEmail: normalizedEmail,
       contactPhone: contact.phone,
       shippingStreet: contact.street,
       shippingHouseNumber: contact.houseNumber,

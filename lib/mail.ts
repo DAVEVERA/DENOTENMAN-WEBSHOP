@@ -44,6 +44,7 @@ type OrderCopy = {
   product: string;
   amount: string;
   subtotal: string;
+  discount: string;
   shipping: string;
   shippingFree: string;
   total: string;
@@ -64,6 +65,7 @@ const copyByLocale: Record<Locale, OrderCopy> = {
     product: "Product",
     amount: "Bedrag",
     subtotal: "Subtotaal",
+    discount: "Korting",
     shipping: "Verzendkosten",
     shippingFree: "Gratis",
     total: "Totaal",
@@ -82,6 +84,7 @@ const copyByLocale: Record<Locale, OrderCopy> = {
     product: "Product",
     amount: "Amount",
     subtotal: "Subtotal",
+    discount: "Discount",
     shipping: "Shipping",
     shippingFree: "Free",
     total: "Total",
@@ -100,6 +103,7 @@ const copyByLocale: Record<Locale, OrderCopy> = {
     product: "Produit",
     amount: "Montant",
     subtotal: "Sous-total",
+    discount: "Réduction",
     shipping: "Frais de port",
     shippingFree: "Gratuit",
     total: "Total",
@@ -163,6 +167,11 @@ export async function renderOrderConfirmationEmail(
     items: formattedItems,
     subtotalLabel: copy.subtotal,
     subtotal: formatPrice(order.subtotalCents, locale),
+    discountLabel:
+      order.discountCents > 0
+        ? `${copy.discount}${order.discountCode ? ` (${order.discountCode})` : ""}`
+        : undefined,
+    discount: order.discountCents > 0 ? `-${formatPrice(order.discountCents, locale)}` : undefined,
     shippingLabel: copy.shipping,
     shipping,
     totalLabel: copy.total,
@@ -190,6 +199,11 @@ export async function renderOrderConfirmationEmail(
     ),
     "",
     `${copy.subtotal}: ${formatPrice(order.subtotalCents, locale)}`,
+    ...(order.discountCents > 0
+      ? [
+          `${copy.discount}${order.discountCode ? ` (${order.discountCode})` : ""}: -${formatPrice(order.discountCents, locale)}`,
+        ]
+      : []),
     `${copy.shipping}: ${shipping}`,
     `${copy.total}: ${total}`,
     "",

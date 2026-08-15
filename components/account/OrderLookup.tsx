@@ -15,6 +15,8 @@ type OrderLookupResponse = {
   status: "PENDING" | "PAID" | "FULFILLED" | "CANCELLED" | "REFUNDED";
   createdAt: string;
   subtotalCents: number;
+  discountCode: string | null;
+  discountCents: number;
   shippingCents: number;
   totalCents: number;
   shippingStreet: string;
@@ -136,6 +138,15 @@ export function OrderLookup({
             <span>{checkoutDictionary.subtotal}</span>
             <span>{formatPrice(order.subtotalCents, locale)}</span>
           </div>
+          {order.discountCents > 0 ? (
+            <div className="flex justify-between font-semibold text-green-700">
+              <span>
+                {checkoutDictionary.discount}
+                {order.discountCode ? ` (${order.discountCode})` : ""}
+              </span>
+              <span>-{formatPrice(order.discountCents, locale)}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between text-muted">
             <span>{checkoutDictionary.shipping}</span>
             <span>

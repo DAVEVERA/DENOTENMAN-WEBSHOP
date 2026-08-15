@@ -9,6 +9,7 @@ import { cart as cartPath } from "@/lib/routes";
 import { useStorefrontState } from "@/lib/storefront-state";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
 import { Button } from "@/components/ui/Button";
+import { calculateDiscount } from "@/lib/discounts";
 
 type CheckoutDictionary = (typeof nl)["checkout"];
 
@@ -22,13 +23,32 @@ export function CheckoutForm({
   const { cart } = useStorefrontState();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [discountInput, setDiscountInput] = useState("");
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState<string | null>(null);
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   const subtotalCents = cart.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
   const shippingCents =
     subtotalCents === 0 || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
       ? 0
       : FLAT_SHIPPING_CENTS;
-  const totalCents = subtotalCents + shippingCents;
+  const appliedDiscount = calculateDiscount(subtotalCents, appliedDiscountCode);
+  const discountCents = appliedDiscount?.discountCents ?? 0;
+  const totalCents = subtotalCents - discountCents + shippingCents;
+
+  function applyDiscountCode() {
+    const discount = calculateDiscount(subtotalCents, discountInput);
+
+    if (!discount) {
+      setAppliedDiscountCode(null);
+      setDiscountError(dictionary.discountInvalid);
+      return;
+    }
+
+    setDiscountInput(discount.code);
+    setAppliedDiscountCode(discount.code);
+    setDiscountError(null);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,6 +76,7 @@ export function CheckoutForm({
             country: "NL",
           },
           lines: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity })),
+          discountCode: appliedDiscountCode ?? undefined,
         }),
       });
 
@@ -66,6 +87,12 @@ export function CheckoutForm({
           setError(dictionary.errorOutOfStock);
         } else if (data.error === "INVALID_CONTACT") {
           setError(dictionary.errorInvalidContact);
+        } else if (data.error === "INVALID_DISCOUNT_CODE") {
+          setError(dictionary.discountInvalid);
+        } else if (data.error === "DISCOUNT_NOT_ELIGIBLE") {
+          setAppliedDiscountCode(null);
+          setDiscountError(dictionary.discountNotEligible);
+          setError(dictionary.discountNotEligible);
         } else {
           setError(dictionary.genericError);
         }
@@ -218,11 +245,57 @@ export function CheckoutForm({
               </li>
             ))}
           </ul>
+          <div className="mt-4 border-t border-border pt-4">
+            <label htmlFor="discountCode" className="block text-body-sm font-semibold text-text">
+              {dictionary.discountCode}
+            </label>
+            <div className="mt-1 flex gap-2">
+              <input
+                id="discountCode"
+                name="discountCode"
+                type="text"
+                value={discountInput}
+                onChange={(event) => {
+                  setDiscountInput(event.target.value);
+                  setAppliedDiscountCode(null);
+                  setDiscountError(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    applyDiscountCode();
+                  }
+                }}
+                placeholder={dictionary.discountPlaceholder}
+                autoComplete="off"
+                className="min-w-0 flex-1 rounded-button border border-border px-3 py-2 text-body-sm"
+              />
+              <button
+                type="button"
+                onClick={applyDiscountCode}
+                className="shrink-0 rounded-button border border-text bg-text px-4 py-2 font-heading text-body-sm font-semibold text-surface transition-colors hover:bg-accent-hover hover:text-contrast"
+              >
+                {dictionary.applyDiscount}
+              </button>
+            </div>
+            <p
+              aria-live="polite"
+              className={`mt-2 text-body-sm ${discountError ? "text-red-600" : "text-green-700"}`}
+            >
+              {discountError ?? (appliedDiscount ? dictionary.discountApplied : "")}
+            </p>
+          </div>
           <div className="mt-4 space-y-1 border-t border-border pt-4 text-body-sm">
             <div className="flex justify-between">
               <span className="text-muted">{dictionary.subtotal}</span>
               <span>{formatPrice(subtotalCents, locale)}</span>
             </div>
+            {appliedDiscount ? (
+              <div className="flex justify-between font-semibold text-green-700">
+                <span>{dictionary.discount} ({appliedDiscount.code})</span>
+                <span>-{formatPrice(discountCents, locale)}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between">
               <span className="text-muted">{dictionary.shipping}</span>
               <span>{shippingCents === 0 ? dictionary.shippingFree : formatPrice(shippingCents, locale)}</span>

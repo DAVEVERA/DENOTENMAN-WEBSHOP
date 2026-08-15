@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
     status: order.status,
     createdAt: order.createdAt,
     subtotalCents: order.subtotalCents,
+    discountCode: order.discountCode,
+    discountCents: order.discountCents,
     shippingCents: order.shippingCents,
     totalCents: order.totalCents,
     shippingStreet: order.shippingStreet,

@@ -35,6 +35,8 @@ export type OrderConfirmationEmailProps = {
   items: OrderConfirmationEmailItem[];
   subtotalLabel: string;
   subtotal: string;
+  discountLabel?: string;
+  discount?: string;
   shippingLabel: string;
   shipping: string;
   totalLabel: string;
@@ -71,6 +73,8 @@ export function OrderConfirmationEmail({
   items,
   subtotalLabel,
   subtotal,
+  discountLabel,
+  discount,
   shippingLabel,
   shipping,
   totalLabel,
@@ -138,6 +142,12 @@ export function OrderConfirmationEmail({
                     <td style={summaryLabelStyle}>{subtotalLabel}</td>
                     <td style={summaryAmountStyle}>{subtotal}</td>
                   </tr>
+                  {discountLabel && discount ? (
+                    <tr>
+                      <td style={discountLabelStyle}>{discountLabel}</td>
+                      <td style={discountAmountStyle}>{discount}</td>
+                    </tr>
+                  ) : null}
                   <tr>
                     <td style={summaryLabelStyle}>{shippingLabel}</td>
                     <td style={summaryAmountStyle}>{shipping}</td>
@@ -272,6 +282,16 @@ const variantStyle: CSSProperties = { color: colors.muted, fontSize: "13px" };
 const summaryLabelStyle: CSSProperties = { paddingTop: "10px", color: colors.muted };
 const summaryAmountStyle: CSSProperties = {
   paddingTop: "10px",
+  textAlign: "right",
+  whiteSpace: "nowrap",
+};
+const discountLabelStyle: CSSProperties = {
+  paddingTop: "10px",
+  color: "#237a3b",
+  fontWeight: 700,
+};
+const discountAmountStyle: CSSProperties = {
+  ...discountLabelStyle,
   textAlign: "right",
   whiteSpace: "nowrap",
 };

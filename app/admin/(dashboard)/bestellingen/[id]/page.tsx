@@ -96,6 +96,12 @@ export default async function OrderDetailPage({
                 <span>Subtotaal</span>
                 <span>{formatPrice(order.subtotalCents, "nl")}</span>
               </div>
+              {order.discountCents > 0 ? (
+                <div className="mt-1 flex justify-between text-body-sm font-semibold text-green-700">
+                  <span>Korting{order.discountCode ? ` (${order.discountCode})` : ""}</span>
+                  <span>-{formatPrice(order.discountCents, "nl")}</span>
+                </div>
+              ) : null}
               <div className="mt-1 flex justify-between text-body-sm text-muted">
                 <span>Verzending</span>
                 <span>{formatPrice(order.shippingCents, "nl")}</span>
