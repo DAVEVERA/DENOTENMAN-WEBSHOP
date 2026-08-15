@@ -3,6 +3,7 @@ import { render } from "react-email";
 import { Resend } from "resend";
 import type { Order, OrderItem } from "@prisma/client";
 import { OrderConfirmationEmail } from "@/emails/OrderConfirmationEmail";
+import { BackInStockEmail } from "@/emails/BackInStockEmail";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { BASE_URL, orderConfirmation } from "@/lib/routes";
 import { formatPrice } from "@/lib/format";
@@ -283,4 +284,99 @@ export async function sendOrderConfirmationEmail(
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
   }
+}
+
+const stockCopy: Record<Locale, {
+  subject: (name: string) => string;
+  preview: (name: string) => string;
+  heading: string;
+  intro: string;
+  button: string;
+  footer: string;
+}> = {
+  nl: {
+    subject: (name) => `${name} is weer verkrijgbaar`,
+    preview: (name) => `${name} kan weer besteld worden bij De Notenman.`,
+    heading: "Goed nieuws: weer op voorraad",
+    intro: "Je vroeg ons om een seintje zodra dit product weer besteld kon worden.",
+    button: "Bekijk en bestel het product",
+    footer: "Dit is een eenmalige voorraadmelding waarvoor je jezelf hebt aangemeld.",
+  },
+  en: {
+    subject: (name) => `${name} is available again`,
+    preview: (name) => `${name} can be ordered again from De Notenman.`,
+    heading: "Good news: back in stock",
+    intro: "You asked us to let you know when this product could be ordered again.",
+    button: "View and order the product",
+    footer: "This is the one-time stock alert you requested.",
+  },
+  fr: {
+    subject: (name) => `${name} est de nouveau disponible`,
+    preview: (name) => `${name} peut de nouveau être commandé chez De Notenman.`,
+    heading: "Bonne nouvelle : de nouveau en stock",
+    intro: "Vous nous avez demandé de vous prévenir lorsque ce produit serait de nouveau disponible.",
+    button: "Voir et commander le produit",
+    footer: "Ceci est l'alerte de stock unique que vous avez demandée.",
+  },
+};
+
+export async function sendBackInStockEmail(input: {
+  notificationId: string;
+  email: string;
+  locale: Locale;
+  productName: string;
+  productUrl: string;
+}): Promise<boolean> {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn(`RESEND_API_KEY not configured — stock alert ${input.notificationId} remains pending`);
+    return false;
+  }
+
+  const copy = stockCopy[input.locale];
+  const html = await render(createElement(BackInStockEmail, {
+    locale: input.locale,
+    preview: copy.preview(input.productName),
+    heading: copy.heading,
+    intro: copy.intro,
+    productName: input.productName,
+    buttonLabel: copy.button,
+    productUrl: input.productUrl,
+    footer: copy.footer,
+  }));
+  const text = [
+    copy.heading,
+    "",
+    copy.intro,
+    input.productName,
+    "",
+    `${copy.button}: ${input.productUrl}`,
+    "",
+    copy.footer,
+  ].join("\n");
+
+  for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt += 1) {
+    const { error } = await resend.emails.send({
+      from: getFromAddress(),
+      to: input.email,
+      replyTo: process.env.MAIL_REPLY_TO,
+      subject: copy.subject(input.productName),
+      html,
+      text,
+      tags: [
+        { name: "type", value: "back_in_stock" },
+        { name: "notification_id", value: input.notificationId },
+      ],
+    }, { idempotencyKey: `stock-alert-${input.notificationId}` });
+
+    if (!error) return true;
+    const retryable = error.statusCode === 429 || (error.statusCode ?? 0) >= 500;
+    if (!retryable || attempt === MAX_SEND_ATTEMPTS) {
+      console.error(`Failed to send stock alert ${input.notificationId}: ${error.message}`);
+      return false;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** (attempt - 1)));
+  }
+
+  return false;
 }

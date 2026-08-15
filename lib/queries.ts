@@ -12,6 +12,7 @@ import type {
   ProductTranslation,
   ProductVariant,
   VariantTranslation,
+  Prisma,
 } from "@prisma/client";
 
 export type ProductImageDto = {
@@ -34,6 +35,8 @@ export type ProductVariantDto = {
   id: string;
   sku: string;
   priceCents: number;
+  regularPriceCents: number;
+  salePriceCents: number | null;
   stock: number;
   weightGrams: number;
   preparation: string;
@@ -44,11 +47,14 @@ export type ProductVariantDto = {
 
 export type ProductSummaryDto = {
   id: string;
+  sku: string;
   slug: string;
   name: string;
   description: string | null;
   shortDescription: string | null;
   basePriceCents: number;
+  regularBasePriceCents: number;
+  salePriceCents: number | null;
   currency: string;
   unit: "WEIGHT" | "VOLUME";
   isActive: boolean;
@@ -61,6 +67,16 @@ export type ProductSummaryDto = {
 export type ProductDetailDto = ProductSummaryDto & {
   slugsByLocale: Partial<Record<Locale, string>>;
   attributes: ProductAttributeDto[];
+  recommendations: ProductRecommendationDto[];
+};
+
+export type ProductRecommendationDto = {
+  id: string;
+  slug: string;
+  name: string;
+  shortDescription: string | null;
+  image: ProductImageDto | null;
+  variant: ProductVariantDto | null;
 };
 
 export type CategoryDto = {
@@ -213,13 +229,16 @@ function toProductSummaryDto(
 
   return {
     id: product.id,
+    sku: product.sku,
     slug: translation.slug,
     name: translation.name,
     description: translation.description,
     shortDescription:
       toShortDescription(translation.shortDescription) ??
       toShortDescription(translation.description),
-    basePriceCents: product.basePriceCents,
+    basePriceCents: product.salePriceCents ?? product.basePriceCents,
+    regularBasePriceCents: product.basePriceCents,
+    salePriceCents: product.salePriceCents,
     currency: product.currency,
     unit: product.unit,
     isActive: product.isActive,
@@ -268,7 +287,9 @@ function toProductVariantDto(
   return {
     id: variant.id,
     sku: variant.sku,
-    priceCents: variant.priceCents,
+    priceCents: variant.salePriceCents ?? variant.priceCents,
+    regularPriceCents: variant.priceCents,
+    salePriceCents: variant.salePriceCents,
     // TEMPORARY: see UNLIMITED_STOCK note in lib/orders.ts.
     stock: process.env.UNLIMITED_STOCK === "true" ? 999 : variant.stock,
     weightGrams: variant.weightGrams,
@@ -334,29 +355,37 @@ function toCategoryDto(
   };
 }
 
-export async function getProductBySlug(
+export const getProductBySlug = cache(async function getProductBySlug(
   slug: string,
   locale: Locale
 ): Promise<ProductDetailDto | null> {
   const translation = await prisma.productTranslation.findUnique({
     where: { locale_slug: { locale, slug } },
+    select: { productId: true },
+  });
+  const alias = translation
+    ? null
+    : await prisma.productSlugAlias.findUnique({
+        where: { locale_slug: { locale, slug } },
+        select: { productId: true },
+      });
+  const productId = translation?.productId ?? alias?.productId;
+  if (!productId) return null;
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
     include: {
-      product: {
-        include: {
-          translations: true,
-          images: true,
-          variants: { include: { translations: true } },
-          attributes: true,
-          productCategories: {
-            include: { category: { include: { translations: true } } },
-            orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
-          },
-        },
+      translations: true,
+      images: true,
+      variants: { include: { translations: true } },
+      attributes: true,
+      recommendations: { orderBy: { sortOrder: "asc" }, select: { targetProductId: true } },
+      productCategories: {
+        include: { category: { include: { translations: true } } },
+        orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
       },
     },
   });
-
-  const product = translation?.product;
 
   if (!product) {
     return null;
@@ -368,12 +397,71 @@ export async function getProductBySlug(
     return null;
   }
 
+  const manualIds = product.recommendations.map((item) => item.targetProductId);
+  const categoryIds = product.productCategories.map((item) => item.categoryId);
+  const recommendationInclude = {
+    include: {
+      translations: true,
+      images: true,
+      variants: { where: { isActive: true }, include: { translations: true } },
+      productCategories: {
+        include: { category: { include: { translations: true } } },
+        orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
+      },
+    },
+  } satisfies Prisma.ProductFindManyArgs;
+  const manualCandidates = manualIds.length
+    ? await prisma.product.findMany({
+        where: { id: { in: manualIds }, isActive: true },
+        ...recommendationInclude,
+      })
+    : [];
+  const categoryCandidates = manualCandidates.length >= 3 || !categoryIds.length
+    ? []
+    : await prisma.product.findMany({
+        where: {
+          id: { notIn: [product.id, ...manualCandidates.map((item) => item.id)] },
+          isActive: true,
+          productCategories: { some: { categoryId: { in: categoryIds } } },
+        },
+        take: 3 - manualCandidates.length,
+        ...recommendationInclude,
+      });
+  const selectedCandidates = [...manualCandidates, ...categoryCandidates];
+  const generalCandidates = selectedCandidates.length >= 3
+    ? []
+    : await prisma.product.findMany({
+        where: { id: { notIn: [product.id, ...selectedCandidates.map((item) => item.id)] }, isActive: true },
+        take: 3 - selectedCandidates.length,
+        ...recommendationInclude,
+      });
+  const candidates = [...selectedCandidates, ...generalCandidates];
+  const manualOrder = new Map(manualIds.map((id, index) => [id, index]));
+  const recommendationSummaries = candidates
+    .map((candidate) => toProductSummaryDto(candidate, locale))
+    .filter((candidate): candidate is ProductSummaryDto => Boolean(candidate))
+    .sort((left, right) => {
+      const leftOrder = manualOrder.get(left.id) ?? 1000;
+      const rightOrder = manualOrder.get(right.id) ?? 1000;
+      return leftOrder - rightOrder || left.name.localeCompare(right.name, locale);
+    })
+    .slice(0, 3)
+    .map((candidate) => ({
+      id: candidate.id,
+      slug: candidate.slug,
+      name: candidate.name,
+      shortDescription: candidate.shortDescription,
+      image: candidate.images.find((image) => image.isPrimary) ?? candidate.images[0] ?? null,
+      variant: [...candidate.variants].sort((left, right) => left.weightGrams - right.weightGrams)[0] ?? null,
+    }));
+
   return {
     ...summary,
     slugsByLocale: toSlugsByLocale(product.translations),
     attributes: toProductAttributesDto(product.attributes, locale),
+    recommendations: recommendationSummaries,
   };
-}
+});
 
 export async function getCategory(
   slug: string,

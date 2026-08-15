@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { locales, isLocale, type Locale } from "@/lib/i18n";
 import { getProductBySlug, getProductSlugs } from "@/lib/queries";
@@ -8,6 +8,7 @@ import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
+import { product as productPath } from "@/lib/routes";
 
 const dictionaries = { nl, en, fr };
 
@@ -69,11 +70,37 @@ export default async function ProductPage({
   if (!data) {
     notFound();
   }
+  if (data.slug !== product) {
+    permanentRedirect(productPath(locale, data.slug));
+  }
 
   const dictionary = dictionaries[locale];
+  const primaryImage = data.images.find((image) => image.isPrimary) ?? data.images[0];
+  const firstVariant = [...data.variants].sort((left, right) => left.priceCents - right.priceCents)[0];
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: data.name,
+    description: data.shortDescription ?? data.description ?? undefined,
+    sku: data.sku,
+    image: primaryImage ? [primaryImage.url] : undefined,
+    brand: { "@type": "Brand", name: "De Notenman" },
+    offers: {
+      "@type": "Offer",
+      url: `https://denotenman.com${productPath(locale, data.slug)}`,
+      priceCurrency: data.currency,
+      price: ((firstVariant?.priceCents ?? data.basePriceCents) / 100).toFixed(2),
+      availability: data.isActive && firstVariant ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      itemCondition: "https://schema.org/NewCondition",
+    },
+  };
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
+      />
       <div className="min-h-[72vh] bg-background" aria-hidden="true" />
       <ProductDetailModal
         locale={locale}

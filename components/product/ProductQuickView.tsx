@@ -9,6 +9,7 @@ import type { ProductSummaryDto } from "@/lib/queries";
 import { product as productPath } from "@/lib/routes";
 import { addCartItem } from "@/lib/storefront-state";
 import { getProductImageStyle } from "@/lib/image-focal";
+import { BackInStockForm } from "@/components/product/BackInStockForm";
 import { productActionButtonClass } from "@/lib/product-action-button";
 import { VariantRows } from "@/components/product/VariantRows";
 import nl from "@/dictionaries/nl.json";
@@ -163,6 +164,7 @@ export function ProductQuickView({
                   {product.shortDescription}
                 </p>
               ) : null}
+              {!product.isActive ? <BackInStockForm productId={product.id} locale={locale} /> : null}
             </div>
           </div>
 

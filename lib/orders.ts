@@ -125,7 +125,9 @@ export async function priceCartLines(
       productName,
       variantLabel,
       quantity,
-      unitPriceCents: variant.priceCents,
+      // Action prices are resolved exclusively from the database; the cart's
+      // client-side amount is never trusted during checkout.
+      unitPriceCents: variant.salePriceCents ?? variant.priceCents,
     };
   });
 

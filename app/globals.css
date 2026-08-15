@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../node_modules/streamdown/dist/*.js";
 
 @theme {
   --color-background: #F6F3EE;
@@ -331,4 +332,3 @@
   .video-hero { min-height: 620px; }
   .video-hero__grid { max-width: 1000px; }
 }
-

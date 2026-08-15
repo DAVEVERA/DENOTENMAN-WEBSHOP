@@ -11,18 +11,31 @@ export default async function AdminProductEditPage({
 }) {
   const { id } = await params;
 
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
+  const [product, categories, productOptions] = await Promise.all([
+    prisma.product.findUnique({
+      where: { id },
+      include: {
       translations: true,
       images: true,
       variants: { include: { translations: true }, orderBy: { sku: "asc" } },
+      recommendations: { orderBy: { sortOrder: "asc" } },
       productCategories: {
         include: { category: { include: { translations: true } } },
         orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
       },
-    },
-  });
+      },
+    }),
+    prisma.category.findMany({
+      where: { isActive: true },
+      include: { translations: { where: { locale: "nl" } } },
+      orderBy: [{ parentId: "asc" }, { sortOrder: "asc" }],
+    }),
+    prisma.product.findMany({
+      where: { translations: { some: { locale: "nl" } } },
+      include: { translations: { where: { locale: "nl" } } },
+      orderBy: { slug: "asc" },
+    }),
+  ]);
 
   if (!product) {
     notFound();
@@ -41,22 +54,32 @@ export default async function AdminProductEditPage({
     .map((image) => ({
       id: image.id,
       url: publicImageUrl(image.storageKey),
-      alt: image.alt,
+      alt: image.alt ?? "",
       isPrimary: image.isPrimary,
+      sortOrder: image.sortOrder,
     }));
 
   const variants = product.variants.map((variant) => ({
     id: variant.id,
     sku: variant.sku,
-    label: variant.translations.find((translation) => translation.locale === "nl")?.label ?? null,
-    weightGrams: variant.weightGrams,
-    preparation: variant.preparation as string,
-    salting: variant.salting as string,
-    coating: variant.coating as string,
+    label: variant.translations.find((translation) => translation.locale === "nl")?.label ?? "",
+    clientKey: variant.id,
+    weightGrams: String(variant.weightGrams),
+    preparation: variant.preparation,
+    salting: variant.salting,
+    coating: variant.coating,
     isActive: variant.isActive,
-    priceCents: variant.priceCents,
-    stock: variant.stock,
+    priceEuro: (variant.priceCents / 100).toFixed(2),
+    salePriceEuro: variant.salePriceCents === null ? "" : (variant.salePriceCents / 100).toFixed(2),
+    stock: String(variant.stock),
   }));
+
+  const categoryOptions = categories
+    .map((category) => ({ id: category.id, parentId: category.parentId, name: category.translations[0]?.name }))
+    .filter((category): category is { id: string; parentId: string | null; name: string } => Boolean(category.name));
+  const recommendationOptions = productOptions
+    .map((item) => ({ id: item.id, name: item.translations[0]?.name }))
+    .filter((item): item is { id: string; name: string } => Boolean(item.name));
 
   return (
     <div>
@@ -79,14 +102,25 @@ export default async function AdminProductEditPage({
 
       <div className="mt-8">
         <ProductEditForm
+          mode="edit"
           productId={product.id}
-          basePriceCents={product.basePriceCents}
-          unit={product.unit}
-          isActive={product.isActive}
-          name={nlTranslation?.name ?? ""}
-          description={nlTranslation?.description ?? ""}
-          hasNlTranslation={Boolean(nlTranslation)}
-          variants={variants}
+          initial={{
+            version: product.updatedAt.toISOString(),
+            sku: product.sku,
+            slug: nlTranslation?.slug ?? product.slug,
+            name: nlTranslation?.name ?? "",
+            shortDescription: nlTranslation?.shortDescription ?? "",
+            description: nlTranslation?.description ?? "",
+            basePriceEuro: (product.basePriceCents / 100).toFixed(2),
+            salePriceEuro: product.salePriceCents === null ? "" : (product.salePriceCents / 100).toFixed(2),
+            unit: product.unit,
+            isActive: product.isActive,
+            categoryIds: product.productCategories.map((link) => link.categoryId),
+            recommendationIds: product.recommendations.map((item) => item.targetProductId),
+            variants,
+          }}
+          categories={categoryOptions}
+          productOptions={recommendationOptions}
           images={images}
         />
       </div>

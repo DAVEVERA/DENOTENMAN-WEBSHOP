@@ -80,6 +80,9 @@ export default async function AdminProductsPage({
           {rows.length} {rows.length === 1 ? "product" : "producten"}
           {q ? ` gevonden voor “${q}”` : ""}
         </p>
+        <Link href="/admin/producten/nieuw" className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button">
+          Nieuw product
+        </Link>
       </div>
 
       <form action="/admin/producten" method="get" className="mt-6 flex flex-wrap items-center gap-3">

@@ -132,6 +132,11 @@ export function VariantRows({
             </span>
 
             <span className="shrink-0 text-right">
+              {variant.salePriceCents !== null ? (
+                <span className="mb-1 block text-xs text-[#7A746B] line-through">
+                  {formatPrice(variant.regularPriceCents, locale)}
+                </span>
+              ) : null}
               <span className="block font-heading text-xl font-bold leading-none text-black">
                 {formatPrice(variant.priceCents, locale)}
               </span>

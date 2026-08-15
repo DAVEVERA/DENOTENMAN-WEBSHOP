@@ -1,8 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { getProductBySlug } from "@/lib/queries";
 import { ProductDetailContent } from "@/components/product/ProductDetailContent";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
+import { product as productPath } from "@/lib/routes";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -25,6 +26,9 @@ export default async function InterceptedProductPage({
 
   if (!data) {
     notFound();
+  }
+  if (data.slug !== product) {
+    permanentRedirect(productPath(locale, data.slug));
   }
 
   const dictionary = dictionaries[locale];

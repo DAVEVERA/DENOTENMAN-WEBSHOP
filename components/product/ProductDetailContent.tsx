@@ -6,6 +6,8 @@ import { FavoriteButton } from "@/components/ui/FavoriteButton";
 import { Tabs } from "@/components/ui/Tabs";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { VariantSelector } from "@/components/product/VariantSelector";
+import { BackInStockForm } from "@/components/product/BackInStockForm";
+import { ProductRecommendations } from "@/components/product/ProductRecommendations";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -124,6 +126,8 @@ export function ProductDetailContent({
           </div>
         )}
 
+        {!data.isActive ? <BackInStockForm productId={data.id} locale={locale} /> : null}
+
         <div className="mt-8">
           <Tabs
             tabs={[
@@ -201,6 +205,7 @@ export function ProductDetailContent({
           />
         </div>
       </div>
+      <ProductRecommendations items={data.recommendations} locale={locale} />
     </div>
   );
 }

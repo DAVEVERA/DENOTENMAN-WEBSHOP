@@ -33,3 +33,4 @@ TODO.md
 output/
 .claude
 .worktrees/
+prisma/product_varianten_prijscontrole.xlsx

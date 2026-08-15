@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { Heart, ShoppingCart } from "lucide-react";
+import { Bell, Heart, ShoppingCart } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
 import { formatPrice } from "@/lib/format";
@@ -22,6 +22,7 @@ import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 
 const dictionaries = { nl, en, fr };
+const stockAlertLabel = { nl: "Geef me een seintje", en: "Notify me", fr: "Prévenez-moi" } as const;
 
 export function ProductCard({
   product,
@@ -96,7 +97,12 @@ export function ProductCard({
                 {dictionary.product.outOfStock}
               </span>
             ) : null}
-            <span className="text-sm font-semibold text-text sm:text-base">
+            {product.salePriceCents !== null ? (
+              <span className="block text-xs text-muted line-through">
+                {formatPrice(product.regularBasePriceCents, locale)}
+              </span>
+            ) : null}
+            <span className={cn("text-sm font-semibold text-text sm:text-base", product.salePriceCents !== null && "text-red-700")}>
               {formatPrice(product.basePriceCents, locale)}
             </span>
           </p>
@@ -122,20 +128,17 @@ export function ProductCard({
           </button>
         </div>
 
-        <button
-          type="button"
-          aria-label={dictionary.product.openQuickView.replace("{product}", product.name)}
-          onClick={openQuickView}
-          disabled={!product.isActive}
-          className={cn(
-            productActionButtonClass,
-            "mt-3 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs",
-            !product.isActive && "cursor-not-allowed opacity-50"
-          )}
-        >
-          <ShoppingCart className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {product.isActive ? dictionary.product.quickOrder : dictionary.product.outOfStock}
-        </button>
+        {product.isActive ? (
+          <button type="button" aria-label={dictionary.product.openQuickView.replace("{product}", product.name)} onClick={openQuickView} className={cn(productActionButtonClass, "mt-3 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs")}>
+            <ShoppingCart className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {dictionary.product.quickOrder}
+          </button>
+        ) : (
+          <Link href={productPath(locale, product.slug)} className={cn(productActionButtonClass, "mt-3 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs")}>
+            <Bell className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {stockAlertLabel[locale]}
+          </Link>
+        )}
         <Link
           href={productPath(locale, product.slug)}
           className={`${productActionButtonClass} mt-3 w-full text-center text-sm max-[420px]:px-2 max-[420px]:text-xs`}
