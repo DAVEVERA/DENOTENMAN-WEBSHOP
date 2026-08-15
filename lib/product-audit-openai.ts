@@ -86,7 +86,7 @@ export function createOpenAIProductAuditBoundary({
               schema: input.schema,
             },
           },
-          max_output_tokens: 5000,
+          max_output_tokens: 8000,
         }),
       });
 

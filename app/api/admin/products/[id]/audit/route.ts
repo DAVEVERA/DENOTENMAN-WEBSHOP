@@ -18,6 +18,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ proposalSet: await generateProductAuditProposals(id) });
   } catch (error) {
     if (error instanceof Error && error.message === "PRODUCT_NOT_FOUND") return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    if (error instanceof Error && error.message === "OPENAI_UNGROUNDED_CLAIM") {
+      return NextResponse.json(
+        { error: "OPENAI_UNGROUNDED_CLAIM", message: "De AI-tekst bevatte na een veilige herkansing nog een onbewezen productclaim. Er is niets opgeslagen; probeer de audit opnieuw." },
+        { status: 422 }
+      );
+    }
     if (error instanceof ProductAuditOpenAIError) {
       return NextResponse.json(
         {

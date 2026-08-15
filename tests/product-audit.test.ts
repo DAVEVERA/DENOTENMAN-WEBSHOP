@@ -383,6 +383,70 @@ async function testStructuredProposalRejectsUngroundedSensitiveClaims() {
   );
 }
 
+async function testStructuredProposalRetriesOnceAfterUngroundedOutput() {
+  let calls = 0;
+  let retrySystem = "";
+  const fake: ProductAuditAiBoundary = {
+    model: "boundary-fake",
+    async generateStructured(input) {
+      calls += 1;
+      if (calls === 2) retrySystem = input.system;
+      return {
+        overallRecommendations: ["Gebruik alleen aantoonbare productfeiten."],
+        proposals: (["nl", "en", "fr"] as const).map((locale) => ({
+          locale,
+          shortDescription: calls === 1
+            ? `${locale.toUpperCase()} biologisch product met een volle smaak en knapperige beet voor ieder moment.`
+            : `${locale.toUpperCase()} geroosterde amandelen met een volle smaak en knapperige beet voor ieder moment.`,
+          fullDescriptionHtml: calls === 1
+            ? `<p>${locale.toUpperCase()} dit biologische product heeft een volle smaak, stevige textuur en past bij meerdere genietmomenten.</p>`
+            : `<p>${locale.toUpperCase()} geroosterde amandelen met een volle smaak, stevige textuur en een passend gebruiksmoment.</p>`,
+          seoTitle: `${locale.toUpperCase()} geroosterde amandelen kopen`,
+          metaDescription: `${locale.toUpperCase()} bestel geroosterde amandelen met een volle smaak en knapperige beet eenvoudig online bij De Notenman.`,
+          rationale: ["Gebaseerd op de aanwezige productbron."],
+          languageFindings: [],
+          evidencePaths: [`translations.${locale}.name`],
+        })),
+      };
+    },
+  };
+
+  const result = await generateStructuredProductProposals(snapshot(), fake);
+  assert.equal(calls, 2);
+  assert.match(retrySystem, /vorig voorstel is door de output- of feitelijke controle afgewezen/i);
+  assert.equal(result.proposals.length, 3);
+}
+
+async function testStructuredProposalAllowsWeightAlreadyDocumentedInCopy() {
+  const current = snapshot();
+  current.translations[0] = {
+    ...current.translations[0],
+    description: `${current.translations[0].description} Voedingswaarden worden per 100 g vermeld.`,
+    descriptionHtml: `${current.translations[0].descriptionHtml}<p>Voedingswaarden worden per 100 g vermeld.</p>`,
+  };
+  const fake: ProductAuditAiBoundary = {
+    model: "boundary-fake",
+    async generateStructured() {
+      return {
+        overallRecommendations: ["Behoud de bestaande, aantoonbare productinformatie."],
+        proposals: (["nl", "en", "fr"] as const).map((locale) => ({
+          locale,
+          shortDescription: `${locale.toUpperCase()} geroosterde amandelen met een volle smaak en knapperige beet voor ieder moment.`,
+          fullDescriptionHtml: `<p>${locale.toUpperCase()} geroosterde amandelen met een volle smaak en stevige textuur. De voedingswaarden staan per 100 g vermeld.</p>`,
+          seoTitle: `${locale.toUpperCase()} geroosterde amandelen kopen`,
+          metaDescription: `${locale.toUpperCase()} bestel geroosterde amandelen met een volle smaak en knapperige beet eenvoudig online bij De Notenman.`,
+          rationale: ["De gewichtseenheid staat letterlijk in de bestaande producttekst."],
+          languageFindings: [],
+          evidencePaths: ["translations.nl.description"],
+        })),
+      };
+    },
+  };
+
+  const result = await generateStructuredProductProposals(current, fake);
+  assert.equal(result.proposals.length, 3);
+}
+
 async function testStructuredProposalRejectsOtherUngroundedCommercialClaims() {
   const unsupportedClaims = [
     "afkomstig uit Spanje",
@@ -434,6 +498,8 @@ async function main() {
   await testOpenAIBoundaryDistinguishesExhaustedCreditsFromRateLimiting();
   await testStructuredProposalRejectsProtectedMutationFields();
   await testStructuredProposalRejectsUngroundedSensitiveClaims();
+  await testStructuredProposalRetriesOnceAfterUngroundedOutput();
+  await testStructuredProposalAllowsWeightAlreadyDocumentedInCopy();
   await testStructuredProposalRejectsOtherUngroundedCommercialClaims();
   console.log("product audit tests: ok");
 }
