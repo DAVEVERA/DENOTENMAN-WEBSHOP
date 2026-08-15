@@ -11,6 +11,7 @@ export class ProductAuditOpenAIError extends Error {
   constructor(
     public readonly code:
       | "OPENAI_API_KEY_MISSING"
+      | "OPENAI_CREDITS_EXHAUSTED"
       | "OPENAI_RATE_LIMITED"
       | "OPENAI_REQUEST_FAILED"
       | "OPENAI_INVALID_STRUCTURED_OUTPUT",
@@ -99,11 +100,15 @@ export function createOpenAIProductAuditBoundary({
         output?: Array<{ content?: Array<{ type?: unknown; text?: unknown }> }>;
       } | null;
       if (!response.ok) {
+        const upstreamCode = typeof body?.error?.code === "string" ? body.error.code : undefined;
         console.error("OpenAI product audit request failed", {
           status: response.status,
           requestId: response.headers.get("x-request-id"),
-          upstreamCode: typeof body?.error?.code === "string" ? body.error.code : undefined,
+          upstreamCode,
         });
+        if (upstreamCode === "credit_balance_exhausted") {
+          throw new ProductAuditOpenAIError("OPENAI_CREDITS_EXHAUSTED", 402);
+        }
         if (response.status === 429) throw new ProductAuditOpenAIError("OPENAI_RATE_LIMITED", 429);
         throw new ProductAuditOpenAIError("OPENAI_REQUEST_FAILED", 502);
       }

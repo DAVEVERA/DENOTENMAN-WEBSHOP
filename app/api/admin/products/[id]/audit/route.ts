@@ -24,6 +24,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           error: error.code,
           message: error.code === "OPENAI_API_KEY_MISSING"
             ? "OPENAI_API_KEY ontbreekt; voeg de sleutel toe voordat je AI-voorstellen genereert."
+            : error.code === "OPENAI_CREDITS_EXHAUSTED"
+              ? "Het OpenAI-project heeft geen API-tegoed. Voeg tegoed toe of koppel een projectsleutel met beschikbaar budget."
             : error.code === "OPENAI_RATE_LIMITED"
               ? "OpenAI is tijdelijk te druk. Probeer het straks opnieuw."
               : "OpenAI kon geen geldig gestructureerd voorstel leveren.",

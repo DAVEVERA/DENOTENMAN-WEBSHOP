@@ -107,6 +107,23 @@ test("editing uses multipart gpt-image-2 input and omits input_fidelity", async 
   assert.ok(form?.get("mask") instanceof File);
 });
 
+test("image generation reports exhausted credits separately from a temporary rate limit", async () => {
+  const gateway = createOpenAIImageGateway({
+    apiKey: "test-only-key",
+    fetchImpl: async () => new Response(
+      JSON.stringify({ error: { code: "credit_balance_exhausted", message: "No credits" } }),
+      { status: 429, headers: { "content-type": "application/json" } }
+    ),
+  });
+
+  await assert.rejects(
+    gateway.generate({ prompt: "A studio photograph of almonds", width: 1024, height: 1024, quality: "low" }),
+    (error: unknown) => error instanceof ProductImageStudioError
+      && error.code === "CREDITS_EXHAUSTED"
+      && error.status === 402
+  );
+});
+
 test("studio validation enforces GPT Image 2 dimensions and operation limits", () => {
   assert.throws(
     () => parseStudioRequest({ operation: "generate", prompt: "test", width: 1000, height: 1024, quality: "medium" }),

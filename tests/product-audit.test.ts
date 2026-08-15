@@ -7,7 +7,7 @@ import {
   type ProductAuditAiBoundary,
   type ProductAuditSnapshot,
 } from "../lib/product-audit-core";
-import { createOpenAIProductAuditBoundary } from "../lib/product-audit-openai";
+import { createOpenAIProductAuditBoundary, ProductAuditOpenAIError } from "../lib/product-audit-openai";
 
 function snapshot(): ProductAuditSnapshot {
   return {
@@ -249,6 +249,23 @@ async function testOpenAIBoundarySendsStrictSchemaAndParsesResponsesOutput() {
   });
 }
 
+async function testOpenAIBoundaryDistinguishesExhaustedCreditsFromRateLimiting() {
+  const boundary = createOpenAIProductAuditBoundary({
+    apiKey: "test-key-never-sent",
+    fetchImpl: async () => Response.json(
+      { error: { code: "credit_balance_exhausted", message: "No credits" } },
+      { status: 429 }
+    ),
+  });
+
+  await assert.rejects(
+    () => boundary.generateStructured({ task: "product-content-audit", system: "test", prompt: "{}", schema: {} }),
+    (error: unknown) => error instanceof ProductAuditOpenAIError
+      && error.code === "OPENAI_CREDITS_EXHAUSTED"
+      && error.status === 402
+  );
+}
+
 async function testStructuredProposalRejectsProtectedMutationFields() {
   const fake: ProductAuditAiBoundary = {
     model: "boundary-fake",
@@ -283,6 +300,7 @@ async function main() {
   await testReviewApplyRejectsStaleAndOnlyReturnsEditorialUpdates();
   await testMissingOpenAIKeyFailsClearlyWithoutNetworkCall();
   await testOpenAIBoundarySendsStrictSchemaAndParsesResponsesOutput();
+  await testOpenAIBoundaryDistinguishesExhaustedCreditsFromRateLimiting();
   await testStructuredProposalRejectsProtectedMutationFields();
   console.log("product audit tests: ok");
 }

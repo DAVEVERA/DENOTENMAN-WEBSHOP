@@ -23,6 +23,7 @@ type StudioErrorCode =
   | "STORAGE_FAILED"
   | "NOT_FOUND"
   | "LAST_IMAGE"
+  | "CREDITS_EXHAUSTED"
   | "RATE_LIMITED";
 
 export class ProductImageStudioError extends Error {
@@ -164,11 +165,19 @@ async function decodeOpenAIImageResponse(response: Response): Promise<OpenAIImag
   } | null;
   const requestId = response.headers.get("x-request-id");
   if (!response.ok) {
+    const upstreamCode = typeof body?.error?.code === "string" ? body.error.code : undefined;
     console.error("OpenAI image request failed", {
       status: response.status,
       requestId,
-      upstreamCode: typeof body?.error?.code === "string" ? body.error.code : undefined,
+      upstreamCode,
     });
+    if (upstreamCode === "credit_balance_exhausted") {
+      throw new ProductImageStudioError(
+        "CREDITS_EXHAUSTED",
+        "Het OpenAI-project heeft geen API-tegoed. Voeg tegoed toe of koppel een projectsleutel met beschikbaar budget.",
+        402
+      );
+    }
     throw new ProductImageStudioError(
       response.status === 429 ? "RATE_LIMITED" : "UPSTREAM_FAILED",
       response.status === 429 ? "De beeldgenerator is tijdelijk te druk. Probeer later opnieuw." : "De AI-beeldbewerking is niet gelukt.",
