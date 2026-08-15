@@ -99,6 +99,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      { source: "/favicon.ico", destination: "/brand/favicon.png", permanent: true },
       ...legacyWordpressRedirects(),
       ...localizedPageRedirects(),
       ...localizedWildcardRedirects(productsSegment, "products"),

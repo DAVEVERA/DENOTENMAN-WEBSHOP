@@ -14,6 +14,7 @@ const montserrat = Montserrat({
 export const metadata = {
   title: "De Notenman — Admin",
   robots: { index: false, follow: false },
+  icons: { icon: "/brand/favicon.png" },
 };
 
 export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
