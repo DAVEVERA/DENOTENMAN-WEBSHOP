@@ -51,7 +51,11 @@ export type ProductSummaryDto = {
   slug: string;
   name: string;
   description: string | null;
+  descriptionHtml: string | null;
   shortDescription: string | null;
+  seoTitle: string | null;
+  metaDescription: string | null;
+  promotionText: string | null;
   basePriceCents: number;
   regularBasePriceCents: number;
   salePriceCents: number | null;
@@ -233,9 +237,13 @@ function toProductSummaryDto(
     slug: translation.slug,
     name: translation.name,
     description: translation.description,
+    descriptionHtml: translation.descriptionHtml,
     shortDescription:
       toShortDescription(translation.shortDescription) ??
       toShortDescription(translation.description),
+    seoTitle: translation.seoTitle,
+    metaDescription: translation.metaDescription,
+    promotionText: translation.promotionText,
     basePriceCents: product.salePriceCents ?? product.basePriceCents,
     regularBasePriceCents: product.basePriceCents,
     salePriceCents: product.salePriceCents,
@@ -382,7 +390,7 @@ export const getProductBySlug = cache(async function getProductBySlug(
       recommendations: { orderBy: { sortOrder: "asc" }, select: { targetProductId: true } },
       productCategories: {
         include: { category: { include: { translations: true } } },
-        orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
+        orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { category: { sortOrder: "asc" } }],
       },
     },
   });
@@ -406,7 +414,7 @@ export const getProductBySlug = cache(async function getProductBySlug(
       variants: { where: { isActive: true }, include: { translations: true } },
       productCategories: {
         include: { category: { include: { translations: true } } },
-        orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
+        orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { category: { sortOrder: "asc" } }],
       },
     },
   } satisfies Prisma.ProductFindManyArgs;
@@ -483,7 +491,8 @@ export async function getCategory(
                   productCategories: {
                     include: { category: { include: { translations: true } } },
                     orderBy: [
-                      { category: { type: "asc" } },
+                      { isPrimary: "desc" },
+                      { sortOrder: "asc" },
                       { category: { sortOrder: "asc" } },
                     ],
                   },
@@ -508,11 +517,15 @@ export async function getCategory(
     return null;
   }
 
-  const products = category.productCategories
+  const products = [...category.productCategories]
+    .sort((left, right) =>
+      Number(right.product.isActive) - Number(left.product.isActive) ||
+      left.sortOrder - right.sortOrder ||
+      left.product.slug.localeCompare(right.product.slug, locale)
+    )
     .map(({ product }) => product)
     .map((product) => toProductSummaryDto(product, locale))
-    .filter((product): product is ProductSummaryDto => product !== undefined)
-    .sort((a, b) => Number(b.isActive) - Number(a.isActive));
+    .filter((product): product is ProductSummaryDto => product !== undefined);
 
   return {
     ...dto,
@@ -589,7 +602,7 @@ export async function getFilteredProducts(
       variants: { include: { translations: true } },
       productCategories: {
         include: { category: { include: { translations: true } } },
-        orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
+        orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { category: { sortOrder: "asc" } }],
       },
     },
     take: limit,

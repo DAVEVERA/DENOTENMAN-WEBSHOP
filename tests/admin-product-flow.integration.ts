@@ -60,6 +60,13 @@ async function main() {
       isActive: false,
       translation: { name: "Integratie amandelen", shortDescription: "Vol en knapperig, lokaal getest voor een veilige productbeheerflow.", description: "Een uitgebreide lokale testomschrijving die uitsluitend in de tijdelijke PostgreSQL-database wordt gebruikt." },
       categoryIds: [category.id],
+      categories: [{ categoryId: category.id, isPrimary: true, sortOrder: 7 }],
+      translations: [
+        { locale: "nl", slug: `integration-product-${suffix}`, name: "Integratie amandelen", shortDescription: "Vol en knapperig.", description: "Nederlandse platte tekst.", descriptionHtml: '<p>Nederlandse <strong>rijke</strong> tekst.</p><script>alert("xss")</script>', seoTitle: "Integratie amandelen kopen", metaDescription: "Nederlandse metaomschrijving.", promotionText: "Nederlandse actie" },
+        { locale: "en", slug: `integration-almonds-${suffix}`, name: "Integration almonds", shortDescription: "Full and crunchy.", description: "English plain text.", descriptionHtml: "<p>English rich text.</p>", seoTitle: "Buy integration almonds", metaDescription: "English meta description.", promotionText: "English promotion" },
+        { locale: "fr", slug: `amandes-integration-${suffix}`, name: "Amandes intégration", shortDescription: "Pleines et croquantes.", description: "Texte français simple.", descriptionHtml: "<p>Texte français riche.</p>", seoTitle: "Acheter des amandes intégration", metaDescription: "Méta-description française.", promotionText: "Promotion française" },
+      ],
+      nutrition: { "nutrition.energyKj": "2470", "nutrition.energyKcal": "590", "nutrition.fat": "52.0", "nutrition.saturatedFat": "4.0", "nutrition.carbohydrates": "10.0", "nutrition.sugars": "4.5", "nutrition.fiber": "11.0", "nutrition.protein": "21.0", "nutrition.salt": "0.01" },
       recommendationIds: recommendations.map((item) => item.id),
       variants: [{ sku: `INTEGRATION-${suffix}-250`, label: "250 gram", weightGrams: 250, preparation: "ROASTED", salting: "UNSALTED", coating: "NONE", isActive: true, priceCents: 795, salePriceCents: 695, stock: 8 }],
     };
@@ -68,18 +75,49 @@ async function main() {
     const created = await createdResponse.json() as { productId: string };
     productId = created.productId;
 
-    const stored = await prisma.product.findUniqueOrThrow({ where: { id: productId }, include: { variants: true, recommendations: true } });
+    const stored = await prisma.product.findUniqueOrThrow({ where: { id: productId }, include: { variants: true, recommendations: true, translations: true, attributes: true, productCategories: true } });
     assert.equal(stored.salePriceCents, 695);
     assert.equal(stored.recommendations.length, 3);
     assert.equal(stored.variants[0]?.weightGrams, 250);
+    assert.equal(stored.translations.length, 3);
+    const storedTranslations = stored.translations as unknown as Array<{ locale: string; descriptionHtml: string | null; seoTitle: string | null; promotionText: string | null }>;
+    assert.equal(storedTranslations.find((translation) => translation.locale === "nl")?.descriptionHtml, "<p>Nederlandse <strong>rijke</strong> tekst.</p>");
+    assert.equal(storedTranslations.find((translation) => translation.locale === "en")?.seoTitle, "Buy integration almonds");
+    assert.equal(storedTranslations.find((translation) => translation.locale === "fr")?.promotionText, "Promotion française");
+    assert.equal(stored.attributes.length, 9);
+    assert.equal(stored.attributes.find((attribute) => attribute.key === "nutrition.protein")?.value, "21.0");
+    const storedCategories = stored.productCategories as unknown as Array<{ categoryId: string; isPrimary: boolean; sortOrder: number }>;
+    assert.deepEqual(storedCategories.map(({ categoryId, isPrimary, sortOrder }) => ({ categoryId, isPrimary, sortOrder })), [{ categoryId: category.id, isPrimary: true, sortOrder: 7 }]);
+
+    await prisma.productImage.createMany({
+      data: [
+        { productId, storageKey: `integration/${suffix}-second.webp`, sortOrder: 2, isPrimary: false },
+        { productId, storageKey: `integration/${suffix}-first.webp`, sortOrder: 0, isPrimary: true },
+      ],
+    });
 
     const subscriptionResponse = await subscribeStock(new NextRequest("http://localhost/api/stock-notifications", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "127.0.0.42" }, body: JSON.stringify({ productId, email: "voorraadtest@example.com", locale: "nl", consent: true, website: "" }) }));
     assert.equal(subscriptionResponse.status, 201, await subscriptionResponse.clone().text());
 
     const newSlug = `${payload.slug}-nieuw`;
-    const updateRequest = new NextRequest(`http://localhost/api/admin/products/${productId}`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ ...payload, version: stored.updatedAt.toISOString(), slug: newSlug, isActive: true, variants: [{ id: stored.variants[0].id, sku: stored.variants[0].sku, label: "300 gram", weightGrams: 300, preparation: "ROASTED", salting: "UNSALTED", coating: "NONE", isActive: true, priceCents: 895, salePriceCents: 745, stock: 12 }] }) });
+    const newEnglishSlug = `integration-almonds-${suffix}-new`;
+    const updateRequest = new NextRequest(`http://localhost/api/admin/products/${productId}`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ ...payload, version: stored.updatedAt.toISOString(), slug: newSlug, isActive: true, translations: [
+      { ...payload.translations[0], slug: newSlug, promotionText: "Bijgewerkte Nederlandse actie" },
+      { ...payload.translations[1], slug: newEnglishSlug, promotionText: "Updated English promotion" },
+    ], nutrition: { "nutrition.protein": "22.5" }, variants: [{ id: stored.variants[0].id, sku: stored.variants[0].sku, label: "300 gram", weightGrams: 300, preparation: "ROASTED", salting: "UNSALTED", coating: "NONE", isActive: true, priceCents: 895, salePriceCents: 745, stock: 12 }] }) });
     const updatedResponse = await updateProduct(updateRequest, { params: Promise.resolve({ id: productId }) });
     assert.equal(updatedResponse.status, 200, await updatedResponse.clone().text());
+    const updatedBody = await updatedResponse.json() as { images?: Array<{ id: string; sortOrder: number; isPrimary: boolean }> };
+    assert.deepEqual(updatedBody.images?.map((image) => [image.sortOrder, image.isPrimary]), [[0, true], [2, false]]);
+
+    const updatedStored = await prisma.product.findUniqueOrThrow({ where: { id: productId }, include: { translations: true, attributes: true } });
+    assert.equal(updatedStored.translations.length, 3, "Omitted FR content must be preserved by PATCH");
+    const updatedTranslations = updatedStored.translations as unknown as Array<{ locale: string; slug: string; promotionText: string | null }>;
+    assert.equal(updatedTranslations.find((translation) => translation.locale === "fr")?.promotionText, "Promotion française");
+    assert.equal(updatedStored.attributes.length, 9, "Nutrition upserts must not duplicate or discard omitted keys");
+    assert.equal(updatedStored.attributes.find((attribute) => attribute.key === "nutrition.protein")?.value, "22.5");
+    assert.ok(await prisma.productSlugAlias.findUnique({ where: { locale_slug: { locale: "nl", slug: payload.slug } } }));
+    assert.ok(await prisma.productSlugAlias.findUnique({ where: { locale_slug: { locale: "en", slug: payload.translations[1].slug } } }));
 
     const notification = await prisma.stockNotification.findFirstOrThrow({ where: { productId } });
     assert.equal(notification.status, "PENDING", "Without a Resend key, consent remains pending instead of being falsely marked sent");
@@ -95,7 +133,7 @@ async function main() {
     assert.equal(adsPublish.status, 503, "Publishing must stay blocked without Google Ads credentials");
 
     const audit = await buildProductAudit(productId);
-    assert.ok(audit && audit.score >= 0 && audit.score <= 100);
+    assert.ok(audit && audit.scores.overall >= 0 && audit.scores.overall <= 100);
 
     const form = new FormData();
     form.set("file", new File(["not-an-image"], "fake.jpg", { type: "image/jpeg" }));

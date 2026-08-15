@@ -1,7 +1,16 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasAdminSession } from "@/lib/admin-api-auth";
-import { productAdminInputSchema, normalizeOptionalText } from "@/lib/admin-product-schema";
+import {
+  getProductCategories,
+  getProductTranslations,
+  normalizeOptionalText,
+  productAdminInputSchema,
+  type ProductCategoryInput,
+  type ProductNutritionInput,
+  type ProductTranslationInput,
+} from "@/lib/admin-product-schema";
+import { toProductPlainText } from "@/lib/product-content";
 import { notifyPendingStockSubscribers } from "@/lib/stock-notifications";
 import { prisma } from "@/lib/prisma";
 
@@ -11,6 +20,72 @@ function errorResponse(error: unknown) {
   }
   console.error("Failed to update product", error);
   return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
+}
+
+function translationData(translation: ProductTranslationInput) {
+  return {
+    name: translation.name,
+    slug: translation.slug,
+    shortDescription: normalizeOptionalText(translation.shortDescription),
+    description: translation.descriptionHtml
+      ? normalizeOptionalText(toProductPlainText(translation.descriptionHtml))
+      : normalizeOptionalText(translation.description),
+    descriptionHtml: translation.descriptionHtml,
+    seoTitle: normalizeOptionalText(translation.seoTitle),
+    metaDescription: normalizeOptionalText(translation.metaDescription),
+    promotionText: normalizeOptionalText(translation.promotionText),
+  };
+}
+
+async function upsertNutrition(
+  tx: Prisma.TransactionClient,
+  productId: string,
+  nutrition: ProductNutritionInput | undefined
+) {
+  if (!nutrition) return;
+  for (const [key, value] of Object.entries(nutrition)) {
+    if (value === undefined) continue;
+    if (value === null) {
+      await tx.productAttribute.deleteMany({ where: { productId, key } });
+      continue;
+    }
+    await tx.productAttribute.upsert({
+      where: { productId_key: { productId, key } },
+      update: { value },
+      create: { productId, key, value },
+    });
+  }
+}
+
+async function resolveCategoryAssignments(
+  tx: Prisma.TransactionClient,
+  requested: ProductCategoryInput[],
+  current: ProductCategoryInput[],
+  explicitAssignments: boolean
+): Promise<ProductCategoryInput[]> {
+  if (explicitAssignments) return requested;
+
+  const currentByCategory = new Map(current.map((category) => [category.categoryId, category]));
+  const retainedPrimary = current.find((category) =>
+    category.isPrimary && requested.some((requestedCategory) => requestedCategory.categoryId === category.categoryId)
+  )?.categoryId;
+  const primaryCategoryId = retainedPrimary ?? requested[0]?.categoryId;
+
+  return Promise.all(requested.map(async (category) => {
+    const existing = currentByCategory.get(category.categoryId);
+    if (existing) {
+      return { ...existing, isPrimary: category.categoryId === primaryCategoryId };
+    }
+    const maximum = await tx.productCategory.aggregate({
+      where: { categoryId: category.categoryId },
+      _max: { sortOrder: true },
+    });
+    return {
+      categoryId: category.categoryId,
+      isPrimary: category.categoryId === primaryCategoryId,
+      sortOrder: (maximum._max.sortOrder ?? -1) + 1,
+    };
+  }));
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -28,24 +103,33 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const input = parsed.data;
+  const translations = getProductTranslations(input);
+  const requestedCategories = getProductCategories(input);
+  const requestedCategoryIds = requestedCategories.map((category) => category.categoryId);
   let shouldNotify = false;
 
   try {
     await prisma.$transaction(async (tx) => {
       const current = await tx.product.findUnique({
         where: { id },
-        include: { variants: { select: { id: true } }, translations: { where: { locale: "nl" } } },
+        include: {
+          variants: { select: { id: true } },
+          translations: true,
+          productCategories: true,
+        },
       });
       if (!current) throw new Error("PRODUCT_NOT_FOUND");
       if (input.version && current.updatedAt.toISOString() !== input.version) throw new Error("STALE_PRODUCT");
 
       const categories = await tx.category.findMany({
-        where: { id: { in: input.categoryIds } },
+        where: { id: { in: requestedCategoryIds } },
         select: { id: true, parentId: true },
       });
-      if (categories.length !== input.categoryIds.length) throw new Error("CATEGORY_NOT_FOUND");
+      if (categories.length !== requestedCategoryIds.length) throw new Error("CATEGORY_NOT_FOUND");
       for (const category of categories) {
-        if (category.parentId && !input.categoryIds.includes(category.parentId)) throw new Error("CATEGORY_PARENT_REQUIRED");
+        if (category.parentId && !requestedCategoryIds.includes(category.parentId)) {
+          throw new Error("CATEGORY_PARENT_REQUIRED");
+        }
       }
       if (await tx.product.count({ where: { id: { in: input.recommendationIds } } }) !== input.recommendationIds.length) {
         throw new Error("RECOMMENDATION_NOT_FOUND");
@@ -56,58 +140,82 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         if (variant.id && !knownVariantIds.has(variant.id)) throw new Error("VARIANT_NOT_FOUND");
       }
 
-      const claimedAlias = await tx.productSlugAlias.findUnique({
-        where: { locale_slug: { locale: "nl", slug: input.slug } },
-      });
-      if (claimedAlias && claimedAlias.productId !== id) throw new Error("SLUG_ALIAS_CONFLICT");
-      if (claimedAlias?.productId === id) await tx.productSlugAlias.delete({ where: { id: claimedAlias.id } });
-
-      const nlTranslation = current.translations[0];
-      if (nlTranslation && nlTranslation.slug !== input.slug) {
-        const existingAlias = await tx.productSlugAlias.findUnique({
-          where: { locale_slug: { locale: "nl", slug: nlTranslation.slug } },
+      for (const translation of translations) {
+        const claimedAlias = await tx.productSlugAlias.findUnique({
+          where: { locale_slug: { locale: translation.locale, slug: translation.slug } },
         });
-        if (existingAlias && existingAlias.productId !== id) throw new Error("SLUG_ALIAS_CONFLICT");
-        if (!existingAlias) await tx.productSlugAlias.create({ data: { productId: id, locale: "nl", slug: nlTranslation.slug } });
+        if (claimedAlias && claimedAlias.productId !== id) throw new Error("SLUG_ALIAS_CONFLICT");
+        if (claimedAlias?.productId === id) {
+          await tx.productSlugAlias.delete({ where: { id: claimedAlias.id } });
+        }
+
+        const previous = current.translations.find((item) => item.locale === translation.locale);
+        if (previous && previous.slug !== translation.slug) {
+          const existingAlias = await tx.productSlugAlias.findUnique({
+            where: { locale_slug: { locale: translation.locale, slug: previous.slug } },
+          });
+          if (existingAlias && existingAlias.productId !== id) throw new Error("SLUG_ALIAS_CONFLICT");
+          if (!existingAlias) {
+            await tx.productSlugAlias.create({
+              data: { productId: id, locale: translation.locale, slug: previous.slug },
+            });
+          }
+        }
       }
 
+      const nlTranslation = translations.find((translation) => translation.locale === "nl");
       await tx.product.update({
         where: { id },
         data: {
           sku: input.sku,
-          slug: input.slug,
+          slug: nlTranslation?.slug ?? current.slug,
           basePriceCents: input.basePriceCents,
           salePriceCents: input.salePriceCents,
           unit: input.unit,
           isActive: input.isActive,
         },
       });
-      await tx.productTranslation.upsert({
-        where: { productId_locale: { productId: id, locale: "nl" } },
-        update: {
-          name: input.translation.name,
-          slug: input.slug,
-          shortDescription: normalizeOptionalText(input.translation.shortDescription),
-          description: input.translation.description?.trim() || null,
-        },
-        create: {
-          productId: id,
-          locale: "nl",
-          name: input.translation.name,
-          slug: input.slug,
-          shortDescription: normalizeOptionalText(input.translation.shortDescription),
-          description: input.translation.description?.trim() || null,
-        },
-      });
 
-      await tx.productCategory.deleteMany({ where: { productId: id } });
-      if (input.categoryIds.length) {
-        await tx.productCategory.createMany({ data: input.categoryIds.map((categoryId) => ({ productId: id, categoryId })) });
+      for (const translation of translations) {
+        const data = translationData(translation);
+        await tx.productTranslation.upsert({
+          where: { productId_locale: { productId: id, locale: translation.locale } },
+          update: data,
+          create: { productId: id, locale: translation.locale, ...data },
+        });
       }
+
+      const currentCategories = current.productCategories.map((category) => ({
+        categoryId: category.categoryId,
+        isPrimary: category.isPrimary,
+        sortOrder: category.sortOrder,
+      }));
+      const categoryAssignments = await resolveCategoryAssignments(
+        tx,
+        requestedCategories,
+        currentCategories,
+        Boolean(input.categories)
+      );
+      await tx.productCategory.updateMany({ where: { productId: id }, data: { isPrimary: false } });
+      await tx.productCategory.deleteMany({
+        where: { productId: id, categoryId: { notIn: requestedCategoryIds } },
+      });
+      for (const category of categoryAssignments) {
+        await tx.productCategory.upsert({
+          where: { productId_categoryId: { productId: id, categoryId: category.categoryId } },
+          update: { isPrimary: category.isPrimary, sortOrder: category.sortOrder },
+          create: { productId: id, ...category },
+        });
+      }
+
       await tx.productRecommendation.deleteMany({ where: { sourceProductId: id } });
       if (input.recommendationIds.length) {
         await tx.productRecommendation.createMany({
-          data: input.recommendationIds.map((targetProductId, sortOrder) => ({ sourceProductId: id, targetProductId, sortOrder })),
+          data: input.recommendationIds.map((targetProductId, sortOrder) => ({
+            sourceProductId: id,
+            targetProductId,
+            sortOrder,
+          })),
         });
       }
 
@@ -151,6 +259,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           });
         }
       }
+
+      await upsertNutrition(tx, id, input.nutrition);
       shouldNotify = !current.isActive && input.isActive;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (error) {
@@ -171,11 +281,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   if (shouldNotify) {
-    await notifyPendingStockSubscribers(id).catch((error) => console.error(`Stock notification run failed for ${id}`, error));
+    await notifyPendingStockSubscribers(id).catch((error) =>
+      console.error(`Stock notification run failed for ${id}`, error)
+    );
   }
   const updated = await prisma.product.findUnique({
     where: { id },
-    select: { updatedAt: true, variants: { select: { id: true, sku: true } } },
+    select: {
+      updatedAt: true,
+      variants: { select: { id: true, sku: true }, orderBy: { sku: "asc" } },
+      images: { select: { id: true, sortOrder: true, isPrimary: true }, orderBy: { sortOrder: "asc" } },
+    },
   });
-  return NextResponse.json({ ok: true, version: updated?.updatedAt.toISOString(), variants: updated?.variants ?? [] });
+  return NextResponse.json({
+    ok: true,
+    version: updated?.updatedAt.toISOString(),
+    variants: updated?.variants ?? [],
+    images: updated?.images ?? [],
+  });
 }

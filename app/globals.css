@@ -332,3 +332,53 @@
   .video-hero { min-height: 620px; }
   .video-hero__grid { max-width: 1000px; }
 }
+
+.product-rich-text {
+  color: var(--color-text);
+  line-height: 1.7;
+}
+
+.product-rich-text > * + * {
+  margin-top: 0.9rem;
+}
+
+.product-rich-text h2,
+.product-rich-text h3 {
+  font-family: var(--font-heading), sans-serif;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.product-rich-text h2 {
+  font-size: 1.25rem;
+}
+
+.product-rich-text h3 {
+  font-size: 1.05rem;
+}
+
+.product-rich-text ul,
+.product-rich-text ol {
+  padding-left: 1.35rem;
+}
+
+.product-rich-text ul {
+  list-style: disc;
+}
+
+.product-rich-text ol {
+  list-style: decimal;
+}
+
+.product-rich-text blockquote {
+  border-left: 3px solid var(--color-accent);
+  padding-left: 1rem;
+  color: var(--color-muted);
+}
+
+.product-rich-text a {
+  color: var(--color-accent-hover);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}

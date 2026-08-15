@@ -8,6 +8,7 @@ import { ProductGallery } from "@/components/product/ProductGallery";
 import { VariantSelector } from "@/components/product/VariantSelector";
 import { BackInStockForm } from "@/components/product/BackInStockForm";
 import { ProductRecommendations } from "@/components/product/ProductRecommendations";
+import { ProductPromotionCallout } from "@/components/product/ProductPromotionCallout";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -95,6 +96,8 @@ export function ProductDetailContent({
           </p>
         ) : null}
 
+        {data.promotionText ? <ProductPromotionCallout text={data.promotionText} /> : null}
+
         {data.variants.length > 0 ? (
           <div className="mt-5">
             <VariantSelector
@@ -134,7 +137,14 @@ export function ProductDetailContent({
               {
                 id: "description",
                 label: dictionary.product.tabDescription,
-                content: <p className="text-text">{data.description}</p>,
+                content: data.descriptionHtml ? (
+                  <div
+                    className="product-rich-text"
+                    dangerouslySetInnerHTML={{ __html: data.descriptionHtml }}
+                  />
+                ) : (
+                  <p className="text-text">{data.description}</p>
+                ),
               },
               {
                 id: "nutrition",

@@ -136,7 +136,11 @@ model ProductTranslation {
   name             String
   slug             String
   description      String?
+  descriptionHtml  String?
   shortDescription String?
+  seoTitle         String?
+  metaDescription  String?
+  promotionText    String?
 
   @@unique([productId, locale])
   @@unique([locale, slug])
@@ -147,9 +151,13 @@ model ProductCategory {
   product    Product  @relation(fields: [productId], references: [id])
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
+  isPrimary  Boolean  @default(false)
+  sortOrder  Int      @default(0)
 
   @@id([productId, categoryId])
   @@index([categoryId])
+  @@index([categoryId, sortOrder])
+  @@index([productId, isPrimary])
 }
 
 model ProductVariant {
@@ -251,6 +259,7 @@ model ProductAttribute {
   key       String
   value     String
 
+  @@unique([productId, key])
   @@index([key, value])
   @@index([productId])
 }

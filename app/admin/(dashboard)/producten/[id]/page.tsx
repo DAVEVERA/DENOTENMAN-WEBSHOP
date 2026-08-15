@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { publicImageUrl } from "@/lib/storage";
 import { ProductEditForm } from "./ProductEditForm";
 
+const productLocales = ["nl", "en", "fr"] as const;
+
 export default async function AdminProductEditPage({
   params,
 }: {
@@ -16,12 +18,13 @@ export default async function AdminProductEditPage({
       where: { id },
       include: {
       translations: true,
+      attributes: true,
       images: true,
       variants: { include: { translations: true }, orderBy: { sku: "asc" } },
       recommendations: { orderBy: { sortOrder: "asc" } },
       productCategories: {
         include: { category: { include: { translations: true } } },
-        orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
+        orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { category: { sortOrder: "asc" } }],
       },
       },
     }),
@@ -80,6 +83,61 @@ export default async function AdminProductEditPage({
   const recommendationOptions = productOptions
     .map((item) => ({ id: item.id, name: item.translations[0]?.name }))
     .filter((item): item is { id: string; name: string } => Boolean(item.name));
+  const translationDraft = (locale: (typeof productLocales)[number]) => {
+    const translation = product.translations.find((item) => item.locale === locale);
+    return {
+      locale,
+      slug: translation?.slug ?? "",
+      name: translation?.name ?? "",
+      shortDescription: translation?.shortDescription ?? "",
+      description: translation?.description ?? "",
+      descriptionHtml: translation?.descriptionHtml ?? "",
+      seoTitle: translation?.seoTitle ?? "",
+      metaDescription: translation?.metaDescription ?? "",
+      promotionText: translation?.promotionText ?? "",
+    };
+  };
+  const translations = {
+    nl: translationDraft("nl"),
+    en: translationDraft("en"),
+    fr: translationDraft("fr"),
+  };
+  const attributeValues = new Map(product.attributes.map((attribute) => [attribute.key, attribute.value]));
+  const nutrition = {
+    "nutrition.energyKj": attributeValues.get("nutrition.energyKj") ?? "",
+    "nutrition.energyKcal": attributeValues.get("nutrition.energyKcal") ?? "",
+    "nutrition.fat": attributeValues.get("nutrition.fat") ?? "",
+    "nutrition.saturatedFat": attributeValues.get("nutrition.saturatedFat") ?? "",
+    "nutrition.carbohydrates": attributeValues.get("nutrition.carbohydrates") ?? "",
+    "nutrition.sugars": attributeValues.get("nutrition.sugars") ?? "",
+    "nutrition.fiber": attributeValues.get("nutrition.fiber") ?? "",
+    "nutrition.protein": attributeValues.get("nutrition.protein") ?? "",
+    "nutrition.salt": attributeValues.get("nutrition.salt") ?? "",
+  };
+  const categoryAssignments = product.productCategories.map((link) => ({
+    categoryId: link.categoryId,
+    isPrimary: link.isPrimary,
+    sortOrder: link.sortOrder,
+  }));
+  const initialProduct = {
+    version: product.updatedAt.toISOString(),
+    sku: product.sku,
+    slug: nlTranslation?.slug ?? product.slug,
+    name: nlTranslation?.name ?? "",
+    shortDescription: nlTranslation?.shortDescription ?? "",
+    description: nlTranslation?.description ?? "",
+    basePriceEuro: (product.basePriceCents / 100).toFixed(2),
+    salePriceEuro: product.salePriceCents === null ? "" : (product.salePriceCents / 100).toFixed(2),
+    unit: product.unit,
+    isActive: product.isActive,
+    categoryIds: categoryAssignments.map((category) => category.categoryId),
+    recommendationIds: product.recommendations.map((item) => item.targetProductId),
+    variants,
+    translations,
+    nutrition,
+    categories: categoryAssignments,
+    imageOrder: images.map(({ id: imageId, sortOrder, isPrimary }) => ({ imageId, sortOrder, isPrimary })),
+  };
 
   return (
     <div>
@@ -104,21 +162,7 @@ export default async function AdminProductEditPage({
         <ProductEditForm
           mode="edit"
           productId={product.id}
-          initial={{
-            version: product.updatedAt.toISOString(),
-            sku: product.sku,
-            slug: nlTranslation?.slug ?? product.slug,
-            name: nlTranslation?.name ?? "",
-            shortDescription: nlTranslation?.shortDescription ?? "",
-            description: nlTranslation?.description ?? "",
-            basePriceEuro: (product.basePriceCents / 100).toFixed(2),
-            salePriceEuro: product.salePriceCents === null ? "" : (product.salePriceCents / 100).toFixed(2),
-            unit: product.unit,
-            isActive: product.isActive,
-            categoryIds: product.productCategories.map((link) => link.categoryId),
-            recommendationIds: product.recommendations.map((item) => item.targetProductId),
-            variants,
-          }}
+          initial={initialProduct}
           categories={categoryOptions}
           productOptions={recommendationOptions}
           images={images}

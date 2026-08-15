@@ -44,8 +44,8 @@ export async function generateMetadata({
   }
 
   return {
-    title: data.name,
-    description: data.shortDescription ?? data.description ?? undefined,
+    title: data.seoTitle ?? data.name,
+    description: data.metaDescription ?? data.shortDescription ?? data.description ?? undefined,
     alternates: {
       canonical: alternates.canonical,
       languages: alternates.languages,

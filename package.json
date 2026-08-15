@@ -35,6 +35,7 @@
     "react-dom": "^19.0.0",
     "react-email": "^6.9.2",
     "resend": "^6.20.0",
+    "sanitize-html": "^2.17.7",
     "streamdown": "^2.5.0",
     "tailwind-merge": "^3.6.0",
     "zod": "^3.23.8"
@@ -45,6 +46,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.2.4",
+    "@types/sanitize-html": "^2.16.1",
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.19.0",
