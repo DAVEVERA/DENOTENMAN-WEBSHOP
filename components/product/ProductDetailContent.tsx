@@ -25,6 +25,10 @@ const nutritionRows: { key: string; dictKey: keyof (typeof nl)["product"] }[] = 
   { key: "nutrition.salt", dictKey: "nutritionSalt" },
 ];
 
+export function formatNutritionMeasurement(value: string): string {
+  return `${value} g`;
+}
+
 export function ProductDetailContent({
   data,
   locale,
@@ -53,7 +57,7 @@ export function ProductDetailContent({
       .filter((row) => attributes.has(row.key))
       .map((row) => ({
         label: dictionary.product[row.dictKey],
-        value: attributes.get(row.key) as string,
+        value: formatNutritionMeasurement(attributes.get(row.key) as string),
       })),
   ];
 

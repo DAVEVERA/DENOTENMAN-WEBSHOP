@@ -46,3 +46,26 @@ test("the image studio exposes progress, selection and an accessible empty state
   assert.match(populated, /focus-within:/);
   assert.match(empty, /Nog geen productafbeeldingen/);
 });
+
+test("the image studio names primary, secondary and tertiary positions explicitly", () => {
+  const html = renderToStaticMarkup(
+    <ProductImageStudio
+      productId="product_1"
+      productName="Amandelen"
+      initialImages={[
+        { id: "image_1", url: "https://example.com/1.png", alt: "Amandelen primair", sortOrder: 0, isPrimary: true },
+        { id: "image_2", url: "https://example.com/2.png", alt: "Amandelen secundair", sortOrder: 1, isPrimary: false },
+        { id: "image_3", url: "https://example.com/3.png", alt: "Amandelen tertiair", sortOrder: 2, isPrimary: false },
+      ]}
+    />
+  );
+
+  assert.match(html, />Primair</);
+  assert.match(html, />Secundair</);
+  assert.match(html, />Tertiair</);
+  assert.match(html, /Product uitsnijden/);
+  assert.match(html, /Uitbreidingsrichting/);
+  assert.match(html, /Schaalmethode/);
+  assert.match(html, /Labelachtergrond/);
+  assert.match(html, /Icoontype/);
+});

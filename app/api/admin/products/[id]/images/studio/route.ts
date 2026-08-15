@@ -30,11 +30,13 @@ function clientKey(request: NextRequest, productId: string): string {
   return `${productId}:${forwarded || "admin"}`;
 }
 
-function editPrompt(operation: "edit" | "extend" | "fill", prompt: string): string {
+function editPrompt(operation: "edit" | "spread" | "extend" | "fill", prompt: string): string {
   const invariant = operation === "fill"
     ? "Change only the transparent masked area; preserve every pixel outside it and keep the product identity unchanged."
     : operation === "extend"
       ? "Extend only the transparent canvas; preserve the original product, framing and pixels unchanged."
+      : operation === "spread"
+        ? "Redistribute only the visible product pieces with natural spacing; preserve their identity, count, colour, texture, packaging and the background."
       : "Preserve the product identity, packaging, labels, proportions and all details not explicitly requested.";
   return `${prompt}\n\nConstraints: ${invariant} No watermark.`;
 }
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     } else {
       if (!sourceImage) throw new ProductImageStudioError("NOT_FOUND", "De bronafbeelding bestaat niet.", 404);
       const source = await loadProductImageBytes(sourceImage.storageKey);
-      if (studioRequest.operation === "edit" || studioRequest.operation === "extend" || studioRequest.operation === "fill") {
+      if (studioRequest.operation === "edit" || studioRequest.operation === "spread" || studioRequest.operation === "extend" || studioRequest.operation === "fill") {
         consumeStudioRateLimit(clientKey(request, productId));
         const prepared = await prepareAIStudioEdit(studioRequest, source);
         const edited = await createOpenAIImageGateway().edit({

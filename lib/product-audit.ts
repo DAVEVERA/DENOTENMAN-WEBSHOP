@@ -30,6 +30,10 @@ export function buildRenderedProductPageTargets(
     }));
 }
 
+export function buildProductRevalidationPath(locale: AuditLocale, slug: string): string {
+  return productPath(locale, slug);
+}
+
 export async function loadProductAuditSnapshot(productId: string): Promise<ProductAuditSnapshot | null> {
   const product = await prisma.product.findUnique({
     where: { id: productId },
@@ -115,7 +119,11 @@ export async function generateProductAuditProposals(
 ) {
   const snapshot = await loadProductAuditSnapshot(productId);
   if (!snapshot) throw new Error("PRODUCT_NOT_FOUND");
-  return generateStructuredProductProposals(snapshot, boundary);
+  const renderedPages = await auditRenderedProductPages(
+    buildRenderedProductPageTargets(snapshot.translations),
+    { baseUrl: BASE_URL }
+  );
+  return generateStructuredProductProposals(snapshot, boundary, renderedPages);
 }
 
 export type { DeterministicProductAudit, ProductContentProposalSet } from "@/lib/product-audit-core";

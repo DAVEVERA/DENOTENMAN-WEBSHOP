@@ -24,6 +24,7 @@ type Facet = {
 const QUERY_PARAM = "q";
 const FILTERS_PARAM = "f";
 const URL_SYNC_DELAY_MS = 300;
+const INITIAL_VISIBLE_PRODUCTS = 24;
 
 export function ProductBrowser({
   products,
@@ -41,6 +42,7 @@ export function ProductBrowser({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [hydrated, setHydrated] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_PRODUCTS);
 
   // The static/prerendered HTML always starts unfiltered (query strings
   // aren't known at build time). Once mounted in the browser, restore any
@@ -205,6 +207,11 @@ export function ProductBrowser({
       })
       .sort((a, b) => Number(b.isActive) - Number(a.isActive));
   }, [products, query, selected, facets]);
+  const visibleProducts = filtered.slice(0, visibleCount);
+
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_PRODUCTS);
+  }, [query, selected]);
 
   const activeCount = selected.size;
 
@@ -397,7 +404,7 @@ export function ProductBrowser({
         </p>
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-          {filtered.map((item) => (
+          {visibleProducts.map((item) => (
             <ProductCard
               key={item.id}
               product={item}
@@ -407,6 +414,17 @@ export function ProductBrowser({
           ))}
         </div>
       )}
+      {visibleCount < filtered.length ? (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((current) => current + INITIAL_VISIBLE_PRODUCTS)}
+            className="min-h-11 rounded-button border border-border bg-surface px-5 font-heading text-body-sm font-semibold text-text shadow-card transition-colors hover:border-border-hover"
+          >
+            {dictionary.filters.loadMore.replace("{remaining}", String(filtered.length - visibleCount))}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

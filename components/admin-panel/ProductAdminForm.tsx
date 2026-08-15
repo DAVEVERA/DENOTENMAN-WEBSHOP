@@ -122,15 +122,18 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
   const [categoryAssignments, setCategoryAssignments] = useState<CategoryAssignment[]>(
     () => initial.categories ?? initial.categoryIds.map((categoryId, index) => ({ categoryId, isPrimary: index === 0, sortOrder: index }))
   );
+  const [categoryPlacementMode, setCategoryPlacementMode] = useState<"auto" | "manual">(mode === "create" ? "auto" : "manual");
   const [images, setImages] = useState(initialImages);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
   const selectedMainId = categoryAssignments.find((item) => !categories.find((category) => category.id === item.categoryId)?.parentId)?.categoryId ?? "";
-  const selectedSubId = categoryAssignments.find((item) => Boolean(categories.find((category) => category.id === item.categoryId)?.parentId))?.categoryId ?? "";
+  const selectedSubId = categoryAssignments.find((item) => categories.find((category) => category.id === item.categoryId)?.parentId === selectedMainId)?.categoryId ?? "";
+  const selectedGroupId = categoryAssignments.find((item) => categories.find((category) => category.id === item.categoryId)?.parentId === selectedSubId)?.categoryId ?? "";
   const primaryCategory = categoryAssignments.find((item) => item.isPrimary) ?? categoryAssignments[0];
   const mainCategories = categories.filter((item) => !item.parentId);
   const subCategories = categories.filter((item) => item.parentId === selectedMainId);
+  const productGroups = categories.filter((item) => item.parentId === selectedSubId);
   const availableRecommendations = useMemo(() => productOptions.filter((item) => item.id !== productId), [productOptions, productId]);
 
   function setField<K extends keyof InitialProduct>(key: K, value: InitialProduct[K]) {
@@ -156,9 +159,9 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
     }
   }
 
-  function setCategorySelection(mainId: string, subId = "") {
-    const ids = [mainId, subId].filter(Boolean);
-    const primaryId = subId || mainId;
+  function setCategorySelection(mainId: string, subId = "", groupId = "") {
+    const ids = [mainId, subId, groupId].filter(Boolean);
+    const primaryId = groupId || subId || mainId;
     const next = ids.map((categoryId, index) => {
       const previous = categoryAssignments.find((item) => item.categoryId === categoryId);
       return {
@@ -221,6 +224,7 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
           translations: localizedContent,
           nutrition,
           categories: categoryAssignments,
+          categoryPlacementMode,
           recommendationIds: product.recommendationIds.filter(Boolean),
           variants,
         }),
@@ -258,7 +262,9 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
       <label className={labelClass}>Eenheid<select value={product.unit} onChange={(e) => setField("unit", e.target.value as InitialProduct["unit"])} className={inputClass}><option value="WEIGHT">Gewicht (gram)</option><option value="VOLUME">Inhoud (ml)</option></select></label>
       <label className={labelClass}>Hoofdcategorie<select value={selectedMainId} onChange={(e) => setCategorySelection(e.target.value)} className={inputClass}><option value="">Geen</option>{mainCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
       <label className={labelClass}>Subcategorie<select value={selectedSubId} onChange={(e) => setCategorySelection(selectedMainId, e.target.value)} disabled={!selectedMainId} className={inputClass}><option value="">Geen</option>{subCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-      <label className={labelClass}>Positie binnen productgroep<input type="number" min="0" value={primaryCategory?.sortOrder ?? 0} onChange={(e) => setCategoryAssignments((items) => items.map((item) => item.isPrimary ? { ...item, sortOrder: Math.max(0, Number(e.target.value) || 0) } : item))} className={inputClass} /><span className="mt-1 block font-normal text-muted">Lager staat eerder; automatisch 0 bij een nieuwe koppeling.</span></label>
+      <label className={labelClass}>Productgroep<select value={selectedGroupId} onChange={(e) => setCategorySelection(selectedMainId, selectedSubId, e.target.value)} disabled={!selectedSubId} className={inputClass}><option value="">Geen</option>{productGroups.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <label className={labelClass}>Plaatsing<select value={categoryPlacementMode} onChange={(e) => setCategoryPlacementMode(e.target.value as typeof categoryPlacementMode)} className={inputClass}><option value="auto">Slim automatisch achteraan</option><option value="manual">Handmatige positie</option></select><span className="mt-1 block font-normal text-muted">Automatisch voorkomt dat een nieuw product boven bestaande producten terechtkomt.</span></label>
+      <label className={labelClass}>Positie binnen productgroep<input type="number" min="0" value={primaryCategory?.sortOrder ?? 0} disabled={categoryPlacementMode === "auto"} onChange={(e) => setCategoryAssignments((items) => items.map((item) => item.isPrimary ? { ...item, sortOrder: Math.max(0, Number(e.target.value) || 0) } : item))} className={inputClass} /><span className="mt-1 block font-normal text-muted">Lager staat eerder; kies handmatig om dit veld te wijzigen.</span></label>
     </div></section>
 
     <NutritionEditor values={nutrition} onChange={(values) => { setNutrition(values); setStatus("idle"); }} unit={product.unit} />

@@ -202,6 +202,7 @@
     "closeFilters": "Sluit filters",
     "removeFilter": "Verwijder filter: {label}",
     "resultsCountSingular": "1 product gevonden",
-    "resultsCountPlural": "{count} producten gevonden"
+    "resultsCountPlural": "{count} producten gevonden",
+    "loadMore": "Toon meer ({remaining} resterend)"
   }
 }

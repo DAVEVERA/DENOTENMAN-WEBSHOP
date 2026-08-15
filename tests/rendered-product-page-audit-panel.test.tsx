@@ -20,8 +20,8 @@ test("the audit UI shows rendered storefront checks per language", () => {
           status: 200,
           score: 88,
           checks: [
-            { code: "canonical", label: "Canonical", passed: true, detail: "/nl/producten/amandelen" },
-            { code: "hreflang", label: "Hreflang", passed: false, detail: "EN ontbreekt" },
+            { code: "canonical", label: "Canonical", passed: true, detail: "/nl/producten/amandelen", recommendation: "Voeg een self-referencing canonical toe." },
+            { code: "hreflang", label: "Hreflang", passed: false, detail: "EN ontbreekt", recommendation: "Koppel ook de Engelse productpagina." },
           ],
         },
       ]}
@@ -33,5 +33,6 @@ test("the audit UI shows rendered storefront checks per language", () => {
   assert.match(html, /88/);
   assert.match(html, /Canonical/);
   assert.match(html, /Hreflang/);
+  assert.match(html, /Aanpak: Koppel ook de Engelse productpagina/);
   assert.match(html, /Open productpagina/);
 });

@@ -72,6 +72,7 @@ const color = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const studioRequestSchema = z.discriminatedUnion("operation", [
   z.object({ operation: z.literal("generate"), prompt, width: dimension, height: dimension, quality }).strict(),
   z.object({ operation: z.literal("edit"), sourceImageId: imageId, prompt, width: dimension, height: dimension, quality }).strict(),
+  z.object({ operation: z.literal("spread"), sourceImageId: imageId, prompt, width: dimension, height: dimension, quality }).strict(),
   z.object({ operation: z.literal("extend"), sourceImageId: imageId, prompt, width: dimension, height: dimension, quality, anchor: z.enum(["center", "top", "bottom", "left", "right"]).default("center") }).strict(),
   z.object({ operation: z.literal("fill"), sourceImageId: imageId, prompt, x: coordinate, y: coordinate, width: dimension, height: dimension, quality }).strict(),
   z.object({ operation: z.literal("crop"), sourceImageId: imageId, x: coordinate, y: coordinate, width: dimension, height: dimension }).strict(),
@@ -79,12 +80,13 @@ const studioRequestSchema = z.discriminatedUnion("operation", [
   z.object({ operation: z.literal("text_label"), sourceImageId: imageId, text: z.string().trim().min(1).max(80), x: coordinate, y: coordinate, fontSize: z.number().int().min(8).max(256), color, backgroundColor: color.optional() }).strict(),
   z.object({ operation: z.literal("icon"), sourceImageId: imageId, icon: z.enum(["leaf", "star", "badge", "nut"]), x: coordinate, y: coordinate, size: z.number().int().min(16).max(512), color }).strict(),
   z.object({ operation: z.literal("remove_background"), sourceImageId: imageId, tolerance: z.number().int().min(0).max(120).default(24) }).strict(),
+  z.object({ operation: z.literal("cutout"), sourceImageId: imageId, tolerance: z.number().int().min(0).max(120).default(24) }).strict(),
 ]);
 
 export type StudioRequest = z.infer<typeof studioRequestSchema>;
-type AIStudioRequest = Extract<StudioRequest, { operation: "generate" | "edit" | "extend" }>;
-type AIEditStudioRequest = Extract<StudioRequest, { operation: "edit" | "extend" | "fill" }>;
-type DeterministicStudioRequest = Extract<StudioRequest, { operation: "crop" | "resize" | "text_label" | "icon" | "remove_background" }>;
+type AIStudioRequest = Extract<StudioRequest, { operation: "generate" | "edit" | "spread" | "extend" }>;
+type AIEditStudioRequest = Extract<StudioRequest, { operation: "edit" | "spread" | "extend" | "fill" }>;
+type DeterministicStudioRequest = Extract<StudioRequest, { operation: "crop" | "resize" | "text_label" | "icon" | "remove_background" | "cutout" }>;
 
 export function buildStudioVersionKey(
   productSlug: string,
@@ -130,7 +132,7 @@ export function parseStudioRequest(input: unknown): StudioRequest {
   if (!parsed.success) {
     throw new StudioValidationError("VALIDATION_ERROR", "Ongeldige beeldstudioparameters.");
   }
-  if (parsed.data.operation === "generate" || parsed.data.operation === "edit" || parsed.data.operation === "extend") {
+  if (parsed.data.operation === "generate" || parsed.data.operation === "edit" || parsed.data.operation === "spread" || parsed.data.operation === "extend") {
     assertGPTImageDimensions(parsed.data.width, parsed.data.height);
   }
   return parsed.data;
@@ -337,7 +339,7 @@ export async function prepareAIStudioEdit(
     throw new StudioValidationError("VALIDATION_ERROR", "De bronafbeelding heeft ongeldige of te grote afmetingen.");
   }
 
-  if (request.operation === "edit") {
+  if (request.operation === "edit" || request.operation === "spread") {
     return {
       image: await sharp(source).ensureAlpha().png().toBuffer(),
       prompt: request.prompt,
@@ -471,6 +473,12 @@ export async function runDeterministicStudioOperation(
     bytes = await sharp(source).resize({ width: request.width, height: request.height, fit: request.fit, background: { r: 255, g: 255, b: 255, alpha: 0 } }).png().toBuffer();
   } else if (request.operation === "remove_background") {
     bytes = await removeConnectedBackground(source, request.tolerance);
+  } else if (request.operation === "cutout") {
+    const transparent = await removeConnectedBackground(source, request.tolerance);
+    bytes = await sharp(transparent)
+      .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer();
   } else if (request.operation === "text_label") {
     const estimatedWidth = Math.max(request.fontSize * 2, Math.ceil(request.text.length * request.fontSize * 0.65));
     const height = Math.ceil(request.fontSize * 1.5);

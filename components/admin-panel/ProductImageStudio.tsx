@@ -24,10 +24,12 @@ export type ProductImageStudioImage = {
 type StudioOperation =
   | "generate"
   | "edit"
+  | "spread"
   | "extend"
   | "fill"
   | "crop"
   | "resize"
+  | "cutout"
   | "remove_background"
   | "text_label"
   | "icon";
@@ -47,10 +49,12 @@ type ErrorResponse = { error?: string; message?: string };
 const operations: Array<{ value: StudioOperation; label: string; ai: boolean }> = [
   { value: "generate", label: "Nieuwe productfoto genereren", ai: true },
   { value: "edit", label: "Foto aanpassen met AI", ai: true },
+  { value: "spread", label: "Producten spreiden met AI", ai: true },
   { value: "extend", label: "Canvas uitbreiden met AI", ai: true },
   { value: "fill", label: "Gebied vullen met AI", ai: true },
   { value: "crop", label: "Bijsnijden", ai: false },
   { value: "resize", label: "Formaat wijzigen", ai: false },
+  { value: "cutout", label: "Product uitsnijden", ai: false },
   { value: "remove_background", label: "Achtergrond verwijderen", ai: false },
   { value: "text_label", label: "Tekstlabel toevoegen", ai: false },
   { value: "icon", label: "Icoon toevoegen", ai: false },
@@ -63,6 +67,16 @@ function canonical(images: ProductImageStudioImage[]): ProductImageStudioImage[]
   return [...images]
     .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
     .map((image, sortOrder) => ({ ...image, sortOrder }));
+}
+
+export function imagePositionLabel(images: ProductImageStudioImage[], imageId: string): string {
+  const image = images.find((item) => item.id === imageId);
+  if (!image) return "Onbekende positie";
+  if (image.isPrimary) return "Primair";
+  const supportingIndex = images.filter((item) => !item.isPrimary).findIndex((item) => item.id === imageId);
+  if (supportingIndex === 0) return "Secundair";
+  if (supportingIndex === 1) return "Tertiair";
+  return `Positie ${supportingIndex + 2}`;
 }
 
 async function responseJson<T>(response: Response): Promise<T> {
@@ -96,6 +110,13 @@ export function ProductImageStudio({
   const [y, setY] = useState(0);
   const [text, setText] = useState("");
   const [color, setColor] = useState("#111111");
+  const [backgroundColor, setBackgroundColor] = useState("#ffffff");
+  const [labelBackground, setLabelBackground] = useState(false);
+  const [fontSize, setFontSize] = useState(32);
+  const [anchor, setAnchor] = useState<"center" | "top" | "bottom" | "left" | "right">("center");
+  const [fit, setFit] = useState<"contain" | "cover" | "fill" | "inside" | "outside">("contain");
+  const [icon, setIcon] = useState<"leaf" | "star" | "badge" | "nut">("leaf");
+  const [iconSize, setIconSize] = useState(64);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +126,7 @@ export function ProductImageStudio({
   const operationInfo = operations.find((item) => item.value === operation)!;
   const needsSource = operation !== "generate";
   const needsPrompt = operationInfo.ai;
-  const usesDimensions = ["generate", "edit", "extend", "fill", "crop", "resize"].includes(operation);
+  const usesDimensions = ["generate", "edit", "spread", "extend", "fill", "crop", "resize"].includes(operation);
   const usesCoordinates = ["fill", "crop", "text_label", "icon"].includes(operation);
 
   const setImages = (next: ProductImageStudioImage[]) => {
@@ -260,13 +281,15 @@ export function ProductImageStudio({
     let body: Record<string, unknown>;
     if (operation === "generate") body = { operation, prompt: prompt.trim(), width, height, quality };
     else if (operation === "edit") body = { operation, sourceImageId, prompt: prompt.trim(), width, height, quality };
-    else if (operation === "extend") body = { operation, sourceImageId, prompt: prompt.trim(), width, height, quality, anchor: "center" };
+    else if (operation === "spread") body = { operation, sourceImageId, prompt: prompt.trim(), width, height, quality };
+    else if (operation === "extend") body = { operation, sourceImageId, prompt: prompt.trim(), width, height, quality, anchor };
     else if (operation === "fill") body = { operation, sourceImageId, prompt: prompt.trim(), x, y, width, height, quality };
     else if (operation === "crop") body = { operation, sourceImageId, x, y, width, height };
-    else if (operation === "resize") body = { operation, sourceImageId, width, height, fit: "contain" };
+    else if (operation === "resize") body = { operation, sourceImageId, width, height, fit };
+    else if (operation === "cutout") body = { operation, sourceImageId, tolerance: 24 };
     else if (operation === "remove_background") body = { operation, sourceImageId, tolerance: 24 };
-    else if (operation === "text_label") body = { operation, sourceImageId, text, x, y, fontSize: 32, color };
-    else body = { operation, sourceImageId, icon: "leaf", x, y, size: 64, color };
+    else if (operation === "text_label") body = { operation, sourceImageId, text, x, y, fontSize, color, ...(labelBackground ? { backgroundColor } : {}) };
+    else body = { operation, sourceImageId, icon, x, y, size: iconSize, color };
 
     setBusy(true);
     setError(null);
@@ -328,7 +351,10 @@ export function ProductImageStudio({
               <div className="relative">
                 <img src={image.url} alt={image.alt || productName} loading="lazy" decoding="async" className="aspect-square w-full rounded-button bg-background object-contain" />
                 <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-surface/90 px-2 py-1 text-xs font-bold text-text shadow"><GripVertical className="h-3.5 w-3.5" />{index + 1}</span>
-                {image.isPrimary ? <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-1 text-xs font-bold text-contrast"><Star className="h-3.5 w-3.5 fill-current" />Primair</span> : null}
+                <span className={`absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold shadow ${image.isPrimary ? "bg-accent text-contrast" : "bg-surface/90 text-text"}`}>
+                  {image.isPrimary ? <Star className="h-3.5 w-3.5 fill-current" aria-hidden="true" /> : null}
+                  {imagePositionLabel(images, image.id)}
+                </span>
               </div>
             </button>
             <label className="mt-3 block text-body-sm font-semibold text-text">Alt-tekst
@@ -358,7 +384,14 @@ export function ProductImageStudio({
           {usesDimensions ? <><label className="text-body-sm font-semibold text-text">Breedte (px)<input type="number" min="16" max="3840" value={width} onChange={(event) => setWidth(Number(event.target.value))} className={inputClass} /></label><label className="text-body-sm font-semibold text-text">Hoogte (px)<input type="number" min="16" max="3840" value={height} onChange={(event) => setHeight(Number(event.target.value))} className={inputClass} /></label></> : null}
           {usesCoordinates ? <><label className="text-body-sm font-semibold text-text">X-positie<input type="number" min="0" max="3840" value={x} onChange={(event) => setX(Number(event.target.value))} className={inputClass} /></label><label className="text-body-sm font-semibold text-text">Y-positie<input type="number" min="0" max="3840" value={y} onChange={(event) => setY(Number(event.target.value))} className={inputClass} /></label></> : null}
           {operationInfo.ai ? <label className="text-body-sm font-semibold text-text">Kwaliteit<select value={quality} onChange={(event) => setQuality(event.target.value as typeof quality)} className={inputClass}><option value="low">Concept</option><option value="medium">Normaal</option><option value="high">Hoog</option></select></label> : null}
+          <label className={`text-body-sm font-semibold text-text ${operation === "extend" ? "" : "hidden"}`}>Uitbreidingsrichting<select value={anchor} disabled={operation !== "extend"} onChange={(event) => setAnchor(event.target.value as typeof anchor)} className={inputClass}><option value="center">Rondom</option><option value="top">Naar onderen</option><option value="bottom">Naar boven</option><option value="left">Naar rechts</option><option value="right">Naar links</option></select></label>
+          <label className={`text-body-sm font-semibold text-text ${operation === "resize" ? "" : "hidden"}`}>Schaalmethode<select value={fit} disabled={operation !== "resize"} onChange={(event) => setFit(event.target.value as typeof fit)} className={inputClass}><option value="contain">Passend met ruimte</option><option value="cover">Vullend bijsnijden</option><option value="fill">Exact uitrekken</option><option value="inside">Binnen afmetingen</option><option value="outside">Buiten afmetingen</option></select></label>
           {operation === "text_label" ? <label className="text-body-sm font-semibold text-text">Tekst<input value={text} maxLength={80} onChange={(event) => setText(event.target.value)} className={inputClass} /></label> : null}
+          <label className={`text-body-sm font-semibold text-text ${operation === "text_label" ? "" : "hidden"}`}>Lettergrootte<input type="number" min="8" max="256" value={fontSize} disabled={operation !== "text_label"} onChange={(event) => setFontSize(Number(event.target.value))} className={inputClass} /></label>
+          <label className={`text-body-sm font-semibold text-text ${operation === "text_label" ? "" : "hidden"}`}>Labelachtergrond<span className="mt-2 flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-3"><input type="checkbox" checked={labelBackground} disabled={operation !== "text_label"} onChange={(event) => setLabelBackground(event.target.checked)} />Achtergrondvlak tonen</span></label>
+          <label className={`text-body-sm font-semibold text-text ${operation === "text_label" && labelBackground ? "" : "hidden"}`}>Achtergrondkleur<input type="color" value={backgroundColor} disabled={operation !== "text_label" || !labelBackground} onChange={(event) => setBackgroundColor(event.target.value)} className={`${inputClass} p-1`} /></label>
+          <label className={`text-body-sm font-semibold text-text ${operation === "icon" ? "" : "hidden"}`}>Icoontype<select value={icon} disabled={operation !== "icon"} onChange={(event) => setIcon(event.target.value as typeof icon)} className={inputClass}><option value="leaf">Blad</option><option value="star">Ster</option><option value="badge">Badge</option><option value="nut">Noot</option></select></label>
+          <label className={`text-body-sm font-semibold text-text ${operation === "icon" ? "" : "hidden"}`}>Icoongrootte<input type="number" min="16" max="512" value={iconSize} disabled={operation !== "icon"} onChange={(event) => setIconSize(Number(event.target.value))} className={inputClass} /></label>
           {operation === "text_label" || operation === "icon" ? <label className="text-body-sm font-semibold text-text">Kleur<input type="color" value={color} onChange={(event) => setColor(event.target.value)} className={`${inputClass} p-1`} /></label> : null}
         </div>
         {needsPrompt ? <label className="mt-4 block text-body-sm font-semibold text-text">Opdracht<textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={2000} rows={4} placeholder="Beschrijf alleen wat moet veranderen en wat exact gelijk moet blijven." className={`${inputClass} py-3`} /></label> : null}

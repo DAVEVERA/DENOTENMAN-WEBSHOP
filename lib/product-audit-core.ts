@@ -297,6 +297,15 @@ export function buildDeterministicProductAudit(snapshot: ProductAuditSnapshot): 
     if (/\b(?:premium kwaliteit|perfecte keuze|ultieme smaakbeleving|must[- ]have)\b/i.test(dutchCopy)) {
       add({ code: "nl-generic-copy", area: "language", severity: "warning", title: "Generieke marketingtaal", detail: "Vervang algemene superlatieven door concrete smaak, textuur en gebruiksmomenten.", locale: "nl", evidencePaths: ["translations.nl.shortDescription", "translations.nl.descriptionHtml"] });
     }
+    if (/\b(?:de|deze)\s+(?:noten|amandelen|cashewnoten|pecannoten|hazelnoten|pinda['’]?s|rozijnen)\s+is\b/i.test(dutchCopy)) {
+      add({ code: "nl-subject-verb-agreement", area: "language", severity: "warning", title: "Enkelvoudig werkwoord bij meervoud", detail: "Gebruik bij een meervoudig productonderwerp ‘zijn’ in plaats van ‘is’.", locale: "nl", evidencePaths: ["translations.nl"] });
+    }
+    if (/\bhun\s+hebben\b/i.test(dutchCopy)) {
+      add({ code: "nl-hun-hebben", area: "language", severity: "warning", title: "Onjuist gebruik van ‘hun’", detail: "Gebruik ‘zij hebben’; ‘hun’ is hier geen onderwerp.", locale: "nl", evidencePaths: ["translations.nl"] });
+    }
+    if (/\benigste\b/i.test(dutchCopy)) {
+      add({ code: "nl-enigste", area: "language", severity: "warning", title: "Onjuist woord ‘enigste’", detail: "Gebruik ‘enige’ wanneer je ‘de enige’ bedoelt.", locale: "nl", evidencePaths: ["translations.nl"] });
+    }
   } else {
     add({ code: "nl-language-source-missing", area: "language", severity: "critical", title: "Nederlandse brontekst ontbreekt", detail: "Taalkundige toetsing vereist een Nederlandse bronvertaling.", locale: "nl", evidencePaths: ["translations.nl"] });
   }
@@ -434,7 +443,25 @@ export type ProductContentProposalSet = {
   proposals: ProductContentProposal[];
 };
 
-function aiGroundingPayload(snapshot: ProductAuditSnapshot, audit: DeterministicProductAudit) {
+export type RenderedPageAuditGrounding = {
+  locale: AuditLocale;
+  url: string;
+  status: number;
+  score: number;
+  checks: Array<{
+    code: string;
+    label: string;
+    passed: boolean;
+    detail: string;
+    recommendation: string;
+  }>;
+};
+
+function aiGroundingPayload(
+  snapshot: ProductAuditSnapshot,
+  audit: DeterministicProductAudit,
+  renderedPages: RenderedPageAuditGrounding[]
+) {
   return {
     product: {
       id: snapshot.id,
@@ -452,12 +479,107 @@ function aiGroundingPayload(snapshot: ProductAuditSnapshot, audit: Deterministic
     variants: snapshot.variants.map(({ id, sku, priceCents, salePriceCents, stock, weightGrams, preparation, salting, coating, isActive }) => ({ id, sku, priceCents, salePriceCents, stock, weightGrams, preparation, salting, coating, isActive })),
     attributes: snapshot.attributes,
     audit: { scores: audit.scores, issues: audit.issues, translationStatus: audit.translationStatus.map(({ locale, status, missingFields }) => ({ locale, status, missingFields })) },
+    renderedPages: renderedPages.map((page) => ({
+      locale: page.locale,
+      url: page.url,
+      status: page.status,
+      score: page.score,
+      failedChecks: page.checks
+        .filter((check) => !check.passed)
+        .map(({ code, label, detail, recommendation }) => ({ code, label, detail, recommendation })),
+    })),
   };
+}
+
+const sensitiveClaimGroups = [
+  ["biologisch", "biologische", "organic", "biologique"],
+  ["vegan", "veganistisch", "végane"],
+  ["glutenvrij", "gluten free", "gluten-free", "sans gluten"],
+  ["suikervrij", "sugar free", "sugar-free", "sans sucre"],
+  ["fairtrade", "fair trade", "commerce équitable"],
+  ["100 natuurlijk", "100 natural", "100 naturel"],
+  ["allergievrij", "allergen free", "allergen-free", "sans allergènes"],
+  ["goed voor het hart", "gezond voor het hart", "heart healthy", "bon pour le cœur"],
+  ["altijd op voorraad", "always in stock", "toujours en stock"],
+  ["brc gecertificeerd", "skal gecertificeerd", "msc gecertificeerd", "gecertificeerd biologisch"],
+] as const;
+
+function euroAmountsIn(value: string): number[] {
+  return [...value.matchAll(/(?:€\s*|\b(?:eur|euro)\s*)(\d+(?:[.,]\d{1,2})?)|(\d+(?:[.,]\d{1,2})?)\s*(?:€|\beur\b|\beuro\b)/giu)]
+    .map((match) => match[1] ?? match[2])
+    .filter((amount): amount is string => Boolean(amount))
+    .map((amount) => Math.round(Number(amount.replace(",", ".")) * 100))
+    .filter(Number.isFinite);
+}
+
+function weightsIn(value: string): number[] {
+  return [...value.matchAll(/\b(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gram)\b/giu)]
+    .map((match) => {
+      const amount = Number(match[1].replace(",", "."));
+      return Math.round(amount * (/^kg|kilogram$/iu.test(match[2]) ? 1000 : 1));
+    })
+    .filter(Number.isFinite);
+}
+
+function originValuesIn(value: string): string[] {
+  return [...value.matchAll(/\b(?:afkomstig uit|herkomst(?:land)?\s*[:\-]?|from|origin(?:ating)? from|origine\s*[:\-]?|provenant de)\s+([\p{L}][\p{L}\s-]{1,30})/giu)]
+    .map((match) => normalizedText(match[1]).split(/\b(?:met|and|et|voor|with|avec)\b/u)[0]?.trim() ?? "")
+    .filter(Boolean);
+}
+
+function assertNoUngroundedSensitiveClaims(
+  snapshot: ProductAuditSnapshot,
+  proposals: Array<z.infer<typeof rawProposalSchema>>
+) {
+  const source = normalizedText(JSON.stringify({
+    translations: snapshot.translations,
+    categories: snapshot.categories,
+    variants: snapshot.variants,
+    attributes: snapshot.attributes,
+  }));
+  const proposalText = normalizedText(JSON.stringify(proposals.map((proposal) => ({
+    shortDescription: proposal.shortDescription,
+    fullDescriptionHtml: proposal.fullDescriptionHtml,
+    seoTitle: proposal.seoTitle,
+    metaDescription: proposal.metaDescription,
+  }))));
+
+  for (const claimGroup of sensitiveClaimGroups) {
+    const normalizedClaims = claimGroup.map((claim) => normalizedText(claim));
+    const proposalAddsClaim = normalizedClaims.some((claim) => proposalText.includes(claim));
+    const sourceSupportsClaim = normalizedClaims.some((claim) => source.includes(claim));
+    if (proposalAddsClaim && !sourceSupportsClaim) throw new Error("OPENAI_UNGROUNDED_CLAIM");
+  }
+
+  const proposalRaw = proposals.map((proposal) => [
+    proposal.shortDescription,
+    proposal.fullDescriptionHtml,
+    proposal.seoTitle,
+    proposal.metaDescription,
+  ].join(" ")).join(" ");
+  const supportedPrices = new Set([
+    snapshot.basePriceCents,
+    snapshot.salePriceCents,
+    ...snapshot.variants.flatMap((variant) => [variant.priceCents, variant.salePriceCents]),
+  ].filter((price): price is number => price !== null));
+  if (euroAmountsIn(proposalRaw).some((amount) => !supportedPrices.has(amount))) {
+    throw new Error("OPENAI_UNGROUNDED_CLAIM");
+  }
+
+  const supportedWeights = new Set(snapshot.variants.map((variant) => variant.weightGrams));
+  if (weightsIn(proposalRaw).some((weight) => !supportedWeights.has(weight))) {
+    throw new Error("OPENAI_UNGROUNDED_CLAIM");
+  }
+
+  if (originValuesIn(proposalRaw).some((origin) => !source.includes(origin))) {
+    throw new Error("OPENAI_UNGROUNDED_CLAIM");
+  }
 }
 
 export async function generateStructuredProductProposals(
   snapshot: ProductAuditSnapshot,
-  boundary: ProductAuditAiBoundary
+  boundary: ProductAuditAiBoundary,
+  renderedPages: RenderedPageAuditGrounding[] = []
 ): Promise<ProductContentProposalSet> {
   const audit = buildDeterministicProductAudit(snapshot);
   const raw = await boundary.generateStructured({
@@ -473,10 +595,11 @@ export async function generateStructuredProductProposals(
       "Gebruik alleen veilige HTML: p, h2, h3, strong, em, ul, ol en li.",
       "Onderbouw ieder voorstel met exacte evidencePaths uit de aangeleverde brondata.",
     ].join(" "),
-    prompt: JSON.stringify({ task: "Maak per locale één redactioneel voorstel en een taalkundige toetsing. Alle output wordt eerst door een beheerder beoordeeld.", source: aiGroundingPayload(snapshot, audit) }),
+    prompt: JSON.stringify({ task: "Maak per locale één redactioneel voorstel en een taalkundige toetsing. Alle output wordt eerst door een beheerder beoordeeld.", source: aiGroundingPayload(snapshot, audit, renderedPages) }),
     schema: productAuditProposalJsonSchema as unknown as Record<string, unknown>,
   });
   const parsed = rawProposalSetSchema.parse(raw);
+  assertNoUngroundedSensitiveClaims(snapshot, parsed.proposals);
   const byLocale = new Map(parsed.proposals.map((proposal) => [proposal.locale, proposal]));
   return {
     model: boundary.model,

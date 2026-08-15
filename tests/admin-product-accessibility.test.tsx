@@ -17,6 +17,7 @@ test("mobile admin controls expose at least 44px target classes", () => {
   const logout = renderToStaticMarkup(<LogoutButton />);
   const navigationSource = readFileSync("components/admin-panel/AdminNav.tsx", "utf8");
   const productPageSource = readFileSync("app/admin/(dashboard)/producten/[id]/page.tsx", "utf8");
+  const loginSource = readFileSync("app/admin/login/page.tsx", "utf8");
 
   assert.doesNotMatch(toolbar, /min-h-10|min-w-10/);
   assert.match(toolbar, /min-h-11 min-w-11/);
@@ -24,6 +25,8 @@ test("mobile admin controls expose at least 44px target classes", () => {
   assert.match(logout, /min-h-11/);
   assert.match(navigationSource, /min-h-11/);
   assert.match(productPageSource, /min-h-11/);
+  assert.match(loginSource, /role="alert"/);
+  assert.match(loginSource, /min-h-11/);
 });
 
 test("translation tabs support Arrow, Home and End keyboard navigation", () => {

@@ -194,7 +194,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         tx,
         requestedCategories,
         currentCategories,
-        Boolean(input.categories)
+        Boolean(input.categories) && input.categoryPlacementMode === "manual"
       );
       await tx.productCategory.updateMany({ where: { productId: id }, data: { isPrimary: false } });
       await tx.productCategory.deleteMany({

@@ -6,7 +6,7 @@ import * as productAuditModule from "../lib/product-audit";
 
 type RenderAudit = {
   score: number;
-  checks: Array<{ code: string; passed: boolean }>;
+  checks: Array<{ code: string; passed: boolean; recommendation?: string }>;
 };
 
 type AuditRenderedHtml = (input: {
@@ -65,6 +65,11 @@ test("rendered page audit reports missing SEO signals and noindex", () => {
   assert.ok(failed.has("robots"));
   assert.ok(failed.has("h1"));
   assert.ok(failed.has("product-jsonld"));
+  assert.equal(
+    result.checks.filter((check) => !check.passed).every((check) => Boolean(check.recommendation?.trim())),
+    true,
+    "every failed rendered-page check must tell the admin what to improve"
+  );
   assert.equal(result.score, 0);
 });
 
@@ -117,4 +122,16 @@ test("full product audit targets the localized storefront route for every availa
     { locale: "en", path: "/en/products/almonds", productName: "Almonds" },
     { locale: "fr", path: "/fr/produits/amandes", productName: "Amandes" },
   ]);
+});
+
+test("audit proposal application revalidates each localized storefront route", () => {
+  const module = productAuditModule as unknown as {
+    buildProductRevalidationPath?: (locale: "nl" | "en" | "fr", slug: string) => string;
+  };
+  assert.equal(typeof module.buildProductRevalidationPath, "function");
+  if (!module.buildProductRevalidationPath) return;
+
+  assert.equal(module.buildProductRevalidationPath("nl", "amandelen"), "/nl/producten/amandelen");
+  assert.equal(module.buildProductRevalidationPath("en", "almonds"), "/en/products/almonds");
+  assert.equal(module.buildProductRevalidationPath("fr", "amandes"), "/fr/produits/amandes");
 });

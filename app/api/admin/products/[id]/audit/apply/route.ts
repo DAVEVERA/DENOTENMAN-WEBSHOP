@@ -7,7 +7,7 @@ import {
   auditApplicationSchema,
   prepareAuditProposalApplication,
 } from "@/lib/product-audit-core";
-import { buildProductAudit, loadProductAuditSnapshot } from "@/lib/product-audit";
+import { buildProductAudit, buildProductRevalidationPath, loadProductAuditSnapshot } from "@/lib/product-audit";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     for (const update of application.updates) {
       const slug = snapshot.translations.find((translation) => translation.locale === update.locale)?.slug;
-      if (slug) revalidatePath(`/${update.locale}/producten/${slug}`);
+      if (slug) revalidatePath(buildProductRevalidationPath(update.locale, slug));
     }
     revalidatePath(`/admin/producten/${id}`);
     revalidatePath(`/admin/producten/${id}/audit`);

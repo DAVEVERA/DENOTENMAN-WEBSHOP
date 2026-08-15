@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     const productId = await prisma.$transaction(async (tx) => {
-      const categoryAssignments = input.categories
+      const categoryAssignments = input.categories && input.categoryPlacementMode === "manual"
         ? requestedCategories
         : await Promise.all(requestedCategories.map(async (category) => {
             const maximum = await tx.productCategory.aggregate({

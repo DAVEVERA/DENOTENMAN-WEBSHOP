@@ -13,6 +13,7 @@ export type RenderedPageCheck = {
   label: string;
   passed: boolean;
   detail: string;
+  recommendation: string;
 };
 
 export type RenderedProductPageAudit = {
@@ -109,14 +110,14 @@ export function auditRenderedProductPageHtml(input: {
   }
 
   const checks: RenderedPageCheck[] = [
-    { code: "http-status", label: "HTTP-status", passed: input.status >= 200 && input.status < 300, detail: `HTTP ${input.status}` },
-    { code: "title", label: "Paginatitel", passed: Boolean(title) && normalize(title).includes(normalize(input.productName)), detail: title || "Titel ontbreekt" },
-    { code: "meta-description", label: "Metaomschrijving", passed: decodeText(metaDescription).length >= 30, detail: metaDescription || "Metaomschrijving ontbreekt" },
-    { code: "canonical", label: "Canonical", passed: Boolean(canonical) && Boolean(canonicalPath) && canonicalPath === expectedPath, detail: canonical || "Canonical ontbreekt" },
-    { code: "hreflang", label: "Hreflang", passed: (["nl", "en", "fr"] as const).every((locale) => hreflangs.has(locale)), detail: hreflangs.size ? [...hreflangs].join(", ") : "Hreflang ontbreekt" },
-    { code: "robots", label: "Indexeerbaarheid", passed: input.status > 0 && !/\bnoindex\b/i.test(robots), detail: input.status === 0 ? "Pagina kon niet worden opgehaald" : robots || "Geen beperkende robots-meta" },
-    { code: "h1", label: "H1", passed: h1Matches.length === 1 && normalize(h1Matches[0]?.[1] ?? "").includes(normalize(input.productName)), detail: `${h1Matches.length} H1-kop(pen)` },
-    { code: "product-jsonld", label: "Product structured data", passed: containsProductJsonLd(input.html), detail: containsProductJsonLd(input.html) ? "Product JSON-LD gevonden" : "Product JSON-LD ontbreekt" },
+    { code: "http-status", label: "HTTP-status", passed: input.status >= 200 && input.status < 300, detail: `HTTP ${input.status}`, recommendation: "Herstel de route of serverfout zodat de publieke productpagina HTTP 200 teruggeeft." },
+    { code: "title", label: "Paginatitel", passed: Boolean(title) && normalize(title).includes(normalize(input.productName)), detail: title || "Titel ontbreekt", recommendation: "Geef de pagina een unieke titel waarin de gelokaliseerde productnaam natuurlijk voorkomt." },
+    { code: "meta-description", label: "Metaomschrijving", passed: decodeText(metaDescription).length >= 30, detail: metaDescription || "Metaomschrijving ontbreekt", recommendation: "Voeg een unieke, feitelijke metaomschrijving van minimaal 30 tekens toe." },
+    { code: "canonical", label: "Canonical", passed: Boolean(canonical) && Boolean(canonicalPath) && canonicalPath === expectedPath, detail: canonical || "Canonical ontbreekt", recommendation: "Voeg een self-referencing canonical toe die exact naar deze gelokaliseerde product-URL wijst." },
+    { code: "hreflang", label: "Hreflang", passed: (["nl", "en", "fr"] as const).every((locale) => hreflangs.has(locale)), detail: hreflangs.size ? [...hreflangs].join(", ") : "Hreflang ontbreekt", recommendation: "Koppel de NL-, EN- en FR-productpagina wederzijds met correcte hreflang-links." },
+    { code: "robots", label: "Indexeerbaarheid", passed: input.status > 0 && !/\bnoindex\b/i.test(robots), detail: input.status === 0 ? "Pagina kon niet worden opgehaald" : robots || "Geen beperkende robots-meta", recommendation: "Maak de pagina bereikbaar en verwijder noindex zolang dit product publiek geïndexeerd moet worden." },
+    { code: "h1", label: "H1", passed: h1Matches.length === 1 && normalize(h1Matches[0]?.[1] ?? "").includes(normalize(input.productName)), detail: `${h1Matches.length} H1-kop(pen)`, recommendation: "Gebruik exact één H1 met de gelokaliseerde productnaam." },
+    { code: "product-jsonld", label: "Product structured data", passed: containsProductJsonLd(input.html), detail: containsProductJsonLd(input.html) ? "Product JSON-LD gevonden" : "Product JSON-LD ontbreekt", recommendation: "Voeg geldige Product JSON-LD toe met naam, aanbod, prijs, valuta en beschikbaarheid." },
   ];
   const passed = checks.filter((check) => check.passed).length;
 

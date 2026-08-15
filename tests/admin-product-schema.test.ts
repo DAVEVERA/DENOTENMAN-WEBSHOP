@@ -92,6 +92,37 @@ test("retains localized content, nutrition and category assignments in the parse
   assert.deepEqual(parsed.categories?.map((category) => category.sortOrder), [4, 9]);
 });
 
+test("supports main category, subcategory and product group with automatic placement", () => {
+  const result = productAdminInputSchema.safeParse({
+    ...additiveProduct,
+    categoryPlacementMode: "auto",
+    categories: [
+      { categoryId: "cm12345678901234567890123", isPrimary: false, sortOrder: 0 },
+      { categoryId: "cm12345678901234567890124", isPrimary: false, sortOrder: 0 },
+      { categoryId: "cm12345678901234567890125", isPrimary: true, sortOrder: 0 },
+    ],
+  });
+
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  assert.equal(result.data.categoryPlacementMode, "auto");
+  assert.equal(result.data.categories?.length, 3);
+});
+
+test("rejects more than three category levels", () => {
+  const result = productAdminInputSchema.safeParse({
+    ...additiveProduct,
+    categories: [
+      { categoryId: "cm12345678901234567890123", isPrimary: false, sortOrder: 0 },
+      { categoryId: "cm12345678901234567890124", isPrimary: false, sortOrder: 0 },
+      { categoryId: "cm12345678901234567890125", isPrimary: false, sortOrder: 0 },
+      { categoryId: "cm12345678901234567890126", isPrimary: true, sortOrder: 0 },
+    ],
+  });
+
+  assert.equal(result.success, false);
+});
+
 test("rejects duplicate locales instead of silently overwriting localized content", () => {
   const result = productAdminInputSchema.safeParse({
     ...additiveProduct,

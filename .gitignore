@@ -13,6 +13,7 @@ docs
 
 *-service-account*.json
 gcp-credentials*.json
+/package-lock.json
 
 prisma/*.db
 prisma/migrations/dev/
@@ -34,3 +35,4 @@ output/
 .claude
 .worktrees/
 prisma/product_varianten_prijscontrole.xlsx
+app/admin/(dashboard)/package-lock.json

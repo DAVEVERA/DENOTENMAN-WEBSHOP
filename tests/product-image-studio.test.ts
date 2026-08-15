@@ -139,6 +139,29 @@ test("studio validation enforces GPT Image 2 dimensions and operation limits", (
   );
 });
 
+test("spread is an explicit bounded AI edit that preserves the source canvas", async () => {
+  const source = await sharp({
+    create: { width: 1024, height: 1024, channels: 4, background: { r: 245, g: 245, b: 245, alpha: 1 } },
+  }).png().toBuffer();
+  const request = parseStudioRequest({
+    operation: "spread",
+    sourceImageId: "img_1",
+    prompt: "Verdeel de zichtbare noten gelijkmatig met rustige tussenruimte",
+    width: 1024,
+    height: 1024,
+    quality: "medium",
+  });
+  assert.equal(request.operation, "spread");
+  if (request.operation !== "spread") return;
+
+  const prepared = await prepareAIStudioEdit(request, source);
+  assert.equal(prepared.mask, undefined);
+  assert.deepEqual(
+    await sharp(prepared.image).metadata().then(({ width, height }) => ({ width, height })),
+    { width: 1024, height: 1024 }
+  );
+});
+
 test("studio source validation rejects malformed and decompression-bomb inputs", async () => {
   await assert.rejects(
     validateStudioImage(Buffer.from("not-an-image")),
@@ -259,6 +282,25 @@ test("background removal only clears matching pixels connected to the border", a
   assert.equal(data[3], 0, "border background becomes transparent");
   assert.equal(data[(1 * 5 + 1) * 4 + 3], 255, "foreground remains opaque");
   assert.equal(data[(2 * 5 + 2) * 4 + 3], 255, "enclosed matching color remains opaque");
+});
+
+test("cutout removes the connected background and trims transparent margins", async () => {
+  const pixels = Buffer.alloc(20 * 20 * 4, 255);
+  for (let y = 6; y < 14; y += 1) {
+    for (let x = 5; x < 15; x += 1) {
+      pixels.set([180, 20, 20, 255], (y * 20 + x) * 4);
+    }
+  }
+  const source = await sharp(pixels, { raw: { width: 20, height: 20, channels: 4 } }).png().toBuffer();
+  const request = parseStudioRequest({ operation: "cutout", sourceImageId: "img_1", tolerance: 12 });
+  if (request.operation !== "cutout") assert.fail("Expected a cutout request");
+
+  const result = await runDeterministicStudioOperation(request, source);
+  const metadata = await sharp(result.bytes).metadata();
+
+  assert.ok((metadata.width ?? 20) < 20);
+  assert.ok((metadata.height ?? 20) < 20);
+  assert.equal(metadata.hasAlpha, true);
 });
 
 test("extend creates a same-size PNG mask with only the new canvas area editable", async () => {

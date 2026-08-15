@@ -96,6 +96,20 @@ async function testDeterministicAuditCatchesTranslationAndLanguageBreaks() {
   assert.equal(audit.translationStatus.every((item) => item.sourceHash.startsWith("sha256:")), true);
 }
 
+async function testDeterministicAuditCatchesHighConfidenceDutchErrors() {
+  const broken = snapshot();
+  broken.translations[0] = {
+    ...broken.translations[0],
+    shortDescription: "De noten is knapperig; hun hebben de enigste smaak die u nodig heeft.",
+  };
+  const audit = buildDeterministicProductAudit(broken);
+  const codes = new Set(audit.issues.map((issue) => issue.code));
+
+  assert.ok(codes.has("nl-subject-verb-agreement"));
+  assert.ok(codes.has("nl-hun-hebben"));
+  assert.ok(codes.has("nl-enigste"));
+}
+
 async function testHashesProtectTheRightBoundaries() {
   const original = buildDeterministicProductAudit(snapshot());
   const changedCopy = snapshot();
@@ -149,6 +163,47 @@ async function testStructuredProposalUsesBoundaryAndNeverExposesProtectedMutatio
     assert.equal("nutrition" in proposal, false);
     assert.equal("categoryIds" in proposal, false);
   }
+}
+
+async function testStructuredProposalReceivesRenderedPageFailuresAsGrounding() {
+  let receivedPrompt = "";
+  const fake: ProductAuditAiBoundary = {
+    model: "boundary-fake",
+    async generateStructured(input) {
+      receivedPrompt = input.prompt;
+      return {
+        overallRecommendations: ["Herstel eerst de aantoonbare storefrontfout."],
+        proposals: (["nl", "en", "fr"] as const).map((locale) => ({
+          locale,
+          shortDescription: `${locale.toUpperCase()} korte omschrijving met smaak, textuur en een concreet gebruiksmoment.`,
+          fullDescriptionHtml: `<p>${locale.toUpperCase()} volledige omschrijving met concrete smaak, textuur en een passend gebruiksmoment.</p>`,
+          seoTitle: `${locale.toUpperCase()} geroosterde amandelen kopen`,
+          metaDescription: `${locale.toUpperCase()} bestel geroosterde amandelen met een volle smaak en knapperige beet eenvoudig online bij De Notenman.`,
+          rationale: ["Gebaseerd op de productbron."],
+          languageFindings: [],
+          evidencePaths: [`translations.${locale}.name`],
+        })),
+      };
+    },
+  };
+
+  await generateStructuredProductProposals(snapshot(), fake, [{
+    locale: "en",
+    url: "https://denotenman.com/en/products/roasted-almonds",
+    status: 200,
+    score: 88,
+    checks: [{
+      code: "canonical",
+      label: "Canonical",
+      passed: false,
+      detail: "Canonical ontbreekt",
+      recommendation: "Voeg een self-referencing canonical toe.",
+    }],
+  }]);
+
+  const payload = JSON.parse(receivedPrompt) as { source?: { renderedPages?: unknown[] } };
+  assert.equal(payload.source?.renderedPages?.length, 1);
+  assert.match(receivedPrompt, /self-referencing canonical/i);
 }
 
 async function testReviewApplyRejectsStaleAndOnlyReturnsEditorialUpdates() {
@@ -293,15 +348,83 @@ async function testStructuredProposalRejectsProtectedMutationFields() {
   );
 }
 
+async function testStructuredProposalRejectsUngroundedSensitiveClaims() {
+  const fake: ProductAuditAiBoundary = {
+    model: "boundary-fake",
+    async generateStructured() {
+      return {
+        overallRecommendations: ["Gebruik alleen aantoonbare productfeiten."],
+        proposals: (["nl", "en", "fr"] as const).map((locale) => ({
+          locale,
+          shortDescription: `${locale.toUpperCase()} biologisch product met een volle smaak en knapperige beet voor ieder moment.`,
+          fullDescriptionHtml: `<p>${locale.toUpperCase()} dit biologische product heeft een volle smaak, stevige textuur en is geschikt als tussendoortje.</p>`,
+          seoTitle: `${locale.toUpperCase()} biologisch product kopen`,
+          metaDescription: `${locale.toUpperCase()} bestel dit biologische product met een volle smaak en knapperige beet eenvoudig online bij De Notenman.`,
+          rationale: ["Biologisch als verkoopargument toegevoegd."],
+          languageFindings: [],
+          evidencePaths: [`translations.${locale}.name`],
+        })),
+      };
+    },
+  };
+
+  await assert.rejects(
+    () => generateStructuredProductProposals(snapshot(), fake),
+    (error: unknown) => error instanceof Error && error.message === "OPENAI_UNGROUNDED_CLAIM"
+  );
+}
+
+async function testStructuredProposalRejectsOtherUngroundedCommercialClaims() {
+  const unsupportedClaims = [
+    "afkomstig uit Spanje",
+    "allergievrij",
+    "goed voor het hart",
+    "nu voor € 1,99",
+    "verkrijgbaar in 500 g",
+    "altijd op voorraad",
+  ];
+
+  for (const claim of unsupportedClaims) {
+    const fake: ProductAuditAiBoundary = {
+      model: "boundary-fake",
+      async generateStructured() {
+        return {
+          overallRecommendations: ["Gebruik alleen aantoonbare feiten."],
+          proposals: (["nl", "en", "fr"] as const).map((locale) => ({
+            locale,
+            shortDescription: `${locale.toUpperCase()} knapperige amandelen, ${claim}, met een volle smaak voor ieder genietmoment.`,
+            fullDescriptionHtml: `<p>${locale.toUpperCase()} knapperige amandelen, ${claim}, met een stevige beet en volle smaak.</p>`,
+            seoTitle: `${locale.toUpperCase()} geroosterde amandelen kopen`,
+            metaDescription: `${locale.toUpperCase()} bestel geroosterde amandelen, ${claim}, eenvoudig online bij De Notenman.`,
+            rationale: ["Commercieel argument toegevoegd."],
+            languageFindings: [],
+            evidencePaths: [`translations.${locale}.name`],
+          })),
+        };
+      },
+    };
+
+    await assert.rejects(
+      () => generateStructuredProductProposals(snapshot(), fake),
+      (error: unknown) => error instanceof Error && error.message === "OPENAI_UNGROUNDED_CLAIM",
+      `unsupported claim should be rejected: ${claim}`
+    );
+  }
+}
+
 async function main() {
   await testDeterministicAuditCatchesTranslationAndLanguageBreaks();
+  await testDeterministicAuditCatchesHighConfidenceDutchErrors();
   await testHashesProtectTheRightBoundaries();
   await testStructuredProposalUsesBoundaryAndNeverExposesProtectedMutationFields();
+  await testStructuredProposalReceivesRenderedPageFailuresAsGrounding();
   await testReviewApplyRejectsStaleAndOnlyReturnsEditorialUpdates();
   await testMissingOpenAIKeyFailsClearlyWithoutNetworkCall();
   await testOpenAIBoundarySendsStrictSchemaAndParsesResponsesOutput();
   await testOpenAIBoundaryDistinguishesExhaustedCreditsFromRateLimiting();
   await testStructuredProposalRejectsProtectedMutationFields();
+  await testStructuredProposalRejectsUngroundedSensitiveClaims();
+  await testStructuredProposalRejectsOtherUngroundedCommercialClaims();
   console.log("product audit tests: ok");
 }
 

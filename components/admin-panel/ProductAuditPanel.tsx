@@ -145,7 +145,11 @@ export function RenderedPageAuditPanel({ pages }: { pages: RenderedProductPageAu
                     {check.passed
                       ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
                       : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-700" aria-hidden="true" />}
-                    <span className="min-w-0"><strong className="text-text">{check.label}</strong><span className="block break-words text-caption text-muted">{check.detail}</span></span>
+                    <span className="min-w-0">
+                      <strong className="text-text">{check.label}</strong>
+                      <span className="block break-words text-caption text-muted">{check.detail}</span>
+                      {!check.passed ? <span className="mt-1 block text-caption font-medium text-text">Aanpak: {check.recommendation}</span> : null}
+                    </span>
                   </li>
                 ))}
               </ul>

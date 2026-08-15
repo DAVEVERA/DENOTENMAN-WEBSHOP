@@ -202,6 +202,7 @@
     "closeFilters": "Close filters",
     "removeFilter": "Remove filter: {label}",
     "resultsCountSingular": "1 product found",
-    "resultsCountPlural": "{count} products found"
+    "resultsCountPlural": "{count} products found",
+    "loadMore": "Show more ({remaining} remaining)"
   }
 }

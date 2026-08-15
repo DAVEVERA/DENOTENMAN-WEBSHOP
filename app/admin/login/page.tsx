@@ -60,7 +60,7 @@ export default function AdminLoginPage() {
               required
               autoComplete="username"
               autoFocus
-              className="mt-1 w-full rounded-button border border-border px-3 py-2"
+              className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2"
             />
           </div>
           <div>
@@ -73,17 +73,17 @@ export default function AdminLoginPage() {
               type="password"
               required
               autoComplete="current-password"
-              className="mt-1 w-full rounded-button border border-border px-3 py-2"
+              className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2"
             />
           </div>
         </div>
 
-        {error ? <p className="mt-3 text-body-sm text-red-600">{error}</p> : null}
+        {error ? <p role="alert" aria-live="assertive" className="mt-3 text-body-sm text-red-600">{error}</p> : null}
 
         <button
           type="submit"
           disabled={submitting}
-          className="mt-6 inline-flex w-full items-center justify-center rounded-button border border-accent bg-accent px-5 py-2.5 font-heading text-body-md font-semibold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover disabled:opacity-60"
+          className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-button border border-accent bg-accent px-5 py-2.5 font-heading text-body-md font-semibold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover disabled:opacity-60"
         >
           {submitting ? "Bezig..." : "Inloggen"}
         </button>
