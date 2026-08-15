@@ -9,8 +9,12 @@ import type {
   ProductContentProposal,
   ProductContentProposalSet,
 } from "@/lib/product-audit-core";
+import type { RenderedProductPageAudit } from "@/lib/rendered-product-page-audit";
 
-type AuditWithConfiguration = DeterministicProductAudit & { aiConfigured: boolean };
+type AuditWithConfiguration = DeterministicProductAudit & {
+  aiConfigured: boolean;
+  renderedPages: RenderedProductPageAudit[];
+};
 
 const areaLabels: Record<"overall" | AuditArea, string> = {
   overall: "Totaal",
@@ -112,6 +116,47 @@ function ProposalCard({
         </div>
       </div>
     </article>
+  );
+}
+
+export function RenderedPageAuditPanel({ pages }: { pages: RenderedProductPageAudit[] }) {
+  return (
+    <section aria-labelledby="rendered-page-audit-title" className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6">
+      <h2 id="rendered-page-audit-title" className="flex items-center gap-2 font-heading text-xl font-bold text-text">
+        <SearchCheck className="h-5 w-5 text-accent-hover" />Gerenderde storefrontcontrole
+      </h2>
+      <p className="mt-1 max-w-3xl text-body-sm text-muted">
+        Haalt de echte publieke productpagina per taal op en controleert indexeerbaarheid, metadata, canonical, hreflang, H1 en Product structured data.
+      </p>
+      {pages.length ? (
+        <div className="mt-5 grid gap-4 xl:grid-cols-3">
+          {pages.map((page) => (
+            <article key={page.locale} className="min-w-0 rounded-card border border-border bg-background p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-heading text-lg font-bold text-text">{localeLabels[page.locale]}</h3>
+                  <p className="mt-1 text-caption text-muted">HTTP {page.status || "niet bereikbaar"}</p>
+                </div>
+                <span className={`font-heading text-2xl font-bold ${scoreClass(page.score)}`}>{page.score}</span>
+              </div>
+              <ul className="mt-4 space-y-2">
+                {page.checks.map((check) => (
+                  <li key={check.code} className="flex items-start gap-2 text-body-sm">
+                    {check.passed
+                      ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
+                      : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-700" aria-hidden="true" />}
+                    <span className="min-w-0"><strong className="text-text">{check.label}</strong><span className="block break-words text-caption text-muted">{check.detail}</span></span>
+                  </li>
+                ))}
+              </ul>
+              <a href={page.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center font-semibold text-text underline decoration-accent underline-offset-4">
+                Open productpagina
+              </a>
+            </article>
+          ))}
+        </div>
+      ) : <p className="mt-4 text-body-sm text-muted">Er zijn nog geen gelokaliseerde productpagina&apos;s om te controleren.</p>}
+    </section>
   );
 }
 
@@ -233,6 +278,8 @@ export function ProductAuditPanel({ productId, initialAudit }: { productId: stri
           ))}
         </div>
       </section>
+
+      <RenderedPageAuditPanel pages={audit.renderedPages} />
 
       <section aria-labelledby="findings-title" className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6">
         <h2 id="findings-title" className="font-heading text-xl font-bold text-text">Bevindingen met bewijs</h2>

@@ -4,6 +4,8 @@ import { sanitizeProductHtml, toProductPlainText } from "@/lib/product-content";
 
 export const auditLocales = ["nl", "en", "fr"] as const;
 export type AuditLocale = (typeof auditLocales)[number];
+export { auditRenderedProductPageHtml } from "@/lib/rendered-product-page-audit";
+export type { RenderedPageCheck, RenderedProductPageAudit } from "@/lib/rendered-product-page-audit";
 export type AuditArea = "seo" | "content" | "language" | "translations" | "commerce";
 export type AuditSeverity = "critical" | "warning" | "opportunity";
 

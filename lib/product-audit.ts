@@ -8,9 +8,26 @@ import {
   type ProductAuditSnapshot,
 } from "@/lib/product-audit-core";
 import { createOpenAIProductAuditBoundary } from "@/lib/product-audit-openai";
+import {
+  auditRenderedProductPages,
+  type RenderedProductPageTarget,
+} from "@/lib/rendered-product-page-audit";
+import { BASE_URL, product as productPath } from "@/lib/routes";
 
 function isAuditLocale(locale: string): locale is AuditLocale {
   return auditLocales.some((candidate) => candidate === locale);
+}
+
+export function buildRenderedProductPageTargets(
+  translations: Array<{ locale: AuditLocale; slug: string; name: string }>
+): RenderedProductPageTarget[] {
+  return translations
+    .filter((translation) => translation.slug.trim() && translation.name.trim())
+    .map((translation) => ({
+      locale: translation.locale,
+      path: productPath(translation.locale, translation.slug),
+      productName: translation.name,
+    }));
 }
 
 export async function loadProductAuditSnapshot(productId: string): Promise<ProductAuditSnapshot | null> {
@@ -81,8 +98,13 @@ export async function loadProductAuditSnapshot(productId: string): Promise<Produ
 export async function buildProductAudit(productId: string) {
   const snapshot = await loadProductAuditSnapshot(productId);
   if (!snapshot) return null;
+  const renderedPages = await auditRenderedProductPages(
+    buildRenderedProductPageTargets(snapshot.translations),
+    { baseUrl: BASE_URL }
+  );
   return {
     ...buildDeterministicProductAudit(snapshot),
+    renderedPages,
     aiConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
   };
 }
