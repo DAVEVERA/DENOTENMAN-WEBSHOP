@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { PostnlError } from "@/lib/postnl";
 import { ensurePostnlLabel, PostnlLabelGuardError } from "@/lib/postnl-labels";
 
 async function requireAdmin(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  return isValidAdminSessionToken(token);
+  return (await verifyAdminSessionToken(token)) !== null;
 }
 
 export async function GET(

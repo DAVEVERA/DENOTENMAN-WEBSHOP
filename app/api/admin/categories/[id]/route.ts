@@ -1,16 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth";
-
-// Route Handlers live outside proxy.ts's matcher (`/((?!api|_next|.*\\..*).*)`
-// deliberately excludes `/api/**`), so this endpoint must verify the admin
-// session itself rather than relying on the proxy gate that protects the
-// `/admin/**` pages.
-async function requireAdmin(request: NextRequest): Promise<boolean> {
-  const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  return isValidAdminSessionToken(token);
-}
+import { getAdminSession } from "@/lib/admin-api-auth";
+import { recordAudit } from "@/lib/admin-audit";
 
 type PatchBody = Partial<{
   name: unknown;
@@ -24,7 +16,8 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  if (!(await requireAdmin(request))) {
+  const admin = await getAdminSession(request);
+  if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
@@ -110,23 +103,21 @@ export async function PATCH(
     return NextResponse.json({ error: "NO_CHANGES" }, { status: 400 });
   }
 
-  await prisma.$transaction([
-    ...(hasCategoryUpdate
-      ? [prisma.category.update({ where: { id }, data: categoryData })]
-      : []),
-    ...(hasTranslationUpdate
-      ? [
-          prisma.categoryTranslation.updateMany({
-            where: { categoryId: id, locale: "nl" },
-            data: translationData,
-          }),
-        ]
-      : []),
-  ]);
+  const updated = await prisma.$transaction(async (tx) => {
+    if (hasCategoryUpdate) {
+      await tx.category.update({ where: { id }, data: categoryData });
+    }
+    if (hasTranslationUpdate) {
+      await tx.categoryTranslation.updateMany({
+        where: { categoryId: id, locale: "nl" },
+        data: translationData,
+      });
+    }
 
-  const updated = await prisma.category.findUnique({
-    where: { id },
-    include: { translations: true },
+    const after = await tx.category.findUnique({ where: { id } });
+    await recordAudit(tx, admin, "Category", id, "UPDATE", existing, after);
+
+    return tx.category.findUnique({ where: { id }, include: { translations: true } });
   });
 
   return NextResponse.json({ ok: true, category: updated });

@@ -5,6 +5,7 @@ import {
   createAdminSessionToken,
   verifyAdminCredentials,
 } from "@/lib/admin-auth";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -21,11 +22,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
   }
 
-  if (!verifyAdminCredentials(candidate.username, candidate.password)) {
+  const user = await verifyAdminCredentials(candidate.username, candidate.password);
+  if (!user) {
     return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
   }
 
-  const token = await createAdminSessionToken();
+  await prisma.adminUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+
+  const token = await createAdminSessionToken(user.id);
   const response = NextResponse.json({ ok: true });
 
   response.cookies.set(ADMIN_SESSION_COOKIE, token, {

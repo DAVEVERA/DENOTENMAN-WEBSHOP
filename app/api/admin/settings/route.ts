@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { getSettings, setSetting } from "@/lib/settings";
 
 const SETTING_KEYS = [
@@ -18,7 +18,7 @@ const SETTING_KEYS = [
 
 async function requireAdmin(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  return isValidAdminSessionToken(token);
+  return (await verifyAdminSessionToken(token)) !== null;
 }
 
 export async function GET(request: NextRequest) {

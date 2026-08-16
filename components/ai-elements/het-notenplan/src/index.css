@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #F6F3EE;
+    color: #333333;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Dosis', sans-serif;
+    font-weight: 700;
+  }
+}
+
+.font-dosis {
+  font-family: 'Dosis', sans-serif;
+}
+
+.font-montserrat {
+  font-family: 'Montserrat', sans-serif;
+}
+

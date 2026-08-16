@@ -422,3 +422,198 @@ model AppSetting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+enum AdminRole {
+  OWNER
+  ADMIN
+  STAFF
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(ADMIN)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+
+  auditEntries AuditLog[]
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+}
+
+// Generic before/after snapshot log for every admin mutation. entityType is
+// the Prisma model name (e.g. "Product", "QrCodeDesign"); entityId is that
+// model's id as a string. Reverting replays `before` and writes a new
+// RESTORE entry rather than mutating history in place.
+model AuditLog {
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now())
+  adminUserId String
+  adminUser   AdminUser   @relation(fields: [adminUserId], references: [id])
+  action      AuditAction
+  entityType  String
+  entityId    String
+  before      Json?
+  after       Json?
+  reverted    Boolean     @default(false)
+  revertOfId  String?
+
+  @@index([entityType, entityId])
+  @@index([adminUserId])
+  @@index([createdAt])
+}
+
+enum QrCodeTargetType {
+  product
+  category
+  discount
+  whatsapp
+  email
+  wifi
+  url
+  text
+}
+
+enum QrCodeStatus {
+  active
+  archived
+}
+
+model QrCodeDesign {
+  id           String           @id @default(cuid())
+  name         String
+  status       QrCodeStatus     @default(active)
+  targetType   QrCodeTargetType
+  targetConfig Json
+  designConfig Json
+  labelConfig  Json
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+enum DiscountStatus {
+  DRAFT
+  ACTIVE
+  SCHEDULED
+  EXPIRED
+}
+
+model Discount {
+  id             String         @id @default(cuid())
+  code           String         @unique
+  title          String
+  subtitle       String?
+  status         DiscountStatus @default(DRAFT)
+  percentOff     Int?
+  amountOffCents Int?
+  startsAt       DateTime?
+  endsAt         DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+enum MarketingBannerPlacement {
+  HOMEPAGE
+  CATEGORY
+  PROMOTION
+}
+
+model MarketingBanner {
+  id        String                   @id @default(cuid())
+  title     String
+  imageUrl  String
+  linkUrl   String?
+  placement MarketingBannerPlacement @default(HOMEPAGE)
+  isActive  Boolean                  @default(true)
+  sortOrder Int                      @default(0)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+}
+
+enum MarketingCampaignStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+}
+
+model MarketingCampaign {
+  id          String                  @id @default(cuid())
+  title       String
+  description String?
+  status      MarketingCampaignStatus @default(DRAFT)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+}
+
+enum NewsletterCampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+}
+
+model NewsletterCampaign {
+  id          String                   @id @default(cuid())
+  subject     String
+  bodyHtml    String
+  status      NewsletterCampaignStatus @default(DRAFT)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+}
+
+enum BusinessAccountStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+model BusinessAccount {
+  id          String                @id @default(cuid())
+  companyName String
+  contactName String
+  email       String                @unique
+  phone       String?
+  vatNumber   String?
+  status      BusinessAccountStatus @default(PENDING)
+  priceTier   String                @default("standard")
+  notes       String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  quotes Quote[]
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+}
+
+model Quote {
+  id                String          @id @default(cuid())
+  businessAccountId String
+  businessAccount   BusinessAccount @relation(fields: [businessAccountId], references: [id])
+  status            QuoteStatus     @default(DRAFT)
+  items             Json
+  totalCents        Int
+  validUntil        DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([businessAccountId])
+}

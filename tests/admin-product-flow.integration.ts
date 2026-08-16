@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { prisma } from "../lib/prisma";
-import { ADMIN_SESSION_COOKIE, createAdminSessionToken } from "../lib/admin-auth";
+import { ADMIN_SESSION_COOKIE, createAdminSessionToken, hashAdminPassword } from "../lib/admin-auth";
 import { POST as createProduct } from "../app/api/admin/products/route";
 import { PATCH as updateProduct } from "../app/api/admin/products/[id]/route";
 import { POST as subscribeStock } from "../app/api/stock-notifications/route";
@@ -36,7 +36,17 @@ async function main() {
   process.env.ADMIN_SESSION_SECRET = "integration-test-secret-at-least-32-characters";
   delete process.env.RESEND_API_KEY;
   for (const key of ["GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_CLIENT_ID", "GOOGLE_ADS_CLIENT_SECRET", "GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_CUSTOMER_ID"]) delete process.env[key];
-  const token = await createAdminSessionToken();
+  const testAdmin = await prisma.adminUser.upsert({
+    where: { username: "integration-test-admin" },
+    update: {},
+    create: {
+      username: "integration-test-admin",
+      name: "Integration Test Admin",
+      passwordHash: await hashAdminPassword("integration-test-only"),
+      role: "OWNER",
+    },
+  });
+  const token = await createAdminSessionToken(testAdmin.id);
   const cookie = `${ADMIN_SESSION_COOKIE}=${token}`;
   const request = (url: string, body: unknown) => new NextRequest(url, { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(body) });
 

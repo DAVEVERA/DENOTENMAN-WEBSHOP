@@ -31,6 +31,7 @@
     "next": "^16.3.0",
     "pdf-lib": "^1.17.1",
     "prisma": "^6.0.0",
+    "qr-code-styling": "^1.9.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-email": "^6.9.2",

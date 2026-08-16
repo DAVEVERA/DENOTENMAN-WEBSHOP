@@ -1,0 +1,6 @@
+{
+  "name": "Het Notenplan",
+  "description": "Slimme AI module popout snippet voor gepersonaliseerde notenvoorstellen op maat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

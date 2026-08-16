@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { defaultLocale, isLocale } from "@/lib/i18n";
 import { PREVIEW_COOKIE, comingSoonHtml, isComingSoonEnabled, previewToken } from "@/lib/comingSoon";
-import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 
 function detectLocaleFromHeader(acceptLanguage: string | null): string {
   if (!acceptLanguage) {
@@ -55,7 +55,7 @@ async function checkAdminGate(request: NextRequest): Promise<NextResponse | null
 
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
 
-  if (await isValidAdminSessionToken(token)) {
+  if (await verifyAdminSessionToken(token)) {
     return null;
   }
 

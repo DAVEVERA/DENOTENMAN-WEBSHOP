@@ -9,8 +9,14 @@ const links = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/producten", label: "Producten" },
   { href: "/admin/bestellingen", label: "Bestellingen" },
+  { href: "/admin/zakelijk", label: "Zakelijk" },
+  { href: "/admin/notenplan", label: "Notenplan" },
   { href: "/admin/advertenties", label: "Google Ads" },
+  { href: "/admin/qrcodes", label: "QR-codes" },
   { href: "/admin/categorieen", label: "Categorieën" },
+  { href: "/admin/marketing", label: "Marketing" },
+  { href: "/admin/kortingen", label: "Kortingen" },
+  { href: "/admin/logboek", label: "Logboek" },
   { href: "/admin/instellingen", label: "Instellingen" },
 ];
 

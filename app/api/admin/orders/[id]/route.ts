@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { OrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 
 // proxy.ts's matcher explicitly excludes /api/** ("/((?!api|_next|.*\\..*).*)"),
 // so unlike the /admin/** page tree this route is NOT gated by the shared
@@ -19,7 +19,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  if (!(await isValidAdminSessionToken(token))) {
+  if (!(await verifyAdminSessionToken(token))) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
