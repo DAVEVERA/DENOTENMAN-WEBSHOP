@@ -98,6 +98,13 @@
     "name": "Nom",
     "email": "Adresse e-mail",
     "phone": "Numéro de téléphone (facultatif)",
+    "deliveryMethodHeading": "Mode de livraison",
+    "deliveryMethodShipping": "Livraison à domicile",
+    "deliveryMethodPickup": "Retrait au marché",
+    "countryLabel": "Pays",
+    "countryNL": "Pays-Bas",
+    "countryBE": "Belgique",
+    "pickupLocationHeading": "Choisissez votre point de retrait",
     "shippingHeading": "Adresse de livraison",
     "street": "Rue",
     "houseNumber": "Numéro",
@@ -121,7 +128,8 @@
     "backToCart": "Retour au panier",
     "genericError": "Une erreur s'est produite. Veuillez réessayer.",
     "errorOutOfStock": "Un ou plusieurs produits ne sont plus disponibles dans la quantité demandée.",
-    "errorInvalidContact": "Veuillez vérifier les informations saisies."
+    "errorInvalidContact": "Veuillez vérifier les informations saisies.",
+    "errorInvalidPickupLocation": "Veuillez choisir un point de retrait."
   },
   "order": {
     "paidTitle": "Merci pour votre commande !",

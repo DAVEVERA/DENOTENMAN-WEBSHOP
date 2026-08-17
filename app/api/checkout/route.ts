@@ -9,10 +9,12 @@ type CheckoutRequestBody = {
     name: string;
     email: string;
     phone?: string;
-    street: string;
-    houseNumber: string;
-    postalCode: string;
-    city: string;
+    deliveryMethod: "SHIPPING" | "PICKUP";
+    pickupLocationId?: string;
+    street?: string;
+    houseNumber?: string;
+    postalCode?: string;
+    city?: string;
     country: string;
   };
   lines: CartLineInput[];
@@ -26,6 +28,8 @@ function isCheckoutRequestBody(value: unknown): value is CheckoutRequestBody {
     typeof candidate.locale === "string" &&
     typeof candidate.contact === "object" &&
     candidate.contact !== null &&
+    (candidate.contact.deliveryMethod === "SHIPPING" ||
+      candidate.contact.deliveryMethod === "PICKUP") &&
     Array.isArray(candidate.lines) &&
     (candidate.discountCode === undefined || typeof candidate.discountCode === "string")
   );

@@ -11,6 +11,34 @@ export class PostnlLabelGuardError extends Error {
   }
 }
 
+function assertShippableAddress(
+  order: {
+    deliveryMethod: string;
+    shippingStreet: string | null;
+    shippingHouseNumber: string | null;
+    shippingPostalCode: string | null;
+    shippingCity: string | null;
+  }
+): asserts order is typeof order & {
+  shippingStreet: string;
+  shippingHouseNumber: string;
+  shippingPostalCode: string;
+  shippingCity: string;
+} {
+  if (
+    order.deliveryMethod !== "SHIPPING" ||
+    !order.shippingStreet ||
+    !order.shippingHouseNumber ||
+    !order.shippingPostalCode ||
+    !order.shippingCity
+  ) {
+    throw new PostnlLabelGuardError(
+      "ORDER_NOT_SHIPPABLE",
+      "Deze bestelling wordt afgehaald en heeft geen verzendadres."
+    );
+  }
+}
+
 export type EnsuredPostnlLabel = {
   barcode: string | null;
   labelBase64: string;
@@ -64,6 +92,7 @@ export async function ensurePostnlLabel(orderId: string): Promise<EnsuredPostnlL
         };
       }
 
+      assertShippableAddress(order);
       const { barcode, labelBase64 } = await createShipmentLabel(order);
       await transaction.order.update({
         where: { id: order.id },

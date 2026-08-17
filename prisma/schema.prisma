@@ -55,6 +55,11 @@ enum OrderStatus {
   REFUNDED
 }
 
+enum DeliveryMethod {
+  SHIPPING
+  PICKUP
+}
+
 enum CompositionSource {
   TEXT
   VOICE
@@ -368,10 +373,13 @@ model Order {
   contactEmail String
   contactPhone String?
 
-  shippingStreet      String
-  shippingHouseNumber String
-  shippingPostalCode  String
-  shippingCity        String
+  deliveryMethod DeliveryMethod @default(SHIPPING)
+  pickupLocationId String?
+
+  shippingStreet      String?
+  shippingHouseNumber String?
+  shippingPostalCode  String?
+  shippingCity        String?
   shippingCountry     String @default("NL")
 
   molliePaymentId String?   @unique

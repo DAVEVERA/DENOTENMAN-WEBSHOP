@@ -8,7 +8,11 @@ import { formatPrice } from "@/lib/format";
 import { cart as cartPath } from "@/lib/routes";
 import { useStorefrontState } from "@/lib/storefront-state";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
+import { getPickupLocationsForCountry, closestPickupLocationId } from "@/lib/pickup-locations";
 import { Button } from "@/components/ui/Button";
+
+type DeliveryMethod = "SHIPPING" | "PICKUP";
+type CountryCode = "NL" | "BE";
 
 type CheckoutDictionary = (typeof nl)["checkout"];
 type AppliedDiscountPreview = {
@@ -33,15 +37,45 @@ export function CheckoutForm({
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscountPreview | null>(null);
   const [checkingDiscount, setCheckingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState<string | null>(null);
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("SHIPPING");
+  const [country, setCountry] = useState<CountryCode>("NL");
+  const [pickupLocationId, setPickupLocationId] = useState<string>("");
+  const [pickupPostalCode, setPickupPostalCode] = useState("");
+
+  const pickupLocations = getPickupLocationsForCountry(country);
+  const isPickup = deliveryMethod === "PICKUP";
 
   const subtotalCents = cart.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
   const regularShippingCents =
-    subtotalCents === 0 || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
+    isPickup || subtotalCents === 0 || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
       ? 0
       : FLAT_SHIPPING_CENTS;
   const discountCents = appliedDiscount?.discountCents ?? 0;
-  const shippingCents = appliedDiscount?.shippingCents ?? regularShippingCents;
+  const shippingCents = isPickup ? 0 : appliedDiscount?.shippingCents ?? regularShippingCents;
   const totalCents = appliedDiscount?.totalCents ?? subtotalCents + regularShippingCents;
+
+  function handleDeliveryMethodChange(method: DeliveryMethod) {
+    setDeliveryMethod(method);
+    if (method === "SHIPPING") {
+      setPickupLocationId("");
+    } else {
+      setPickupLocationId(
+        closestPickupLocationId(country, pickupPostalCode) ??
+          getPickupLocationsForCountry(country)[0]?.id ??
+          ""
+      );
+    }
+  }
+
+  function handleCountryChange(nextCountry: CountryCode) {
+    setCountry(nextCountry);
+    if (isPickup) {
+      const locations = getPickupLocationsForCountry(nextCountry);
+      setPickupLocationId(
+        closestPickupLocationId(nextCountry, pickupPostalCode) ?? locations[0]?.id ?? ""
+      );
+    }
+  }
 
   async function applyDiscountCode() {
     setCheckingDiscount(true);
@@ -89,11 +123,16 @@ export function CheckoutForm({
             name: form.get("name"),
             email: form.get("email"),
             phone: form.get("phone") || undefined,
-            street: form.get("street"),
-            houseNumber: form.get("houseNumber"),
-            postalCode: form.get("postalCode"),
-            city: form.get("city"),
-            country: "NL",
+            deliveryMethod,
+            country,
+            ...(isPickup
+              ? { pickupLocationId }
+              : {
+                  street: form.get("street"),
+                  houseNumber: form.get("houseNumber"),
+                  postalCode: form.get("postalCode"),
+                  city: form.get("city"),
+                }),
           },
           lines: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity })),
           discountCode: appliedDiscount?.code ?? undefined,
@@ -107,6 +146,8 @@ export function CheckoutForm({
           setError(dictionary.errorOutOfStock);
         } else if (data.error === "INVALID_CONTACT") {
           setError(dictionary.errorInvalidContact);
+        } else if (data.error === "INVALID_PICKUP_LOCATION") {
+          setError(dictionary.errorInvalidPickupLocation);
         } else if (data.error === "INVALID_DISCOUNT_CODE") {
           setError(dictionary.discountInvalid);
         } else if (data.error === "DISCOUNT_NOT_ELIGIBLE") {
@@ -188,66 +229,155 @@ export function CheckoutForm({
           </div>
         </fieldset>
 
-        <fieldset className="space-y-4">
+        <fieldset className="space-y-3">
           <legend className="font-heading text-heading-sm text-text">
-            {dictionary.shippingHeading}
+            {dictionary.deliveryMethodHeading}
           </legend>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label htmlFor="street" className="block text-body-sm font-semibold text-text">
-                {dictionary.street}
-              </label>
-              <input
-                id="street"
-                name="street"
-                type="text"
-                required
-                autoComplete="address-line1"
-                className="mt-1 w-full rounded-button border border-border px-3 py-2"
-              />
-            </div>
-            <div>
-              <label htmlFor="houseNumber" className="block text-body-sm font-semibold text-text">
-                {dictionary.houseNumber}
-              </label>
-              <input
-                id="houseNumber"
-                name="houseNumber"
-                type="text"
-                required
-                className="mt-1 w-full rounded-button border border-border px-3 py-2"
-              />
-            </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => handleDeliveryMethodChange("SHIPPING")}
+              aria-pressed={!isPickup}
+              className={`flex-1 rounded-button border px-4 py-2 text-body-sm font-semibold transition-colors ${
+                !isPickup
+                  ? "border-text bg-text text-surface"
+                  : "border-border bg-surface text-text hover:border-text"
+              }`}
+            >
+              {dictionary.deliveryMethodShipping}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeliveryMethodChange("PICKUP")}
+              aria-pressed={isPickup}
+              className={`flex-1 rounded-button border px-4 py-2 text-body-sm font-semibold transition-colors ${
+                isPickup
+                  ? "border-text bg-text text-surface"
+                  : "border-border bg-surface text-text hover:border-text"
+              }`}
+            >
+              {dictionary.deliveryMethodPickup}
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="postalCode" className="block text-body-sm font-semibold text-text">
-                {dictionary.postalCode}
-              </label>
-              <input
-                id="postalCode"
-                name="postalCode"
-                type="text"
-                required
-                autoComplete="postal-code"
-                className="mt-1 w-full rounded-button border border-border px-3 py-2"
-              />
-            </div>
-            <div>
-              <label htmlFor="city" className="block text-body-sm font-semibold text-text">
-                {dictionary.city}
-              </label>
-              <input
-                id="city"
-                name="city"
-                type="text"
-                required
-                autoComplete="address-level2"
-                className="mt-1 w-full rounded-button border border-border px-3 py-2"
-              />
-            </div>
+
+          <div>
+            <label htmlFor="country" className="block text-body-sm font-semibold text-text">
+              {dictionary.countryLabel}
+            </label>
+            <select
+              id="country"
+              value={country}
+              onChange={(event) => handleCountryChange(event.target.value as CountryCode)}
+              className="mt-1 w-full rounded-button border border-border px-3 py-2"
+            >
+              <option value="NL">{dictionary.countryNL}</option>
+              <option value="BE">{dictionary.countryBE}</option>
+            </select>
           </div>
         </fieldset>
+
+        {isPickup ? (
+          <fieldset className="space-y-3">
+            <legend className="font-heading text-heading-sm text-text">
+              {dictionary.pickupLocationHeading}
+            </legend>
+            {country === "NL" ? (
+              <input
+                type="text"
+                value={pickupPostalCode}
+                onChange={(event) => {
+                  setPickupPostalCode(event.target.value);
+                  setPickupLocationId(
+                    closestPickupLocationId("NL", event.target.value) ?? pickupLocationId
+                  );
+                }}
+                placeholder={dictionary.postalCode}
+                autoComplete="postal-code"
+                className="w-full rounded-button border border-border px-3 py-2"
+              />
+            ) : null}
+            <div className="space-y-2">
+              {pickupLocations.map((location) => (
+                <label
+                  key={location.id}
+                  className={`flex cursor-pointer items-center gap-3 rounded-button border px-3 py-2 text-body-sm ${
+                    pickupLocationId === location.id ? "border-text" : "border-border"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="pickupLocation"
+                    value={location.id}
+                    checked={pickupLocationId === location.id}
+                    onChange={() => setPickupLocationId(location.id)}
+                  />
+                  <span className="text-text">{location.name}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : (
+          <fieldset className="space-y-4">
+            <legend className="font-heading text-heading-sm text-text">
+              {dictionary.shippingHeading}
+            </legend>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <label htmlFor="street" className="block text-body-sm font-semibold text-text">
+                  {dictionary.street}
+                </label>
+                <input
+                  id="street"
+                  name="street"
+                  type="text"
+                  required
+                  autoComplete="address-line1"
+                  className="mt-1 w-full rounded-button border border-border px-3 py-2"
+                />
+              </div>
+              <div>
+                <label htmlFor="houseNumber" className="block text-body-sm font-semibold text-text">
+                  {dictionary.houseNumber}
+                </label>
+                <input
+                  id="houseNumber"
+                  name="houseNumber"
+                  type="text"
+                  required
+                  className="mt-1 w-full rounded-button border border-border px-3 py-2"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="postalCode" className="block text-body-sm font-semibold text-text">
+                  {dictionary.postalCode}
+                </label>
+                <input
+                  id="postalCode"
+                  name="postalCode"
+                  type="text"
+                  required
+                  autoComplete="postal-code"
+                  className="mt-1 w-full rounded-button border border-border px-3 py-2"
+                />
+              </div>
+              <div>
+                <label htmlFor="city" className="block text-body-sm font-semibold text-text">
+                  {dictionary.city}
+                </label>
+                <input
+                  id="city"
+                  name="city"
+                  type="text"
+                  required
+                  autoComplete="address-level2"
+                  className="mt-1 w-full rounded-button border border-border px-3 py-2"
+                />
+              </div>
+            </div>
+          </fieldset>
+        )}
       </div>
 
       <div>

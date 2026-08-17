@@ -98,6 +98,13 @@
     "name": "Naam",
     "email": "E-mailadres",
     "phone": "Telefoonnummer (optioneel)",
+    "deliveryMethodHeading": "Bezorgmethode",
+    "deliveryMethodShipping": "Laten bezorgen",
+    "deliveryMethodPickup": "Afhalen op de markt",
+    "countryLabel": "Land",
+    "countryNL": "Nederland",
+    "countryBE": "België",
+    "pickupLocationHeading": "Kies je afhaallocatie",
     "shippingHeading": "Verzendadres",
     "street": "Straatnaam",
     "houseNumber": "Huisnummer",
@@ -121,7 +128,8 @@
     "backToCart": "Terug naar winkelwagen",
     "genericError": "Er ging iets mis. Probeer het opnieuw.",
     "errorOutOfStock": "Eén of meer producten zijn niet meer op voorraad in het gevraagde aantal.",
-    "errorInvalidContact": "Controleer de ingevulde gegevens."
+    "errorInvalidContact": "Controleer de ingevulde gegevens.",
+    "errorInvalidPickupLocation": "Kies een afhaallocatie."
   },
   "order": {
     "paidTitle": "Bedankt voor je bestelling!",

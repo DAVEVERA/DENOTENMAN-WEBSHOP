@@ -7,6 +7,7 @@ import type { Locale } from "@/lib/i18n";
 import type { Order, OrderStatus } from "@prisma/client";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
 import { sendOrderConfirmationEmail } from "@/lib/mail";
+import { getPickupLocation } from "@/lib/pickup-locations";
 import {
   evaluateCheckoutDiscount,
   hasDiscountCode,
@@ -18,6 +19,7 @@ export class CheckoutError extends Error {
     public code:
       | "EMPTY_CART"
       | "INVALID_CONTACT"
+      | "INVALID_PICKUP_LOCATION"
       | "VARIANT_NOT_FOUND"
       | "VARIANT_INACTIVE"
       | "OUT_OF_STOCK"
@@ -37,10 +39,12 @@ export type CheckoutContactInput = {
   name: string;
   email: string;
   phone?: string;
-  street: string;
-  houseNumber: string;
-  postalCode: string;
-  city: string;
+  deliveryMethod: "SHIPPING" | "PICKUP";
+  pickupLocationId?: string;
+  street?: string;
+  houseNumber?: string;
+  postalCode?: string;
+  city?: string;
   country: string;
 };
 
@@ -56,18 +60,34 @@ function assertNonEmpty(value: string | undefined, field: string) {
   }
 }
 
-function validateContact(contact: CheckoutContactInput) {
+export function validateContact(contact: CheckoutContactInput) {
   assertNonEmpty(contact.name, "name");
   assertNonEmpty(contact.email, "email");
-  assertNonEmpty(contact.street, "street");
-  assertNonEmpty(contact.houseNumber, "houseNumber");
-  assertNonEmpty(contact.postalCode, "postalCode");
-  assertNonEmpty(contact.city, "city");
   assertNonEmpty(contact.country, "country");
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) {
     throw new CheckoutError("INVALID_CONTACT", "Invalid email address");
   }
+
+  if (contact.deliveryMethod === "PICKUP") {
+    if (!contact.pickupLocationId) {
+      throw new CheckoutError("INVALID_PICKUP_LOCATION", "Missing pickup location");
+    }
+    const location = getPickupLocation(contact.pickupLocationId);
+    if (!location || location.country !== contact.country) {
+      throw new CheckoutError("INVALID_PICKUP_LOCATION", "Unknown pickup location for country");
+    }
+    return;
+  }
+
+  if (contact.country !== "NL" && contact.country !== "BE") {
+    throw new CheckoutError("INVALID_CONTACT", "Shipping is only available in NL and BE");
+  }
+
+  assertNonEmpty(contact.street, "street");
+  assertNonEmpty(contact.houseNumber, "houseNumber");
+  assertNonEmpty(contact.postalCode, "postalCode");
+  assertNonEmpty(contact.city, "city");
 }
 
 /**
@@ -79,7 +99,8 @@ export async function priceCartLines(
   lines: CartLineInput[],
   locale: Locale,
   discountCode?: string,
-  hasPreviousPaidOrder = false
+  hasPreviousPaidOrder = false,
+  deliveryMethod: "SHIPPING" | "PICKUP" = "SHIPPING"
 ) {
   if (lines.length === 0) {
     throw new CheckoutError("EMPTY_CART", "Cart is empty");
@@ -140,7 +161,9 @@ export async function priceCartLines(
     0
   );
   const regularShippingCents =
-    subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_SHIPPING_CENTS;
+    deliveryMethod === "PICKUP" || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
+      ? 0
+      : FLAT_SHIPPING_CENTS;
   const discountEvaluation = evaluateCheckoutDiscount(
     subtotalCents,
     discountCode,
@@ -212,7 +235,8 @@ export async function createOrderWithPayment(
     cartLines,
     locale,
     discountCode,
-    Boolean(previousPaidOrder)
+    Boolean(previousPaidOrder),
+    contact.deliveryMethod
   );
 
   const user = existingUser
@@ -242,10 +266,12 @@ export async function createOrderWithPayment(
       contactName: contact.name,
       contactEmail: normalizedEmail,
       contactPhone: contact.phone,
-      shippingStreet: contact.street,
-      shippingHouseNumber: contact.houseNumber,
-      shippingPostalCode: contact.postalCode,
-      shippingCity: contact.city,
+      deliveryMethod: contact.deliveryMethod,
+      pickupLocationId: contact.deliveryMethod === "PICKUP" ? contact.pickupLocationId : null,
+      shippingStreet: contact.deliveryMethod === "PICKUP" ? null : contact.street,
+      shippingHouseNumber: contact.deliveryMethod === "PICKUP" ? null : contact.houseNumber,
+      shippingPostalCode: contact.deliveryMethod === "PICKUP" ? null : contact.postalCode,
+      shippingCity: contact.deliveryMethod === "PICKUP" ? null : contact.city,
       shippingCountry: contact.country,
       items: {
         create: lines.map((line) => ({

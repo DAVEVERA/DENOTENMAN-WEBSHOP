@@ -174,7 +174,11 @@ export function OrderLookup({
           <div className="mt-4 border-t border-border pt-4 text-body-sm">
             <p className="font-heading font-bold text-text">{dictionary.trackingLabel}</p>
             <a
-              href={postnlTrackingUrl(order.postnlTrackingCode, order.shippingPostalCode)}
+              href={postnlTrackingUrl(
+                order.postnlTrackingCode,
+                order.shippingPostalCode ?? "",
+                order.shippingCountry
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-1 inline-block font-heading font-semibold text-accent-hover underline underline-offset-4"

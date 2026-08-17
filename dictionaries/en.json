@@ -98,6 +98,13 @@
     "name": "Name",
     "email": "Email address",
     "phone": "Phone number (optional)",
+    "deliveryMethodHeading": "Delivery method",
+    "deliveryMethodShipping": "Ship to me",
+    "deliveryMethodPickup": "Pick up at the market",
+    "countryLabel": "Country",
+    "countryNL": "Netherlands",
+    "countryBE": "Belgium",
+    "pickupLocationHeading": "Choose your pickup location",
     "shippingHeading": "Shipping address",
     "street": "Street name",
     "houseNumber": "House number",
@@ -121,7 +128,8 @@
     "backToCart": "Back to cart",
     "genericError": "Something went wrong. Please try again.",
     "errorOutOfStock": "One or more products are no longer available in the requested quantity.",
-    "errorInvalidContact": "Please check the details you entered."
+    "errorInvalidContact": "Please check the details you entered.",
+    "errorInvalidPickupLocation": "Please choose a pickup location."
   },
   "order": {
     "paidTitle": "Thank you for your order!",

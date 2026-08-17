@@ -31,7 +31,13 @@ export type ShipmentWeightLine = {
   variant: { weightGrams: number };
 };
 
-export type ShipmentOrder = Order & { items: ShipmentWeightLine[] };
+export type ShipmentOrder = Order & {
+  items: ShipmentWeightLine[];
+  shippingStreet: string;
+  shippingHouseNumber: string;
+  shippingPostalCode: string;
+  shippingCity: string;
+};
 
 export function calculateShipmentWeightGrams(items: ShipmentWeightLine[]): number {
   const weightGrams = items.reduce(
