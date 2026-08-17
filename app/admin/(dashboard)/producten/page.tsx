@@ -163,7 +163,7 @@ export default async function AdminProductsPage({
                         : "inline-flex items-center rounded-button bg-border px-2 py-1 text-xs font-semibold text-muted"
                     }
                   >
-                    {row.isActive ? "Actief" : "Inactief"}
+                    {row.isActive ? "Online" : "Offline"}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">

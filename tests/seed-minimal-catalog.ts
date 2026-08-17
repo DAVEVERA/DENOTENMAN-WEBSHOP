@@ -1,6 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 
-if (!process.env.DATABASE_URL?.includes("localhost:55432")) {
+const integrationDatabaseUrl = new URL(process.env.DATABASE_URL ?? "postgresql://invalid");
+if (
+  !["localhost", "127.0.0.1"].includes(integrationDatabaseUrl.hostname) ||
+  process.env.ALLOW_LOCAL_INTEGRATION_TEST !== "1"
+) {
   throw new Error("Refusing to seed: this fixture is restricted to the temporary localhost database.");
 }
 

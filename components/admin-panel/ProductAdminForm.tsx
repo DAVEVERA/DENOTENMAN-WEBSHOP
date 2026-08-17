@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Save, Sparkles } from "lucide-react";
+import { EyeOff, Globe2, Loader2, Plus, Save, Sparkles } from "lucide-react";
 import { slugifyProduct } from "@/lib/admin-product-schema";
 import {
   ProductTranslationsEditor,
@@ -126,6 +126,8 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
   const [images, setImages] = useState(initialImages);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [visibilityStatus, setVisibilityStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [visibilityMessage, setVisibilityMessage] = useState<string | null>(null);
 
   const selectedMainId = categoryAssignments.find((item) => !categories.find((category) => category.id === item.categoryId)?.parentId)?.categoryId ?? "";
   const selectedSubId = categoryAssignments.find((item) => categories.find((category) => category.id === item.categoryId)?.parentId === selectedMainId)?.categoryId ?? "";
@@ -143,6 +145,64 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
   function setVariant(key: string, field: keyof Variant, value: Variant[keyof Variant]) {
     setStatus("idle");
     setProduct((current) => ({ ...current, variants: current.variants.map((variant) => variant.clientKey === key ? { ...variant, [field]: value } : variant) }));
+  }
+
+  async function updateVisibility() {
+    const nextIsActive = !product.isActive;
+    setVisibilityMessage(null);
+
+    if (mode === "create") {
+      setField("isActive", nextIsActive);
+      setVisibilityStatus("idle");
+      return;
+    }
+    if (!productId || !product.version) {
+      setVisibilityStatus("error");
+      setVisibilityMessage("De productversie ontbreekt. Herlaad de pagina en probeer opnieuw.");
+      return;
+    }
+
+    setVisibilityStatus("saving");
+    try {
+      const response = await fetch(`/api/admin/products/${productId}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: nextIsActive, version: product.version }),
+      });
+      const body = await response.json().catch(() => null) as {
+        isActive?: boolean;
+        version?: string;
+        frontendSynced?: boolean;
+        error?: string;
+        message?: string;
+      } | null;
+      if (!response.ok || typeof body?.isActive !== "boolean" || !body.version) {
+        setVisibilityStatus("error");
+        setVisibilityMessage(productSaveErrorMessage(body));
+        return;
+      }
+
+      setProduct((current) => ({
+        ...current,
+        isActive: body.isActive as boolean,
+        version: body.version,
+      }));
+      if (body.frontendSynced === false) {
+        setVisibilityStatus("error");
+        setVisibilityMessage("De status is opgeslagen, maar de webshop kon niet direct worden vernieuwd. Gebruik ‘Alles opslaan’ om opnieuw te synchroniseren.");
+      } else {
+        setVisibilityStatus("saved");
+        setVisibilityMessage(
+          body.isActive
+            ? "Product staat nu online en is zichtbaar in de webshop."
+            : "Product staat nu offline en is niet zichtbaar in de webshop."
+        );
+      }
+      router.refresh();
+    } catch (cause) {
+      setVisibilityStatus("error");
+      setVisibilityMessage(productSaveErrorMessage(cause));
+    }
   }
 
   function updateTranslation(locale: ProductLocale, value: ProductTranslationDraft) {
@@ -176,6 +236,11 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
 
   async function saveProduct(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setStatus("saving"); setMessage(null);
+    if (visibilityStatus === "saving") {
+      setStatus("error");
+      setMessage("Wacht tot de productstatus is bijgewerkt en sla daarna opnieuw op.");
+      return;
+    }
     const basePriceCents = euroToCents(product.basePriceEuro);
     const salePriceCents = product.salePriceEuro.trim() ? euroToCents(product.salePriceEuro) : null;
     if (basePriceCents === null || (product.salePriceEuro.trim() && salePriceCents === null)) { setStatus("error"); setMessage("Controleer de basis- en actieprijs."); return; }
@@ -229,7 +294,7 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
           variants,
         }),
       });
-      const body = await response.json().catch(() => null) as { productId?: string; version?: string; variants?: { id: string; sku: string }[]; error?: string; message?: string } | null;
+      const body = await response.json().catch(() => null) as { productId?: string; version?: string; variants?: { id: string; sku: string }[]; frontendSynced?: boolean; error?: string; message?: string } | null;
       if (!response.ok) { setStatus("error"); setMessage(productSaveErrorMessage(body)); return; }
       if (mode === "create" && body?.productId) { router.push(`/admin/producten/${body.productId}`); return; }
       if (body?.version) setProduct((current) => ({
@@ -237,6 +302,11 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
         version: body.version,
         variants: current.variants.map((variant) => ({ ...variant, id: body.variants?.find((saved) => saved.sku === variant.sku)?.id ?? variant.id })),
       }));
+      if (body?.frontendSynced === false) {
+        setStatus("error");
+        setMessage("Het product is opgeslagen, maar de webshop kon niet direct worden vernieuwd. Klik opnieuw op ‘Alles opslaan’ om de synchronisatie te herhalen.");
+        return;
+      }
       setStatus("saved"); setMessage("Alle productinstellingen zijn opgeslagen."); router.refresh();
     } catch (cause) {
       setStatus("error");
@@ -245,8 +315,74 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
   }
 
   return <form onSubmit={saveProduct} className="space-y-6 pb-28">
+    <section
+      className={`rounded-panel border-2 p-4 shadow-card sm:p-6 ${
+        product.isActive
+          ? "border-green-300 bg-green-50"
+          : "border-red-300 bg-red-50"
+      }`}
+      aria-labelledby="product-visibility-heading"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span
+            className={`mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
+              product.isActive ? "bg-green-700 text-white" : "bg-red-700 text-white"
+            }`}
+            aria-hidden="true"
+          >
+            {product.isActive ? <Globe2 className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+          </span>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-heading text-muted">Leidende productstatus</p>
+            <h2 id="product-visibility-heading" className="mt-1 text-heading-md text-text">
+              {product.isActive ? "Online zichtbaar" : "Niet zichtbaar in de webshop"}
+            </h2>
+            <p id="product-visibility-description" className="mt-1 max-w-2xl text-body-sm text-muted">
+              Deze hoofdstatus bepaalt of het hele product online staat. Variantstatussen bepalen alleen welke verpakkingen bestelbaar zijn.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={updateVisibility}
+          disabled={visibilityStatus === "saving" || status === "saving"}
+          aria-pressed={product.isActive}
+          aria-describedby="product-visibility-description"
+          className={`inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-button px-5 font-heading text-body-sm font-bold text-white shadow-button transition-colors disabled:cursor-wait disabled:opacity-60 ${
+            product.isActive
+              ? "bg-red-700 hover:bg-red-800"
+              : "bg-green-700 hover:bg-green-800"
+          }`}
+        >
+          {visibilityStatus === "saving" ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+          {visibilityStatus === "saving"
+            ? "Status bijwerken…"
+            : product.isActive
+              ? "Product offline zetten"
+              : "Product online zetten"}
+        </button>
+      </div>
+      <p
+        role="status"
+        aria-live="polite"
+        className={`mt-3 text-body-sm font-semibold ${
+          visibilityStatus === "error"
+            ? "text-red-800"
+            : visibilityStatus === "saved"
+              ? product.isActive
+                ? "text-green-800"
+                : "text-red-800"
+              : "text-muted"
+        }`}
+      >
+        {visibilityMessage ?? (mode === "edit"
+          ? "Zichtbaarheid wordt met deze knop direct opgeslagen. Andere wijzigingen pas met ‘Alles opslaan’."
+          : "Deze keuze wordt opgeslagen zodra je het product aanmaakt.")}
+      </p>
+    </section>
     <section className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-heading-md text-text">Basisgegevens</h2><p className="mt-1 text-body-sm text-muted">Interne SKU en zichtbaarheid in de webshop.</p></div><button type="button" onClick={() => setField("isActive", !product.isActive)} className={`min-h-11 rounded-full px-4 text-body-sm font-semibold ${product.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`} aria-pressed={product.isActive}>{product.isActive ? "Actief — klik om uit te zetten" : "Inactief — klik om te activeren"}</button></div>
+      <div><h2 className="text-heading-md text-text">Basisgegevens</h2><p className="mt-1 text-body-sm text-muted">Interne SKU en algemene productgegevens.</p></div>
       <label className={`${labelClass} mt-5 max-w-xl`}>Product-SKU<input value={product.sku} onChange={(e) => setField("sku", e.target.value)} className={inputClass} required /></label>
     </section>
 
@@ -269,8 +405,8 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
 
     <NutritionEditor values={nutrition} onChange={(values) => { setNutrition(values); setStatus("idle"); }} unit={product.unit} />
 
-    <section className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-heading-md text-text">Varianten en subvarianten</h2><p className="mt-1 text-body-sm text-muted">Prijs, actieprijs, hoeveelheid en status zijn per variant instelbaar.</p></div><button type="button" onClick={() => setField("variants", [...product.variants, createEmptyVariant(product.sku)])} className="inline-flex min-h-11 items-center gap-2 rounded-button bg-accent px-4 font-semibold text-contrast"><Plus className="h-4 w-4" />Variant toevoegen</button></div>
-      <div className="mt-5 grid gap-4">{product.variants.map((variant, index) => <article key={variant.clientKey} className="rounded-card border border-border bg-background p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-heading-sm">Variant {index + 1}</h3><button type="button" onClick={() => setVariant(variant.clientKey, "isActive", !variant.isActive)} className={`min-h-11 rounded-full px-4 text-body-sm font-semibold ${variant.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`} aria-pressed={variant.isActive}>{variant.isActive ? "Actief" : "Inactief"}</button></div><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <section className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-heading-md text-text">Varianten en subvarianten</h2><p className="mt-1 text-body-sm text-muted">Prijs en voorraad zijn per variant instelbaar. Een variantstatus bepaalt alleen of die verpakking bestelbaar is; de hoofdstatus bovenaan bepaalt productzichtbaarheid.</p></div><button type="button" onClick={() => setField("variants", [...product.variants, createEmptyVariant(product.sku)])} className="inline-flex min-h-11 items-center gap-2 rounded-button bg-accent px-4 font-semibold text-contrast"><Plus className="h-4 w-4" />Variant toevoegen</button></div>
+      <div className="mt-5 grid gap-4">{product.variants.map((variant, index) => <article key={variant.clientKey} className="rounded-card border border-border bg-background p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-heading-sm">Variant {index + 1}</h3><button type="button" onClick={() => setVariant(variant.clientKey, "isActive", !variant.isActive)} className={`min-h-11 rounded-full px-4 text-body-sm font-semibold ${variant.isActive ? "bg-green-100 text-green-800" : "bg-border text-muted"}`} aria-pressed={variant.isActive}>{variant.isActive ? "Bestelbaar" : "Niet bestelbaar"}</button></div><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className={labelClass}>SKU<input value={variant.sku} onChange={(e) => setVariant(variant.clientKey, "sku", e.target.value)} className={inputClass} /></label><label className={labelClass}>Label<input value={variant.label} onChange={(e) => setVariant(variant.clientKey, "label", e.target.value)} className={inputClass} placeholder={`${variant.weightGrams} ${product.unit === "VOLUME" ? "ml" : "g"}`} /></label><label className={labelClass}>{product.unit === "VOLUME" ? "Hoeveelheid (ml)" : "Gewicht (gram)"}<input inputMode="numeric" value={variant.weightGrams} onChange={(e) => setVariant(variant.clientKey, "weightGrams", e.target.value)} className={inputClass} /></label><label className={labelClass}>Voorraad<input inputMode="numeric" value={variant.stock} onChange={(e) => setVariant(variant.clientKey, "stock", e.target.value)} className={inputClass} /></label>
         <label className={labelClass}>Normale prijs (€)<input inputMode="decimal" value={variant.priceEuro} onChange={(e) => setVariant(variant.clientKey, "priceEuro", e.target.value)} className={inputClass} /></label><label className={labelClass}>Actieprijs (€)<input inputMode="decimal" value={variant.salePriceEuro} onChange={(e) => setVariant(variant.clientKey, "salePriceEuro", e.target.value)} className={inputClass} /></label><label className={labelClass}>Bereiding<select value={variant.preparation} onChange={(e) => setVariant(variant.clientKey, "preparation", e.target.value)} className={inputClass}><option value="RAW">Rauw</option><option value="ROASTED">Gebrand</option></select></label><label className={labelClass}>Zout<select value={variant.salting} onChange={(e) => setVariant(variant.clientKey, "salting", e.target.value)} className={inputClass}><option value="UNSALTED">Ongezouten</option><option value="SALTED">Gezouten</option></select></label><label className={labelClass}>Coating<select value={variant.coating} onChange={(e) => setVariant(variant.clientKey, "coating", e.target.value)} className={inputClass}><option value="NONE">Geen</option><option value="CHOCOLATE">Chocolade</option><option value="YOGHURT">Yoghurt</option><option value="FLAVORED">Gearomatiseerd</option></select></label>
       </div></article>)}</div>
@@ -288,7 +424,7 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
     ) : null}
 
     {mode === "edit" ? <div className="grid gap-3 sm:grid-cols-2"><a href={`/admin/producten/${productId}/audit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-button border border-accent bg-surface px-4 font-semibold text-text"><Sparkles className="h-5 w-5 text-accent-hover" />AI, SEO en vindbaarheidscontrole</a><a href={`/admin/advertenties?product=${productId}`} className="inline-flex min-h-12 items-center justify-center rounded-button border border-border bg-surface px-4 font-semibold text-text">Google Ads-instellingen</a></div> : null}
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 p-3 shadow-[0_-8px_24px_rgba(20,20,20,.12)] backdrop-blur sm:sticky sm:bottom-3 sm:rounded-panel sm:border"><div className="mx-auto flex max-w-6xl flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between"><p role="status" aria-live="polite" className={`text-body-sm ${status === "error" ? "text-red-700" : status === "saved" ? "text-green-700" : "text-muted"}`}>{status === "saving" ? "Veilig opslaan…" : message ?? "Nog niet opgeslagen wijzigingen blijven lokaal in dit formulier."}</p><button type="submit" disabled={status === "saving"} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-button bg-accent px-6 font-heading font-bold text-contrast shadow-button disabled:opacity-60"><Save className="h-5 w-5" />{mode === "create" ? "Product aanmaken" : "Alles opslaan"}</button></div></div>
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 p-3 shadow-[0_-8px_24px_rgba(20,20,20,.12)] backdrop-blur sm:sticky sm:bottom-3 sm:rounded-panel sm:border"><div className="mx-auto flex max-w-6xl flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between"><p role="status" aria-live="polite" className={`text-body-sm ${status === "error" ? "text-red-700" : status === "saved" ? "text-green-700" : "text-muted"}`}>{status === "saving" ? "Veilig opslaan en webshop vernieuwen…" : message ?? "Nog niet opgeslagen wijzigingen blijven lokaal in dit formulier."}</p><button type="submit" disabled={status === "saving" || visibilityStatus === "saving"} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-button bg-accent px-6 font-heading font-bold text-contrast shadow-button disabled:opacity-60"><Save className="h-5 w-5" />{mode === "create" ? "Product aanmaken" : "Alles opslaan"}</button></div></div>
   </form>;
 }
 

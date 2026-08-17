@@ -11,6 +11,8 @@ import {
   type ProductTranslationInput,
 } from "@/lib/admin-product-schema";
 import { toProductPlainText } from "@/lib/product-content";
+import { revalidateProductStorefront } from "@/lib/product-revalidation";
+import type { ProductRevalidationInput } from "@/lib/product-visibility";
 import { notifyPendingStockSubscribers } from "@/lib/stock-notifications";
 import { prisma } from "@/lib/prisma";
 
@@ -107,15 +109,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const requestedCategories = getProductCategories(input);
   const requestedCategoryIds = requestedCategories.map((category) => category.categoryId);
   let shouldNotify = false;
+  let revalidationContext: ProductRevalidationInput | null = null;
 
   try {
-    await prisma.$transaction(async (tx) => {
+    revalidationContext = await prisma.$transaction(async (tx) => {
       const current = await tx.product.findUnique({
         where: { id },
         include: {
           variants: { select: { id: true } },
           translations: true,
-          productCategories: true,
+          productCategories: {
+            include: {
+              category: {
+                select: { translations: { select: { locale: true, slug: true } } },
+              },
+            },
+          },
         },
       });
       if (!current) throw new Error("PRODUCT_NOT_FOUND");
@@ -123,7 +132,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
       const categories = await tx.category.findMany({
         where: { id: { in: requestedCategoryIds } },
-        select: { id: true, parentId: true },
+        select: {
+          id: true,
+          parentId: true,
+          translations: { select: { locale: true, slug: true } },
+        },
       });
       if (categories.length !== requestedCategoryIds.length) throw new Error("CATEGORY_NOT_FOUND");
       for (const category of categories) {
@@ -262,6 +275,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
       await upsertNutrition(tx, id, input.nutrition);
       shouldNotify = !current.isActive && input.isActive;
+      return {
+        productId: id,
+        translations: [
+          ...current.translations.map(({ locale, slug }) => ({ locale, slug })),
+          ...translations.map(({ locale, slug }) => ({ locale, slug })),
+        ],
+        categoryTranslations: [
+          ...current.productCategories.flatMap(
+            (assignment) => assignment.category.translations
+          ),
+          ...categories.flatMap((category) => category.translations),
+        ],
+      };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (error) {
     if (error instanceof Error) {
@@ -279,6 +305,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     return errorResponse(error);
   }
+
+  if (!revalidationContext) {
+    return NextResponse.json({ error: "REVALIDATION_CONTEXT_MISSING" }, { status: 500 });
+  }
+  const revalidation = revalidateProductStorefront(revalidationContext);
 
   if (shouldNotify) {
     await notifyPendingStockSubscribers(id).catch((error) =>
@@ -298,5 +329,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     version: updated?.updatedAt.toISOString(),
     variants: updated?.variants ?? [],
     images: updated?.images ?? [],
+    frontendSynced: revalidation.frontendSynced,
   });
 }

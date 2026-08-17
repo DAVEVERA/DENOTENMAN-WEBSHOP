@@ -4,14 +4,19 @@ import { prisma } from "../lib/prisma";
 import { ADMIN_SESSION_COOKIE, createAdminSessionToken, hashAdminPassword } from "../lib/admin-auth";
 import { POST as createProduct } from "../app/api/admin/products/route";
 import { PATCH as updateProduct } from "../app/api/admin/products/[id]/route";
+import { PATCH as updateProductVisibility } from "../app/api/admin/products/[id]/visibility/route";
 import { POST as subscribeStock } from "../app/api/stock-notifications/route";
 import { POST as googleAdsAction } from "../app/api/admin/google-ads/route";
 import { POST as uploadImage } from "../app/api/admin/products/[id]/images/route";
 import { priceCartLines } from "../lib/orders";
-import { getProductBySlug } from "../lib/queries";
+import { getCategory, getFilteredProducts, getProductBySlug, getProductSlugs } from "../lib/queries";
 import { buildProductAudit } from "../lib/product-audit";
 
-if (!process.env.DATABASE_URL?.includes("localhost:55432")) {
+const integrationDatabaseUrl = new URL(process.env.DATABASE_URL ?? "postgresql://invalid");
+if (
+  !["localhost", "127.0.0.1"].includes(integrationDatabaseUrl.hostname) ||
+  process.env.ALLOW_LOCAL_INTEGRATION_TEST !== "1"
+) {
   throw new Error("Refusing integration test outside the temporary localhost database.");
 }
 
@@ -53,9 +58,14 @@ async function main() {
   const stale = await prisma.product.findMany({ where: { sku: { startsWith: "INTEGRATION-" } }, select: { id: true } });
   await cleanup(stale.map((item) => item.id));
 
-  const category = await prisma.category.findFirst({ orderBy: { createdAt: "asc" } });
+  const category = await prisma.category.findFirst({
+    orderBy: { createdAt: "asc" },
+    include: { translations: { where: { locale: "nl" } } },
+  });
   const recommendations = await prisma.product.findMany({ take: 3, orderBy: { createdAt: "asc" }, select: { id: true } });
   assert.ok(category);
+  const categorySlug = category.translations[0]?.slug;
+  assert.ok(categorySlug, "The integration category needs a Dutch public slug");
   assert.equal(recommendations.length, 3);
 
   const suffix = Date.now().toString(36);
@@ -99,6 +109,51 @@ async function main() {
     const storedCategories = stored.productCategories as unknown as Array<{ categoryId: string; isPrimary: boolean; sortOrder: number }>;
     assert.deepEqual(storedCategories.map(({ categoryId, isPrimary, sortOrder }) => ({ categoryId, isPrimary, sortOrder })), [{ categoryId: category.id, isPrimary: true, sortOrder: 7 }]);
 
+    assert.equal(await getProductBySlug(payload.slug, "nl"), null, "Inactive products must not have a public detail page");
+    assert.equal((await getProductSlugs("nl")).some((item) => item.id === productId), false, "Inactive products must not enter generated public slugs or the sitemap");
+    assert.equal((await getFilteredProducts("all", "nl", [], { limit: 500 })).some((item) => item.id === productId), false, "Inactive products must not enter catalog results");
+    assert.equal((await getCategory(categorySlug, "nl"))?.products.some((item) => item.id === productId), false, "Inactive products must not enter category pages");
+
+    const activateResponse = await updateProductVisibility(
+      new NextRequest(`http://localhost/api/admin/products/${productId}/visibility`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ isActive: true, version: stored.updatedAt.toISOString() }),
+      }),
+      { params: Promise.resolve({ id: productId }) }
+    );
+    assert.equal(activateResponse.status, 200, await activateResponse.clone().text());
+    const activated = await activateResponse.json() as { isActive: boolean; version: string };
+    assert.equal(activated.isActive, true);
+    assert.ok(await getProductBySlug(payload.slug, "nl"), "Activating the master status must expose the detail page");
+    assert.equal((await getProductSlugs("nl")).some((item) => item.id === productId), true, "Activating the master status must expose generated slugs");
+    assert.equal((await getFilteredProducts("all", "nl", [], { limit: 500 })).some((item) => item.id === productId), true, "Activating the master status must expose catalog results");
+    assert.equal((await getCategory(categorySlug, "nl"))?.products.some((item) => item.id === productId), true, "Activating the master status must expose category pages");
+
+    const staleVisibilityResponse = await updateProductVisibility(
+      new NextRequest(`http://localhost/api/admin/products/${productId}/visibility`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ isActive: false, version: stored.updatedAt.toISOString() }),
+      }),
+      { params: Promise.resolve({ id: productId }) }
+    );
+    assert.equal(staleVisibilityResponse.status, 409, "Stale visibility commands must not overwrite newer edits");
+
+    const deactivateResponse = await updateProductVisibility(
+      new NextRequest(`http://localhost/api/admin/products/${productId}/visibility`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ isActive: false, version: activated.version }),
+      }),
+      { params: Promise.resolve({ id: productId }) }
+    );
+    assert.equal(deactivateResponse.status, 200, await deactivateResponse.clone().text());
+    const deactivated = await deactivateResponse.json() as { isActive: boolean; version: string };
+    assert.equal(deactivated.isActive, false);
+    assert.equal(await getProductBySlug(payload.slug, "nl"), null, "Deactivating the master status must hide the product immediately");
+    assert.equal((await getCategory(categorySlug, "nl"))?.products.some((item) => item.id === productId), false, "Deactivating the master status must hide the product from category pages");
+
     await prisma.productImage.createMany({
       data: [
         { productId, storageKey: `integration/${suffix}-second.webp`, sortOrder: 2, isPrimary: false },
@@ -111,7 +166,7 @@ async function main() {
 
     const newSlug = `${payload.slug}-nieuw`;
     const newEnglishSlug = `integration-almonds-${suffix}-new`;
-    const updateRequest = new NextRequest(`http://localhost/api/admin/products/${productId}`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ ...payload, version: stored.updatedAt.toISOString(), slug: newSlug, isActive: true, translations: [
+    const updateRequest = new NextRequest(`http://localhost/api/admin/products/${productId}`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ ...payload, version: deactivated.version, slug: newSlug, isActive: true, translations: [
       { ...payload.translations[0], slug: newSlug, promotionText: "Bijgewerkte Nederlandse actie" },
       { ...payload.translations[1], slug: newEnglishSlug, promotionText: "Updated English promotion" },
     ], nutrition: { "nutrition.protein": "22.5" }, variants: [{ id: stored.variants[0].id, sku: stored.variants[0].sku, label: "300 gram", weightGrams: 300, preparation: "ROASTED", salting: "UNSALTED", coating: "NONE", isActive: true, priceCents: 895, salePriceCents: 745, stock: 12 }] }) });

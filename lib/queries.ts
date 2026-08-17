@@ -395,7 +395,7 @@ export const getProductBySlug = cache(async function getProductBySlug(
     },
   });
 
-  if (!product) {
+  if (!product || !product.isActive) {
     return null;
   }
 
@@ -482,6 +482,7 @@ export async function getCategory(
         include: {
           translations: true,
           productCategories: {
+            where: { product: { isActive: true } },
             include: {
               product: {
                 include: {
@@ -593,6 +594,7 @@ export async function getFilteredProducts(
 
   const products = await prisma.product.findMany({
     where: {
+      isActive: true,
       ...categoryFilter,
       AND: attributeFilters,
     },
@@ -708,7 +710,7 @@ export async function getArticleBySlug(
 export async function getProductSlugs(locale: Locale): Promise<SlugEntryDto[]> {
   try {
     const translations = await prisma.productTranslation.findMany({
-      where: { locale },
+      where: { locale, product: { isActive: true } },
       select: { productId: true, slug: true, product: { select: { updatedAt: true } } },
       orderBy: { slug: "asc" },
     });

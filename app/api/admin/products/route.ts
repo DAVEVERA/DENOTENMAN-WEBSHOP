@@ -10,6 +10,7 @@ import {
   type ProductTranslationInput,
 } from "@/lib/admin-product-schema";
 import { toProductPlainText } from "@/lib/product-content";
+import { revalidateProductStorefront } from "@/lib/product-revalidation";
 import { prisma } from "@/lib/prisma";
 
 function translationData(translation: ProductTranslationInput) {
@@ -81,7 +82,11 @@ export async function POST(request: NextRequest) {
 
     const categories = await prisma.category.findMany({
       where: { id: { in: requestedCategoryIds } },
-      select: { id: true, parentId: true },
+      select: {
+        id: true,
+        parentId: true,
+        translations: { select: { locale: true, slug: true } },
+      },
     });
     if (categories.length !== requestedCategoryIds.length) {
       return NextResponse.json({ error: "CATEGORY_NOT_FOUND" }, { status: 400 });
@@ -164,12 +169,18 @@ export async function POST(request: NextRequest) {
         images: { select: { id: true, sortOrder: true, isPrimary: true }, orderBy: { sortOrder: "asc" } },
       },
     });
+    const revalidation = revalidateProductStorefront({
+      productId,
+      translations: translations.map(({ locale, slug }) => ({ locale, slug })),
+      categoryTranslations: categories.flatMap((category) => category.translations),
+    });
     return NextResponse.json({
       ok: true,
       productId,
       version: created.updatedAt.toISOString(),
       variants: created.variants,
       images: created.images,
+      frontendSynced: revalidation.frontendSynced,
     }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
