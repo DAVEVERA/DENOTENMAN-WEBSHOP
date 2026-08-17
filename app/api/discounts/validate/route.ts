@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { evaluateCheckoutDiscount } from "@/lib/discounts";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
+import { prisma } from "@/lib/prisma";
 
 type DiscountValidationBody = {
   code?: unknown;
@@ -27,11 +28,23 @@ export async function POST(request: Request) {
 
   // This subtotal only powers the checkout preview. createOrderWithPayment
   // always recalculates every price from the database before saving an order.
+  const configuredDiscount = await prisma.discount.findUnique({
+    where: { code: body.code.trim().toUpperCase() },
+    select: {
+      code: true,
+      status: true,
+      percentOff: true,
+      amountOffCents: true,
+      startsAt: true,
+      endsAt: true,
+    },
+  });
   const evaluation = evaluateCheckoutDiscount(
     body.subtotalCents,
     body.code,
     false,
-    process.env.TEST_ORDER_DISCOUNT_CODE
+    process.env.TEST_ORDER_DISCOUNT_CODE,
+    configuredDiscount
   );
 
   if (evaluation.status !== "applied") {

@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
+import { revalidatePath } from "next/cache";
 
 const CODE_PATTERN = /^[A-Z0-9-]{3,32}$/;
 
@@ -129,6 +130,8 @@ export async function PATCH(
       return discount;
     });
 
+    revalidatePath("/admin/kortingen");
+
     return NextResponse.json({ ok: true, discount: updated });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -158,6 +161,8 @@ export async function DELETE(
     await tx.discount.delete({ where: { id } });
     await recordAudit(tx, admin, "Discount", id, "DELETE", existing, null);
   });
+
+  revalidatePath("/admin/kortingen");
 
   return NextResponse.json({ ok: true });
 }

@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { syncOrderPaymentStatus } from "@/lib/orders";
+import { syncOrderRefundStatuses } from "@/lib/order-refund-service";
 import { formatPrice } from "@/lib/format";
 import { getPickupLocation } from "@/lib/pickup-locations";
 import { StatusBadge } from "../StatusBadge";
 import { OrderEditForm } from "./OrderEditForm";
+import { OrderRefundPanel } from "./OrderRefundPanel";
 
 function formatDateTime(date: Date) {
   return new Intl.DateTimeFormat("nl-NL", {
@@ -26,7 +28,7 @@ export default async function OrderDetailPage({
 
   const existing = await prisma.order.findUnique({
     where: { id },
-    include: { items: true },
+    include: { items: true, refunds: { select: { id: true } } },
   });
 
   if (!existing) {
@@ -38,8 +40,20 @@ export default async function OrderDetailPage({
   // truth for "did this order get paid". Its return type doesn't carry
   // `items` (it's typed against the base `Order` model), so we reattach the
   // items we already fetched, same pattern as findOrderForLookup in lib/orders.ts.
-  const synced = await syncOrderPaymentStatus(existing);
-  const order = { ...synced, items: existing.items };
+  await syncOrderPaymentStatus(existing);
+  if (existing.molliePaymentId && existing.refunds.length > 0) {
+    await syncOrderRefundStatuses(existing.id);
+  }
+  const order = await prisma.order.findUniqueOrThrow({
+    where: { id },
+    include: {
+      items: true,
+      refunds: {
+        include: { items: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
 
   const pickupLocation =
     order.deliveryMethod === "PICKUP" && order.pickupLocationId
@@ -136,6 +150,41 @@ export default async function OrderDetailPage({
               hasLabel={Boolean(order.postnlLabelBase64)}
               currentStatus={order.status}
               isTest={order.isTest}
+            />
+          </div>
+          <div className="mt-6">
+            <OrderRefundPanel
+              orderId={order.id}
+              subtotalCents={order.subtotalCents}
+              discountCents={order.discountCents}
+              shippingCents={order.shippingCents}
+              totalCents={order.totalCents}
+              items={order.items.map((item) => ({
+                id: item.id,
+                productName: item.productName,
+                variantLabel: item.variantLabel,
+                quantity: item.quantity,
+                unitPriceCents: item.unitPriceCents,
+              }))}
+              refunds={order.refunds.map((refund) => ({
+                id: refund.id,
+                mollieRefundId: refund.mollieRefundId,
+                amountCents: refund.amountCents,
+                reason: refund.reason,
+                includesShipping: refund.includesShipping,
+                status: refund.status,
+                createdAt: refund.createdAt.toISOString(),
+                items: refund.items.map((item) => ({
+                  orderItemId: item.orderItemId,
+                  quantity: item.quantity,
+                  grossAmountCents: item.grossAmountCents,
+                })),
+              }))}
+              canRefund={
+                !order.isTest &&
+                Boolean(order.molliePaymentId) &&
+                (order.status === "PAID" || order.status === "FULFILLED")
+              }
             />
           </div>
         </div>

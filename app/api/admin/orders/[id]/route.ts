@@ -70,6 +70,12 @@ export async function PATCH(
   ) {
     return NextResponse.json({ error: "TEST_ORDER_NOT_SHIPPABLE" }, { status: 409 });
   }
+  if (
+    data.status === "CANCELLED" &&
+    (existing.status === "PAID" || existing.status === "FULFILLED")
+  ) {
+    return NextResponse.json({ error: "PAID_ORDER_REQUIRES_REFUND" }, { status: 409 });
+  }
 
   const updated = await prisma.order.update({
     where: { id },

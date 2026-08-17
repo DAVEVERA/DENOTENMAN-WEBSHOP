@@ -164,11 +164,25 @@ export async function priceCartLines(
     deliveryMethod === "PICKUP" || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
       ? 0
       : FLAT_SHIPPING_CENTS;
+  const configuredDiscount = hasDiscountCode(discountCode)
+    ? await prisma.discount.findUnique({
+        where: { code: discountCode!.trim().toUpperCase() },
+        select: {
+          code: true,
+          status: true,
+          percentOff: true,
+          amountOffCents: true,
+          startsAt: true,
+          endsAt: true,
+        },
+      })
+    : null;
   const discountEvaluation = evaluateCheckoutDiscount(
     subtotalCents,
     discountCode,
     hasPreviousPaidOrder,
-    process.env.TEST_ORDER_DISCOUNT_CODE
+    process.env.TEST_ORDER_DISCOUNT_CODE,
+    configuredDiscount
   );
 
   if (discountEvaluation.status === "invalid") {

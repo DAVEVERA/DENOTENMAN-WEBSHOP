@@ -115,7 +115,7 @@
     "discountCode": "Discount code",
     "discountPlaceholder": "Enter your discount code",
     "applyDiscount": "Apply",
-    "discountApplied": "Discount code applied: 10% off.",
+    "discountApplied": "Discount code applied.",
     "discountInvalid": "This discount code is not valid.",
     "discountNotEligible": "This discount code is only valid on your first order.",
     "discount": "Discount",

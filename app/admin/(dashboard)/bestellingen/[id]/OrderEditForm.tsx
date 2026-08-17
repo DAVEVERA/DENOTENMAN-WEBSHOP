@@ -46,6 +46,7 @@ export function OrderEditForm({
   const [labelDetails, setLabelDetails] = useState<string | null>(null);
   const [labelReady, setLabelReady] = useState(hasLabel);
   const canCreateLabel = !isTest && (currentStatus === "PAID" || currentStatus === "FULFILLED");
+  const canCancelWithoutRefund = !isTest && currentStatus === "PENDING";
 
   async function handleCreateLabel() {
     setLabelState("saving");
@@ -219,7 +220,7 @@ export function OrderEditForm({
                 "Weet je zeker dat je deze bestelling wilt annuleren?"
               )
             }
-            disabled={isTest || statusState === "saving" || currentStatus === "CANCELLED"}
+            disabled={!canCancelWithoutRefund || statusState === "saving"}
             className="inline-flex items-center justify-center rounded-button border border-red-300 bg-red-50 px-4 py-2 font-heading text-body-sm font-semibold text-red-700 transition-colors duration-hover-fast hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {statusState === "saving" && pendingStatus === "CANCELLED"

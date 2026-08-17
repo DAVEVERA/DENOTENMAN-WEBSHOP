@@ -115,7 +115,7 @@
     "discountCode": "Code de réduction",
     "discountPlaceholder": "Saisissez votre code de réduction",
     "applyDiscount": "Appliquer",
-    "discountApplied": "Code appliqué : 10 % de réduction.",
+    "discountApplied": "Code de réduction appliqué.",
     "discountInvalid": "Ce code de réduction n’est pas valide.",
     "discountNotEligible": "Ce code de réduction est uniquement valable pour votre première commande.",
     "discount": "Réduction",

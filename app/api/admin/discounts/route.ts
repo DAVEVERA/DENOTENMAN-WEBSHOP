@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
+import { revalidatePath } from "next/cache";
 
 // Discount codes: uppercase letters, digits, and hyphens only, 3-32 chars.
 const CODE_PATTERN = /^[A-Z0-9-]{3,32}$/;
@@ -104,6 +105,8 @@ export async function POST(request: NextRequest) {
 
       return discount;
     });
+
+    revalidatePath("/admin/kortingen");
 
     return NextResponse.json({ ok: true, discount: created }, { status: 201 });
   } catch (error) {

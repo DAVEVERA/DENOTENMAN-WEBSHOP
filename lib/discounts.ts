@@ -3,8 +3,18 @@ export const MARKET_DISCOUNT_PERCENT = 10;
 
 export type AppliedDiscount = {
   code: string;
-  percent: number;
+  percent?: number;
+  amountOffCents?: number;
   discountCents: number;
+};
+
+export type ConfiguredDiscount = {
+  code: string;
+  status: "DRAFT" | "ACTIVE" | "SCHEDULED" | "EXPIRED";
+  percentOff: number | null;
+  amountOffCents: number | null;
+  startsAt: Date | null;
+  endsAt: Date | null;
 };
 
 export type FirstOrderDiscountEvaluation =
@@ -19,8 +29,47 @@ export type CheckoutDiscountEvaluation =
   | { status: "ineligible" }
   | { status: "applied"; discount: AppliedDiscount; isTest: boolean };
 
-function normalizeDiscountCode(value: string | null | undefined): string {
+export function normalizeDiscountCode(value: string | null | undefined): string {
   return value?.trim().toLocaleLowerCase("nl-NL") ?? "";
+}
+
+export function calculateConfiguredDiscount(
+  subtotalCents: number,
+  code: string | null | undefined,
+  configured: ConfiguredDiscount | null | undefined,
+  now = new Date()
+): AppliedDiscount | null {
+  if (!configured || normalizeDiscountCode(configured.code) !== normalizeDiscountCode(code)) {
+    return null;
+  }
+
+  const hasStarted = !configured.startsAt || configured.startsAt.getTime() <= now.getTime();
+  const hasNotEnded = !configured.endsAt || configured.endsAt.getTime() >= now.getTime();
+  const activeByStatus =
+    configured.status === "ACTIVE" ||
+    (configured.status === "SCHEDULED" && Boolean(configured.startsAt) && hasStarted);
+  if (!activeByStatus || !hasStarted || !hasNotEnded) return null;
+
+  const safeSubtotal = Math.max(0, subtotalCents);
+  if (configured.percentOff !== null) {
+    return {
+      code: configured.code,
+      percent: configured.percentOff,
+      discountCents: Math.min(
+        safeSubtotal,
+        Math.round((safeSubtotal * configured.percentOff) / 100)
+      ),
+    };
+  }
+  if (configured.amountOffCents !== null) {
+    return {
+      code: configured.code,
+      amountOffCents: configured.amountOffCents,
+      discountCents: Math.min(safeSubtotal, configured.amountOffCents),
+    };
+  }
+
+  return null;
 }
 
 export function calculateDiscount(
@@ -72,7 +121,9 @@ export function evaluateCheckoutDiscount(
   subtotalCents: number,
   code: string | null | undefined,
   hasPreviousPaidOrder: boolean,
-  configuredTestCode: string | null | undefined
+  configuredTestCode: string | null | undefined,
+  configuredDiscount?: ConfiguredDiscount | null,
+  now = new Date()
 ): CheckoutDiscountEvaluation {
   const submittedCode = code?.trim() ?? "";
   const testCode = configuredTestCode?.trim() ?? "";
@@ -91,6 +142,18 @@ export function evaluateCheckoutDiscount(
       },
       isTest: true,
     };
+  }
+
+  if (configuredDiscount) {
+    const discount = calculateConfiguredDiscount(
+      subtotalCents,
+      submittedCode,
+      configuredDiscount,
+      now
+    );
+    return discount
+      ? { status: "applied", discount, isTest: false }
+      : { status: "invalid" };
   }
 
   const marketEvaluation = evaluateFirstOrderDiscount(

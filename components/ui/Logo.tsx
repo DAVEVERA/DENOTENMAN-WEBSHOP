@@ -8,7 +8,7 @@ const wordmarkSrc: Record<"light" | "dark", string> = {
 const wordmarkSizeClasses: Record<"sm" | "lg" | "responsive", string> = {
   sm: "h-8",
   lg: "h-12",
-  responsive: "h-7 sm:h-12",
+  responsive: "h-10 sm:h-14 lg:h-16",
 };
 
 const wordmarkColorClasses: Record<"light" | "dark", string> = {

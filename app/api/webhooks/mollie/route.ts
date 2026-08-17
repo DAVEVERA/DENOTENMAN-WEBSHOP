@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncOrderPaymentStatus } from "@/lib/orders";
+import { syncOrderRefundStatuses } from "@/lib/order-refund-service";
 
 /**
  * Mollie calls this with the payment id whenever a payment's status changes.
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await syncOrderPaymentStatus(order);
+    await syncOrderRefundStatuses(order.id);
   } catch (error) {
     console.error("Failed to sync order payment status from webhook", error);
     return NextResponse.json({ error: "SYNC_FAILED" }, { status: 500 });

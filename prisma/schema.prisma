@@ -373,14 +373,14 @@ model Order {
   contactEmail String
   contactPhone String?
 
-  deliveryMethod DeliveryMethod @default(SHIPPING)
+  deliveryMethod   DeliveryMethod @default(SHIPPING)
   pickupLocationId String?
 
   shippingStreet      String?
   shippingHouseNumber String?
   shippingPostalCode  String?
   shippingCity        String?
-  shippingCountry     String @default("NL")
+  shippingCountry     String  @default("NL")
 
   molliePaymentId String?   @unique
   paidAt          DateTime?
@@ -391,25 +391,70 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items OrderItem[]
+  items   OrderItem[]
+  refunds OrderRefund[]
 
   @@index([userId])
   @@index([status])
 }
 
 model OrderItem {
-  id             String         @id @default(cuid())
+  id             String            @id @default(cuid())
   orderId        String
-  order          Order          @relation(fields: [orderId], references: [id])
+  order          Order             @relation(fields: [orderId], references: [id])
   variantId      String
-  variant        ProductVariant @relation(fields: [variantId], references: [id])
+  variant        ProductVariant    @relation(fields: [variantId], references: [id])
   productName    String
   variantLabel   String
   quantity       Int
   unitPriceCents Int
+  refundItems    OrderRefundItem[]
 
   @@index([orderId])
   @@index([variantId])
+}
+
+enum OrderRefundStatus {
+  CREATING
+  QUEUED
+  PENDING
+  PROCESSING
+  REFUNDED
+  FAILED
+  CANCELED
+}
+
+model OrderRefund {
+  id                     String            @id @default(cuid())
+  orderId                String
+  order                  Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  requestedByAdminUserId String
+  requestedByAdminUser   AdminUser         @relation(fields: [requestedByAdminUserId], references: [id])
+  mollieRefundId         String?           @unique
+  idempotencyKey         String            @unique
+  amountCents            Int
+  reason                 String?
+  includesShipping       Boolean           @default(false)
+  status                 OrderRefundStatus @default(CREATING)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  items OrderRefundItem[]
+
+  @@index([orderId, status])
+  @@index([requestedByAdminUserId])
+}
+
+model OrderRefundItem {
+  refundId         String
+  refund           OrderRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+  orderItemId      String
+  orderItem        OrderItem   @relation(fields: [orderItemId], references: [id])
+  quantity         Int
+  grossAmountCents Int
+
+  @@id([refundId, orderItemId])
+  @@index([orderItemId])
 }
 
 model Composition {
@@ -447,7 +492,8 @@ model AdminUser {
   createdAt    DateTime  @default(now())
   lastLoginAt  DateTime?
 
-  auditEntries AuditLog[]
+  auditEntries     AuditLog[]
+  requestedRefunds OrderRefund[]
 }
 
 enum AuditAction {

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { formatDate, formatPrice } from "@/lib/format";
 import { DiscountRowActions } from "./DiscountRowActions";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Concept",
   ACTIVE: "Actief",

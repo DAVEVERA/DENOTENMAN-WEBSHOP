@@ -32,7 +32,7 @@ export async function Header({
         <div className="border-y-2 border-contrast bg-surface">
           <Container
             fullWidth
-            className="flex flex-wrap items-center justify-between gap-gap-md py-3 sm:py-gap-md"
+            className="grid justify-items-center gap-3 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-gap-md sm:py-gap-md"
           >
             <div className="flex min-w-0 items-center gap-2 sm:gap-gap-md">
               <a href={home(locale)} className="shrink-0">
