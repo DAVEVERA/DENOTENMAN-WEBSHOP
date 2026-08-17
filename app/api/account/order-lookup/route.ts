@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
     discountCents: order.discountCents,
     shippingCents: order.shippingCents,
     totalCents: order.totalCents,
+    deliveryMethod: order.deliveryMethod,
+    pickupLocationId: order.pickupLocationId,
     shippingStreet: order.shippingStreet,
     shippingHouseNumber: order.shippingHouseNumber,
     shippingPostalCode: order.shippingPostalCode,

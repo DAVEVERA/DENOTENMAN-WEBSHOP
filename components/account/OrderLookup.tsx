@@ -5,6 +5,7 @@ import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
 import { formatPrice, formatDate } from "@/lib/format";
 import { postnlTrackingUrl } from "@/lib/shipping";
+import { getPickupLocation } from "@/lib/pickup-locations";
 
 type AccountOrdersDictionary = (typeof nl)["accountOrders"];
 type CheckoutDictionary = (typeof nl)["checkout"];
@@ -19,10 +20,12 @@ type OrderLookupResponse = {
   discountCents: number;
   shippingCents: number;
   totalCents: number;
-  shippingStreet: string;
-  shippingHouseNumber: string;
-  shippingPostalCode: string;
-  shippingCity: string;
+  deliveryMethod: "SHIPPING" | "PICKUP";
+  pickupLocationId: string | null;
+  shippingStreet: string | null;
+  shippingHouseNumber: string | null;
+  shippingPostalCode: string | null;
+  shippingCity: string | null;
   shippingCountry: string;
   postnlTrackingCode: string | null;
   items: {
@@ -162,15 +165,32 @@ export function OrderLookup({
         </div>
 
         <div className="mt-4 border-t border-border pt-4 text-body-sm">
-          <p className="font-heading font-bold text-text">{checkoutDictionary.shippingHeading}</p>
-          <p className="mt-1 text-muted">
-            {order.shippingStreet} {order.shippingHouseNumber}
-            <br />
-            {order.shippingPostalCode} {order.shippingCity}
-          </p>
+          {order.deliveryMethod === "PICKUP" ? (
+            <>
+              <p className="font-heading font-bold text-text">
+                {checkoutDictionary.deliveryMethodPickup}
+              </p>
+              <p className="mt-1 text-muted">
+                {order.pickupLocationId
+                  ? getPickupLocation(order.pickupLocationId)?.name ?? order.pickupLocationId
+                  : "—"}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-heading font-bold text-text">
+                {checkoutDictionary.shippingHeading}
+              </p>
+              <p className="mt-1 text-muted">
+                {order.shippingStreet} {order.shippingHouseNumber}
+                <br />
+                {order.shippingPostalCode} {order.shippingCity}
+              </p>
+            </>
+          )}
         </div>
 
-        {order.postnlTrackingCode ? (
+        {order.deliveryMethod === "SHIPPING" && order.postnlTrackingCode ? (
           <div className="mt-4 border-t border-border pt-4 text-body-sm">
             <p className="font-heading font-bold text-text">{dictionary.trackingLabel}</p>
             <a

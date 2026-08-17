@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { syncOrderPaymentStatus } from "@/lib/orders";
 import { formatPrice } from "@/lib/format";
+import { getPickupLocation } from "@/lib/pickup-locations";
 import { StatusBadge } from "../StatusBadge";
 import { OrderEditForm } from "./OrderEditForm";
 
@@ -40,11 +41,19 @@ export default async function OrderDetailPage({
   const synced = await syncOrderPaymentStatus(existing);
   const order = { ...synced, items: existing.items };
 
-  const shippingLines = [
-    `${order.shippingStreet} ${order.shippingHouseNumber}`,
-    `${order.shippingPostalCode} ${order.shippingCity}`,
-    order.shippingCountry,
-  ];
+  const pickupLocation =
+    order.deliveryMethod === "PICKUP" && order.pickupLocationId
+      ? getPickupLocation(order.pickupLocationId)
+      : undefined;
+
+  const shippingLines: string[] =
+    order.deliveryMethod === "PICKUP"
+      ? [`Afhalen op de markt: ${pickupLocation?.name ?? "Onbekende locatie"}`, order.shippingCountry]
+      : [
+          `${order.shippingStreet} ${order.shippingHouseNumber}`,
+          `${order.shippingPostalCode} ${order.shippingCity}`,
+          order.shippingCountry,
+        ];
 
   return (
     <div>
@@ -187,10 +196,12 @@ export default async function OrderDetailPage({
           </div>
 
           <div className="rounded-panel border border-border bg-surface p-5">
-            <h2 className="font-heading text-heading-sm text-text">Verzendadres</h2>
+            <h2 className="font-heading text-heading-sm text-text">
+              {order.deliveryMethod === "PICKUP" ? "Aflevering" : "Verzendadres"}
+            </h2>
             <address className="mt-3 text-body-sm not-italic text-text">
-              {shippingLines.map((line) => (
-                <div key={line}>{line}</div>
+              {shippingLines.map((line, index) => (
+                <div key={index}>{line}</div>
               ))}
             </address>
           </div>

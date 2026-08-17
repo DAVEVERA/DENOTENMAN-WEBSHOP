@@ -7,6 +7,7 @@ import { BackInStockEmail } from "@/emails/BackInStockEmail";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { BASE_URL, orderConfirmation } from "@/lib/routes";
 import { formatPrice } from "@/lib/format";
+import { getPickupLocation } from "@/lib/pickup-locations";
 
 let client: Resend | undefined;
 const MAX_SEND_ATTEMPTS = 3;
@@ -50,6 +51,7 @@ type OrderCopy = {
   shippingFree: string;
   total: string;
   shippingHeading: string;
+  pickupHeading: string;
   orderNumber: string;
   orderDate: string;
   viewOrderCta: string;
@@ -71,6 +73,7 @@ const copyByLocale: Record<Locale, OrderCopy> = {
     shippingFree: "Gratis",
     total: "Totaal",
     shippingHeading: "Verzendadres",
+    pickupHeading: "Afhalen op de markt",
     orderNumber: "Bestelnummer",
     orderDate: "Besteldatum",
     viewOrderCta: "Bekijk je bestelling",
@@ -90,6 +93,7 @@ const copyByLocale: Record<Locale, OrderCopy> = {
     shippingFree: "Free",
     total: "Total",
     shippingHeading: "Shipping address",
+    pickupHeading: "Pickup at the market",
     orderNumber: "Order number",
     orderDate: "Order date",
     viewOrderCta: "View your order",
@@ -109,6 +113,7 @@ const copyByLocale: Record<Locale, OrderCopy> = {
     shippingFree: "Gratuit",
     total: "Total",
     shippingHeading: "Adresse de livraison",
+    pickupHeading: "Retrait au marché",
     orderNumber: "Numéro de commande",
     orderDate: "Date de commande",
     viewOrderCta: "Voir votre commande",
@@ -140,12 +145,22 @@ export async function renderOrderConfirmationEmail(
     quantity: item.quantity,
     lineTotal: formatPrice(item.unitPriceCents * item.quantity, locale),
   }));
-  const shippingAddress = [
-    order.contactName,
-    `${order.shippingStreet} ${order.shippingHouseNumber}`,
-    `${order.shippingPostalCode} ${order.shippingCity}`,
-    countryName(order.shippingCountry, locale),
-  ];
+  const shippingAddress =
+    order.deliveryMethod === "PICKUP"
+      ? [
+          order.contactName,
+          order.pickupLocationId
+            ? getPickupLocation(order.pickupLocationId)?.name ?? order.pickupLocationId
+            : "",
+        ].filter(Boolean)
+      : [
+          order.contactName,
+          `${order.shippingStreet} ${order.shippingHouseNumber}`,
+          `${order.shippingPostalCode} ${order.shippingCity}`,
+          countryName(order.shippingCountry, locale),
+        ];
+  const shippingHeading =
+    order.deliveryMethod === "PICKUP" ? copy.pickupHeading : copy.shippingHeading;
   const greeting = copy.greeting(order.contactName);
   const orderDate = new Intl.DateTimeFormat(locale, {
     day: "numeric",
@@ -177,7 +192,7 @@ export async function renderOrderConfirmationEmail(
     shipping,
     totalLabel: copy.total,
     total,
-    shippingHeading: copy.shippingHeading,
+    shippingHeading,
     shippingAddress,
     viewOrderCta: copy.viewOrderCta,
     orderUrl,
@@ -208,7 +223,7 @@ export async function renderOrderConfirmationEmail(
     `${copy.shipping}: ${shipping}`,
     `${copy.total}: ${total}`,
     "",
-    copy.shippingHeading,
+    shippingHeading,
     ...shippingAddress,
     "",
     `${copy.viewOrderCta}: ${orderUrl}`,
