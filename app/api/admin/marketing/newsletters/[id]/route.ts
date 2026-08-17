@@ -1,111 +1,86 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { z } from "zod";
-import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
+import { prisma } from "@/lib/prisma";
 import { recordAudit } from "@/lib/admin-audit";
+import { mailchimpErrorResponse } from "@/lib/mailchimp/admin-response";
+import {
+  deleteNewsletterCampaign,
+  getNewsletterCampaign,
+  updateNewsletterCampaign,
+} from "@/lib/mailchimp/newsletter";
+import { newsletterDraftSchema } from "@/lib/mailchimp/schemas";
+import { recordNewsletterShadow } from "@/lib/mailchimp/shadow";
 
-const newsletterPatchSchema = z
-  .object({
-    subject: z.string().trim().min(1).optional(),
-    bodyHtml: z.string().trim().min(1).optional(),
-    status: z.enum(["DRAFT", "SCHEDULED", "SENT"]).optional(),
-    scheduledAt: z.string().trim().nullable().optional(),
-  })
-  .strict();
+type Context = { params: Promise<{ id: string }> };
 
-function parseDate(value: string | null | undefined): Date | null | { error: true } {
-  if (value === undefined || value === null || value.trim().length === 0) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { error: true };
-  return date;
-}
-
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, context: Context) {
   const admin = await getAdminSession(request);
-  if (!admin) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  if (!admin) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
   const { id } = await context.params;
-
-  const existing = await prisma.newsletterCampaign.findUnique({ where: { id } });
-  if (!existing) {
-    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  try {
+    return NextResponse.json({ campaign: await getNewsletterCampaign(id) });
+  } catch (error) {
+    return mailchimpErrorResponse(error);
   }
+}
 
-  const parsed = newsletterPatchSchema.safeParse(await request.json().catch(() => null));
+export async function PATCH(request: NextRequest, context: Context) {
+  const admin = await getAdminSession(request);
+  if (!admin) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+
+  const parsed = newsletterDraftSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "VALIDATION_ERROR", issues: parsed.error.flatten() }, { status: 400 });
-  }
-
-  const input = parsed.data;
-  const data: {
-    subject?: string;
-    bodyHtml?: string;
-    status?: "DRAFT" | "SCHEDULED" | "SENT";
-    scheduledAt?: Date | null;
-    sentAt?: Date | null;
-  } = {};
-
-  if (input.subject !== undefined) data.subject = input.subject;
-  if (input.bodyHtml !== undefined) data.bodyHtml = input.bodyHtml;
-
-  if (input.scheduledAt !== undefined) {
-    const parsedScheduled = parseDate(input.scheduledAt);
-    if (parsedScheduled && "error" in parsedScheduled) {
-      return NextResponse.json({ error: "INVALID_SCHEDULED_AT" }, { status: 400 });
-    }
-    data.scheduledAt = parsedScheduled as Date | null;
-  }
-
-  if (input.status !== undefined) {
-    const nextScheduledAt = data.scheduledAt !== undefined ? data.scheduledAt : existing.scheduledAt;
-    if (input.status === "SCHEDULED" && !nextScheduledAt) {
-      return NextResponse.json({ error: "SCHEDULED_AT_REQUIRED" }, { status: 400 });
-    }
-    data.status = input.status;
-    if (input.status === "SENT" && !existing.sentAt) {
-      data.sentAt = new Date();
-    }
-  }
-
-  if (Object.keys(data).length === 0) {
-    return NextResponse.json({ error: "NO_CHANGES" }, { status: 400 });
-  }
-
-  const updated = await prisma.$transaction(async (tx) => {
-    const newsletter = await tx.newsletterCampaign.update({ where: { id }, data });
-    await recordAudit(tx, admin, "NewsletterCampaign", id, "UPDATE", existing, newsletter);
-    return newsletter;
-  });
-
-  return NextResponse.json({ ok: true, newsletter: updated });
-}
-
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  const admin = await getAdminSession(request);
-  if (!admin) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return NextResponse.json(
+      { error: "VALIDATION_ERROR", issues: parsed.error.flatten() },
+      { status: 400 }
+    );
   }
 
   const { id } = await context.params;
-
-  const existing = await prisma.newsletterCampaign.findUnique({ where: { id } });
-  if (!existing) {
-    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  try {
+    const existing = await getNewsletterCampaign(id);
+    if (existing.status !== "save") {
+      return NextResponse.json({ error: "CAMPAIGN_NOT_EDITABLE" }, { status: 409 });
+    }
+    const campaign = await updateNewsletterCampaign(id, parsed.data);
+    await recordNewsletterShadow(admin, campaign, parsed.data, "UPDATE");
+    return NextResponse.json({ campaign });
+  } catch (error) {
+    return mailchimpErrorResponse(error);
   }
+}
 
-  await prisma.$transaction(async (tx) => {
-    await tx.newsletterCampaign.delete({ where: { id } });
-    await recordAudit(tx, admin, "NewsletterCampaign", id, "DELETE", existing, null);
-  });
+export async function DELETE(request: NextRequest, context: Context) {
+  const admin = await getAdminSession(request);
+  if (!admin) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
-  return NextResponse.json({ ok: true });
+  const { id } = await context.params;
+  try {
+    const campaign = await getNewsletterCampaign(id);
+    if (campaign.status !== "save") {
+      return NextResponse.json({ error: "CAMPAIGN_NOT_DELETABLE" }, { status: 409 });
+    }
+
+    await deleteNewsletterCampaign(id);
+    const existing = await prisma.newsletterCampaign.findUnique({ where: { id } });
+    if (existing) {
+      await prisma.$transaction(async (transaction) => {
+        await transaction.newsletterCampaign.delete({ where: { id } });
+        await recordAudit(
+          transaction,
+          admin,
+          "NewsletterCampaign",
+          id,
+          "DELETE",
+          existing,
+          null
+        );
+      });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return mailchimpErrorResponse(error);
+  }
 }
