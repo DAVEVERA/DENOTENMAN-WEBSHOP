@@ -1,0 +1,17 @@
+.git
+.git/**
+node_modules
+node_modules/**
+.next
+.next/**
+.env
+.env.*
+.worktrees
+.worktrees/**
+.vscode
+.co?ex
+.superpowers
+.playwright-cli
+output
+tsconfig.tsbuildinfo
+gcp-credentials.json

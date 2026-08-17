@@ -1,19 +1,53 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import {
   parseMailchimpWebhook,
-  verifyMailchimpWebhookSecret,
+  verifyMailchimpWebhookSignature,
 } from "../lib/mailchimp/webhook";
 
 const secret = "a-strong-webhook-secret-123456";
+const timestamp = 1_718_000_000;
+const rawBody = "type=unsubscribe&data%5Bemail%5D=Person%40Example.COM";
+const signature = createHmac("sha256", secret)
+  .update(`${timestamp}.${rawBody}`, "utf8")
+  .digest("hex");
+
 assert.equal(
-  verifyMailchimpWebhookSecret(`https://example.com/api/webhooks/mailchimp?secret=${secret}`, secret),
+  verifyMailchimpWebhookSignature({
+    rawBody,
+    signatureHeader: `t=${timestamp},v1=${signature}`,
+    secret,
+    nowSeconds: timestamp + 30,
+  }),
   true
 );
 assert.equal(
-  verifyMailchimpWebhookSecret("https://example.com/api/webhooks/mailchimp?secret=wrong", secret),
+  verifyMailchimpWebhookSignature({
+    rawBody,
+    signatureHeader: `t=${timestamp},v1=${"0".repeat(64)}`,
+    secret,
+    nowSeconds: timestamp + 30,
+  }),
   false
 );
-assert.equal(verifyMailchimpWebhookSecret("https://example.com/api/webhooks/mailchimp", secret), false);
+assert.equal(
+  verifyMailchimpWebhookSignature({
+    rawBody,
+    signatureHeader: `t=${timestamp},v1=${signature}`,
+    secret,
+    nowSeconds: timestamp + 301,
+  }),
+  false
+);
+assert.equal(
+  verifyMailchimpWebhookSignature({
+    rawBody,
+    signatureHeader: null,
+    secret,
+    nowSeconds: timestamp,
+  }),
+  false
+);
 
 const unsubscribe = new FormData();
 unsubscribe.set("type", "unsubscribe");

@@ -62,6 +62,12 @@ export type NewsletterReport = {
   unsubscribed: number;
 };
 
+export type AudienceDetails = {
+  recipientCount: number;
+  fromName: string;
+  replyTo: string;
+};
+
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null;
 }
@@ -139,13 +145,26 @@ export async function listNewsletterCampaigns(): Promise<{
   drafts: NewsletterSummary[];
   sent: NewsletterSummary[];
 }> {
+  const audienceId = getMailchimpEnvironment().MAILCHIMP_AUDIENCE_ID;
   const campaigns = campaignSdk();
   const [draftResponse, sentResponse] = await Promise.all([
     runMailchimpRequest(() =>
-      campaigns.list({ status: "save", count: 1000, sortField: "create_time", sortDir: "DESC" })
+      campaigns.list({
+        listId: audienceId,
+        status: "save",
+        count: 1000,
+        sortField: "create_time",
+        sortDir: "DESC",
+      })
     ),
     runMailchimpRequest(() =>
-      campaigns.list({ status: "sent", count: 1000, sortField: "send_time", sortDir: "DESC" })
+      campaigns.list({
+        listId: audienceId,
+        status: "sent",
+        count: 1000,
+        sortField: "send_time",
+        sortDir: "DESC",
+      })
     ),
   ]);
   return {
@@ -227,11 +246,20 @@ export async function getNewsletterReport(campaignId: string): Promise<Newslette
   };
 }
 
-export async function getAudienceRecipientCount(): Promise<number> {
+export async function getAudienceDetails(): Promise<AudienceDetails> {
   const response = await runMailchimpRequest(() =>
     listSdk().getList(getMailchimpEnvironment().MAILCHIMP_AUDIENCE_ID)
   );
   const list = isRecord(response) ? response : {};
   const stats = isRecord(list.stats) ? list.stats : {};
-  return number(stats.member_count);
+  const defaults = isRecord(list.campaign_defaults) ? list.campaign_defaults : {};
+  return {
+    recipientCount: number(stats.member_count),
+    fromName: text(defaults.from_name, "De Notenman"),
+    replyTo: text(defaults.from_email, "info@denotenman.com"),
+  };
+}
+
+export async function getAudienceRecipientCount(): Promise<number> {
+  return (await getAudienceDetails()).recipientCount;
 }

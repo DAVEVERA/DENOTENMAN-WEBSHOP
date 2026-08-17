@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Locale, NewsletterConsentStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isLocale } from "@/lib/i18n";
@@ -24,9 +24,47 @@ function constantTimeEqual(left: string, right: string): boolean {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-export function verifyMailchimpWebhookSecret(url: string, expectedSecret: string): boolean {
-  const suppliedSecret = new URL(url).searchParams.get("secret");
-  return suppliedSecret !== null && constantTimeEqual(suppliedSecret, expectedSecret);
+const SIGNATURE_TOLERANCE_SECONDS = 300;
+
+type VerifyMailchimpWebhookSignatureInput = {
+  rawBody: string;
+  signatureHeader: string | null;
+  secret: string;
+  nowSeconds?: number;
+};
+
+function signatureParts(header: string): { timestamp: number; signature: string } | null {
+  const parts = new Map(
+    header.split(",").map((part) => {
+      const separator = part.indexOf("=");
+      return separator === -1
+        ? [part.trim(), ""]
+        : [part.slice(0, separator).trim(), part.slice(separator + 1).trim()];
+    })
+  );
+  const timestamp = Number(parts.get("t"));
+  const signature = parts.get("v1");
+  if (!Number.isSafeInteger(timestamp) || timestamp <= 0 || !signature) return null;
+  if (!/^[a-f0-9]{64}$/i.test(signature)) return null;
+  return { timestamp, signature: signature.toLowerCase() };
+}
+
+export function verifyMailchimpWebhookSignature({
+  rawBody,
+  signatureHeader,
+  secret,
+  nowSeconds = Math.floor(Date.now() / 1000),
+}: VerifyMailchimpWebhookSignatureInput): boolean {
+  if (!signatureHeader || secret.length === 0) return false;
+  const parts = signatureParts(signatureHeader);
+  if (!parts || Math.abs(nowSeconds - parts.timestamp) > SIGNATURE_TOLERANCE_SECONDS) {
+    return false;
+  }
+
+  const expected = createHmac("sha256", secret)
+    .update(`${parts.timestamp}.${rawBody}`, "utf8")
+    .digest("hex");
+  return constantTimeEqual(parts.signature, expected);
 }
 
 function optionalFormString(formData: FormData, key: string): string | undefined {
