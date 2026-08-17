@@ -12,20 +12,21 @@ export type ProductRevalidationResult = {
 export function revalidateProductStorefront(
   input: ProductRevalidationInput
 ): ProductRevalidationResult {
-  const failedPaths: string[] = [];
+  const affectedPaths = productRevalidationPaths(input);
 
-  for (const path of productRevalidationPaths(input)) {
-    try {
-      revalidatePath(path);
-    } catch (error) {
-      failedPaths.push(path);
-      console.error("Failed to revalidate product storefront path", {
-        productId: input.productId,
-        path,
-        error,
-      });
-    }
+  try {
+    // A single layout invalidation refreshes every storefront and admin surface
+    // atomically. Calling revalidatePath once per localized URL made the save
+    // response needlessly slow and could leave only part of the storefront fresh.
+    revalidatePath("/", "layout");
+  } catch (error) {
+    console.error("Failed to revalidate product storefront", {
+      productId: input.productId,
+      affectedPaths,
+      error,
+    });
+    return { frontendSynced: false, failedPaths: affectedPaths };
   }
 
-  return { frontendSynced: failedPaths.length === 0, failedPaths };
+  return { frontendSynced: true, failedPaths: [] };
 }

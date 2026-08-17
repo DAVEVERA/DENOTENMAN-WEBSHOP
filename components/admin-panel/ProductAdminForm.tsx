@@ -107,6 +107,35 @@ export function createEmptyVariant(skuPrefix = ""): Variant {
   return { clientKey: crypto.randomUUID(), sku: skuPrefix ? `${skuPrefix}-` : "", label: "", weightGrams: "250", preparation: "RAW", salting: "UNSALTED", coating: "NONE", isActive: true, priceEuro: "0.00", salePriceEuro: "", stock: "0" };
 }
 
+export function normalizeCategoryAssignments(
+  assignments: CategoryAssignment[],
+  categoryOptions: CategoryOption[],
+): CategoryAssignment[] {
+  if (assignments.length === 0) return assignments;
+  if (assignments.filter((assignment) => assignment.isPrimary).length === 1) return assignments;
+
+  const parents = new Map(categoryOptions.map((category) => [category.id, category.parentId]));
+  const depth = (categoryId: string) => {
+    const visited = new Set<string>();
+    let current: string | null | undefined = categoryId;
+    let result = 0;
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      current = parents.get(current);
+      if (current) result += 1;
+    }
+    return result;
+  };
+  const primary = assignments.reduce((deepest, assignment) =>
+    depth(assignment.categoryId) > depth(deepest.categoryId) ? assignment : deepest
+  );
+
+  return assignments.map((assignment) => ({
+    ...assignment,
+    isPrimary: assignment.categoryId === primary.categoryId,
+  }));
+}
+
 export function ProductAdminForm({ mode, productId, initial, categories, productOptions, images: initialImages }: {
   mode: "create" | "edit";
   productId?: string;
@@ -120,7 +149,10 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
   const [translations, setTranslations] = useState(() => initialTranslations(initial));
   const [nutrition, setNutrition] = useState<NutritionValues>(() => initial.nutrition ?? emptyNutritionValues());
   const [categoryAssignments, setCategoryAssignments] = useState<CategoryAssignment[]>(
-    () => initial.categories ?? initial.categoryIds.map((categoryId, index) => ({ categoryId, isPrimary: index === 0, sortOrder: index }))
+    () => normalizeCategoryAssignments(
+      initial.categories ?? initial.categoryIds.map((categoryId, index) => ({ categoryId, isPrimary: index === 0, sortOrder: index })),
+      categories,
+    )
   );
   const [categoryPlacementMode, setCategoryPlacementMode] = useState<"auto" | "manual">(mode === "create" ? "auto" : "manual");
   const [images, setImages] = useState(initialImages);
