@@ -1,8 +1,8 @@
 import type nl from "@/dictionaries/nl.json";
+import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { home } from "@/lib/routes";
 import { getCategoryNavigation } from "@/lib/queries";
-import { hiddenNavCategorySlugs } from "@/lib/navVisibility";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
@@ -21,9 +21,7 @@ export async function Header({
   languages: Partial<Record<Locale, string>>;
 }) {
   const navigation = await getCategoryNavigation(locale);
-  const categories = navigation.categories.filter(
-    (category) => !hiddenNavCategorySlugs.has(category.canonicalSlug)
-  );
+  const categories = navigation.categories;
 
   return (
     <>
@@ -34,14 +32,14 @@ export async function Header({
             className="grid justify-items-center gap-3 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-gap-md sm:py-gap-md"
           >
             <div className="flex min-w-0 items-center gap-2 sm:gap-gap-md">
-              <a href={home(locale)} className="shrink-0">
+              <Link href={home(locale)} className="shrink-0">
                 <Logo
                   alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
                   variant="light"
                   parts="wordmark"
                   size="responsive"
                 />
-              </a>
+              </Link>
             </div>
             <div className="flex shrink-0 items-center gap-3 sm:gap-gap-md">
               <div className="hidden sm:block">

@@ -1,19 +1,47 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Menu, X, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronRight, Menu, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type nl from "@/dictionaries/nl.json";
 import type { MainCategoryDto } from "@/lib/queries";
 import type { NavigationCategoryDto } from "@/lib/categoryGroups";
 import type { Locale } from "@/lib/i18n";
-import { account, cart, category as categoryPath, categories as categoriesPath, home } from "@/lib/routes";
-import { cn } from "@/lib/cn";
+import {
+  account,
+  cart,
+  category as categoryPath,
+  categories as categoriesPath,
+  home,
+} from "@/lib/routes";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { PromotionalCategoryLink } from "@/components/layout/PromotionalCategoryLink";
 
 const focusableSelector =
   'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const backLabel: Record<Locale, string> = {
+  nl: "Terug",
+  en: "Back",
+  fr: "Retour",
+};
+
+export function resolveCategoryPath(
+  categories: NavigationCategoryDto[],
+  categoryIds: string[]
+): NavigationCategoryDto | null {
+  let level = categories;
+  let current: NavigationCategoryDto | null = null;
+
+  for (const categoryId of categoryIds) {
+    current = level.find((category) => category.id === categoryId) ?? null;
+    if (!current) return null;
+    level = current.children;
+  }
+
+  return current;
+}
 
 export function MobileNav({
   categories,
@@ -28,21 +56,45 @@ export function MobileNav({
   dictionary: typeof nl;
   languages: Partial<Record<Locale, string>>;
 }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const closeMenu = useCallback(() => {
+  const levelHeadingRef = useRef<HTMLHeadingElement>(null);
+  const previousPathnameRef = useRef(pathname);
+  const activeCategory = resolveCategoryPath(categories, categoryIds);
+  const visibleCategories = activeCategory?.children ?? categories;
+
+  const resetMenu = useCallback(() => {
     setOpen(false);
-    setExpandedCategoryId(null);
+    setCategoryIds([]);
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    resetMenu();
     window.requestAnimationFrame(() => triggerRef.current?.focus());
+  }, [resetMenu]);
+
+  const followLink = useCallback(() => {
+    resetMenu();
+  }, [resetMenu]);
+
+  const setLevel = useCallback((nextCategoryIds: string[]) => {
+    setCategoryIds(nextCategoryIds);
+    window.requestAnimationFrame(() => levelHeadingRef.current?.focus());
   }, []);
 
   useEffect(() => {
-    if (open) {
-      closeButtonRef.current?.focus();
+    if (previousPathnameRef.current !== pathname) {
+      previousPathnameRef.current = pathname;
+      resetMenu();
     }
+  }, [pathname, resetMenu]);
+
+  useEffect(() => {
+    if (open) closeButtonRef.current?.focus();
   }, [open]);
 
   useEffect(() => {
@@ -58,6 +110,7 @@ export function MobileNav({
     function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (!open) return;
       if (event.key === "Escape") {
+        event.preventDefault();
         closeMenu();
         return;
       }
@@ -89,7 +142,7 @@ export function MobileNav({
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-40 inline-flex h-14 min-w-14 -translate-x-1/2 items-center justify-center rounded-full border border-contrast bg-contrast px-4 text-surface shadow-card-hover lg:hidden"
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-40 inline-flex h-14 min-w-14 -translate-x-1/2 touch-manipulation items-center justify-center rounded-full border border-contrast bg-contrast px-4 text-surface shadow-card-hover lg:hidden"
       >
         <Menu className="h-6 w-6" aria-hidden="true" />
       </button>
@@ -105,135 +158,159 @@ export function MobileNav({
             role="dialog"
             aria-modal="true"
             aria-label={dictionary.nav.mainMenu}
-            className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 right-4 max-h-[min(70dvh,36rem)] overflow-y-auto rounded-panel border border-border bg-surface p-5 shadow-card-hover"
+            className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 right-4 flex max-h-[min(74dvh,40rem)] flex-col overflow-hidden rounded-panel border border-border bg-surface shadow-card-hover"
           >
-            <button
-              ref={closeButtonRef}
-              type="button"
-              aria-label={dictionary.nav.closeMenu}
-              onClick={closeMenu}
-              className="ml-auto flex h-11 w-11 items-center justify-center rounded-full text-text hover:bg-background"
-            >
-              <X className="h-6 w-6" aria-hidden="true" />
-            </button>
-            <nav aria-label={dictionary.nav.mainMenu} className="mt-2 flex flex-col gap-1">
-              <Link
-                href={home(locale)}
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <p className="font-heading text-heading-sm font-bold">{dictionary.nav.mainMenu}</p>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                aria-label={dictionary.nav.closeMenu}
                 onClick={closeMenu}
-                className="min-h-11 rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+                className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-full text-text hover:bg-background"
               >
-                {dictionary.nav.home}
-              </Link>
-              <section className="mt-2 border-y border-border py-2" aria-labelledby="mobile-categories-heading">
-                <div className="flex min-h-11 items-center justify-between px-3">
-                  <h2 id="mobile-categories-heading" className="text-heading-sm font-bold">
-                    {dictionary.nav.categories}
+                <X className="h-6 w-6" aria-hidden="true" />
+              </button>
+            </div>
+
+            <nav
+              aria-label={dictionary.nav.mainMenu}
+              className="min-h-0 flex-1 overflow-y-auto p-4"
+            >
+              {activeCategory ? (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setLevel(categoryIds.slice(0, -1))}
+                    className="inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-button px-3 py-2 font-heading text-body-sm font-semibold text-muted hover:bg-background hover:text-text"
+                  >
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    {backLabel[locale]}
+                  </button>
+                  <h2
+                    ref={levelHeadingRef}
+                    tabIndex={-1}
+                    className="mt-2 px-3 font-heading text-heading-md font-bold outline-none"
+                  >
+                    {activeCategory.name}
                   </h2>
                   <Link
-                    href={categoriesPath(locale)}
-                    onClick={closeMenu}
-                    className="inline-flex min-h-11 items-center rounded-button px-2 py-2 text-body-sm font-semibold text-muted hover:bg-background hover:text-text"
+                    href={categoryPath(locale, activeCategory.slug)}
+                    onClick={followLink}
+                    className="mt-2 flex min-h-12 touch-manipulation items-center justify-between rounded-button bg-background px-3 py-3 font-heading font-bold text-accent-hover"
                   >
-                    {dictionary.nav.viewAll}
+                    {dictionary.nav.viewAllCategory.replace("{category}", activeCategory.name)}
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
-                </div>
-                <ul className="mt-1 flex flex-col">
-                  {categories.map((category) => {
-                    const expanded = expandedCategoryId === category.id;
-
-                    return (
+                  <ul className="mt-2 flex flex-col">
+                    {visibleCategories.map((category) => (
                       <li key={category.id}>
                         {category.children.length > 0 ? (
-                          <>
-                            <button
-                              type="button"
-                              aria-expanded={expanded}
-                              aria-controls={`mobile-category-${category.id}`}
-                              onClick={() =>
-                                setExpandedCategoryId((current) =>
-                                  current === category.id ? null : category.id
-                                )
-                              }
-                              className="flex min-h-12 w-full items-center justify-between rounded-button px-3 py-3 text-left font-heading font-bold hover:bg-background"
-                            >
-                              {category.name}
-                              <ChevronDown
-                                className={cn(
-                                  "h-4 w-4 shrink-0 transition-transform duration-hover-fast",
-                                  expanded && "rotate-180"
-                                )}
-                                aria-hidden="true"
-                              />
-                            </button>
-                            {expanded ? (
-                              <ul
-                                id={`mobile-category-${category.id}`}
-                                className="mb-2 ml-3 flex flex-col border-l border-border pl-3"
-                              >
-                                <li>
-                                  <Link
-                                    href={categoryPath(locale, category.slug)}
-                                    onClick={closeMenu}
-                                    className="block min-h-11 rounded-button px-3 py-3 font-heading font-bold text-accent-hover hover:bg-background"
-                                  >
-                                    {dictionary.nav.viewAllCategory.replace("{category}", category.name)}
-                                  </Link>
-                                </li>
-                                {category.children.map((child) => (
-                                  <li key={child.id}>
-                                    <Link
-                                      href={categoryPath(locale, child.slug)}
-                                      onClick={closeMenu}
-                                      className="block min-h-11 rounded-button px-3 py-3 font-heading font-semibold hover:bg-background"
-                                    >
-                                      {child.name}
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : null}
-                          </>
+                          <button
+                            type="button"
+                            onClick={() => setLevel([...categoryIds, category.id])}
+                            className="flex min-h-12 w-full touch-manipulation items-center justify-between rounded-button px-3 py-3 text-left font-heading font-bold hover:bg-background"
+                          >
+                            {category.name}
+                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                          </button>
                         ) : (
                           <Link
                             href={categoryPath(locale, category.slug)}
-                            onClick={closeMenu}
-                            className="flex min-h-12 items-center rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+                            onClick={followLink}
+                            className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-semibold hover:bg-background"
                           >
                             {category.name}
                           </Link>
                         )}
                       </li>
-                    );
-                  })}
-                </ul>
-                {promotional ? (
-                  <div className="mt-3 px-2">
-                    <PromotionalCategoryLink
-                      category={promotional}
-                      locale={locale}
-                      mobile
-                      onClick={closeMenu}
-                    />
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div>
+                  <Link
+                    href={home(locale)}
+                    onClick={followLink}
+                    className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+                  >
+                    {dictionary.nav.home}
+                  </Link>
+                  <section
+                    className="mt-2 border-y border-border py-2"
+                    aria-labelledby="mobile-categories-heading"
+                  >
+                    <div className="flex min-h-12 items-center justify-between gap-3 px-3">
+                      <h2
+                        ref={levelHeadingRef}
+                        id="mobile-categories-heading"
+                        tabIndex={-1}
+                        className="font-heading text-heading-sm font-bold outline-none"
+                      >
+                        {dictionary.nav.categories}
+                      </h2>
+                      <Link
+                        href={categoriesPath(locale)}
+                        onClick={followLink}
+                        className="inline-flex min-h-11 touch-manipulation items-center rounded-button px-2 py-2 text-body-sm font-semibold text-muted hover:bg-background hover:text-text"
+                      >
+                        {dictionary.nav.viewAll}
+                      </Link>
+                    </div>
+                    <ul className="mt-1 flex flex-col">
+                      {visibleCategories.map((category) => (
+                        <li key={category.id}>
+                          {category.children.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setLevel([category.id])}
+                              className="flex min-h-12 w-full touch-manipulation items-center justify-between rounded-button px-3 py-3 text-left font-heading font-bold hover:bg-background"
+                            >
+                              {category.name}
+                              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          ) : (
+                            <Link
+                              href={categoryPath(locale, category.slug)}
+                              onClick={followLink}
+                              className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+                            >
+                              {category.name}
+                            </Link>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {promotional ? (
+                      <div className="mt-3 px-2">
+                        <PromotionalCategoryLink
+                          category={promotional}
+                          locale={locale}
+                          mobile
+                          onClick={followLink}
+                        />
+                      </div>
+                    ) : null}
+                  </section>
+                  <Link
+                    href={cart(locale)}
+                    onClick={followLink}
+                    className="mt-1 flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+                  >
+                    {dictionary.nav.cart}
+                  </Link>
+                  <Link
+                    href={account(locale)}
+                    onClick={followLink}
+                    className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+                  >
+                    {dictionary.nav.account}
+                  </Link>
+                  <div className="mt-2 border-t border-border px-3 pt-4">
+                    <LocaleSwitcher currentLocale={locale} languages={languages} />
                   </div>
-                ) : null}
-              </section>
-              <Link
-                href={cart(locale)}
-                onClick={closeMenu}
-                className="min-h-11 rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
-              >
-                {dictionary.nav.cart}
-              </Link>
-              <Link
-                href={account(locale)}
-                onClick={closeMenu}
-                className="min-h-11 rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
-              >
-                {dictionary.nav.account}
-              </Link>
-              <div className="mt-2 border-t border-border px-3 pt-4">
-                <LocaleSwitcher currentLocale={locale} languages={languages} />
-              </div>
+                </div>
+              )}
             </nav>
           </div>
         </div>
