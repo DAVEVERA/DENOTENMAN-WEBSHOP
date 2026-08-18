@@ -246,6 +246,10 @@ function errorMessageFor(code: string | undefined): string {
       return "Een categorie kan niet zijn eigen bovenliggende categorie zijn.";
     case "PARENT_NOT_FOUND":
       return "De gekozen bovenliggende categorie bestaat niet.";
+    case "CATEGORY_CYCLE":
+      return "Deze keuze maakt een cirkel in de categorieboom. Kies een andere bovenliggende categorie.";
+    case "CATEGORY_TOO_DEEP":
+      return "De categorieboom mag maximaal drie niveaus bevatten.";
     case "NOT_FOUND":
       return "Categorie niet gevonden.";
     case "UNAUTHORIZED":

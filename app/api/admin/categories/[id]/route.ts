@@ -9,6 +9,7 @@ import {
   scheduleIndexNowUrls,
 } from "@/lib/indexnow";
 import { BASE_URL } from "@/lib/routes";
+import { validateCategoryParent } from "@/lib/category-hierarchy";
 
 type PatchBody = Partial<{
   name: unknown;
@@ -90,14 +91,12 @@ export async function PATCH(
     if (value !== null && typeof value !== "string") {
       return NextResponse.json({ error: "INVALID_PARENT" }, { status: 400 });
     }
-    if (value === id) {
-      return NextResponse.json({ error: "SELF_PARENT" }, { status: 400 });
-    }
-    if (value !== null) {
-      const parent = await prisma.category.findUnique({ where: { id: value } });
-      if (!parent) {
-        return NextResponse.json({ error: "PARENT_NOT_FOUND" }, { status: 400 });
-      }
+    const categories = await prisma.category.findMany({
+      select: { id: true, parentId: true },
+    });
+    const hierarchyError = validateCategoryParent(id, value, categories);
+    if (hierarchyError) {
+      return NextResponse.json({ error: hierarchyError }, { status: 400 });
     }
     categoryData.parentId = value;
   }

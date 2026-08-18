@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/cn";
@@ -11,30 +10,36 @@ const typeLabels: Record<CategoryType, string> = {
 
 export default async function AdminCategoriesPage() {
   const categories = await prisma.category.findMany({
-    include: {
-      translations: true,
-      children: {
-        include: {
-          translations: true,
-          _count: { select: { productCategories: true } },
-        },
-        orderBy: { sortOrder: "asc" },
-      },
-      _count: { select: { productCategories: true } },
-    },
-    where: { parentId: null },
-    orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
+    include: { translations: true, _count: { select: { productCategories: true } } },
+    orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { slug: "asc" }],
   });
-
-  const totalCount =
-    categories.length + categories.reduce((sum, category) => sum + category.children.length, 0);
+  const byParent = new Map<string | null, typeof categories>();
+  for (const category of categories) {
+    const siblings = byParent.get(category.parentId) ?? [];
+    siblings.push(category);
+    byParent.set(category.parentId, siblings);
+  }
+  const ordered: Array<{ category: (typeof categories)[number]; depth: number }> = [];
+  const visited = new Set<string>();
+  function appendChildren(parentId: string | null, depth: number) {
+    for (const category of byParent.get(parentId) ?? []) {
+      if (visited.has(category.id)) continue;
+      visited.add(category.id);
+      ordered.push({ category, depth });
+      appendChildren(category.id, depth + 1);
+    }
+  }
+  appendChildren(null, 0);
+  for (const category of categories) {
+    if (!visited.has(category.id)) ordered.push({ category, depth: 0 });
+  }
 
   return (
     <div>
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-heading-xl text-text">Categorieën</h1>
-          <p className="mt-1 text-body-sm text-muted">{totalCount} categorieën in totaal</p>
+          <p className="mt-1 text-body-sm text-muted">{categories.length} categorieën in totaal</p>
         </div>
       </div>
 
@@ -57,38 +62,21 @@ export default async function AdminCategoriesPage() {
               </tr>
             </thead>
             <tbody>
-              {categories.map((category) => {
+              {ordered.map(({ category, depth }) => {
                 const nl = category.translations.find((t) => t.locale === "nl");
 
                 return (
-                  <Fragment key={category.id}>
-                    <CategoryRow
-                      id={category.id}
-                      name={nl?.name ?? category.slug}
-                      slug={category.slug}
-                      type={category.type}
-                      productCount={category._count.productCategories}
-                      isActive={category.isActive}
-                      sortOrder={category.sortOrder}
-                    />
-                    {category.children.map((child) => {
-                      const childNl = child.translations.find((t) => t.locale === "nl");
-
-                      return (
-                        <CategoryRow
-                          key={child.id}
-                          id={child.id}
-                          name={childNl?.name ?? child.slug}
-                          slug={child.slug}
-                          type={child.type}
-                          productCount={child._count.productCategories}
-                          isActive={child.isActive}
-                          sortOrder={child.sortOrder}
-                          isChild
-                        />
-                      );
-                    })}
-                  </Fragment>
+                  <CategoryRow
+                    key={category.id}
+                    id={category.id}
+                    name={nl?.name ?? category.slug}
+                    slug={category.slug}
+                    type={category.type}
+                    productCount={category._count.productCategories}
+                    isActive={category.isActive}
+                    sortOrder={category.sortOrder}
+                    depth={depth}
+                  />
                 );
               })}
             </tbody>
@@ -107,7 +95,7 @@ function CategoryRow({
   productCount,
   isActive,
   sortOrder,
-  isChild = false,
+  depth = 0,
 }: {
   id: string;
   name: string;
@@ -116,7 +104,7 @@ function CategoryRow({
   productCount: number;
   isActive: boolean;
   sortOrder: number;
-  isChild?: boolean;
+  depth?: number;
 }) {
   return (
     <tr
@@ -129,12 +117,12 @@ function CategoryRow({
         <span
           className={cn(
             "flex items-center gap-2",
-            isChild && "pl-6 text-muted",
-            !isChild && "font-heading font-semibold text-text",
+            depth > 0 && "text-muted",
+            depth === 0 && "font-heading font-semibold text-text",
             !isActive && "text-muted"
           )}
         >
-          {isChild ? <span aria-hidden="true">↳</span> : null}
+          {depth > 0 ? <span aria-hidden="true" style={{ marginLeft: `${Math.min(depth, 3) * 1.5}rem` }}>↳</span> : null}
           {name}
         </span>
       </td>

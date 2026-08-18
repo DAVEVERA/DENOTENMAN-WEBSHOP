@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { CategoryEditForm } from "./CategoryEditForm";
+import { collectDescendantCategoryIds } from "@/lib/category-hierarchy";
 
 export default async function AdminCategoryEditPage({
   params,
@@ -28,10 +29,18 @@ export default async function AdminCategoryEditPage({
 
   const nl = category.translations.find((t) => t.locale === "nl");
 
+  const categoryGraph = await prisma.category.findMany({
+    select: { id: true, parentId: true },
+  });
+  const excludedParentIds = collectDescendantCategoryIds(id, categoryGraph);
   const parentOptions = await prisma.category.findMany({
-    where: { parentId: null, id: { not: id } },
+    where: {
+      id: { notIn: excludedParentIds },
+      type: "STANDARD",
+      isActive: true,
+    },
     include: { translations: true },
-    orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
+    orderBy: [{ sortOrder: "asc" }, { slug: "asc" }],
   });
 
   const products = category.productCategories
@@ -73,7 +82,7 @@ export default async function AdminCategoryEditPage({
             parentOptions={parentOptions.map((parent) => ({
               id: parent.id,
               name:
-                parent.translations.find((t) => t.locale === "nl")?.name ?? parent.slug,
+                `${parent.parentId ? "↳ " : ""}${parent.translations.find((t) => t.locale === "nl")?.name ?? parent.slug}`,
             }))}
           />
         </div>
