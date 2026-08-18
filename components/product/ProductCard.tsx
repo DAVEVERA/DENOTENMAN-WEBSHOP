@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Bell, Heart, ShoppingCart } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
-import { formatPrice } from "@/lib/format";
 import { product as productPath } from "@/lib/routes";
 import { cn } from "@/lib/cn";
 import { getProductImageStyle } from "@/lib/image-focal";
@@ -17,6 +16,7 @@ import {
 } from "@/lib/storefront-state";
 import { Card } from "@/components/ui/Card";
 import { ProductQuickView } from "@/components/product/ProductQuickView";
+import { ProductPrice } from "@/components/product/ProductPrice";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -91,21 +91,14 @@ export function ProductCard({
         </button>
 
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
-          <p className="min-w-0">
+          <div className="min-w-0">
             {!product.isActive ? (
               <span className="block text-xs font-semibold text-red-600">
                 {dictionary.product.outOfStock}
               </span>
             ) : null}
-            {product.salePriceCents !== null ? (
-              <span className="block text-xs text-muted line-through">
-                {formatPrice(product.regularBasePriceCents, locale)}
-              </span>
-            ) : null}
-            <span className={cn("text-sm font-semibold text-text sm:text-base", product.salePriceCents !== null && "text-red-700")}>
-              {formatPrice(product.basePriceCents, locale)}
-            </span>
-          </p>
+            <ProductPrice product={product} locale={locale} />
+          </div>
           <button
             type="button"
             aria-pressed={favorite}

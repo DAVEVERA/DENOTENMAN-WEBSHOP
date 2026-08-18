@@ -2,6 +2,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { defaultLocale, type Locale } from "@/lib/i18n";
 import { publicImageUrl } from "@/lib/storage";
+import { resolveProductDisplayPrice } from "@/lib/product-price";
 import type {
   Category,
   CategoryTranslation,
@@ -59,6 +60,7 @@ export type ProductSummaryDto = {
   basePriceCents: number;
   regularBasePriceCents: number;
   salePriceCents: number | null;
+  hasVariablePrice: boolean;
   currency: string;
   unit: "WEIGHT" | "VOLUME";
   isActive: boolean;
@@ -231,6 +233,15 @@ function toProductSummaryDto(
     return undefined;
   }
 
+  const variants = product.variants
+    .filter((variant) => variant.isActive)
+    .map((variant) => toProductVariantDto(variant, locale));
+  const displayPrice = resolveProductDisplayPrice(
+    product.basePriceCents,
+    product.salePriceCents,
+    variants
+  );
+
   return {
     id: product.id,
     sku: product.sku,
@@ -244,18 +255,17 @@ function toProductSummaryDto(
     seoTitle: translation.seoTitle,
     metaDescription: translation.metaDescription,
     promotionText: translation.promotionText,
-    basePriceCents: product.salePriceCents ?? product.basePriceCents,
-    regularBasePriceCents: product.basePriceCents,
-    salePriceCents: product.salePriceCents,
+    basePriceCents: displayPrice.priceCents,
+    regularBasePriceCents: displayPrice.regularPriceCents,
+    salePriceCents: displayPrice.salePriceCents,
+    hasVariablePrice: displayPrice.hasVariablePrice,
     currency: product.currency,
     unit: product.unit,
     isActive: product.isActive,
     images: product.images
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(toProductImageDto),
-    variants: product.variants
-      .filter((variant) => variant.isActive)
-      .map((variant) => toProductVariantDto(variant, locale)),
+    variants,
     category: toProductCategoryDto(product.productCategories, locale),
     updatedAt: product.updatedAt,
   };
