@@ -1,8 +1,7 @@
 import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
 import { home } from "@/lib/routes";
-import { getMainCategories } from "@/lib/queries";
-import { groupMainCategories } from "@/lib/categoryGroups";
+import { getCategoryNavigation } from "@/lib/queries";
 import { hiddenNavCategorySlugs } from "@/lib/navVisibility";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
@@ -21,10 +20,10 @@ export async function Header({
   dictionary: typeof nl;
   languages: Partial<Record<Locale, string>>;
 }) {
-  const mainCategories = (await getMainCategories(locale)).filter(
-    (category) => !hiddenNavCategorySlugs.has(category.slug)
+  const navigation = await getCategoryNavigation(locale);
+  const categories = navigation.categories.filter(
+    (category) => !hiddenNavCategorySlugs.has(category.canonicalSlug)
   );
-  const { groups, promotional } = groupMainCategories(mainCategories);
 
   return (
     <>
@@ -56,16 +55,26 @@ export async function Header({
           <Container fullWidth className="relative py-3">
             <nav
               aria-label={dictionary.nav.categories}
-              className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3"
+              className="min-w-0 xl:px-14 min-[1760px]:pr-72"
             >
-              <MegaMenu groups={groups} promotional={promotional} locale={locale} />
+              <MegaMenu
+                categories={categories}
+                promotional={navigation.promotional}
+                locale={locale}
+                labels={{
+                  submenu: dictionary.nav.categoryMenu,
+                  viewAll: dictionary.nav.viewAllCategory,
+                  overview: dictionary.nav.categoryOverview,
+                }}
+              />
             </nav>
             <NavbarSearch locale={locale} label={dictionary.common.search} />
           </Container>
         </div>
       </header>
       <MobileNav
-        categories={mainCategories}
+        categories={categories}
+        promotional={navigation.promotional}
         locale={locale}
         dictionary={dictionary}
         languages={languages}

@@ -1,1 +1,1 @@
-export const hiddenNavCategorySlugs = new Set(["acties", "bakproducten"]);
+export const hiddenNavCategorySlugs = new Set(["bakproducten"]);

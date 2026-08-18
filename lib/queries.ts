@@ -3,9 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { defaultLocale, type Locale } from "@/lib/i18n";
 import { publicImageUrl } from "@/lib/storage";
 import { resolveProductDisplayPrice } from "@/lib/product-price";
+import {
+  buildCategoryNavigation,
+  type CategoryNavigationDto,
+  type NavigationCategorySourceDto,
+} from "@/lib/categoryGroups";
 import type {
   Category,
   CategoryTranslation,
+  CategoryType,
   Product,
   ProductAttribute,
   ProductCategory,
@@ -98,6 +104,7 @@ export type MainCategoryDto = {
   slug: string;
   name: string;
   description: string | null;
+  type: CategoryType;
 };
 
 export type CategoryWithProductsDto = CategoryDto & {
@@ -569,9 +576,42 @@ export const getMainCategories = cache(
           slug: translation.slug,
           name: translation.name,
           description: translation.description,
+          type: category.type,
         };
       })
       .filter((category): category is MainCategoryDto => category !== undefined);
+  }
+);
+
+export const getCategoryNavigation = cache(
+  async (locale: Locale): Promise<CategoryNavigationDto> => {
+    const categories = await prisma.category.findMany({
+      where: { isActive: true },
+      include: { translations: true },
+      orderBy: [{ sortOrder: "asc" }, { slug: "asc" }],
+    });
+
+    const localized = categories
+      .map((category): NavigationCategorySourceDto | undefined => {
+        const translation = resolveTranslation(category.translations, locale);
+        if (!translation) return undefined;
+
+        return {
+          id: category.id,
+          canonicalSlug: category.slug,
+          slug: translation.slug,
+          name: translation.name,
+          description: translation.description,
+          type: category.type,
+          parentId: category.parentId,
+          sortOrder: category.sortOrder,
+        };
+      })
+      .filter(
+        (category): category is NavigationCategorySourceDto => category !== undefined
+      );
+
+    return buildCategoryNavigation(localized);
   }
 );
 
