@@ -288,6 +288,22 @@ async function applyPlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
       }
     }
 
+    const snacksRootId = categoryIds.get("snacks-zoutjes");
+    if (snacksRootId) {
+      const movedSweetSkus = [...fruitSnackSkus, ...sweetSnackSkus];
+      for (const assignment of plan.assignments.filter((item) => movedSweetSkus.includes(item.sku))) {
+        const primaryLeafId = categoryIds.get(assignment.leafSlugs[0]);
+        if (!primaryLeafId) throw new Error(`Primaire bladcategorie ontbreekt voor ${assignment.sku}.`);
+        await tx.productCategory.deleteMany({
+          where: { productId: assignment.id, categoryId: snacksRootId },
+        });
+        await tx.productCategory.update({
+          where: { productId_categoryId: { productId: assignment.id, categoryId: primaryLeafId } },
+          data: { isPrimary: true },
+        });
+      }
+    }
+
     const gedroogdFruitId = categoryIds.get("gedroogd-fruit");
     if (gedroogdFruitId) {
       const misplacedSkus = [...bakingMealSkus, ...bakingNutSkus];
