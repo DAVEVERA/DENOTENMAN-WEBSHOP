@@ -42,69 +42,75 @@ async function inspectPlan() {
 async function applyPlan(
   plan: Awaited<ReturnType<typeof inspectPlan>>
 ): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const changedAt = new Date();
-    for (const product of plan.products) {
-      const conflictingTargetAlias = await tx.productSlugAlias.findUnique({
-        where: { locale_slug: { locale: "fr", slug: product.nextSlug } },
-        select: { productId: true },
-      });
+  await prisma.$transaction(
+    async (tx) => {
+      const changedAt = new Date();
+      for (const product of plan.products) {
+        const conflictingTargetAlias = await tx.productSlugAlias.findUnique({
+          where: { locale_slug: { locale: "fr", slug: product.nextSlug } },
+          select: { productId: true },
+        });
 
-      if (conflictingTargetAlias && conflictingTargetAlias.productId !== product.productId) {
-        throw new Error(`Doelslugconflict voor /fr/produits/${product.nextSlug}.`);
+        if (
+          conflictingTargetAlias &&
+          conflictingTargetAlias.productId !== product.productId
+        ) {
+          throw new Error(`Doelslugconflict voor /fr/produits/${product.nextSlug}.`);
+        }
+
+        const conflictingAlias = await tx.productSlugAlias.findUnique({
+          where: { locale_slug: { locale: "fr", slug: product.slug } },
+          select: { productId: true },
+        });
+
+        if (conflictingAlias && conflictingAlias.productId !== product.productId) {
+          throw new Error(`Aliasconflict voor /fr/produits/${product.slug}.`);
+        }
+
+        await tx.productSlugAlias.upsert({
+          where: { locale_slug: { locale: "fr", slug: product.slug } },
+          create: { locale: "fr", slug: product.slug, productId: product.productId },
+          update: { productId: product.productId },
+        });
       }
 
-      const conflictingAlias = await tx.productSlugAlias.findUnique({
-        where: { locale_slug: { locale: "fr", slug: product.slug } },
-        select: { productId: true },
-      });
-
-      if (conflictingAlias && conflictingAlias.productId !== product.productId) {
-        throw new Error(`Aliasconflict voor /fr/produits/${product.slug}.`);
+      for (const [index, product] of plan.products.entries()) {
+        await tx.productTranslation.update({
+          where: {
+            productId_locale: { productId: product.productId, locale: "fr" },
+          },
+          data: { slug: `seo-fr-${index}-${product.productId}` },
+        });
       }
 
-      await tx.productSlugAlias.upsert({
-        where: { locale_slug: { locale: "fr", slug: product.slug } },
-        create: { locale: "fr", slug: product.slug, productId: product.productId },
-        update: { productId: product.productId },
-      });
-    }
+      for (const product of plan.products) {
+        await tx.productTranslation.update({
+          where: {
+            productId_locale: { productId: product.productId, locale: "fr" },
+          },
+          data: { slug: product.nextSlug },
+        });
+        await tx.product.update({
+          where: { id: product.productId },
+          data: { updatedAt: changedAt },
+        });
+      }
 
-    for (const [index, product] of plan.products.entries()) {
-      await tx.productTranslation.update({
-        where: {
-          productId_locale: { productId: product.productId, locale: "fr" },
-        },
-        data: { slug: `seo-fr-${index}-${product.productId}` },
-      });
-    }
-
-    for (const product of plan.products) {
-      await tx.productTranslation.update({
-        where: {
-          productId_locale: { productId: product.productId, locale: "fr" },
-        },
-        data: { slug: product.nextSlug },
-      });
-      await tx.product.update({
-        where: { id: product.productId },
-        data: { updatedAt: changedAt },
-      });
-    }
-
-    for (const category of plan.categories) {
-      await tx.categoryTranslation.update({
-        where: {
-          categoryId_locale: { categoryId: category.categoryId, locale: "fr" },
-        },
-        data: { slug: category.nextSlug },
-      });
-      await tx.category.update({
-        where: { id: category.categoryId },
-        data: { updatedAt: changedAt },
-      });
-    }
-  });
+      for (const category of plan.categories) {
+        await tx.categoryTranslation.update({
+          where: {
+            categoryId_locale: { categoryId: category.categoryId, locale: "fr" },
+          },
+          data: { slug: category.nextSlug },
+        });
+        await tx.category.update({
+          where: { id: category.categoryId },
+          data: { updatedAt: changedAt },
+        });
+      }
+    },
+    { maxWait: 10_000, timeout: 120_000 }
+  );
 }
 
 async function main(): Promise<void> {
