@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { slugify } from "@/lib/slugify";
 import { sanitizeProductHtml } from "./product-content";
 
 const optionalSalePrice = z.number().int().nonnegative().nullable();
@@ -238,11 +239,5 @@ export function normalizeOptionalText(value: string | null): string | null {
 }
 
 export function slugifyProduct(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 160);
+  return slugify(value);
 }

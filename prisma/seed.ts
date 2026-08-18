@@ -3,6 +3,7 @@ import { Storage } from "@google-cloud/storage";
 import { google } from "googleapis";
 import { v3 } from "@google-cloud/translate";
 import { pageKeys, pageSlugs } from "../lib/pages";
+import { slugify } from "../lib/slugify";
 
 const prisma = new PrismaClient();
 const storage = new Storage();
@@ -62,13 +63,6 @@ function toShortDescription(value: string): string | null {
   if (lastSpace <= 0) return null;
 
   return `${clipped.slice(0, lastSpace).trimEnd()}…`;
-}
-
-function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
 }
 
 // spreadsheet SKUs carry a weight suffix (e.g. CHO-5005-250) that bucket filenames never embed.
