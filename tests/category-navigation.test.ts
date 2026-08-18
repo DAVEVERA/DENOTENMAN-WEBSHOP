@@ -23,18 +23,17 @@ function source(
   };
 }
 
-test("uses localized route slugs while grouping the flat legacy tree by canonical slug", () => {
+test("uses only real parent relations and keeps localized route slugs", () => {
   const navigation = buildCategoryNavigation([
     source("noten", { slug: "nuts", name: "Nuts" }),
-    source("notenmixen", { slug: "nut-mixes", name: "Nut mixes", sortOrder: 1 }),
-    source("pinda-s", { slug: "peanuts", name: "Peanuts", sortOrder: 2 }),
-    source("pitten-zaden", { slug: "seeds-grains", name: "Seeds", sortOrder: 3 }),
+    source("notenmixen", { slug: "nut-mixes", name: "Nut mixes", parentId: "noten", sortOrder: 1 }),
+    source("pinda-s", { slug: "peanuts", name: "Peanuts", parentId: "noten", sortOrder: 2 }),
   ]);
 
   assert.deepEqual(navigation.categories.map((category) => category.canonicalSlug), ["noten"]);
   assert.deepEqual(
     navigation.categories[0]?.children.map((category) => category.canonicalSlug),
-    ["notenmixen", "pinda-s", "pitten-zaden"]
+    ["notenmixen", "pinda-s"]
   );
   assert.equal(categoryPath("en", navigation.categories[0]!.slug), "/en/category/nuts");
   assert.equal(
@@ -43,19 +42,29 @@ test("uses localized route slugs while grouping the flat legacy tree by canonica
   );
 });
 
-test("real Prisma children take precedence over the legacy slug fallback", () => {
+test("does not invent relationships for flat categories", () => {
   const navigation = buildCategoryNavigation([
     source("noten"),
-    source("amandelen", { parentId: "noten", sortOrder: 1 }),
     source("notenmixen", { sortOrder: 2 }),
     source("pinda-s", { sortOrder: 3 }),
   ]);
 
-  const nuts = navigation.categories.find((category) => category.canonicalSlug === "noten");
-  assert.deepEqual(nuts?.children.map((category) => category.canonicalSlug), ["amandelen"]);
+  assert.deepEqual(
+    navigation.categories.map((category) => category.canonicalSlug),
+    ["noten", "notenmixen", "pinda-s"]
+  );
+});
+
+test("keeps a complete three-level Prisma hierarchy", () => {
+  const navigation = buildCategoryNavigation([
+    source("chocolade-zoet"),
+    source("zoet", { parentId: "chocolade-zoet" }),
+    source("gedroogd-fruit", { parentId: "zoet" }),
+  ]);
+
   assert.equal(
-    navigation.categories.some((category) => category.canonicalSlug === "notenmixen"),
-    true
+    navigation.categories[0]?.children[0]?.children[0]?.canonicalSlug,
+    "gedroogd-fruit"
   );
 });
 

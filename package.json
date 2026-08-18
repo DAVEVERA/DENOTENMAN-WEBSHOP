@@ -14,7 +14,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
-    "seo:fix-french-slugs": "tsx scripts/fix-french-slugs.ts"
+    "seo:fix-french-slugs": "tsx scripts/fix-french-slugs.ts",
+    "catalog:sync-menu-taxonomy": "tsx scripts/sync-menu-taxonomy.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

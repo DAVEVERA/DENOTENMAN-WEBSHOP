@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { defaultLocale, type Locale } from "@/lib/i18n";
 import { publicImageUrl } from "@/lib/storage";
 import { resolveProductDisplayPrice } from "@/lib/product-price";
+import { collectDescendantCategoryIds } from "@/lib/category-hierarchy";
+import { kiloknallerProductWhere } from "@/lib/kiloknallers";
+import { hiddenNavCategorySlugs } from "@/lib/navVisibility";
 import {
   buildCategoryNavigation,
   type CategoryNavigationDto,
@@ -109,6 +112,7 @@ export type MainCategoryDto = {
 
 export type CategoryWithProductsDto = CategoryDto & {
   products: ProductSummaryDto[];
+  children: CategoryDto[];
   slugsByLocale: Partial<Record<Locale, string>>;
 };
 
@@ -503,25 +507,10 @@ export async function getCategory(
       category: {
         include: {
           translations: true,
-          productCategories: {
-            where: { product: { isActive: true } },
-            include: {
-              product: {
-                include: {
-                  translations: true,
-                  images: true,
-                  variants: { include: { translations: true } },
-                  productCategories: {
-                    include: { category: { include: { translations: true } } },
-                    orderBy: [
-                      { isPrimary: "desc" },
-                      { sortOrder: "asc" },
-                      { category: { sortOrder: "asc" } },
-                    ],
-                  },
-                },
-              },
-            },
+          children: {
+            where: { isActive: true },
+            include: { translations: true },
+            orderBy: [{ sortOrder: "asc" }, { slug: "asc" }],
           },
         },
       },
@@ -540,19 +529,46 @@ export async function getCategory(
     return null;
   }
 
-  const products = [...category.productCategories]
-    .sort((left, right) =>
-      Number(right.product.isActive) - Number(left.product.isActive) ||
-      left.sortOrder - right.sortOrder ||
-      left.product.slug.localeCompare(right.product.slug, locale)
-    )
-    .map(({ product }) => product)
+  const categoryGraph = await prisma.category.findMany({
+    where: { isActive: true },
+    select: { id: true, parentId: true },
+  });
+  const categoryIds = collectDescendantCategoryIds(category.id, categoryGraph);
+  const productWhere: Prisma.ProductWhereInput = category.type === "PROMOTIONAL"
+    ? kiloknallerProductWhere
+    : {
+        isActive: true,
+        productCategories: { some: { categoryId: { in: categoryIds } } },
+      };
+  const categoryProducts = await prisma.product.findMany({
+    where: productWhere,
+    include: {
+      translations: true,
+      images: true,
+      variants: { include: { translations: true } },
+      productCategories: {
+        include: { category: { include: { translations: true } } },
+        orderBy: [
+          { isPrimary: "desc" },
+          { sortOrder: "asc" },
+          { category: { sortOrder: "asc" } },
+        ],
+      },
+    },
+    orderBy: { slug: "asc" },
+  });
+
+  const products = categoryProducts
     .map((product) => toProductSummaryDto(product, locale))
-    .filter((product): product is ProductSummaryDto => product !== undefined);
+    .filter((product): product is ProductSummaryDto => product !== undefined)
+    .sort((left, right) => left.name.localeCompare(right.name, locale));
 
   return {
     ...dto,
     products,
+    children: category.children
+      .map((child) => toCategoryDto(child, locale))
+      .filter((child): child is CategoryDto => child !== undefined),
     slugsByLocale: toSlugsByLocale(category.translations),
   };
 }
@@ -591,7 +607,10 @@ export const getMainCategories = cache(
 export const getCategoryNavigation = cache(
   async (locale: Locale): Promise<CategoryNavigationDto> => {
     const categories = await prisma.category.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        slug: { notIn: [...hiddenNavCategorySlugs] },
+      },
       include: { translations: true },
       orderBy: [{ sortOrder: "asc" }, { slug: "asc" }],
     });
@@ -628,18 +647,29 @@ export async function getFilteredProducts(
 ): Promise<ProductSummaryDto[]> {
   const { limit, offset } = resolvePaging(paging);
 
-  const categoryFilter =
-    categorySlug === "all"
-      ? {}
-      : {
-          productCategories: {
-            some: {
-              category: {
-                translations: { some: { locale, slug: categorySlug } },
-              },
-            },
-          },
-        };
+  let categoryFilter: Prisma.ProductWhereInput = {};
+  if (categorySlug !== "all") {
+    const selectedCategory = await prisma.categoryTranslation.findUnique({
+      where: { locale_slug: { locale, slug: categorySlug } },
+      select: { category: { select: { id: true, type: true } } },
+    });
+    if (!selectedCategory?.category) return [];
+    if (selectedCategory.category.type === "PROMOTIONAL") {
+      categoryFilter = kiloknallerProductWhere;
+    } else {
+      const categoryGraph = await prisma.category.findMany({
+        where: { isActive: true },
+        select: { id: true, parentId: true },
+      });
+      const categoryIds = collectDescendantCategoryIds(
+        selectedCategory.category.id,
+        categoryGraph
+      );
+      categoryFilter = {
+        productCategories: { some: { categoryId: { in: categoryIds } } },
+      };
+    }
+  }
 
   const attributeFilters = filters.map((filter) => ({
     attributes: {

@@ -118,6 +118,22 @@ export default async function CategoryPage({
       </nav>
       <h1 className="font-heading text-3xl tracking-heading text-text">{data.name}</h1>
       <p className="mt-3 max-w-3xl text-body-md leading-relaxed text-muted">{intro}</p>
+      {data.children.length > 0 ? (
+        <nav aria-label={`${data.name} subcategorieën`} className="mt-6">
+          <ul className="flex flex-wrap gap-2">
+            {data.children.map((child) => (
+              <li key={child.id}>
+                <Link
+                  href={categoryPath(locale, child.slug)}
+                  className="inline-flex min-h-11 items-center rounded-full border border-border bg-surface px-4 py-2 font-heading text-body-sm font-bold text-text transition-colors duration-hover-fast hover:border-accent hover:bg-accent/10 hover:text-accent-hover"
+                >
+                  {child.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
         {data.products.map((item) => (
           <ProductCard key={item.id} product={item} categoryName={data.name} locale={locale} />

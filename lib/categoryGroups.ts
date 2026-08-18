@@ -13,7 +13,7 @@ export type NavigationCategorySourceDto = {
 
 export type NavigationCategoryDto = Pick<
   NavigationCategorySourceDto,
-  "id" | "canonicalSlug" | "slug" | "name" | "description" | "type"
+  "id" | "canonicalSlug" | "slug" | "name" | "description" | "type" | "parentId"
 > & {
   children: NavigationCategoryDto[];
 };
@@ -29,15 +29,6 @@ export type MainCategoryGroupDto<T extends NavigationCategoryDto = NavigationCat
   categories: T[];
 };
 
-// Temporary compatibility for the currently flat production data. These are
-// canonical database slugs, never localized route slugs. A real parent/child
-// relation on the parent always takes precedence over this fallback.
-const legacyChildSlugsByParent = new Map<string, readonly string[]>([
-  ["noten", ["notenmixen", "pinda-s", "pitten-zaden"]],
-  ["gedroogd-fruit", ["gekonfijt-fruit", "meel-griesmeel", "gedroogde-vruchten"]],
-  ["muesli-granen", ["superfood"]],
-]);
-
 /** Build one locale-correct navigation tree from the Prisma Category graph. */
 export function buildCategoryNavigation(
   sources: NavigationCategorySourceDto[]
@@ -47,8 +38,6 @@ export function buildCategoryNavigation(
       left.sortOrder - right.sortOrder || left.name.localeCompare(right.name)
   );
   const nodes = new Map<string, NavigationCategoryDto>();
-  const byCanonicalSlug = new Map(ordered.map((source) => [source.canonicalSlug, source]));
-
   for (const source of ordered) {
     nodes.set(source.id, {
       id: source.id,
@@ -57,6 +46,7 @@ export function buildCategoryNavigation(
       name: source.name,
       description: source.description,
       type: source.type,
+      parentId: source.parentId,
       children: [],
     });
   }
@@ -69,32 +59,13 @@ export function buildCategoryNavigation(
   }
 
   const roots = ordered
-    .filter((source) => source.parentId === null)
+    .filter((source) => source.parentId === null || !nodes.has(source.parentId))
     .map((source) => nodes.get(source.id))
     .filter((category): category is NavigationCategoryDto => category !== undefined);
-  const fallbackChildIds = new Set<string>();
-
-  for (const [parentSlug, childSlugs] of legacyChildSlugsByParent) {
-    const parentSource = byCanonicalSlug.get(parentSlug);
-    const parent = parentSource ? nodes.get(parentSource.id) : undefined;
-    if (!parentSource || !parent || parentSource.parentId !== null || parent.children.length > 0) {
-      continue;
-    }
-
-    for (const childSlug of childSlugs) {
-      const childSource = byCanonicalSlug.get(childSlug);
-      const child = childSource ? nodes.get(childSource.id) : undefined;
-      if (!childSource || !child || childSource.parentId !== null) continue;
-      parent.children.push(child);
-      fallbackChildIds.add(child.id);
-    }
-  }
-
-  const visibleRoots = roots.filter((category) => !fallbackChildIds.has(category.id));
-  const promotional = visibleRoots.find((category) => category.type === "PROMOTIONAL");
+  const promotional = roots.find((category) => category.type === "PROMOTIONAL");
 
   return {
-    categories: visibleRoots.filter((category) => category.type !== "PROMOTIONAL"),
+    categories: roots.filter((category) => category.type !== "PROMOTIONAL"),
     promotional,
   };
 }
