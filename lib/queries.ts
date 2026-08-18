@@ -4,7 +4,10 @@ import { defaultLocale, type Locale } from "@/lib/i18n";
 import { publicImageUrl } from "@/lib/storage";
 import { resolveProductDisplayPrice } from "@/lib/product-price";
 import { collectDescendantCategoryIds } from "@/lib/category-hierarchy";
-import { kiloknallerProductWhere } from "@/lib/kiloknallers";
+import {
+  isKiloknallerCategory,
+  kiloknallerProductWhere,
+} from "@/lib/kiloknallers";
 import { hiddenNavCategorySlugs } from "@/lib/navVisibility";
 import {
   buildCategoryNavigation,
@@ -534,7 +537,7 @@ export async function getCategory(
     select: { id: true, parentId: true },
   });
   const categoryIds = collectDescendantCategoryIds(category.id, categoryGraph);
-  const productWhere: Prisma.ProductWhereInput = category.type === "PROMOTIONAL"
+  const productWhere: Prisma.ProductWhereInput = isKiloknallerCategory(category.slug)
     ? kiloknallerProductWhere
     : {
         isActive: true,
@@ -651,10 +654,10 @@ export async function getFilteredProducts(
   if (categorySlug !== "all") {
     const selectedCategory = await prisma.categoryTranslation.findUnique({
       where: { locale_slug: { locale, slug: categorySlug } },
-      select: { category: { select: { id: true, type: true } } },
+      select: { category: { select: { id: true, slug: true, type: true } } },
     });
     if (!selectedCategory?.category) return [];
-    if (selectedCategory.category.type === "PROMOTIONAL") {
+    if (isKiloknallerCategory(selectedCategory.category.slug)) {
       categoryFilter = kiloknallerProductWhere;
     } else {
       const categoryGraph = await prisma.category.findMany({

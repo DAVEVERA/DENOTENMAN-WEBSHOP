@@ -1,4 +1,5 @@
 import { PrismaClient, type Locale, type Prisma } from "@prisma/client";
+import { collectCategoryAndAncestorIds } from "../lib/category-hierarchy";
 
 const prisma = new PrismaClient();
 const applyChanges = process.argv.includes("--apply");
@@ -276,10 +277,21 @@ async function applyPlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
       }
     }
 
+    const hierarchy = await tx.category.findMany({
+      select: { id: true, parentId: true },
+    });
     for (const assignment of plan.assignments) {
-      for (const [sortOrder, slug] of assignment.leafSlugs.entries()) {
+      const leafCategoryIds = assignment.leafSlugs.map((slug) => {
         const categoryId = categoryIds.get(slug);
         if (!categoryId) throw new Error(`Bladcategorie ontbreekt: ${slug}.`);
+        return categoryId;
+      });
+      const desiredCategoryIds = collectCategoryAndAncestorIds(
+        leafCategoryIds,
+        hierarchy
+      );
+
+      for (const [sortOrder, categoryId] of desiredCategoryIds.entries()) {
         await tx.productCategory.upsert({
           where: { productId_categoryId: { productId: assignment.id, categoryId } },
           create: { productId: assignment.id, categoryId, sortOrder, isPrimary: false },

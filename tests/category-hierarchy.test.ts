@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   collectDescendantCategoryIds,
+  collectCategoryAndAncestorIds,
   validateCategoryParent,
 } from "../lib/category-hierarchy";
 
@@ -14,6 +15,14 @@ const graph = [
 
 test("collects a category and all descendants exactly once", () => {
   assert.deepEqual(collectDescendantCategoryIds("root", graph), ["root", "sub", "leaf"]);
+});
+
+test("expands leaf assignments with every parent required by the admin API", () => {
+  assert.deepEqual(collectCategoryAndAncestorIds(["leaf"], graph), ["leaf", "sub", "root"]);
+  assert.deepEqual(
+    collectCategoryAndAncestorIds(["leaf", "other"], graph),
+    ["leaf", "sub", "root", "other"]
+  );
 });
 
 test("rejects self-parenting, cycles and a fourth level", () => {

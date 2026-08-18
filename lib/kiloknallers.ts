@@ -2,6 +2,10 @@ import type { MeasurementUnit, Prisma } from "@prisma/client";
 
 export const KILOKNALLER_MINIMUM_BASE_UNITS = 1000;
 
+export function isKiloknallerCategory(canonicalSlug: string): boolean {
+  return canonicalSlug === "acties";
+}
+
 export function isKiloknallerVariant(
   unit: MeasurementUnit,
   amountBaseUnits: number,

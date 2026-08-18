@@ -30,6 +30,24 @@ export function collectDescendantCategoryIds(
   return collected;
 }
 
+export function collectCategoryAndAncestorIds(
+  categoryIds: string[],
+  categories: CategoryParentNode[]
+): string[] {
+  const parentById = new Map(categories.map((category) => [category.id, category.parentId]));
+  const collected = new Set<string>();
+  for (const startingId of categoryIds) {
+    let currentId: string | null | undefined = startingId;
+    const visited = new Set<string>();
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId);
+      collected.add(currentId);
+      currentId = parentById.get(currentId) ?? null;
+    }
+  }
+  return [...collected];
+}
+
 export function validateCategoryParent(
   categoryId: string,
   nextParentId: string | null,
