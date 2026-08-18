@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
+import { revalidateCategoryStorefront } from "@/lib/category-revalidation";
 
 type PatchBody = Partial<{
   name: unknown;
@@ -119,6 +120,11 @@ export async function PATCH(
 
     return tx.category.findUnique({ where: { id }, include: { translations: true } });
   });
+  const revalidation = revalidateCategoryStorefront(id);
 
-  return NextResponse.json({ ok: true, category: updated });
+  return NextResponse.json({
+    ok: true,
+    category: updated,
+    frontendSynced: revalidation.frontendSynced,
+  });
 }

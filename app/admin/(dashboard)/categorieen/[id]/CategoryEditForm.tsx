@@ -80,6 +80,18 @@ export function CategoryEditForm({
         return;
       }
 
+      const data = (await response.json().catch(() => null)) as {
+        frontendSynced?: boolean;
+      } | null;
+      if (data?.frontendSynced === false) {
+        setState("error");
+        setErrorMessage(
+          "De categorie is opgeslagen, maar de webshop kon niet direct worden vernieuwd. Sla opnieuw op om de synchronisatie te herhalen."
+        );
+        router.refresh();
+        return;
+      }
+
       setState("saved");
       router.refresh();
     } catch {
