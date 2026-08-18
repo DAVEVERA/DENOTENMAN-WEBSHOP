@@ -30,10 +30,25 @@ test("studio outputs use a new traversal-safe version key", () => {
 });
 
 test("restored images receive a new safe active storage key", () => {
-  const key = buildRestoredImageKey("products/amandelen/source.png");
+  const key = buildRestoredImageKey("products/amandelen/source.png", "Amandelen");
   assert.match(key, /^products\/amandelen\/restored-[0-9a-f-]+-source\.png$/);
   assert.notEqual(key, "products/amandelen/source.png");
-  assert.throws(() => buildRestoredImageKey("source.png"), /ongeldige opslaglocatie/i);
+  assert.throws(() => buildRestoredImageKey("source.png", "Amandelen"), /ongeldige opslaglocatie/i);
+});
+
+test("legacy supplemental honey images restore into the canonical product directory", () => {
+  const key = buildRestoredImageKey(
+    "supplemental/2026-08-13-round2/gemengde-bloemenhoning-creme/imker-bloemenhoning-creme-900gr-vs-ffd283019d17.jpg",
+    "Gemengde Bloemenhoning Crème"
+  );
+  assert.match(
+    key,
+    /^products\/gemengde-bloemenhoning-creme\/restored-[0-9a-f-]+-imker-bloemenhoning-creme-900gr-vs-ffd283019d17\.jpg$/
+  );
+  assert.throws(
+    () => buildRestoredImageKey("supplemental/../secrets.jpg", "Gemengde Bloemenhoning Crème"),
+    /ongeldige opslaglocatie/i
+  );
 });
 
 test("AI operations fail with CONFIGURATION_MISSING before making an HTTP request", async () => {

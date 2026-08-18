@@ -88,11 +88,7 @@ type AIStudioRequest = Extract<StudioRequest, { operation: "generate" | "edit" |
 type AIEditStudioRequest = Extract<StudioRequest, { operation: "edit" | "spread" | "extend" | "fill" }>;
 type DeterministicStudioRequest = Extract<StudioRequest, { operation: "crop" | "resize" | "text_label" | "icon" | "remove_background" | "cutout" }>;
 
-export function buildStudioVersionKey(
-  productSlug: string,
-  operation: StudioRequest["operation"],
-  sourceImageId?: string
-): string {
+function normalizeProductStorageSlug(productSlug: string): string {
   const slug = productSlug
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -103,6 +99,15 @@ export function buildStudioVersionKey(
   if (!slug) {
     throw new StudioValidationError("VALIDATION_ERROR", "De productslug is niet geschikt voor beeldopslag.");
   }
+  return slug;
+}
+
+export function buildStudioVersionKey(
+  productSlug: string,
+  operation: StudioRequest["operation"],
+  sourceImageId?: string
+): string {
+  const slug = normalizeProductStorageSlug(productSlug);
   const versionSource = sourceImageId ?? "generated";
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(versionSource)) {
     throw new StudioValidationError("VALIDATION_ERROR", "De bronafbeelding heeft een ongeldige identificatie.");
@@ -563,19 +568,26 @@ export async function validateStudioImage(bytes: Buffer): Promise<{ width: numbe
 
 export type ArchivedProductImage = { sourceKey: string; archiveKey: string };
 
-export function buildRestoredImageKey(originalStorageKey: string): string {
+export function buildRestoredImageKey(originalStorageKey: string, productSlug: string): string {
+  if (
+    !originalStorageKey ||
+    originalStorageKey.startsWith("/") ||
+    originalStorageKey.includes("\\")
+  ) {
+    throw new StudioValidationError("VALIDATION_ERROR", "De afbeelding heeft een ongeldige opslaglocatie.");
+  }
   const parts = originalStorageKey.split("/");
   const filename = parts.pop();
-  const directory = parts.join("/");
   if (
     !filename ||
-    !directory.startsWith("products/") ||
-    originalStorageKey.includes("..") ||
+    parts.length === 0 ||
+    parts.some((part) => !part || part === "." || part === "..") ||
     !/^[A-Za-z0-9._-]+$/.test(filename)
   ) {
     throw new StudioValidationError("VALIDATION_ERROR", "De afbeelding heeft een ongeldige opslaglocatie.");
   }
-  return `${directory}/restored-${randomUUID()}-${filename}`;
+  const slug = normalizeProductStorageSlug(productSlug);
+  return `products/${slug}/restored-${randomUUID()}-${filename}`;
 }
 
 export async function archiveProductImage(storageKey: string): Promise<ArchivedProductImage> {

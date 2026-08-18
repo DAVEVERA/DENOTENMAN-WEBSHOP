@@ -18,10 +18,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   let activeStorageKey: string | undefined;
   let databaseCommitted = false;
   try {
-    const trashed = await prisma.productImageTrash.findFirst({ where: { id: trashId, productId } });
+    const trashed = await prisma.productImageTrash.findFirst({
+      where: { id: trashId, productId },
+      include: { product: { select: { slug: true } } },
+    });
     if (!trashed) throw new ProductImageStudioError("NOT_FOUND", "Deze afbeelding staat niet meer in de prullenbak.", 404);
 
-    activeStorageKey = buildRestoredImageKey(trashed.originalStorageKey);
+    activeStorageKey = buildRestoredImageKey(trashed.originalStorageKey, trashed.product.slug);
     const restoredImageUrl = publicImageUrl(activeStorageKey);
     await restoreArchivedProductImage(trashed.archiveStorageKey, activeStorageKey);
 
