@@ -194,15 +194,13 @@ export function MobileNav({
                   >
                     {activeCategory.name}
                   </h2>
-                  <Link
+                  <a
                     href={categoryPath(locale, activeCategory.slug)}
-                    prefetch={false}
-                    onClick={followLink}
                     className="mt-2 flex min-h-12 touch-manipulation items-center justify-between rounded-button bg-background px-3 py-3 font-heading font-bold text-accent-hover"
                   >
                     {dictionary.nav.viewAllCategory.replace("{category}", activeCategory.name)}
                     <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
+                  </a>
                   <ul className="mt-2 flex flex-col">
                     {visibleCategories.map((category) => (
                       <li key={category.id}>
@@ -216,14 +214,12 @@ export function MobileNav({
                             <ChevronRight className="h-4 w-4" aria-hidden="true" />
                           </button>
                         ) : (
-                          <Link
+                          <a
                             href={categoryPath(locale, category.slug)}
-                            prefetch={false}
-                            onClick={followLink}
                             className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-semibold hover:bg-background"
                           >
                             {category.name}
-                          </Link>
+                          </a>
                         )}
                       </li>
                     ))}
@@ -251,14 +247,12 @@ export function MobileNav({
                       >
                         {dictionary.nav.categories}
                       </h2>
-                      <Link
+                      <a
                         href={categoriesPath(locale)}
-                        prefetch={false}
-                        onClick={followLink}
                         className="inline-flex min-h-11 touch-manipulation items-center rounded-button px-2 py-2 text-body-sm font-semibold text-muted hover:bg-background hover:text-text"
                       >
                         {dictionary.nav.viewAll}
-                      </Link>
+                      </a>
                     </div>
                     <ul className="mt-1 flex flex-col">
                       {visibleCategories.map((category) => (
@@ -273,14 +267,12 @@ export function MobileNav({
                               <ChevronRight className="h-4 w-4" aria-hidden="true" />
                             </button>
                           ) : (
-                            <Link
+                            <a
                               href={categoryPath(locale, category.slug)}
-                              prefetch={false}
-                              onClick={followLink}
                               className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
                             >
                               {category.name}
-                            </Link>
+                            </a>
                           )}
                         </li>
                       ))}

@@ -66,7 +66,7 @@ test("mobile menu provides drilldown, back, overview and 44px touch targets", ()
   assert.match(source, /min-h-11/);
   assert.match(source, /min-h-12/);
   assert.match(source, /touch-manipulation/);
-  assert.match(source, /prefetch=\{false\}/);
+  assert.match(source, /<a\s+href=\{categoryPath\(locale, activeCategory\.slug\)\}/);
 });
 
 test("header exposes every standard root returned by the navigation query", () => {
