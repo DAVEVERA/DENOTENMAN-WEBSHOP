@@ -13,7 +13,6 @@ import { PromotionalCategoryLink } from "@/components/layout/PromotionalCategory
 type MegaMenuLabels = {
   submenu: string;
   viewAll: string;
-  overview: string;
 };
 
 type TopLevelNavigationKey = "ArrowLeft" | "ArrowRight" | "Home" | "End";
@@ -310,8 +309,7 @@ export function MegaMenu({
                       <CategoryColumn key={column.id} category={column} locale={locale} close={close} />
                     ))}
                   </div>
-                  <div className="flex items-center justify-between gap-6 border-t border-border bg-background px-6 py-3 xl:px-8">
-                    <p className="text-body-sm text-muted">{formatLabel(labels.overview, category.name)}</p>
+                  <div className="flex items-center justify-end border-t border-border bg-background px-6 py-3 xl:px-8">
                     <Link
                       data-mega-link
                       href={categoryPath(locale, category.slug)}

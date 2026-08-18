@@ -196,6 +196,7 @@ export function MobileNav({
                   </h2>
                   <Link
                     href={categoryPath(locale, activeCategory.slug)}
+                    prefetch={false}
                     onClick={followLink}
                     className="mt-2 flex min-h-12 touch-manipulation items-center justify-between rounded-button bg-background px-3 py-3 font-heading font-bold text-accent-hover"
                   >
@@ -217,6 +218,7 @@ export function MobileNav({
                         ) : (
                           <Link
                             href={categoryPath(locale, category.slug)}
+                            prefetch={false}
                             onClick={followLink}
                             className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-semibold hover:bg-background"
                           >
@@ -251,6 +253,7 @@ export function MobileNav({
                       </h2>
                       <Link
                         href={categoriesPath(locale)}
+                        prefetch={false}
                         onClick={followLink}
                         className="inline-flex min-h-11 touch-manipulation items-center rounded-button px-2 py-2 text-body-sm font-semibold text-muted hover:bg-background hover:text-text"
                       >
@@ -272,6 +275,7 @@ export function MobileNav({
                           ) : (
                             <Link
                               href={categoryPath(locale, category.slug)}
+                              prefetch={false}
                               onClick={followLink}
                               className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
                             >

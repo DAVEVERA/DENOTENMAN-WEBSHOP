@@ -1,5 +1,6 @@
 import { PrismaClient, type Locale, type Prisma } from "@prisma/client";
 import { collectCategoryAndAncestorIds } from "../lib/category-hierarchy";
+import { getNutFamilyForProductSku } from "../lib/catalog-taxonomy";
 
 const prisma = new PrismaClient();
 const applyChanges = process.argv.includes("--apply");
@@ -14,7 +15,71 @@ type CategoryDefinition = {
 
 const definitions: CategoryDefinition[] = [
   {
-    slug: "losse-noten", parentSlug: "noten", sortOrder: 1,
+    slug: "amandelen", parentSlug: "noten", sortOrder: 1,
+    translations: {
+      nl: { name: "Amandelen", slug: "amandelen", description: "Bruine en witte amandelen, gebrand of ongebrand." },
+      en: { name: "Almonds", slug: "almonds", description: "Brown and blanched almonds, roasted or raw." },
+      fr: { name: "Amandes", slug: "amandes", description: "Amandes brunes et blanches, grillees ou crues." },
+    },
+  },
+  {
+    slug: "cashewnoten", parentSlug: "noten", sortOrder: 2,
+    translations: {
+      nl: { name: "Cashewnoten", slug: "cashewnoten", description: "Cashewnoten, gebrand, ongebrand of met vlies." },
+      en: { name: "Cashews", slug: "cashews", description: "Cashews, roasted, raw or with their skin." },
+      fr: { name: "Noix de cajou", slug: "noix-de-cajou", description: "Noix de cajou grillees, crues ou avec leur peau." },
+    },
+  },
+  {
+    slug: "hazelnoten", parentSlug: "noten", sortOrder: 3,
+    translations: {
+      nl: { name: "Hazelnoten", slug: "hazelnoten", description: "Bruine en witte hazelnoten, gebrand of ongebrand." },
+      en: { name: "Hazelnuts", slug: "hazelnuts", description: "Brown and blanched hazelnuts, roasted or raw." },
+      fr: { name: "Noisettes", slug: "noisettes", description: "Noisettes brunes et blanches, grillees ou crues." },
+    },
+  },
+  {
+    slug: "macadamias", parentSlug: "noten", sortOrder: 4,
+    translations: {
+      nl: { name: "Macadamia's", slug: "macadamias", description: "Macadamia's, gezouten, ongebrand of ongezouten." },
+      en: { name: "Macadamias", slug: "macadamias", description: "Macadamias, salted, raw or unsalted." },
+      fr: { name: "Noix de macadamia", slug: "noix-de-macadamia", description: "Noix de macadamia salees, crues ou non salees." },
+    },
+  },
+  {
+    slug: "paranoten", parentSlug: "noten", sortOrder: 5,
+    translations: {
+      nl: { name: "Paranoten", slug: "paranoten", description: "Volle, romige paranoten." },
+      en: { name: "Brazil nuts", slug: "brazil-nuts", description: "Rich and creamy Brazil nuts." },
+      fr: { name: "Noix du Bresil", slug: "noix-du-bresil", description: "Noix du Bresil riches et cremeuses." },
+    },
+  },
+  {
+    slug: "pecannoten", parentSlug: "noten", sortOrder: 6,
+    translations: {
+      nl: { name: "Pecannoten", slug: "pecannoten", description: "Pecannoten, gezouten, ongebrand of ongezouten." },
+      en: { name: "Pecans", slug: "pecans", description: "Pecans, salted, raw or unsalted." },
+      fr: { name: "Noix de pecan", slug: "noix-de-pecan", description: "Noix de pecan salees, crues ou non salees." },
+    },
+  },
+  {
+    slug: "walnoten", parentSlug: "noten", sortOrder: 7,
+    translations: {
+      nl: { name: "Walnoten", slug: "walnoten", description: "Gepelde walnoten en walnotenstukjes." },
+      en: { name: "Walnuts", slug: "walnuts", description: "Shelled walnuts and walnut pieces." },
+      fr: { name: "Noix", slug: "noix-cerneaux", description: "Cerneaux de noix et morceaux de noix." },
+    },
+  },
+  {
+    slug: "pistachenoten", parentSlug: "noten", sortOrder: 9,
+    translations: {
+      nl: { name: "Pistachenoten", slug: "pistachenoten", description: "Pistachenoten, gepeld, gebrand of gezouten." },
+      en: { name: "Pistachios", slug: "pistachios", description: "Pistachios, shelled, roasted or salted." },
+      fr: { name: "Pistaches", slug: "pistaches", description: "Pistaches decortiquees, grillees ou salees." },
+    },
+  },
+  {
+    slug: "losse-noten", parentSlug: "noten", sortOrder: 99,
     translations: {
       nl: { name: "Losse noten", slug: "losse-noten", description: "Amandelen, cashews, hazelnoten en andere losse noten." },
       en: { name: "Single nuts", slug: "single-nuts", description: "Almonds, cashews, hazelnuts and other single nuts." },
@@ -144,7 +209,7 @@ const definitions: CategoryDefinition[] = [
 ];
 
 const existingParents = [
-  ["notenmixen", "noten", 3], ["pinda-s", "noten", 2],
+  ["pinda-s", "noten", 8], ["notenmixen", "noten", 10],
   ["notenpasta-s", "honing-natuurvoeding", 2], ["superfood", "honing-natuurvoeding", 3],
   ["meel-griesmeel", "bakproducten", 1], ["gedroogd-fruit", "zoet", 1],
   ["gekonfijt-fruit", "zoet", 2],
@@ -167,9 +232,8 @@ const bakingNutSkus = new Set(["BAK-9015-100-P", "BAK-9016-VAR-P", "BAK-9017-250
 const bakingMealSkus = new Set(["BAK-9001-VAR-P", "BAK-9002-250-P", "BAK-9006-VAR-P", "BAK-9009-VAR-P", "BAK-9014-200-P"]);
 
 function assignmentsForSku(sku: string): string[] {
-  if (sku.startsWith("NOT-")) return ["losse-noten"];
-  if (sku.startsWith("PIN-")) return ["pinda-s"];
-  if (sku.startsWith("MIX-")) return ["notenmixen"];
+  const nutFamily = getNutFamilyForProductSku(sku);
+  if (nutFamily) return [nutFamily];
   if (sku.startsWith("PAS-")) return ["notenpasta-s"];
   if (sku.startsWith("CHO-")) return [sweetChocolateSkus.has(sku) ? "snoep-nougat" : "chocolade"];
   if (sku.startsWith("FRU-")) return ["gedroogd-fruit", ...(sku === "FRU-4033-VAR-P" || sku === "FRU-4034-VAR-P" ? ["bakfruit", "gekonfijt-fruit"] : [])];
@@ -321,6 +385,29 @@ async function applyPlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
       const misplacedSkus = [...bakingMealSkus, ...bakingNutSkus];
       await tx.productCategory.deleteMany({
         where: { categoryId: gedroogdFruitId, product: { sku: { in: misplacedSkus } } },
+      });
+    }
+
+    const looseNutsId = categoryIds.get("losse-noten");
+    if (looseNutsId) {
+      await tx.productCategory.deleteMany({
+        where: {
+          categoryId: looseNutsId,
+          product: { sku: { startsWith: "NOT-" } },
+        },
+      });
+    }
+
+    for (const assignment of plan.assignments) {
+      const primaryLeafId = categoryIds.get(assignment.leafSlugs[0]);
+      if (!primaryLeafId) throw new Error(`Primaire bladcategorie ontbreekt voor ${assignment.sku}.`);
+      await tx.productCategory.updateMany({
+        where: { productId: assignment.id },
+        data: { isPrimary: false },
+      });
+      await tx.productCategory.update({
+        where: { productId_categoryId: { productId: assignment.id, categoryId: primaryLeafId } },
+        data: { isPrimary: true },
       });
     }
   }, { maxWait: 10_000, timeout: 120_000 });

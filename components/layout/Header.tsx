@@ -62,7 +62,6 @@ export async function Header({
                 labels={{
                   submenu: dictionary.nav.categoryMenu,
                   viewAll: dictionary.nav.viewAllCategory,
-                  overview: dictionary.nav.categoryOverview,
                 }}
               />
             </nav>
