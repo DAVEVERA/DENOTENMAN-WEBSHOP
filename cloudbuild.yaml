@@ -13,6 +13,21 @@ steps:
           .
     secretEnv: ["DATABASE_URL"]
 
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE}"]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "services"
+      - "update"
+      - "denotenman-webshop"
+      - "--image=${_IMAGE}"
+      - "--region=europe-west4"
+      - "--platform=managed"
+      - "--quiet"
+
 images:
   - "${_IMAGE}"
 
