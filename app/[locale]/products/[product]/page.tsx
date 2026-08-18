@@ -8,7 +8,8 @@ import { ProductDetailModal } from "@/components/product/ProductDetailModal";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
-import { product as productPath } from "@/lib/routes";
+import { BASE_URL, product as productPath } from "@/lib/routes";
+import { buildProductStructuredData } from "@/lib/structured-data";
 
 const dictionaries = { nl, en, fr };
 
@@ -55,10 +56,12 @@ export async function generateMetadata({
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; product: string }>;
+  searchParams: Promise<{ variant?: string | string[] }>;
 }) {
-  const { locale: rawLocale, product } = await params;
+  const [{ locale: rawLocale, product }, query] = await Promise.all([params, searchParams]);
 
   if (!isLocale(rawLocale)) {
     notFound();
@@ -75,25 +78,8 @@ export default async function ProductPage({
   }
 
   const dictionary = dictionaries[locale];
-  const primaryImage = data.images.find((image) => image.isPrimary) ?? data.images[0];
-  const firstVariant = [...data.variants].sort((left, right) => left.priceCents - right.priceCents)[0];
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: data.name,
-    description: data.shortDescription ?? data.description ?? undefined,
-    sku: data.sku,
-    image: primaryImage ? [primaryImage.url] : undefined,
-    brand: { "@type": "Brand", name: "De Notenman" },
-    offers: {
-      "@type": "Offer",
-      url: `https://denotenman.com${productPath(locale, data.slug)}`,
-      priceCurrency: data.currency,
-      price: ((firstVariant?.priceCents ?? data.basePriceCents) / 100).toFixed(2),
-      availability: data.isActive && firstVariant ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      itemCondition: "https://schema.org/NewCondition",
-    },
-  };
+  const initialVariantSku = typeof query.variant === "string" ? query.variant : undefined;
+  const structuredData = buildProductStructuredData({ product: data, locale, baseUrl: BASE_URL });
 
   return (
     <>
@@ -108,7 +94,11 @@ export default async function ProductPage({
         backLabel={dictionary.product.backToProducts}
         closeLabel={dictionary.product.closeDetails}
       >
-        <ProductDetailContent data={data} locale={locale} />
+        <ProductDetailContent
+          data={data}
+          locale={locale}
+          initialVariantSku={initialVariantSku}
+        />
       </ProductDetailModal>
     </>
   );

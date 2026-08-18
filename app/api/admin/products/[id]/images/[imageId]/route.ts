@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       await applyProductImageOrder(tx, updates);
       return getOrderedProductImages(tx, id);
     }, productImageTransactionOptions);
-    revalidateProductImageStorefront();
+    await revalidateProductImageStorefront(id);
     return NextResponse.json({
       ok: true,
       images: images.map((image) => ({ ...image, url: publicImageUrl(image.storageKey) })),
@@ -110,7 +110,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }, productImageTransactionOptions);
     const cleanupComplete = archived ? await finalizeArchivedProductImage(archived) : true;
     archived = undefined;
-    revalidateProductImageStorefront();
+    await revalidateProductImageStorefront(id);
     return NextResponse.json({
       ok: true,
       images: images.map((image) => ({ ...image, url: publicImageUrl(image.storageKey) })),

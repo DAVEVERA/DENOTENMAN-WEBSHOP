@@ -46,7 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     databaseCommitted = true;
 
     await discardArchivedProductImage({ sourceKey: trashed.originalStorageKey, archiveKey: trashed.archiveStorageKey });
-    revalidateProductImageStorefront();
+    await revalidateProductImageStorefront(productId);
     return NextResponse.json({ ok: true, image: { ...image, url: restoredImageUrl } });
   } catch (error) {
     // Only remove the copied object while the database still has no active row for it.

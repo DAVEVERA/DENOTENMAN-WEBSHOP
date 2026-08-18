@@ -8,6 +8,11 @@ import {
 } from "@/lib/product-visibility";
 import { revalidateProductStorefront } from "@/lib/product-revalidation";
 import { notifyPendingStockSubscribers } from "@/lib/stock-notifications";
+import {
+  buildProductIndexNowUrls,
+  scheduleIndexNowUrls,
+} from "@/lib/indexnow";
+import { BASE_URL } from "@/lib/routes";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -74,6 +79,16 @@ export async function PATCH(request: NextRequest, context: Context) {
         (assignment) => assignment.category.translations
       ),
     });
+
+    if (result.changed) {
+      scheduleIndexNowUrls(buildProductIndexNowUrls({
+        baseUrl: BASE_URL,
+        translations: result.current.translations,
+        categoryTranslations: result.current.productCategories.flatMap(
+          (assignment) => assignment.category.translations
+        ),
+      }));
+    }
 
     if (result.changed) {
       console.info("Product visibility updated", {

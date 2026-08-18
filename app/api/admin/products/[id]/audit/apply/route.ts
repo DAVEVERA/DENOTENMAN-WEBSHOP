@@ -9,6 +9,8 @@ import {
 } from "@/lib/product-audit-core";
 import { buildProductAudit, buildProductRevalidationPath, loadProductAuditSnapshot } from "@/lib/product-audit";
 import { prisma } from "@/lib/prisma";
+import { buildProductIndexNowUrls, scheduleIndexNowUrls } from "@/lib/indexnow";
+import { BASE_URL } from "@/lib/routes";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await hasAdminSession(request))) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
@@ -23,18 +25,42 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!snapshot) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
     const application = prepareAuditProposalApplication(snapshot, parsed.data);
 
-    await prisma.$transaction(
-      application.updates.map((update) => prisma.productTranslation.update({
-        where: { productId_locale: { productId: id, locale: update.locale } },
-        data: {
-          shortDescription: update.shortDescription,
-          description: update.description,
-          descriptionHtml: update.descriptionHtml,
-          seoTitle: update.seoTitle,
-          metaDescription: update.metaDescription,
+    await prisma.$transaction([
+      ...application.updates.map((update) => prisma.productTranslation.update({
+          where: { productId_locale: { productId: id, locale: update.locale } },
+          data: {
+            shortDescription: update.shortDescription,
+            description: update.description,
+            descriptionHtml: update.descriptionHtml,
+            seoTitle: update.seoTitle,
+            metaDescription: update.metaDescription,
+          },
+        })),
+      prisma.product.update({ where: { id }, data: { updatedAt: new Date() } }),
+    ]);
+
+    const indexNowContext = await prisma.product.findUnique({
+      where: { id },
+      select: {
+        translations: { select: { locale: true, slug: true } },
+        productCategories: {
+          select: {
+            category: {
+              select: { translations: { select: { locale: true, slug: true } } },
+            },
+          },
         },
-      }))
-    );
+      },
+    });
+    if (indexNowContext) {
+      scheduleIndexNowUrls(buildProductIndexNowUrls({
+        baseUrl: BASE_URL,
+        translations: indexNowContext.translations,
+        categoryTranslations: indexNowContext.productCategories.flatMap(
+          (assignment) => assignment.category.translations
+        ),
+      }));
+    }
 
     for (const update of application.updates) {
       const slug = snapshot.translations.find((translation) => translation.locale === update.locale)?.slug;

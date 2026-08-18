@@ -85,7 +85,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
       });
     }, productImageTransactionOptions);
-    revalidateProductImageStorefront();
+    await revalidateProductImageStorefront(id);
     return NextResponse.json({ ok: true, image: { ...image, url: publicImageUrl(image.storageKey) } }, { status: 201 });
   } catch (error) {
     if (stored) {

@@ -129,6 +129,7 @@ export type ArticleSummaryDto = {
 
 export type ArticleDetailDto = ArticleSummaryDto & {
   body: string;
+  slugsByLocale: Partial<Record<Locale, string>>;
 };
 
 export type OrderItemDto = {
@@ -159,6 +160,10 @@ export type SlugEntryDto = {
   id: string;
   slug: string;
   updatedAt: Date;
+};
+
+export type ProductSitemapEntryDto = SlugEntryDto & {
+  images: string[];
 };
 
 const defaultPageLimit = 20;
@@ -754,6 +759,7 @@ export async function getArticleBySlug(
     title: resolved.title,
     body: resolved.body,
     updatedAt: article.updatedAt,
+    slugsByLocale: toSlugsByLocale(article.translations),
   };
 }
 
@@ -775,18 +781,70 @@ export async function getProductSlugs(locale: Locale): Promise<SlugEntryDto[]> {
   }
 }
 
+export async function getProductSitemapSlugs(
+  locale: Locale
+): Promise<ProductSitemapEntryDto[]> {
+  try {
+    const translations = await prisma.productTranslation.findMany({
+      where: { locale, product: { isActive: true } },
+      select: {
+        productId: true,
+        slug: true,
+        product: {
+          select: {
+            updatedAt: true,
+            images: {
+              select: { storageKey: true },
+              orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+            },
+          },
+        },
+      },
+      orderBy: { slug: "asc" },
+    });
+
+    return translations.map((translation) => ({
+      id: translation.productId,
+      slug: translation.slug,
+      updatedAt: translation.product.updatedAt,
+      images: translation.product.images.map((image) => publicImageUrl(image.storageKey)),
+    }));
+  } catch (error) {
+    console.error("Failed to load product sitemap entries", { locale, error });
+    return [];
+  }
+}
+
 export async function getCategorySlugs(locale: Locale): Promise<SlugEntryDto[]> {
   try {
     const translations = await prisma.categoryTranslation.findMany({
       where: { locale, category: { isActive: true } },
-      select: { categoryId: true, slug: true, category: { select: { updatedAt: true } } },
+      select: {
+        categoryId: true,
+        slug: true,
+        category: {
+          select: {
+            updatedAt: true,
+            productCategories: {
+              where: { product: { isActive: true } },
+              select: { product: { select: { updatedAt: true } } },
+            },
+          },
+        },
+      },
       orderBy: { slug: "asc" },
     });
 
     return translations.map((translation) => ({
       id: translation.categoryId,
       slug: translation.slug,
-      updatedAt: translation.category.updatedAt,
+      updatedAt: translation.category.productCategories.reduce(
+        (latest, assignment) =>
+          assignment.product.updatedAt > latest
+            ? assignment.product.updatedAt
+            : latest,
+        translation.category.updatedAt
+      ),
     }));
   } catch {
     return [];

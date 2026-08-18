@@ -5,6 +5,7 @@ import ProductPage, {
 
 type ProductPageProps = {
   params: Promise<{ locale: string; product: string }>;
+  searchParams: Promise<{ variant?: string | string[] }>;
 };
 
 export const generateMetadata = generateProductMetadata;

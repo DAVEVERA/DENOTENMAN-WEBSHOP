@@ -108,7 +108,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       });
     }, productImageTransactionOptions);
 
-    revalidateProductImageStorefront();
+    await revalidateProductImageStorefront(productId);
     return NextResponse.json({
       ok: true,
       operation: studioRequest.operation,

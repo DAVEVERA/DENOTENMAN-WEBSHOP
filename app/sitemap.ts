@@ -1,173 +1,70 @@
 import type { MetadataRoute } from "next";
 import { locales, type Locale } from "@/lib/i18n";
-import { BASE_URL, article, articles, category, categories, home, product } from "@/lib/routes";
-import { pageKeys, pagePath, pageSlugs } from "@/lib/pages";
-import {
-  getArticleSlugs,
-  getCategorySlugs,
-  getPageBySlug,
-  getProductSlugs,
-  type SlugEntryDto,
-} from "@/lib/queries";
+import { BASE_URL, home } from "@/lib/routes";
+import { indexablePageKeys, pagePath, pageSlugs } from "@/lib/pages";
+import { getCategorySlugs, getPageBySlug, getProductSlugs } from "@/lib/queries";
+import { latestMeaningfulDate } from "@/lib/sitemap";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 
 function absoluteUrl(path: string): string {
-  return `${BASE_URL}${path}`;
+  return `${BASE_URL.replace(/\/+$/, "")}${path}`;
 }
 
 function languageAlternates(
   pathByLocale: Partial<Record<Locale, string>>
 ): Record<string, string> {
-  return Object.fromEntries(
+  const languages: Record<string, string> = Object.fromEntries(
     Object.entries(pathByLocale).map(([locale, path]) => [locale, absoluteUrl(path)])
   );
+  if (pathByLocale.nl) languages["x-default"] = absoluteUrl(pathByLocale.nl);
+  return languages;
 }
 
-function homeEntries(): SitemapEntry[] {
+async function homeEntries(): Promise<SitemapEntry[]> {
+  const [products, categories] = await Promise.all([
+    Promise.all(locales.map((locale) => getProductSlugs(locale))),
+    Promise.all(locales.map((locale) => getCategorySlugs(locale))),
+  ]);
+  const lastModified = latestMeaningfulDate(
+    [...products.flat(), ...categories.flat()].map((entry) => entry.updatedAt)
+  );
   const pathByLocale = Object.fromEntries(
     locales.map((locale) => [locale, home(locale)])
   ) as Record<Locale, string>;
 
   return locales.map((locale) => ({
     url: absoluteUrl(home(locale)),
-    changeFrequency: "daily" as const,
-    priority: 1,
+    ...(lastModified ? { lastModified } : {}),
     alternates: { languages: languageAlternates(pathByLocale) },
   }));
-}
-
-function categoryIndexEntries(): SitemapEntry[] {
-  const pathByLocale = Object.fromEntries(
-    locales.map((locale) => [locale, categories(locale)])
-  ) as Record<Locale, string>;
-
-  return locales.map((locale) => ({
-    url: absoluteUrl(categories(locale)),
-    changeFrequency: "daily" as const,
-    priority: 0.8,
-    alternates: { languages: languageAlternates(pathByLocale) },
-  }));
-}
-
-function articleIndexEntries(): SitemapEntry[] {
-  const pathByLocale = Object.fromEntries(
-    locales.map((locale) => [locale, articles(locale)])
-  ) as Record<Locale, string>;
-
-  return locales.map((locale) => ({
-    url: absoluteUrl(articles(locale)),
-    changeFrequency: "daily" as const,
-    priority: 0.5,
-    alternates: { languages: languageAlternates(pathByLocale) },
-  }));
-}
-
-async function slugEntriesByLocale(
-  getSlugs: (locale: Locale) => Promise<SlugEntryDto[]>
-): Promise<{ locale: Locale; entries: SlugEntryDto[] }[]> {
-  return Promise.all(
-    locales.map(async (locale) => ({
-      locale,
-      entries: await getSlugs(locale),
-    }))
-  );
-}
-
-function toLocalizedSitemapEntries(
-  byLocale: { locale: Locale; entries: SlugEntryDto[] }[],
-  pathFor: (locale: Locale, slug: string) => string,
-  changeFrequency: SitemapEntry["changeFrequency"],
-  priority: number
-): SitemapEntry[] {
-  const pathById = new Map<string, Partial<Record<Locale, string>>>();
-
-  for (const { locale, entries } of byLocale) {
-    for (const entry of entries) {
-      const existing = pathById.get(entry.id) ?? {};
-      existing[locale] = pathFor(locale, entry.slug);
-      pathById.set(entry.id, existing);
-    }
-  }
-
-  return byLocale.flatMap(({ locale, entries }) =>
-    entries.map((entry) => ({
-      url: absoluteUrl(pathFor(locale, entry.slug)),
-      lastModified: entry.updatedAt,
-      changeFrequency,
-      priority,
-      alternates: { languages: languageAlternates(pathById.get(entry.id) ?? {}) },
-    }))
-  );
-}
-
-async function categoryEntries(): Promise<SitemapEntry[]> {
-  const byLocale = await slugEntriesByLocale(getCategorySlugs);
-  return toLocalizedSitemapEntries(byLocale, category, "weekly", 0.7);
-}
-
-async function productEntries(): Promise<SitemapEntry[]> {
-  const byLocale = await slugEntriesByLocale(getProductSlugs);
-  return toLocalizedSitemapEntries(byLocale, product, "weekly", 0.6);
-}
-
-async function articleEntries(): Promise<SitemapEntry[]> {
-  const byLocale = await slugEntriesByLocale(getArticleSlugs);
-  return toLocalizedSitemapEntries(byLocale, article, "monthly", 0.4);
 }
 
 async function pageEntries(): Promise<SitemapEntry[]> {
-  try {
-    const entries: SitemapEntry[] = [];
-
-    for (const key of pageKeys) {
+  const entriesByKey = await Promise.all(
+    indexablePageKeys.map(async (key) => {
       const pathByLocale = Object.fromEntries(
         locales.map((locale) => [locale, pagePath(key, locale)])
       ) as Record<Locale, string>;
+      const pages = await Promise.all(
+        locales.map((locale) =>
+          getPageBySlug(pageSlugs[key][locale], locale).catch(() => null)
+        )
+      );
+      const lastModified = latestMeaningfulDate(pages.map((page) => page?.updatedAt));
 
-      let lastModified: Date | undefined;
+      return locales.map((locale) => ({
+        url: absoluteUrl(pagePath(key, locale)),
+        ...(lastModified ? { lastModified } : {}),
+        alternates: { languages: languageAlternates(pathByLocale) },
+      }));
+    })
+  );
 
-      for (const locale of locales) {
-        const page = await getPageBySlug(pageSlugs[key][locale], locale);
-
-        if (page) {
-          lastModified = page.updatedAt;
-          break;
-        }
-      }
-
-      for (const locale of locales) {
-        entries.push({
-          url: absoluteUrl(pagePath(key, locale)),
-          lastModified,
-          changeFrequency: "yearly" as const,
-          priority: 0.3,
-          alternates: { languages: languageAlternates(pathByLocale) },
-        });
-      }
-    }
-
-    return entries;
-  } catch {
-    return [];
-  }
+  return entriesByKey.flat();
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [categoryList, productList, pageList, articleList] = await Promise.all([
-    categoryEntries(),
-    productEntries(),
-    pageEntries(),
-    articleEntries(),
-  ]);
-
-  return [
-    ...homeEntries(),
-    ...categoryIndexEntries(),
-    ...categoryList,
-    ...productList,
-    ...pageList,
-    ...articleIndexEntries(),
-    ...articleList,
-  ];
+  const [homes, pages] = await Promise.all([homeEntries(), pageEntries()]);
+  return [...homes, ...pages];
 }

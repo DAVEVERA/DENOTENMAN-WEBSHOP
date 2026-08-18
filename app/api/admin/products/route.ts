@@ -11,6 +11,11 @@ import {
 } from "@/lib/admin-product-schema";
 import { toProductPlainText } from "@/lib/product-content";
 import { revalidateProductStorefront } from "@/lib/product-revalidation";
+import {
+  buildProductIndexNowUrls,
+  scheduleIndexNowUrls,
+} from "@/lib/indexnow";
+import { BASE_URL } from "@/lib/routes";
 import { prisma } from "@/lib/prisma";
 
 function translationData(translation: ProductTranslationInput) {
@@ -174,6 +179,13 @@ export async function POST(request: NextRequest) {
       translations: translations.map(({ locale, slug }) => ({ locale, slug })),
       categoryTranslations: categories.flatMap((category) => category.translations),
     });
+    if (input.isActive) {
+      scheduleIndexNowUrls(buildProductIndexNowUrls({
+        baseUrl: BASE_URL,
+        translations: translations.map(({ locale, slug }) => ({ locale, slug })),
+        categoryTranslations: categories.flatMap((category) => category.translations),
+      }));
+    }
     return NextResponse.json({
       ok: true,
       productId,

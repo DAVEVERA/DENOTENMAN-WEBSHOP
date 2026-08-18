@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Minus, Plus, ShoppingCart } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 import type { ProductVariantDto } from "@/lib/queries";
@@ -18,12 +18,14 @@ export function VariantSelector({
   locale,
   unit,
   isActive,
+  initialVariantSku,
   product,
 }: {
   variants: ProductVariantDto[];
   locale: Locale;
   unit: "WEIGHT" | "VOLUME";
   isActive: boolean;
+  initialVariantSku?: string;
   product: {
     id: string;
     slug: string;
@@ -35,10 +37,17 @@ export function VariantSelector({
   const firstVariant = [...variants].sort(
     (left, right) => left.weightGrams - right.weightGrams
   )[0];
-  const [selectedId, setSelectedId] = useState(firstVariant?.id);
+  const initialVariant =
+    variants.find((variant) => variant.sku === initialVariantSku) ?? firstVariant;
+  const [selectedId, setSelectedId] = useState(initialVariant?.id);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const selected = variants.find((variant) => variant.id === selectedId) ?? firstVariant;
+
+  useEffect(() => {
+    const requestedVariant = variants.find((variant) => variant.sku === initialVariantSku);
+    if (requestedVariant) setSelectedId(requestedVariant.id);
+  }, [initialVariantSku, variants]);
 
   if (!selected) {
     return null;
@@ -47,6 +56,12 @@ export function VariantSelector({
   function selectVariant(id: string) {
     setSelectedId(id);
     setAdded(false);
+    const variant = variants.find((item) => item.id === id);
+    if (variant) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("variant", variant.sku);
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    }
   }
 
   function addSelectedToCart() {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import type { ProductDetailDto } from "@/lib/queries";
 import { ShoppingCart } from "lucide-react";
@@ -9,11 +10,18 @@ import { VariantSelector } from "@/components/product/VariantSelector";
 import { BackInStockForm } from "@/components/product/BackInStockForm";
 import { ProductRecommendations } from "@/components/product/ProductRecommendations";
 import { ProductPromotionCallout } from "@/components/product/ProductPromotionCallout";
+import { category as categoryPath, home } from "@/lib/routes";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 
 const dictionaries = { nl, en, fr };
+const homeLabels = { nl: "Home", en: "Home", fr: "Accueil" } as const;
+const breadcrumbLabels = {
+  nl: "Broodkruimel",
+  en: "Breadcrumb",
+  fr: "Fil d'Ariane",
+} as const;
 
 const nutritionRows: { key: string; dictKey: keyof (typeof nl)["product"] }[] = [
   { key: "nutrition.fat", dictKey: "nutritionFat" },
@@ -25,6 +33,13 @@ const nutritionRows: { key: string; dictKey: keyof (typeof nl)["product"] }[] = 
   { key: "nutrition.salt", dictKey: "nutritionSalt" },
 ];
 
+const productFactRows: { key: string; dictKey: keyof (typeof nl)["product"] }[] = [
+  { key: "origin", dictKey: "origin" },
+  { key: "taste", dictKey: "taste" },
+  { key: "usage", dictKey: "usage" },
+  { key: "storage", dictKey: "storage" },
+];
+
 export function formatNutritionMeasurement(value: string): string {
   return `${value} g`;
 }
@@ -32,9 +47,11 @@ export function formatNutritionMeasurement(value: string): string {
 export function ProductDetailContent({
   data,
   locale,
+  initialVariantSku,
 }: {
   data: ProductDetailDto;
   locale: Locale;
+  initialVariantSku?: string;
 }) {
   const dictionary = dictionaries[locale];
   const attributes = new Map(data.attributes.map((attribute) => [attribute.key, attribute.value]));
@@ -64,6 +81,10 @@ export function ProductDetailContent({
   const ingredients = attributes.get("ingredients");
   const allergens = attributes.get("allergens");
   const mayContainTraces = attributes.get("mayContainTraces");
+  const productFacts = productFactRows.flatMap(({ key, dictKey }) => {
+    const value = attributes.get(key)?.trim();
+    return value ? [{ label: dictionary.product[dictKey], value }] : [];
+  });
   const faq1Question = attributes.get("faq.1.question");
   const faq1Answer = attributes.get("faq.1.answer");
   const faq2Question = attributes.get("faq.2.question");
@@ -72,6 +93,35 @@ export function ProductDetailContent({
 
   return (
     <div className="grid grid-cols-1 gap-7 p-4 sm:p-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-9 lg:p-8">
+      <nav
+        aria-label={breadcrumbLabels[locale]}
+        className="-mb-3 min-w-0 text-body-sm text-muted lg:col-span-2"
+      >
+        <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <li>
+            <Link className="inline-flex min-h-11 items-center underline-offset-4 hover:underline" href={home(locale)}>
+              {homeLabels[locale]}
+            </Link>
+          </li>
+          {data.category ? (
+            <>
+              <li aria-hidden="true">/</li>
+              <li>
+                <Link
+                  className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
+                  href={categoryPath(locale, data.category.slug)}
+                >
+                  {data.category.name}
+                </Link>
+              </li>
+            </>
+          ) : null}
+          <li aria-hidden="true">/</li>
+          <li className="min-w-0 truncate text-text" aria-current="page">
+            {data.name}
+          </li>
+        </ol>
+      </nav>
       <ProductGallery images={data.images} productName={data.name} />
 
       <div className="min-w-0">
@@ -87,6 +137,7 @@ export function ProductDetailContent({
             ) : null}
           </div>
           <FavoriteButton
+            className="h-11 w-11 shrink-0"
             label={{
               on: dictionary.product.removeFromFavorites,
               off: dictionary.product.addToFavorites,
@@ -100,6 +151,17 @@ export function ProductDetailContent({
           </p>
         ) : null}
 
+        {productFacts.length > 0 ? (
+          <dl className="mt-5 grid gap-3 rounded-card border border-border bg-surface p-4 sm:grid-cols-2">
+            {productFacts.map((fact) => (
+              <div key={fact.label}>
+                <dt className="font-heading text-body-sm font-bold text-text">{fact.label}</dt>
+                <dd className="mt-1 text-body-sm leading-relaxed text-muted">{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
         {data.promotionText ? <ProductPromotionCallout text={data.promotionText} /> : null}
 
         {data.variants.length > 0 ? (
@@ -109,6 +171,7 @@ export function ProductDetailContent({
               locale={locale}
               unit={data.unit}
               isActive={data.isActive}
+              initialVariantSku={initialVariantSku}
               product={{
                 id: data.id,
                 slug: data.slug,

@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
 import { revalidateCategoryStorefront } from "@/lib/category-revalidation";
+import {
+  buildCategoryIndexNowUrls,
+  scheduleIndexNowUrls,
+} from "@/lib/indexnow";
+import { BASE_URL } from "@/lib/routes";
 
 type PatchBody = Partial<{
   name: unknown;
@@ -107,6 +112,10 @@ export async function PATCH(
   const updated = await prisma.$transaction(async (tx) => {
     if (hasCategoryUpdate) {
       await tx.category.update({ where: { id }, data: categoryData });
+    } else {
+      // Translation-only edits are still meaningful storefront changes and
+      // must advance the parent timestamp used by category sitemaps.
+      await tx.category.update({ where: { id }, data: { updatedAt: new Date() } });
     }
     if (hasTranslationUpdate) {
       await tx.categoryTranslation.updateMany({
@@ -121,6 +130,12 @@ export async function PATCH(
     return tx.category.findUnique({ where: { id }, include: { translations: true } });
   });
   const revalidation = revalidateCategoryStorefront(id);
+  if (updated) {
+    scheduleIndexNowUrls(buildCategoryIndexNowUrls({
+      baseUrl: BASE_URL,
+      translations: updated.translations,
+    }));
+  }
 
   return NextResponse.json({
     ok: true,

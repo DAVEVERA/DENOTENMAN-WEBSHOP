@@ -12,6 +12,11 @@ import {
 } from "@/lib/admin-product-schema";
 import { toProductPlainText } from "@/lib/product-content";
 import { revalidateProductStorefront } from "@/lib/product-revalidation";
+import {
+  buildProductIndexNowUrls,
+  scheduleIndexNowUrls,
+} from "@/lib/indexnow";
+import { BASE_URL } from "@/lib/routes";
 import type { ProductRevalidationInput } from "@/lib/product-visibility";
 import { notifyPendingStockSubscribers } from "@/lib/stock-notifications";
 import { prisma } from "@/lib/prisma";
@@ -158,6 +163,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const requestedCategories = getProductCategories(input);
   const requestedCategoryIds = requestedCategories.map((category) => category.categoryId);
   let shouldNotify = false;
+  let shouldSubmitIndexNow = false;
   let revalidationContext: ProductRevalidationInput | null = null;
 
   try {
@@ -349,6 +355,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
       await upsertNutrition(tx, id, input.nutrition);
       shouldNotify = !current.isActive && input.isActive;
+      shouldSubmitIndexNow = current.isActive || input.isActive;
       return {
         productId: id,
         translations: [
@@ -372,6 +379,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return jsonError("INTERNAL_ERROR", { requestId });
   }
   const revalidation = revalidateProductStorefront(revalidationContext);
+  if (shouldSubmitIndexNow) {
+    scheduleIndexNowUrls(buildProductIndexNowUrls({
+      baseUrl: BASE_URL,
+      translations: revalidationContext.translations,
+      categoryTranslations: revalidationContext.categoryTranslations,
+    }));
+  }
 
   if (shouldNotify) {
     await notifyPendingStockSubscribers(id).catch((error) =>

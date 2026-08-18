@@ -46,7 +46,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       await applyProductImageOrder(tx, updates);
       return getOrderedProductImages(tx, productId);
     }, productImageTransactionOptions);
-    revalidateProductImageStorefront();
+    await revalidateProductImageStorefront(productId);
     return NextResponse.json({
       ok: true,
       images: images.map((image) => ({ ...image, url: publicImageUrl(image.storageKey) })),
