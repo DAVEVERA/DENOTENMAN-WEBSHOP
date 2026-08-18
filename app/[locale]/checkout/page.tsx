@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { isLocale } from "@/lib/i18n";
 import { Container } from "@/components/ui/Container";
+import { CheckoutBackLink } from "@/components/checkout/CheckoutBackLink";
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
@@ -23,7 +24,8 @@ export default async function CheckoutPage({
 
   return (
     <Container className="py-10">
-      <h1 className="text-heading-xl">{dictionary.checkout.title}</h1>
+      <CheckoutBackLink locale={locale} label={dictionary.checkout.backToCart} />
+      <h1 className="mt-4 text-heading-xl">{dictionary.checkout.title}</h1>
       <div className="mt-8">
         <CheckoutForm locale={locale} dictionary={dictionary.checkout} />
       </div>
