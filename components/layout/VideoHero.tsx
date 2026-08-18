@@ -1,48 +1,33 @@
 import Image from "next/image";
 import Link from "next/link";
+import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
 import { product as productPath, categories as categoriesPath } from "@/lib/routes";
 
-type FavoriteProduct = {
+const favoriteImages = [
+  "https://storage.googleapis.com/notenbucket/products/pistaches-gepeld-gebrand/4d5460ea-9512-4023-b44f-afbe8cd8a559.webp",
+  "https://storage.googleapis.com/notenbucket/products/cashewnoten-gezouten/8ed685fe-e5df-4b43-b4d4-aa0e6eb6dea6.webp",
+  "https://storage.googleapis.com/notenbucket/products/pecannoten-gezouten/84a4f2b8-b028-404d-afd4-717774743972.webp",
+] as const;
+
+type FavoriteCopy = {
   slug: string;
   name: string;
-  imageUrl: string;
   meta: string;
   copy: string;
   ctaLabel: string;
 };
 
-const favorites: FavoriteProduct[] = [
-  {
-    slug: "pistaches-gepeld-gebrand",
-    name: "Pistache",
-    imageUrl:
-      "https://storage.googleapis.com/notenbucket/products/pistaches-gepeld-gebrand/4d5460ea-9512-4023-b44f-afbe8cd8a559.webp",
-    meta: "Vers gebrand",
-    copy: "Knapperig, vol van smaak en vers uit onze kraam.",
-    ctaLabel: "Bestel pistache",
-  },
-  {
-    slug: "cashewnoten-gezouten",
-    name: "Cashew",
-    imageUrl:
-      "https://storage.googleapis.com/notenbucket/products/cashewnoten-gezouten/8ed685fe-e5df-4b43-b4d4-aa0e6eb6dea6.webp",
-    meta: "Vers gebrand",
-    copy: "Romig, zacht en precies goed gebrand.",
-    ctaLabel: "Bestel cashew",
-  },
-  {
-    slug: "pecannoten-gezouten",
-    name: "Pecannoten",
-    imageUrl:
-      "https://storage.googleapis.com/notenbucket/products/pecannoten-gezouten/84a4f2b8-b028-404d-afd4-717774743972.webp",
-    meta: "Van nature zoet",
-    copy: "Vol, zacht en heerlijk als snack of door je ontbijt.",
-    ctaLabel: "Bestel pecannoten",
-  },
-];
+type FavoriteProduct = FavoriteCopy & {
+  imageUrl: string;
+};
 
-export function VideoHero({ locale }: { locale: Locale }) {
+export function VideoHero({ locale, dictionary }: { locale: Locale; dictionary: typeof nl }) {
+  const favorites: FavoriteProduct[] = dictionary.hero.favorites.map((favorite, index) => ({
+    ...favorite,
+    imageUrl: favoriteImages[index] ?? favoriteImages[0],
+  }));
+
   return (
     <section className="video-hero" aria-labelledby="hero-title">
       <Image
@@ -57,18 +42,18 @@ export function VideoHero({ locale }: { locale: Locale }) {
         <div className="video-hero__chalkboard">
           <div className="video-hero__eyebrow">De Notenman</div>
           <h1 id="hero-title" className="video-hero__title">
-            Heerlijke vers gebrande noten &amp; gedroogde zuidvruchten!
+            {dictionary.hero.headline}
           </h1>
-          <p className="video-hero__intro">Nu ook thuisbezorgd</p>
+          <p className="video-hero__intro">{dictionary.hero.intro}</p>
           <a className="video-hero__button" href={categoriesPath(locale)}>
-            Bestel nu!
+            {dictionary.hero.cta}
           </a>
         </div>
 
         <section className="video-hero__favorites" aria-labelledby="favorites-title">
           <div className="video-hero__favorites-header">
             <h2 id="favorites-title" className="video-hero__favorites-title">
-              Onze favorieten
+              {dictionary.hero.favoritesTitle}
             </h2>
           </div>
 

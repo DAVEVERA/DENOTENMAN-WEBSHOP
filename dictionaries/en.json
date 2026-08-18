@@ -82,6 +82,10 @@
     "ingredients": "Ingredients",
     "allergens": "Allergens",
     "mayContainTraces": "May contain traces of",
+    "origin": "Origin",
+    "taste": "Taste",
+    "usage": "How to use",
+    "storage": "Storage",
     "weight": "Weight",
     "perHundredGrams": "Nutritional value per 100 g",
     "perHundredMilliliters": "Nutritional value per 100 ml",
@@ -187,7 +191,32 @@
   },
   "hero": {
     "headline": "Delicious freshly roasted nuts & dried fruit!",
+    "intro": "Now delivered to your home",
     "cta": "Shop now",
+    "favoritesTitle": "Our favourites",
+    "favorites": [
+      {
+        "slug": "shelled-and-roasted-pistachios",
+        "name": "Pistachios",
+        "meta": "Freshly roasted",
+        "copy": "Crunchy, full of flavour and freshly prepared at our stall.",
+        "ctaLabel": "Shop pistachios"
+      },
+      {
+        "slug": "salted-cashew-nuts",
+        "name": "Cashews",
+        "meta": "Freshly roasted",
+        "copy": "Creamy, mild and roasted just right.",
+        "ctaLabel": "Shop cashews"
+      },
+      {
+        "slug": "salted-pecans",
+        "name": "Pecans",
+        "meta": "Naturally sweet",
+        "copy": "Rich and tender, as a snack or with breakfast.",
+        "ctaLabel": "Shop pecans"
+      }
+    ],
     "previous": "Previous slide",
     "next": "Next slide",
     "goToSlide": "Go to slide {n}"
@@ -195,6 +224,37 @@
   "home": {
     "fedorsFavorite": "Fedor's Favorite!",
     "fedorsFavoriteViewAll": "View all deals"
+  },
+  "seo": {
+    "home": {
+      "title": "Order nuts and dried fruit | De Notenman",
+      "description": "Order nuts, nut mixes, dried fruit and more from De Notenman. Carefully packed and delivered to your home, or visit us at the market."
+    },
+    "categories": {
+      "title": "Nuts and dried fruit range | De Notenman",
+      "description": "Browse the De Notenman range: nuts, mixes, dried fruit, seeds, snacks and more.",
+      "heading": "Our range",
+      "intro": "Choose a category or browse all products from De Notenman.",
+      "categoryLinksHeading": "Browse by category",
+      "productsHeading": "All products"
+    },
+    "category": {
+      "title": "Order {category} | De Notenman",
+      "description": "Browse {category} from De Notenman. Choose your product and order online.",
+      "introFallback": "Browse every product in {category} and choose the option that suits you.",
+      "homeLabel": "Home",
+      "categoriesLabel": "Collections"
+    },
+    "articles": {
+      "title": "Articles about nuts and more | De Notenman",
+      "description": "Read practical De Notenman articles about nuts, dried fruit, storage and use.",
+      "heading": "Articles",
+      "intro": "Practical information about our range, storage and use.",
+      "emptyTitle": "No articles yet",
+      "emptyDescription": "There are no articles online at the moment.",
+      "emptyCta": "Browse our range",
+      "readArticle": "Read article"
+    }
   },
   "filters": {
     "categoryLabel": "Category",

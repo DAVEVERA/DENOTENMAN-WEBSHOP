@@ -82,6 +82,10 @@
     "ingredients": "Ingrédients",
     "allergens": "Allergènes",
     "mayContainTraces": "Peut contenir des traces de",
+    "origin": "Origine",
+    "taste": "Goût",
+    "usage": "Utilisation",
+    "storage": "Conservation",
     "weight": "Poids",
     "perHundredGrams": "Valeurs nutritionnelles pour 100 g",
     "perHundredMilliliters": "Valeurs nutritionnelles pour 100 ml",
@@ -187,7 +191,32 @@
   },
   "hero": {
     "headline": "Délicieuses noix fraîchement torréfiées & fruits secs !",
+    "intro": "Désormais livrés chez vous",
     "cta": "Commander",
+    "favoritesTitle": "Nos favoris",
+    "favorites": [
+      {
+        "slug": "pistaches-decortiquees-et-grillees",
+        "name": "Pistaches",
+        "meta": "Fraîchement torréfiées",
+        "copy": "Croquantes, savoureuses et fraîchement préparées sur notre stand.",
+        "ctaLabel": "Commander des pistaches"
+      },
+      {
+        "slug": "noix-de-cajou-salees",
+        "name": "Noix de cajou",
+        "meta": "Fraîchement torréfiées",
+        "copy": "Douces, onctueuses et parfaitement torréfiées.",
+        "ctaLabel": "Commander des noix de cajou"
+      },
+      {
+        "slug": "noix-de-pecan-salees",
+        "name": "Noix de pécan",
+        "meta": "Naturellement sucrées",
+        "copy": "Riches et tendres, à grignoter ou au petit-déjeuner.",
+        "ctaLabel": "Commander des noix de pécan"
+      }
+    ],
     "previous": "Diapositive précédente",
     "next": "Diapositive suivante",
     "goToSlide": "Aller à la diapositive {n}"
@@ -195,6 +224,37 @@
   "home": {
     "fedorsFavorite": "Le favori de Fedor !",
     "fedorsFavoriteViewAll": "Voir toutes les promotions"
+  },
+  "seo": {
+    "home": {
+      "title": "Commander des noix et fruits secs | De Notenman",
+      "description": "Commandez des noix, mélanges, fruits secs et plus chez De Notenman. Soigneusement emballés et livrés chez vous, ou retrouvez-nous au marché."
+    },
+    "categories": {
+      "title": "Noix et fruits secs : notre gamme | De Notenman",
+      "description": "Découvrez la gamme De Notenman : noix, mélanges, fruits secs, graines, snacks et plus.",
+      "heading": "Notre gamme",
+      "intro": "Choisissez une catégorie ou découvrez tous les produits De Notenman.",
+      "categoryLinksHeading": "Découvrir par catégorie",
+      "productsHeading": "Tous les produits"
+    },
+    "category": {
+      "title": "Commander {category} | De Notenman",
+      "description": "Découvrez {category} chez De Notenman. Choisissez votre produit et commandez en ligne.",
+      "introFallback": "Découvrez tous les produits de la catégorie {category} et choisissez l'option qui vous convient.",
+      "homeLabel": "Accueil",
+      "categoriesLabel": "Collections"
+    },
+    "articles": {
+      "title": "Articles sur les noix et plus | De Notenman",
+      "description": "Lisez les articles pratiques de De Notenman sur les noix, les fruits secs, leur conservation et leur utilisation.",
+      "heading": "Articles",
+      "intro": "Des informations pratiques sur notre gamme, sa conservation et son utilisation.",
+      "emptyTitle": "Pas encore d'articles",
+      "emptyDescription": "Aucun article n'est publié pour le moment.",
+      "emptyCta": "Découvrir notre gamme",
+      "readArticle": "Lire l'article"
+    }
   },
   "filters": {
     "categoryLabel": "Catégorie",

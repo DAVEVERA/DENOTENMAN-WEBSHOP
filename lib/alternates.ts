@@ -26,8 +26,16 @@ export type AlternateKind =
 
 export type AlternatesResult = {
   canonical: string;
-  languages: Partial<Record<Locale, string>>;
+  languages: Partial<Record<Locale | "x-default", string>>;
 };
+
+export function withXDefault(
+  languages: Partial<Record<Locale, string>>
+): Partial<Record<Locale | "x-default", string>> {
+  return languages.nl
+    ? { ...languages, "x-default": languages.nl }
+    : languages;
+}
 
 export const getAlternates = cache(
   async (locale: Locale, kind: AlternateKind): Promise<AlternatesResult | undefined> => {
@@ -35,33 +43,43 @@ export const getAlternates = cache(
       case "home":
         return {
           canonical: home(locale),
-          languages: Object.fromEntries(locales.map((loc) => [loc, home(loc)])),
+          languages: withXDefault(
+            Object.fromEntries(locales.map((loc) => [loc, home(loc)]))
+          ),
         };
       case "categories":
         return {
           canonical: categories(locale),
-          languages: Object.fromEntries(locales.map((loc) => [loc, categories(loc)])),
+          languages: withXDefault(
+            Object.fromEntries(locales.map((loc) => [loc, categories(loc)]))
+          ),
         };
       case "cart":
         return {
           canonical: cart(locale),
-          languages: Object.fromEntries(locales.map((loc) => [loc, cart(loc)])),
+          languages: withXDefault(
+            Object.fromEntries(locales.map((loc) => [loc, cart(loc)]))
+          ),
         };
       case "account":
         return {
           canonical: account(locale),
-          languages: Object.fromEntries(locales.map((loc) => [loc, account(loc)])),
+          languages: withXDefault(
+            Object.fromEntries(locales.map((loc) => [loc, account(loc)]))
+          ),
         };
       case "articles":
         return {
           canonical: articles(locale),
-          languages: Object.fromEntries(locales.map((loc) => [loc, articles(loc)])),
+          languages: withXDefault(
+            Object.fromEntries(locales.map((loc) => [loc, articles(loc)]))
+          ),
         };
       case "page":
         return {
           canonical: pagePath(kind.key, locale),
-          languages: Object.fromEntries(
-            locales.map((loc) => [loc, pagePath(kind.key, loc)])
+          languages: withXDefault(
+            Object.fromEntries(locales.map((loc) => [loc, pagePath(kind.key, loc)]))
           ),
         };
       case "category": {
@@ -73,11 +91,11 @@ export const getAlternates = cache(
 
         return {
           canonical: category(locale, data.slug),
-          languages: Object.fromEntries(
-            locales.flatMap((loc) => {
+          languages: withXDefault(
+            Object.fromEntries(locales.flatMap((loc) => {
               const slug = data.slugsByLocale[loc];
               return slug ? [[loc, category(loc, slug)] as const] : [];
-            })
+            }))
           ),
         };
       }
@@ -90,11 +108,11 @@ export const getAlternates = cache(
 
         return {
           canonical: product(locale, data.slug),
-          languages: Object.fromEntries(
-            locales.flatMap((loc) => {
+          languages: withXDefault(
+            Object.fromEntries(locales.flatMap((loc) => {
               const slug = data.slugsByLocale[loc];
               return slug ? [[loc, product(loc, slug)] as const] : [];
-            })
+            }))
           ),
         };
       }
@@ -107,7 +125,14 @@ export const getAlternates = cache(
 
         return {
           canonical: article(locale, data.slug),
-          languages: { [locale]: article(locale, data.slug) },
+          languages: withXDefault(
+            Object.fromEntries(
+              locales.flatMap((loc) => {
+                const slug = data.slugsByLocale[loc];
+                return slug ? [[loc, article(loc, slug)] as const] : [];
+              })
+            )
+          ),
         };
       }
       default: {

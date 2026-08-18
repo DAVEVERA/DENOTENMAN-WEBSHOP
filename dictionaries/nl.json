@@ -82,6 +82,10 @@
     "ingredients": "Ingrediënten",
     "allergens": "Allergenen",
     "mayContainTraces": "Kan sporen bevatten van",
+    "origin": "Herkomst",
+    "taste": "Smaak",
+    "usage": "Gebruik",
+    "storage": "Bewaren",
     "weight": "Gewicht",
     "perHundredGrams": "Voedingswaarde per 100 g",
     "perHundredMilliliters": "Voedingswaarde per 100 ml",
@@ -187,7 +191,32 @@
   },
   "hero": {
     "headline": "Heerlijke vers gebrande noten & gedroogde zuidvruchten!",
+    "intro": "Nu ook thuisbezorgd",
     "cta": "Bestel nu",
+    "favoritesTitle": "Onze favorieten",
+    "favorites": [
+      {
+        "slug": "pistaches-gepeld-gebrand",
+        "name": "Pistache",
+        "meta": "Vers gebrand",
+        "copy": "Knapperig, vol van smaak en vers uit onze kraam.",
+        "ctaLabel": "Bestel pistache"
+      },
+      {
+        "slug": "cashewnoten-gezouten",
+        "name": "Cashew",
+        "meta": "Vers gebrand",
+        "copy": "Romig, zacht en precies goed gebrand.",
+        "ctaLabel": "Bestel cashew"
+      },
+      {
+        "slug": "pecannoten-gezouten",
+        "name": "Pecannoten",
+        "meta": "Van nature zoet",
+        "copy": "Vol, zacht en heerlijk als snack of door je ontbijt.",
+        "ctaLabel": "Bestel pecannoten"
+      }
+    ],
     "previous": "Vorige dia",
     "next": "Volgende dia",
     "goToSlide": "Ga naar dia {n}"
@@ -195,6 +224,37 @@
   "home": {
     "fedorsFavorite": "Fedor's Favoriet!",
     "fedorsFavoriteViewAll": "Bekijk alle acties"
+  },
+  "seo": {
+    "home": {
+      "title": "Noten en gedroogd fruit bestellen | De Notenman",
+      "description": "Bestel noten, notenmixen, gedroogd fruit en meer bij De Notenman. Vers verpakt en thuisbezorgd, of bezoek ons op de markt."
+    },
+    "categories": {
+      "title": "Assortiment noten en gedroogd fruit | De Notenman",
+      "description": "Bekijk het assortiment van De Notenman: noten, mixen, gedroogd fruit, zaden, snacks en meer.",
+      "heading": "Ons assortiment",
+      "intro": "Kies een categorie of bekijk direct alle producten van De Notenman.",
+      "categoryLinksHeading": "Bekijk per categorie",
+      "productsHeading": "Alle producten"
+    },
+    "category": {
+      "title": "{category} bestellen | De Notenman",
+      "description": "Bekijk {category} bij De Notenman. Kies je product en bestel eenvoudig online.",
+      "introFallback": "Bekijk alle producten binnen {category} en kies de variant die bij je past.",
+      "homeLabel": "Home",
+      "categoriesLabel": "Assortiment"
+    },
+    "articles": {
+      "title": "Artikelen over noten en meer | De Notenman",
+      "description": "Lees praktische artikelen van De Notenman over noten, gedroogd fruit, bewaren en gebruiken.",
+      "heading": "Artikelen",
+      "intro": "Praktische informatie over ons assortiment, bewaren en gebruiken.",
+      "emptyTitle": "Nog geen artikelen",
+      "emptyDescription": "Er staan op dit moment nog geen artikelen online.",
+      "emptyCta": "Bekijk ons assortiment",
+      "readArticle": "Lees artikel"
+    }
   },
   "filters": {
     "categoryLabel": "Categorie",

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { locales, isLocale } from "@/lib/i18n";
-import { pageKeys, pageSlugs, resolvePageKey } from "@/lib/pages";
+import { pageKeys, pageRobots, pageSlugs, resolvePageKey } from "@/lib/pages";
 import { getAlternates } from "@/lib/alternates";
 import { Container } from "@/components/ui/Container";
 import { getPageBySlug } from "@/lib/queries";
@@ -44,6 +44,7 @@ export async function generateMetadata({
 
   return {
     title,
+    robots: pageRobots(key),
     alternates: {
       canonical: alternates.canonical,
       languages: alternates.languages,

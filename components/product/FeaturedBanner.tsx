@@ -8,10 +8,12 @@ import { getProductImageStyle } from "@/lib/image-focal";
 
 export function FeaturedBanner({
   products,
+  categorySlug,
   locale,
   dictionary,
 }: {
   products: ProductSummaryDto[];
+  categorySlug: string;
   locale: Locale;
   dictionary: typeof nl;
 }) {
@@ -25,7 +27,7 @@ export function FeaturedBanner({
             {dictionary.home.fedorsFavorite}
           </p>
           <a
-            href={categoryPath(locale, "acties")}
+            href={categoryPath(locale, categorySlug)}
             className="mt-3 block font-heading text-body-sm font-semibold text-accent-hover underline decoration-border-hover underline-offset-4 hover:text-accent"
           >
             {dictionary.home.fedorsFavoriteViewAll}

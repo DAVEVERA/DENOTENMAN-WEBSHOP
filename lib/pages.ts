@@ -17,6 +17,19 @@ export const pageKeys = [
 
 export type PageKey = (typeof pageKeys)[number];
 
+export const indexablePageKeys = pageKeys.filter(
+  (key): key is Exclude<PageKey, "subscribe" | "optOut"> =>
+    key !== "subscribe" && key !== "optOut"
+);
+
+export function pageRobots(
+  key: PageKey
+): { index: false; follow: true } | undefined {
+  return key === "subscribe" || key === "optOut"
+    ? { index: false, follow: true }
+    : undefined;
+}
+
 export const pageSlugs: Record<PageKey, Record<Locale, string>> = {
   about: { nl: "over-ons", en: "about-us", fr: "a-propos" },
   contact: { nl: "contact", en: "contact", fr: "contact" },
