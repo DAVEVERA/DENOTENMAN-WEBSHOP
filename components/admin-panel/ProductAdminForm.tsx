@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { EyeOff, Globe2, Loader2, Plus, Save, Sparkles } from "lucide-react";
-import { slugifyProduct } from "@/lib/admin-product-schema";
+import { EyeOff, Globe2, Loader2, Plus, Save, Sparkles, Trash2 } from "lucide-react";
 import {
   ProductTranslationsEditor,
   type ProductLocale,
@@ -89,9 +88,66 @@ function plainTextFromHtml(html: string): string {
 
 export function productSaveErrorMessage(cause: unknown): string {
   if (cause && typeof cause === "object") {
-    const payload = cause as { error?: unknown; message?: unknown };
+    const payload = cause as {
+      error?: unknown;
+      message?: unknown;
+      field?: unknown;
+      issues?: unknown;
+      variantSku?: unknown;
+      requestId?: unknown;
+    };
+    const issue = Array.isArray(payload.issues)
+      ? payload.issues.find((candidate): candidate is { path: Array<string | number>; message: string } =>
+          Boolean(candidate)
+          && typeof candidate === "object"
+          && Array.isArray((candidate as { path?: unknown }).path)
+          && typeof (candidate as { message?: unknown }).message === "string"
+        )
+      : undefined;
+    if (issue) {
+      const path = issue.path.join(".");
+      return `${productFieldLabel(path)}: ${issue.message.trim()}`;
+    }
+    if (payload.issues && typeof payload.issues === "object") {
+      const fieldErrors = (payload.issues as { fieldErrors?: unknown }).fieldErrors;
+      if (fieldErrors && typeof fieldErrors === "object") {
+        for (const [field, messages] of Object.entries(fieldErrors)) {
+          if (Array.isArray(messages) && typeof messages[0] === "string") {
+            return `${productFieldLabel(field)}: ${messages[0].trim()}`;
+          }
+        }
+      }
+    }
     if (payload.error === "STALE_PRODUCT") {
       return "Dit product is intussen elders gewijzigd. Herlaad de pagina voordat je opnieuw opslaat.";
+    }
+    if (payload.error === "SKU_CONFLICT") {
+      return "Deze product-SKU is al in gebruik. Kies een andere SKU.";
+    }
+    if (payload.error === "SLUG_CONFLICT") {
+      return `De ${productFieldLabel(typeof payload.field === "string" ? payload.field : "translations")} is al in gebruik. Kies een andere slug.`;
+    }
+    if (payload.error === "VARIANT_SKU_CONFLICT") {
+      return "Een variant-SKU is al in gebruik. Kies een unieke SKU voor iedere variant.";
+    }
+    if (payload.error === "CATEGORY_NOT_FOUND") {
+      return "Een gekozen categorie bestaat niet meer. Kies de categorie-indeling opnieuw.";
+    }
+    if (payload.error === "CATEGORY_PARENT_REQUIRED") {
+      return "De gekozen categorie mist een bovenliggende categorie. Kies de volledige categorie-indeling opnieuw.";
+    }
+    if (payload.error === "RECOMMENDATION_NOT_FOUND") {
+      return "Een gekozen meepakker bestaat niet meer. Kies de meepakkers opnieuw.";
+    }
+    if (payload.error === "VARIANT_NOT_FOUND") {
+      return "Een variant bestaat niet meer of hoort bij een ander product. Herlaad de pagina.";
+    }
+    if (payload.error === "VARIANT_HAS_ORDER_HISTORY" && typeof payload.variantSku === "string") {
+      return `Variant ${payload.variantSku} staat in een bestelling en kan daarom niet worden verwijderd. Zet de variant op ‘Niet bestelbaar’ om de bestelgeschiedenis te bewaren.`;
+    }
+    if (payload.error === "INTERNAL_ERROR") {
+      const suffix = typeof payload.requestId === "string" ? ` Blijft dit gebeuren, meld dan foutcode ${payload.requestId}.` : "";
+      return `De server kon het product niet opslaan. Probeer opnieuw.${suffix}`;
     }
     if (typeof payload.message === "string" && payload.message.trim() && !(cause instanceof TypeError)) {
       return payload.message.trim().slice(0, 240);
@@ -100,7 +156,42 @@ export function productSaveErrorMessage(cause: unknown): string {
   if (cause instanceof TypeError) {
     return "Geen verbinding met de server. Controleer je internetverbinding en probeer opnieuw.";
   }
-  return "Opslaan is niet gelukt. Controleer de invoer en probeer opnieuw.";
+  return "De server gaf geen herkenbare fout terug. Herlaad de pagina en probeer opnieuw.";
+}
+
+function productFieldLabel(path: string): string {
+  const variantMatch = /^variants\.(\d+)\.(.+)$/.exec(path);
+  if (variantMatch) {
+    const labels: Record<string, string> = {
+      sku: "SKU",
+      label: "label",
+      weightGrams: "gewicht",
+      priceCents: "normale prijs",
+      salePriceCents: "actieprijs",
+      stock: "voorraad",
+    };
+    return `Variant ${Number(variantMatch[1]) + 1} – ${labels[variantMatch[2]] ?? variantMatch[2]}`;
+  }
+  const translationMatch = /^translations\.(\d+)\.(.+)$/.exec(path);
+  if (translationMatch) {
+    const language = ["Nederlandse", "Engelse", "Franse"][Number(translationMatch[1])] ?? "Product";
+    const field = translationMatch[2] === "slug" ? "slug" : translationMatch[2] === "name" ? "productnaam" : translationMatch[2];
+    return `${language} ${field}`;
+  }
+  const labels: Record<string, string> = {
+    sku: "Product-SKU",
+    basePriceCents: "Normale basisprijs",
+    salePriceCents: "Actieprijs",
+    categories: "Categorie-indeling",
+    recommendationIds: "Meepakkers",
+    translations: "Productvertaling",
+    variants: "Varianten",
+  };
+  return labels[path] ?? path;
+}
+
+export function removeVariantFromDraft<T extends { clientKey: string }>(variants: T[], clientKey: string): T[] {
+  return variants.filter((variant) => variant.clientKey !== clientKey);
 }
 
 export function createEmptyVariant(skuPrefix = ""): Variant {
@@ -177,6 +268,18 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
   function setVariant(key: string, field: keyof Variant, value: Variant[keyof Variant]) {
     setStatus("idle");
     setProduct((current) => ({ ...current, variants: current.variants.map((variant) => variant.clientKey === key ? { ...variant, [field]: value } : variant) }));
+  }
+  function removeVariant(variant: Variant) {
+    setStatus("idle");
+    setProduct((current) => ({
+      ...current,
+      variants: removeVariantFromDraft(current.variants, variant.clientKey),
+    }));
+    setMessage(
+      variant.id
+        ? `Variant ${variant.sku || "zonder SKU"} wordt definitief verwijderd zodra je alles opslaat.`
+        : "De nog niet opgeslagen variant is verwijderd."
+    );
   }
 
   async function updateVisibility() {
@@ -421,7 +524,6 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
     <ProductTranslationsEditor
       translations={translations}
       onChange={updateTranslation}
-      onSlugFromName={(locale) => updateTranslation(locale, { ...translations[locale], slug: slugifyProduct(translations[locale].name) })}
     />
 
     <section className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6"><h2 className="text-heading-md text-text">Prijs en indeling</h2><div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -437,8 +539,8 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
 
     <NutritionEditor values={nutrition} onChange={(values) => { setNutrition(values); setStatus("idle"); }} unit={product.unit} />
 
-    <section className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-heading-md text-text">Varianten en subvarianten</h2><p className="mt-1 text-body-sm text-muted">Prijs en voorraad zijn per variant instelbaar. Een variantstatus bepaalt alleen of die verpakking bestelbaar is; de hoofdstatus bovenaan bepaalt productzichtbaarheid.</p></div><button type="button" onClick={() => setField("variants", [...product.variants, createEmptyVariant(product.sku)])} className="inline-flex min-h-11 items-center gap-2 rounded-button bg-accent px-4 font-semibold text-contrast"><Plus className="h-4 w-4" />Variant toevoegen</button></div>
-      <div className="mt-5 grid gap-4">{product.variants.map((variant, index) => <article key={variant.clientKey} className="rounded-card border border-border bg-background p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-heading-sm">Variant {index + 1}</h3><button type="button" onClick={() => setVariant(variant.clientKey, "isActive", !variant.isActive)} className={`min-h-11 rounded-full px-4 text-body-sm font-semibold ${variant.isActive ? "bg-green-100 text-green-800" : "bg-border text-muted"}`} aria-pressed={variant.isActive}>{variant.isActive ? "Bestelbaar" : "Niet bestelbaar"}</button></div><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <section className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-heading-md text-text">Varianten en subvarianten</h2><p className="mt-1 text-body-sm text-muted">Prijs en voorraad zijn per variant instelbaar. Verwijderen wordt pas definitief bij ‘Alles opslaan’. Varianten die in een bestelling staan blijven bewaard; zet die op ‘Niet bestelbaar’.</p></div><button type="button" onClick={() => setField("variants", [...product.variants, createEmptyVariant(product.sku)])} className="inline-flex min-h-11 items-center gap-2 rounded-button bg-accent px-4 font-semibold text-contrast"><Plus className="h-4 w-4" />Variant toevoegen</button></div>
+      <div className="mt-5 grid gap-4">{product.variants.map((variant, index) => <article key={variant.clientKey} className="rounded-card border border-border bg-background p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-heading-sm">Variant {index + 1}</h3><div className="flex flex-wrap gap-2"><button type="button" onClick={() => setVariant(variant.clientKey, "isActive", !variant.isActive)} className={`min-h-11 rounded-full px-4 text-body-sm font-semibold ${variant.isActive ? "bg-green-100 text-green-800" : "bg-border text-muted"}`} aria-pressed={variant.isActive}>{variant.isActive ? "Bestelbaar" : "Niet bestelbaar"}</button><button type="button" onClick={() => removeVariant(variant)} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-red-300 px-4 text-body-sm font-semibold text-red-800 hover:bg-red-50" aria-label={`Variant ${variant.sku || index + 1} verwijderen`}><Trash2 className="h-4 w-4" aria-hidden="true" />Verwijderen</button></div></div><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className={labelClass}>SKU<input value={variant.sku} onChange={(e) => setVariant(variant.clientKey, "sku", e.target.value)} className={inputClass} /></label><label className={labelClass}>Label<input value={variant.label} onChange={(e) => setVariant(variant.clientKey, "label", e.target.value)} className={inputClass} placeholder={`${variant.weightGrams} ${product.unit === "VOLUME" ? "ml" : "g"}`} /></label><label className={labelClass}>{product.unit === "VOLUME" ? "Hoeveelheid (ml)" : "Gewicht (gram)"}<input inputMode="numeric" value={variant.weightGrams} onChange={(e) => setVariant(variant.clientKey, "weightGrams", e.target.value)} className={inputClass} /></label><label className={labelClass}>Voorraad<input inputMode="numeric" value={variant.stock} onChange={(e) => setVariant(variant.clientKey, "stock", e.target.value)} className={inputClass} /></label>
         <label className={labelClass}>Normale prijs (€)<input inputMode="decimal" value={variant.priceEuro} onChange={(e) => setVariant(variant.clientKey, "priceEuro", e.target.value)} className={inputClass} /></label><label className={labelClass}>Actieprijs (€)<input inputMode="decimal" value={variant.salePriceEuro} onChange={(e) => setVariant(variant.clientKey, "salePriceEuro", e.target.value)} className={inputClass} /></label><label className={labelClass}>Bereiding<select value={variant.preparation} onChange={(e) => setVariant(variant.clientKey, "preparation", e.target.value)} className={inputClass}><option value="RAW">Rauw</option><option value="ROASTED">Gebrand</option></select></label><label className={labelClass}>Zout<select value={variant.salting} onChange={(e) => setVariant(variant.clientKey, "salting", e.target.value)} className={inputClass}><option value="UNSALTED">Ongezouten</option><option value="SALTED">Gezouten</option></select></label><label className={labelClass}>Coating<select value={variant.coating} onChange={(e) => setVariant(variant.clientKey, "coating", e.target.value)} className={inputClass}><option value="NONE">Geen</option><option value="CHOCOLATE">Chocolade</option><option value="YOGHURT">Yoghurt</option><option value="FLAVORED">Gearomatiseerd</option></select></label>
       </div></article>)}</div>

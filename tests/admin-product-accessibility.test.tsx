@@ -44,3 +44,35 @@ test("translation tabs support Arrow, Home and End keyboard navigation", () => {
   assert.equal(module.nextProductLocale("fr", "Home"), "nl");
   assert.equal(module.nextProductLocale("nl", "End"), "fr");
 });
+
+test("Maak van naam derives the slug from the active Crème translation", () => {
+  const module = translationsModule as unknown as {
+    translationWithSlugFromName?: (translation: {
+      locale: "nl";
+      name: string;
+      slug: string;
+      shortDescription: string;
+      description: string;
+      descriptionHtml: string;
+      seoTitle: string;
+      metaDescription: string;
+      promotionText: string;
+    }) => { name: string; slug: string };
+  };
+  assert.equal(typeof module.translationWithSlugFromName, "function");
+  if (!module.translationWithSlugFromName) return;
+
+  const result = module.translationWithSlugFromName({
+    locale: "nl",
+    name: "Gemengde Bloemenhoning Crème",
+    slug: "oude-slug",
+    shortDescription: "",
+    description: "",
+    descriptionHtml: "",
+    seoTitle: "",
+    metaDescription: "",
+    promotionText: "",
+  });
+  assert.equal(result.name, "Gemengde Bloemenhoning Crème");
+  assert.equal(result.slug, "gemengde-bloemenhoning-creme");
+});

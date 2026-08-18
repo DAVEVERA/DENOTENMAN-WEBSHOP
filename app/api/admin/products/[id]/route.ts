@@ -15,13 +15,52 @@ import { revalidateProductStorefront } from "@/lib/product-revalidation";
 import type { ProductRevalidationInput } from "@/lib/product-visibility";
 import { notifyPendingStockSubscribers } from "@/lib/stock-notifications";
 import { prisma } from "@/lib/prisma";
+import {
+  AdminProductMutationError,
+  adminProductErrorContract,
+  planVariantPersistence,
+  validationErrorContract,
+} from "@/lib/admin-product-save-contract";
 
-function errorResponse(error: unknown) {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    return NextResponse.json({ error: "CONFLICT", message: "Deze slug of SKU is al in gebruik." }, { status: 409 });
+export { planVariantPersistence, validationErrorContract } from "@/lib/admin-product-save-contract";
+
+function jsonError(
+  code: Parameters<typeof adminProductErrorContract>[0],
+  options?: Parameters<typeof adminProductErrorContract>[1],
+) {
+  const contract = adminProductErrorContract(code, options);
+  return NextResponse.json(contract.body, { status: contract.status });
+}
+
+function conflictTarget(error: Prisma.PrismaClientKnownRequestError): string {
+  const target = error.meta?.target;
+  if (Array.isArray(target)) return target.join(" ").toLowerCase();
+  return typeof target === "string" ? target.toLowerCase() : "";
+}
+
+function errorResponse(error: unknown, requestId: string, productId: string) {
+  if (error instanceof AdminProductMutationError) {
+    return jsonError(error.code === "VALIDATION_ERROR" ? "INTERNAL_ERROR" : error.code, {
+      field: error.field,
+      variantSku: error.variantSku,
+      requestId,
+    });
   }
-  console.error("Failed to update product", error);
-  return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    const target = conflictTarget(error);
+    if (error.meta?.modelName === "ProductVariant" || target.includes("productvariant")) {
+      return jsonError("VARIANT_SKU_CONFLICT");
+    }
+    if (target.includes("slug") || error.meta?.modelName === "ProductTranslation") {
+      return jsonError("SLUG_CONFLICT");
+    }
+    return jsonError("SKU_CONFLICT");
+  }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+    return jsonError("STALE_PRODUCT");
+  }
+  console.error("Failed to update product", { requestId, productId, error });
+  return jsonError("INTERNAL_ERROR", { requestId });
 }
 
 function translationData(translation: ProductTranslationInput) {
@@ -92,16 +131,26 @@ async function resolveCategoryAssignments(
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await hasAdminSession(request))) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return jsonError("UNAUTHORIZED");
   }
 
   const { id } = await params;
-  const parsed = productAdminInputSchema.safeParse(await request.json().catch(() => null));
+  const requestId = crypto.randomUUID();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("INVALID_JSON");
+  }
+  const parsed = productAdminInputSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "VALIDATION_ERROR", issues: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(validationErrorContract(parsed.error.issues), { status: 400 });
+  }
+  if (!parsed.data.version) {
+    return jsonError("VERSION_REQUIRED");
   }
   if (parsed.data.recommendationIds.includes(id)) {
-    return NextResponse.json({ error: "VALIDATION_ERROR", message: "Een product kan zichzelf niet als meepakker hebben." }, { status: 400 });
+    return jsonError("RECOMMENDATION_SELF");
   }
 
   const input = parsed.data;
@@ -116,7 +165,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const current = await tx.product.findUnique({
         where: { id },
         include: {
-          variants: { select: { id: true } },
+          variants: { select: { id: true, sku: true, _count: { select: { orderItems: true } } } },
           translations: true,
           productCategories: {
             include: {
@@ -127,8 +176,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           },
         },
       });
-      if (!current) throw new Error("PRODUCT_NOT_FOUND");
-      if (input.version && current.updatedAt.toISOString() !== input.version) throw new Error("STALE_PRODUCT");
+      if (!current) throw new AdminProductMutationError("PRODUCT_NOT_FOUND");
+      if (current.updatedAt.toISOString() !== input.version) {
+        throw new AdminProductMutationError("STALE_PRODUCT", { field: "version" });
+      }
 
       const categories = await tx.category.findMany({
         where: { id: { in: requestedCategoryIds } },
@@ -138,26 +189,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           translations: { select: { locale: true, slug: true } },
         },
       });
-      if (categories.length !== requestedCategoryIds.length) throw new Error("CATEGORY_NOT_FOUND");
+      if (categories.length !== requestedCategoryIds.length) {
+        throw new AdminProductMutationError("CATEGORY_NOT_FOUND", { field: "categories" });
+      }
       for (const category of categories) {
         if (category.parentId && !requestedCategoryIds.includes(category.parentId)) {
-          throw new Error("CATEGORY_PARENT_REQUIRED");
+          throw new AdminProductMutationError("CATEGORY_PARENT_REQUIRED", { field: "categories" });
         }
       }
       if (await tx.product.count({ where: { id: { in: input.recommendationIds } } }) !== input.recommendationIds.length) {
-        throw new Error("RECOMMENDATION_NOT_FOUND");
+        throw new AdminProductMutationError("RECOMMENDATION_NOT_FOUND", { field: "recommendationIds" });
       }
 
-      const knownVariantIds = new Set(current.variants.map((variant) => variant.id));
-      for (const variant of input.variants) {
-        if (variant.id && !knownVariantIds.has(variant.id)) throw new Error("VARIANT_NOT_FOUND");
-      }
+      const variantPlan = planVariantPersistence(
+        current.variants.map((variant) => ({
+          id: variant.id,
+          sku: variant.sku,
+          orderItemCount: variant._count.orderItems,
+        })),
+        input.variants,
+      );
 
       for (const translation of translations) {
         const claimedAlias = await tx.productSlugAlias.findUnique({
           where: { locale_slug: { locale: translation.locale, slug: translation.slug } },
         });
-        if (claimedAlias && claimedAlias.productId !== id) throw new Error("SLUG_ALIAS_CONFLICT");
+        if (claimedAlias && claimedAlias.productId !== id) {
+          throw new AdminProductMutationError("SLUG_CONFLICT", {
+            field: `translations.${translations.indexOf(translation)}.slug`,
+          });
+        }
         if (claimedAlias?.productId === id) {
           await tx.productSlugAlias.delete({ where: { id: claimedAlias.id } });
         }
@@ -167,7 +228,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           const existingAlias = await tx.productSlugAlias.findUnique({
             where: { locale_slug: { locale: translation.locale, slug: previous.slug } },
           });
-          if (existingAlias && existingAlias.productId !== id) throw new Error("SLUG_ALIAS_CONFLICT");
+          if (existingAlias && existingAlias.productId !== id) {
+            throw new AdminProductMutationError("SLUG_CONFLICT", {
+              field: `translations.${translations.indexOf(translation)}.slug`,
+            });
+          }
           if (!existingAlias) {
             await tx.productSlugAlias.create({
               data: { productId: id, locale: translation.locale, slug: previous.slug },
@@ -232,6 +297,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         });
       }
 
+      if (variantPlan.deleteIds.length) {
+        await tx.variantTranslation.deleteMany({
+          where: { variantId: { in: variantPlan.deleteIds } },
+        });
+        await tx.productVariant.deleteMany({
+          where: { productId: id, id: { in: variantPlan.deleteIds } },
+        });
+      }
+
       for (const variant of input.variants) {
         const label = variant.label ?? `${variant.weightGrams} ${input.unit === "VOLUME" ? "ml" : "g"}`;
         if (variant.id) {
@@ -290,24 +364,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (error) {
-    if (error instanceof Error) {
-      const statusByMessage: Record<string, number> = {
-        PRODUCT_NOT_FOUND: 404,
-        CATEGORY_NOT_FOUND: 400,
-        CATEGORY_PARENT_REQUIRED: 400,
-        RECOMMENDATION_NOT_FOUND: 400,
-        VARIANT_NOT_FOUND: 404,
-        STALE_PRODUCT: 409,
-        SLUG_ALIAS_CONFLICT: 409,
-      };
-      const status = statusByMessage[error.message];
-      if (status) return NextResponse.json({ error: error.message }, { status });
-    }
-    return errorResponse(error);
+    return errorResponse(error, requestId, id);
   }
 
   if (!revalidationContext) {
-    return NextResponse.json({ error: "REVALIDATION_CONTEXT_MISSING" }, { status: 500 });
+    console.error("Product revalidation context missing", { requestId, productId: id });
+    return jsonError("INTERNAL_ERROR", { requestId });
   }
   const revalidation = revalidateProductStorefront(revalidationContext);
 

@@ -3,6 +3,7 @@
 import { useRef, useState, type KeyboardEvent } from "react";
 import { Languages } from "lucide-react";
 import { RichTextEditor } from "@/components/admin-panel/RichTextEditor";
+import { slugifyProduct } from "@/lib/admin-product-schema";
 
 export type ProductLocale = "nl" | "en" | "fr";
 export type ProductTranslationDraft = {
@@ -36,6 +37,12 @@ export function nextProductLocale(
   return productLocales[(currentIndex + offset + productLocales.length) % productLocales.length];
 }
 
+export function translationWithSlugFromName(
+  translation: ProductTranslationDraft
+): ProductTranslationDraft {
+  return { ...translation, slug: slugifyProduct(translation.name) };
+}
+
 const inputClass = "mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2 text-body-sm text-text";
 const labelClass = "block text-body-sm font-semibold text-text";
 
@@ -56,11 +63,9 @@ function translationStatus(translation: ProductTranslationDraft): "empty" | "par
 export function ProductTranslationsEditor({
   translations,
   onChange,
-  onSlugFromName,
 }: {
   translations: Record<ProductLocale, ProductTranslationDraft>;
   onChange: (locale: ProductLocale, value: ProductTranslationDraft) => void;
-  onSlugFromName: (locale: ProductLocale) => void;
 }) {
   const [activeLocale, setActiveLocale] = useState<ProductLocale>("nl");
   const tabRefs = useRef<Record<ProductLocale, HTMLButtonElement | null>>({ nl: null, en: null, fr: null });
@@ -163,7 +168,8 @@ export function ProductTranslationsEditor({
               />
               <button
                 type="button"
-                onClick={() => onSlugFromName(activeLocale)}
+                onClick={() => onChange(activeLocale, translationWithSlugFromName(current))}
+                disabled={!current.name.trim()}
                 className="min-h-11 rounded-button border border-border px-4 font-semibold"
               >
                 Maak van naam
