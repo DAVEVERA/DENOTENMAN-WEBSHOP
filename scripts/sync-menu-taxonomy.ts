@@ -81,7 +81,7 @@ const definitions: CategoryDefinition[] = [
     translations: {
       nl: { name: "Zaden", slug: "zaden", description: "Lijnzaad, sesam, chia, hennep en maanzaad." },
       en: { name: "Seeds", slug: "seeds", description: "Flax, sesame, chia, hemp and poppy seeds." },
-      fr: { name: "Graines", slug: "graines", description: "Lin, sesame, chia, chanvre et pavot." },
+      fr: { name: "Graines", slug: "graines-entieres", description: "Lin, sesame, chia, chanvre et pavot." },
     },
   },
   {
@@ -192,13 +192,36 @@ function assignmentsForSku(sku: string): string[] {
 }
 
 async function buildPlan() {
-  const [categories, products] = await Promise.all([
+  const translationTargets = definitions.flatMap((definition) =>
+    (["nl", "en", "fr"] as const).map((locale) => ({
+      canonicalSlug: definition.slug,
+      locale,
+      slug: definition.translations[locale].slug,
+    }))
+  );
+  const [categories, products, translationConflicts] = await Promise.all([
     prisma.category.findMany({ select: { id: true, slug: true, parentId: true } }),
     prisma.product.findMany({ select: { id: true, sku: true, isActive: true } }),
+    prisma.categoryTranslation.findMany({
+      where: {
+        OR: translationTargets.map(({ locale, slug }) => ({ locale, slug })),
+      },
+      select: { locale: true, slug: true, category: { select: { slug: true } } },
+    }),
   ]);
   const knownSlugs = new Set([...categories.map((category) => category.slug), ...definitions.map((definition) => definition.slug)]);
   for (const definition of definitions) {
     if (!knownSlugs.has(definition.parentSlug)) throw new Error(`Bovenliggende categorie ontbreekt: ${definition.parentSlug}.`);
+  }
+  for (const conflict of translationConflicts) {
+    const target = translationTargets.find(
+      (item) => item.locale === conflict.locale && item.slug === conflict.slug
+    );
+    if (target && target.canonicalSlug !== conflict.category.slug) {
+      throw new Error(
+        `Vertaalde slugconflict: ${conflict.locale}/${conflict.slug} hoort al bij ${conflict.category.slug}.`
+      );
+    }
   }
   const assignments = products.map((product) => ({ ...product, leafSlugs: assignmentsForSku(product.sku) }));
   const uncovered = assignments.filter((assignment) => assignment.leafSlugs.length === 0);
