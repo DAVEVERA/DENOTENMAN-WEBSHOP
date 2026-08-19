@@ -77,7 +77,20 @@ enum EmailDeliveryKind {
 enum EmailDeliveryStatus {
   PENDING
   ACCEPTED
+  DELIVERED
+  BOUNCED
+  COMPLAINED
+  REJECTED
+  SUPPRESSED
   FAILED
+}
+
+enum EmailDeliveryEventType {
+  DELIVERED
+  BOUNCED
+  COMPLAINED
+  REJECTED
+  SUPPRESSED
 }
 
 enum EmailDeliveryAttemptStatus {
@@ -482,34 +495,40 @@ model AftersalesDelivery {
 }
 
 model EmailDeliveryLog {
-  id                String              @id @default(cuid())
-  idempotencyKey    String              @unique
-  kind              EmailDeliveryKind
-  status            EmailDeliveryStatus @default(PENDING)
-  recipientEmail    String
-  recipientName     String?
-  subject           String
-  htmlBody          String              @db.Text
-  textBody          String              @db.Text
-  provider          String?
-  providerMessageId String?
-  providerStatus    String?
-  orderId           String?
-  order             Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  trigger           AftersalesTrigger?
-  errorCode         String?
-  errorMessage      String?
-  acceptedAt        DateTime?
-  lastAttemptAt     DateTime?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  id                  String              @id @default(cuid())
+  idempotencyKey      String              @unique
+  kind                EmailDeliveryKind
+  status              EmailDeliveryStatus @default(PENDING)
+  recipientEmail      String
+  recipientName       String?
+  subject             String
+  htmlBody            String              @db.Text
+  textBody            String              @db.Text
+  provider            String?
+  providerMessageId   String?
+  providerStatus      String?
+  orderId             String?
+  order               Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  trigger             AftersalesTrigger?
+  errorCode           String?
+  errorMessage        String?
+  acceptedAt          DateTime?
+  deliveredAt         DateTime?
+  bouncedAt           DateTime?
+  complainedAt        DateTime?
+  lastProviderEventAt DateTime?
+  lastAttemptAt       DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
   attempts EmailDeliveryAttempt[]
+  events   EmailDeliveryEvent[]
 
   @@index([status, createdAt])
   @@index([kind, createdAt])
   @@index([orderId, createdAt])
   @@index([recipientEmail, createdAt])
+  @@index([providerMessageId])
 }
 
 model EmailDeliveryAttempt {
@@ -528,6 +547,24 @@ model EmailDeliveryAttempt {
 
   @@unique([deliveryId, attemptNumber])
   @@index([status, startedAt])
+}
+
+model EmailDeliveryEvent {
+  id                String                 @id @default(cuid())
+  providerEventId   String                 @unique
+  deliveryId        String
+  delivery          EmailDeliveryLog       @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  provider          String
+  providerMessageId String
+  type              EmailDeliveryEventType
+  providerEvent     String
+  reasonCode        String?
+  occurredAt        DateTime
+  createdAt         DateTime               @default(now())
+
+  @@index([deliveryId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([providerMessageId])
 }
 
 model OrderItem {

@@ -17,14 +17,32 @@ const KIND_LABELS: Record<EmailDeliveryKind, string> = {
 const STATUS_LABELS: Record<EmailDeliveryStatus, string> = {
   PENDING: "Wordt verwerkt",
   ACCEPTED: "Geaccepteerd door provider",
+  DELIVERED: "Afgeleverd",
+  BOUNCED: "Bounced",
+  COMPLAINED: "Spamklacht",
+  REJECTED: "Geweigerd",
+  SUPPRESSED: "Onderdrukt",
   FAILED: "Mislukt",
 };
 
 const STATUS_CLASSES: Record<EmailDeliveryStatus, string> = {
   PENDING: "border-amber-300 bg-amber-50 text-amber-900",
-  ACCEPTED: "border-emerald-300 bg-emerald-50 text-emerald-800",
+  ACCEPTED: "border-blue-300 bg-blue-50 text-blue-800",
+  DELIVERED: "border-emerald-300 bg-emerald-50 text-emerald-800",
+  BOUNCED: "border-orange-300 bg-orange-50 text-orange-900",
+  COMPLAINED: "border-purple-300 bg-purple-50 text-purple-900",
+  REJECTED: "border-red-300 bg-red-50 text-red-800",
+  SUPPRESSED: "border-slate-300 bg-slate-50 text-slate-800",
   FAILED: "border-red-300 bg-red-50 text-red-800",
 };
+
+const EVENT_LABELS = {
+  DELIVERED: "Afgeleverd",
+  BOUNCED: "Bounce ontvangen",
+  COMPLAINED: "Als spam gemarkeerd",
+  REJECTED: "Door provider geweigerd",
+  SUPPRESSED: "Adres onderdrukt",
+} as const;
 
 function validEnumValue<T extends string>(value: string | undefined, values: readonly T[]): T | undefined {
   return value && values.includes(value as T) ? value as T : undefined;
@@ -60,6 +78,7 @@ export default async function TransactionalEmailLogPage({
       where,
       include: {
         attempts: { orderBy: { attemptNumber: "desc" } },
+        events: { orderBy: { occurredAt: "desc" } },
       },
       orderBy: { createdAt: "desc" },
       take: 200,
@@ -95,7 +114,7 @@ export default async function TransactionalEmailLogPage({
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-4">
         {Object.values(EmailDeliveryStatus).map((value) => (
           <div key={value} className={`rounded-panel border p-4 ${STATUS_CLASSES[value]}`}>
             <p className="text-xs font-bold uppercase tracking-heading">{STATUS_LABELS[value]}</p>
@@ -153,7 +172,7 @@ export default async function TransactionalEmailLogPage({
                     <p className="mt-1 break-all text-body-sm text-muted">Aan: {entry.recipientName ? `${entry.recipientName} · ` : ""}{entry.recipientEmail}</p>
                   </div>
                   <div className="shrink-0 text-body-sm text-muted lg:text-right">
-                    <p>{formatDate(entry.acceptedAt ?? entry.lastAttemptAt ?? entry.createdAt)}</p>
+                    <p>{formatDate(entry.lastProviderEventAt ?? entry.acceptedAt ?? entry.lastAttemptAt ?? entry.createdAt)}</p>
                     <p className="mt-1 font-mono text-xs">{entry.provider ?? "Geen provider"}</p>
                   </div>
                 </div>
@@ -189,6 +208,31 @@ export default async function TransactionalEmailLogPage({
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="mt-4">
+                  <h2 className="font-heading text-body-sm font-semibold">
+                    Provider-events ({entry.events.length})
+                  </h2>
+                  {entry.events.length === 0 ? (
+                    <p className="mt-2 rounded-button border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+                      Nog geen afleverevent ontvangen. Geaccepteerd is niet hetzelfde als afgeleverd.
+                    </p>
+                  ) : (
+                    <ol className="mt-2 space-y-2">
+                      {entry.events.map((event) => (
+                        <li key={event.id} className="rounded-button border border-border bg-background p-3 text-xs text-muted">
+                          <p className="font-semibold text-text">
+                            {EVENT_LABELS[event.type]} · {formatDate(event.occurredAt)}
+                          </p>
+                          <p className="mt-1">
+                            {event.providerEvent}
+                            {event.reasonCode ? ` · ${event.reasonCode}` : ""}
+                          </p>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
                 </div>
 
                 {entry.status === "FAILED" ? <RetryEmailButton logId={entry.id} /> : null}
