@@ -4,6 +4,7 @@ import {
   latestMeaningfulDate,
   localizedSitemapEntries,
 } from "../lib/sitemap";
+import { resolveSitemap } from "next/dist/build/webpack/loaders/metadata/resolve-route-data";
 
 test("localized sitemap entries add x-default and product images without ignored hints", { concurrency: false }, () => {
   const updatedAt = new Date("2026-08-18T12:00:00.000Z");
@@ -59,4 +60,38 @@ test("latestMeaningfulDate ignores missing values and returns the newest date", 
     "2026-08-18T10:00:00.000Z"
   );
   assert.equal(latestMeaningfulDate([undefined, undefined]), undefined);
+});
+
+test("product image URLs keep generated sitemap XML valid", { concurrency: false }, () => {
+  const entries = localizedSitemapEntries({
+    baseUrl: "https://shop.example",
+    byLocale: [
+      {
+        locale: "nl",
+        entries: [{
+          id: "product-1",
+          slug: "chiazaad",
+          updatedAt: new Date("2026-08-19T12:00:00.000Z"),
+          images: [
+            "https://storage.googleapis.com/notenbucket/Pitten & Zaden/Chiazaad/front.webp",
+            "https://cdn.example/image.webp?width=800&format=webp",
+            "geen-geldige-url",
+          ],
+        }],
+      },
+      { locale: "en", entries: [] },
+      { locale: "fr", entries: [] },
+    ],
+    pathFor: (locale, slug) => `/${locale}/products/${slug}`,
+  });
+
+  assert.deepEqual(entries[0]?.images, [
+    "https://storage.googleapis.com/notenbucket/Pitten%20%26%20Zaden/Chiazaad/front.webp",
+    "https://cdn.example/image.webp?width=800&amp;format=webp",
+  ]);
+
+  const xml = resolveSitemap(entries);
+  assert.doesNotMatch(xml, /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9A-Fa-f]+;)/);
+  assert.match(xml, /Pitten%20%26%20Zaden/);
+  assert.match(xml, /width=800&amp;format=webp/);
 });

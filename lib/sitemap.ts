@@ -18,6 +18,30 @@ function absoluteUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, "")}${path}`;
 }
 
+function normalizedSitemapImageUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    url.pathname = url.pathname
+      .split("/")
+      .map((segment) => {
+        try {
+          return encodeURIComponent(decodeURIComponent(segment));
+        } catch {
+          return encodeURIComponent(segment);
+        }
+      })
+      .join("/");
+
+    // Next 16.3 writes MetadataRoute image URLs directly into XML without
+    // escaping query separators. Path ampersands are percent-encoded above;
+    // query separators must remain functional after XML entity decoding.
+    return url.href.replaceAll("&", "&amp;");
+  } catch {
+    return null;
+  }
+}
+
 export function localizedSitemapEntries({
   baseUrl,
   byLocale,
@@ -41,11 +65,14 @@ export function localizedSitemapEntries({
       );
       const fallback = localizedPaths[defaultLocale];
       if (fallback) languages["x-default"] = fallback;
+      const images = entry.images
+        ?.map(normalizedSitemapImageUrl)
+        .filter((image): image is string => image !== null);
 
       return {
         url: absoluteUrl(baseUrl, pathFor(locale, entry.slug)),
         lastModified: entry.updatedAt,
-        ...(entry.images?.length ? { images: entry.images } : {}),
+        ...(images?.length ? { images } : {}),
         alternates: { languages },
       };
     })
