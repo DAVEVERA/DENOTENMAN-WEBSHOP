@@ -17,6 +17,7 @@ import {
 } from "@/lib/routes";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { PromotionalCategoryLink } from "@/components/layout/PromotionalCategoryLink";
+import { cn } from "@/lib/cn";
 
 const focusableSelector =
   'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -41,6 +42,51 @@ export function resolveCategoryPath(
   }
 
   return current;
+}
+
+export function MobileCategoryRow({
+  category,
+  locale,
+  submenuLabel,
+  emphasized = false,
+  onFollow,
+  onOpen,
+}: {
+  category: NavigationCategoryDto;
+  locale: Locale;
+  submenuLabel: string;
+  emphasized?: boolean;
+  onFollow: () => void;
+  onOpen: () => void;
+}) {
+  const hasChildren = category.children.length > 0;
+
+  return (
+    <li>
+      <div className="flex min-h-12 items-stretch">
+        <Link
+          href={categoryPath(locale, category.slug)}
+          onClick={onFollow}
+          className={cn(
+            "flex min-h-12 min-w-0 flex-1 touch-manipulation items-center rounded-button px-3 py-3 hover:bg-background",
+            emphasized ? "font-heading font-bold" : "font-heading font-semibold"
+          )}
+        >
+          {category.name}
+        </Link>
+        {hasChildren ? (
+          <button
+            type="button"
+            aria-label={submenuLabel.replace("{category}", category.name)}
+            onClick={onOpen}
+            className="flex min-h-12 min-w-12 shrink-0 touch-manipulation items-center justify-center rounded-button hover:bg-background"
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
+    </li>
+  );
 }
 
 export function MobileNav({
@@ -194,34 +240,24 @@ export function MobileNav({
                   >
                     {activeCategory.name}
                   </h2>
-                  <a
+                  <Link
                     href={categoryPath(locale, activeCategory.slug)}
+                    onClick={followLink}
                     className="mt-2 flex min-h-12 touch-manipulation items-center justify-between rounded-button bg-background px-3 py-3 font-heading font-bold text-accent-hover"
                   >
                     {dictionary.nav.viewAllCategory.replace("{category}", activeCategory.name)}
                     <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                  </a>
+                  </Link>
                   <ul className="mt-2 flex flex-col">
                     {visibleCategories.map((category) => (
-                      <li key={category.id}>
-                        {category.children.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => setLevel([...categoryIds, category.id])}
-                            className="flex min-h-12 w-full touch-manipulation items-center justify-between rounded-button px-3 py-3 text-left font-heading font-bold hover:bg-background"
-                          >
-                            {category.name}
-                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                          </button>
-                        ) : (
-                          <a
-                            href={categoryPath(locale, category.slug)}
-                            className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-semibold hover:bg-background"
-                          >
-                            {category.name}
-                          </a>
-                        )}
-                      </li>
+                      <MobileCategoryRow
+                        key={category.id}
+                        category={category}
+                        locale={locale}
+                        submenuLabel={dictionary.nav.categoryMenu}
+                        onFollow={followLink}
+                        onOpen={() => setLevel([...categoryIds, category.id])}
+                      />
                     ))}
                   </ul>
                 </div>
@@ -247,34 +283,25 @@ export function MobileNav({
                       >
                         {dictionary.nav.categories}
                       </h2>
-                      <a
+                      <Link
                         href={categoriesPath(locale)}
+                        onClick={followLink}
                         className="inline-flex min-h-11 touch-manipulation items-center rounded-button px-2 py-2 text-body-sm font-semibold text-muted hover:bg-background hover:text-text"
                       >
                         {dictionary.nav.viewAll}
-                      </a>
+                      </Link>
                     </div>
                     <ul className="mt-1 flex flex-col">
                       {visibleCategories.map((category) => (
-                        <li key={category.id}>
-                          {category.children.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={() => setLevel([category.id])}
-                              className="flex min-h-12 w-full touch-manipulation items-center justify-between rounded-button px-3 py-3 text-left font-heading font-bold hover:bg-background"
-                            >
-                              {category.name}
-                              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                            </button>
-                          ) : (
-                            <a
-                              href={categoryPath(locale, category.slug)}
-                              className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
-                            >
-                              {category.name}
-                            </a>
-                          )}
-                        </li>
+                        <MobileCategoryRow
+                          key={category.id}
+                          category={category}
+                          locale={locale}
+                          submenuLabel={dictionary.nav.categoryMenu}
+                          emphasized
+                          onFollow={followLink}
+                          onOpen={() => setLevel([category.id])}
+                        />
                       ))}
                     </ul>
                     {promotional ? (

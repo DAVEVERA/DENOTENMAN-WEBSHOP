@@ -248,37 +248,53 @@ export function MegaMenu({
         return (
           <div key={category.id} className="flex min-w-0 items-center">
             {hasChildren ? (
-              <button
-                ref={(node) => {
-                  if (node) itemRefs.current.set(category.id, node);
-                  else itemRefs.current.delete(category.id);
-                }}
-                id={`category-trigger-${category.id}`}
-                type="button"
-                aria-expanded={expanded}
-                aria-controls={`category-panel-${category.id}`}
-                onClick={() => {
-                  if (expanded && pinnedId === category.id) {
-                    close();
-                    return;
-                  }
-                  setPinnedId(category.id);
-                  open(category.id);
-                }}
-                onMouseEnter={() => open(category.id)}
-                onKeyDown={(event) => handleTopLevelKeyDown(event, category, index)}
-                className={itemClassName}
-              >
-                <span>{category.name}</span>
-                <ChevronDown
+              <>
+                <Link
+                  ref={(node) => {
+                    if (node) itemRefs.current.set(category.id, node);
+                    else itemRefs.current.delete(category.id);
+                  }}
+                  id={`category-link-${category.id}`}
+                  href={categoryPath(locale, category.slug)}
+                  onClick={close}
+                  onMouseEnter={() => open(category.id)}
+                  onKeyDown={(event) => handleTopLevelKeyDown(event, category, index)}
+                  className={cn(itemClassName, "pr-0")}
+                >
+                  {category.name}
+                </Link>
+                <button
+                  id={`category-trigger-${category.id}`}
+                  type="button"
+                  aria-label={formatLabel(labels.submenu, category.name)}
+                  aria-expanded={expanded}
+                  aria-controls={`category-panel-${category.id}`}
+                  onClick={() => {
+                    if (expanded && pinnedId === category.id) {
+                      close();
+                      return;
+                    }
+                    setPinnedId(category.id);
+                    open(category.id);
+                  }}
+                  onMouseEnter={() => open(category.id)}
+                  onKeyDown={(event) => handleTopLevelKeyDown(event, category, index)}
                   className={cn(
-                    "h-3.5 w-3.5 shrink-0 transition-transform duration-hover-fast",
-                    expanded && "rotate-180"
+                    "inline-flex min-h-11 min-w-11 items-center justify-center border-b-2 transition-colors duration-hover-fast",
+                    expanded || active
+                      ? "border-accent text-accent-hover"
+                      : "border-transparent text-text hover:border-border-hover hover:text-accent-hover"
                   )}
-                  aria-hidden="true"
-                />
-                <span className="sr-only">{formatLabel(labels.submenu, category.name)}</span>
-              </button>
+                >
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 shrink-0 transition-transform duration-hover-fast",
+                      expanded && "rotate-180"
+                    )}
+                    aria-hidden="true"
+                  />
+                </button>
+              </>
             ) : (
               <Link
                 ref={(node) => {
@@ -298,7 +314,7 @@ export function MegaMenu({
               <div
                 id={`category-panel-${category.id}`}
                 role="region"
-                aria-labelledby={`category-trigger-${category.id}`}
+                aria-labelledby={`category-link-${category.id}`}
                 aria-hidden={!expanded}
                 hidden={!expanded}
                 className={cn("absolute left-0 right-0 top-full z-40 pt-3", !expanded && "hidden")}
