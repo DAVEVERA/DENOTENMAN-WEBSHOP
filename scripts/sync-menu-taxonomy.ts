@@ -1,6 +1,9 @@
 import { PrismaClient, type Locale, type Prisma } from "@prisma/client";
 import { collectCategoryAndAncestorIds } from "../lib/category-hierarchy";
-import { getNutFamilyForProductSku } from "../lib/catalog-taxonomy";
+import {
+  getChocolatePlacementForProductSku,
+  getNutFamilyForProductSku,
+} from "../lib/catalog-taxonomy";
 
 const prisma = new PrismaClient();
 const applyChanges = process.argv.includes("--apply");
@@ -8,7 +11,7 @@ const applyChanges = process.argv.includes("--apply");
 type Translation = { name: string; slug: string; description: string };
 type CategoryDefinition = {
   slug: string;
-  parentSlug: string;
+  parentSlug: string | null;
   sortOrder: number;
   translations: Record<Locale, Translation>;
 };
@@ -95,6 +98,62 @@ const definitions: CategoryDefinition[] = [
     },
   },
   {
+    slug: "chocolade-amandelen", parentSlug: "chocolade", sortOrder: 1,
+    translations: {
+      nl: { name: "Chocolade amandelen", slug: "chocolade-amandelen", description: "Amandelen met pure, melk-, witte of gearomatiseerde chocolade." },
+      en: { name: "Chocolate almonds", slug: "chocolate-almonds", description: "Almonds coated in dark, milk, white or flavoured chocolate." },
+      fr: { name: "Amandes au chocolat", slug: "amandes-chocolat", description: "Amandes enrobees de chocolat noir, au lait, blanc ou aromatise." },
+    },
+  },
+  {
+    slug: "chocolade-rotsjes", parentSlug: "chocolade", sortOrder: 2,
+    translations: {
+      nl: { name: "Chocolade rotsjes", slug: "chocolade-rotsjes", description: "Ambachtelijke chocolade rotsjes met cranberry of pinda." },
+      en: { name: "Chocolate clusters", slug: "chocolate-clusters", description: "Handmade chocolate clusters with cranberry or peanuts." },
+      fr: { name: "Rochers au chocolat", slug: "rochers-chocolat", description: "Rochers artisanaux au chocolat avec cranberries ou cacahuetes." },
+    },
+  },
+  {
+    slug: "chocolade-hazelnoten", parentSlug: "chocolade", sortOrder: 3,
+    translations: {
+      nl: { name: "Chocolade hazelnoten", slug: "chocolade-hazelnoten", description: "Hazelnoten omhuld met chocolade." },
+      en: { name: "Chocolate hazelnuts", slug: "chocolate-hazelnuts", description: "Hazelnuts coated in chocolate." },
+      fr: { name: "Noisettes au chocolat", slug: "noisettes-chocolat", description: "Noisettes enrobees de chocolat." },
+    },
+  },
+  {
+    slug: "chocolade-pecannoten", parentSlug: "chocolade", sortOrder: 4,
+    translations: {
+      nl: { name: "Chocolade pecannoten", slug: "chocolade-pecannoten", description: "Pecannoten gecombineerd met chocolade en truffelsmaak." },
+      en: { name: "Chocolate pecans", slug: "chocolate-pecans", description: "Pecans combined with chocolate and truffle flavour." },
+      fr: { name: "Noix de pecan au chocolat", slug: "noix-pecan-chocolat", description: "Noix de pecan au chocolat et saveur truffe." },
+    },
+  },
+  {
+    slug: "chocolade-pindas", parentSlug: "chocolade", sortOrder: 5,
+    translations: {
+      nl: { name: "Chocolade pinda's", slug: "chocolade-pindas", description: "Pinda's omhuld met melk- of pure chocolade." },
+      en: { name: "Chocolate peanuts", slug: "chocolate-peanuts", description: "Peanuts coated in milk or dark chocolate." },
+      fr: { name: "Cacahuetes au chocolat", slug: "cacahuetes-chocolat", description: "Cacahuetes enrobees de chocolat au lait ou noir." },
+    },
+  },
+  {
+    slug: "chocolade-rozijnen", parentSlug: "chocolade", sortOrder: 6,
+    translations: {
+      nl: { name: "Chocolade rozijnen", slug: "chocolade-rozijnen", description: "Rozijnen met melk-, pure, witte of yoghurtcoating." },
+      en: { name: "Chocolate raisins", slug: "chocolate-raisins", description: "Raisins coated in milk, dark, white or yoghurt chocolate." },
+      fr: { name: "Raisins au chocolat", slug: "raisins-chocolat", description: "Raisins enrobes de chocolat au lait, noir, blanc ou au yaourt." },
+    },
+  },
+  {
+    slug: "studenten-flikken", parentSlug: "chocolade", sortOrder: 7,
+    translations: {
+      nl: { name: "Studenten Flikken", slug: "studenten-flikken", description: "Chocoladeflikken met een rijk gevulde noten- en fruitmix." },
+      en: { name: "Student chocolate discs", slug: "student-chocolate-discs", description: "Chocolate discs topped with a rich nut and fruit mix." },
+      fr: { name: "Palets etudiants", slug: "palets-etudiants", description: "Palets au chocolat garnis d'un riche melange de noix et de fruits." },
+    },
+  },
+  {
     slug: "zoet", parentSlug: "chocolade-zoet", sortOrder: 2,
     translations: {
       nl: { name: "Zoet", slug: "zoet", description: "Gedroogd fruit, gekonfijt fruit en andere zoetigheden." },
@@ -135,7 +194,7 @@ const definitions: CategoryDefinition[] = [
     },
   },
   {
-    slug: "pitten", parentSlug: "pitten-zaden", sortOrder: 1,
+    slug: "pitten", parentSlug: null, sortOrder: 3,
     translations: {
       nl: { name: "Pitten", slug: "pitten", description: "Pompoen-, zonnebloem- en pijnboompitten." },
       en: { name: "Kernels", slug: "kernels", description: "Pumpkin, sunflower and pine kernels." },
@@ -143,7 +202,7 @@ const definitions: CategoryDefinition[] = [
     },
   },
   {
-    slug: "zaden", parentSlug: "pitten-zaden", sortOrder: 2,
+    slug: "zaden", parentSlug: null, sortOrder: 4,
     translations: {
       nl: { name: "Zaden", slug: "zaden", description: "Lijnzaad, sesam, chia, hennep en maanzaad." },
       en: { name: "Seeds", slug: "seeds", description: "Flax, sesame, chia, hemp and poppy seeds." },
@@ -151,7 +210,7 @@ const definitions: CategoryDefinition[] = [
     },
   },
   {
-    slug: "zadenmixen-granen", parentSlug: "pitten-zaden", sortOrder: 3,
+    slug: "zadenmixen-granen", parentSlug: "zaden", sortOrder: 1,
     translations: {
       nl: { name: "Mixen & quinoa", slug: "mixen-quinoa", description: "Zadenmixen, salademix en quinoa." },
       en: { name: "Mixes & quinoa", slug: "mixes-quinoa", description: "Seed mixes, salad mix and quinoa." },
@@ -216,7 +275,7 @@ const existingParents = [
 ] as const;
 
 const rootOrder = [
-  "noten", "chocolade-zoet", "muesli-granen", "pitten-zaden",
+  "noten", "chocolade-zoet", "muesli-granen", "pitten", "zaden",
   "snacks-zoutjes", "bakproducten", "honing-natuurvoeding",
 ] as const;
 
@@ -235,7 +294,12 @@ function assignmentsForSku(sku: string): string[] {
   const nutFamily = getNutFamilyForProductSku(sku);
   if (nutFamily) return [nutFamily];
   if (sku.startsWith("PAS-")) return ["notenpasta-s"];
-  if (sku.startsWith("CHO-")) return [sweetChocolateSkus.has(sku) ? "snoep-nougat" : "chocolade"];
+  if (sku.startsWith("CHO-")) {
+    if (sweetChocolateSkus.has(sku)) return ["snoep-nougat"];
+    const placement = getChocolatePlacementForProductSku(sku);
+    if (!placement) throw new Error(`Geen chocoladefamilie vastgelegd voor SKU ${sku}.`);
+    return [placement];
+  }
   if (sku.startsWith("FRU-")) return ["gedroogd-fruit", ...(sku === "FRU-4033-VAR-P" || sku === "FRU-4034-VAR-P" ? ["bakfruit", "gekonfijt-fruit"] : [])];
   if (sku.startsWith("MUE-")) return [muesliSkus.has(sku) ? "muesli-granola" : "havermout-granen"];
   if (sku.startsWith("NAT-")) return ["honing"];
@@ -276,7 +340,9 @@ async function buildPlan() {
   ]);
   const knownSlugs = new Set([...categories.map((category) => category.slug), ...definitions.map((definition) => definition.slug)]);
   for (const definition of definitions) {
-    if (!knownSlugs.has(definition.parentSlug)) throw new Error(`Bovenliggende categorie ontbreekt: ${definition.parentSlug}.`);
+    if (definition.parentSlug && !knownSlugs.has(definition.parentSlug)) {
+      throw new Error(`Bovenliggende categorie ontbreekt: ${definition.parentSlug}.`);
+    }
   }
   for (const conflict of translationConflicts) {
     const target = translationTargets.find(
@@ -298,8 +364,12 @@ async function applyPlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
   await prisma.$transaction(async (tx) => {
     const categoryIds = new Map(plan.categories.map((category) => [category.slug, category.id]));
     for (const definition of definitions) {
-      const parentId = categoryIds.get(definition.parentSlug);
-      if (!parentId) throw new Error(`Bovenliggende categorie ontbreekt: ${definition.parentSlug}.`);
+      const parentId = definition.parentSlug
+        ? categoryIds.get(definition.parentSlug) ?? null
+        : null;
+      if (definition.parentSlug && !parentId) {
+        throw new Error(`Bovenliggende categorie ontbreekt: ${definition.parentSlug}.`);
+      }
       const category = await tx.category.upsert({
         where: { slug: definition.slug },
         create: { slug: definition.slug, parentId, sortOrder: definition.sortOrder, isActive: true },
@@ -326,6 +396,14 @@ async function applyPlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
       const id = categoryIds.get(slug);
       if (!id) throw new Error(`Hoofdcategorie ontbreekt: ${slug}.`);
       await tx.category.update({ where: { id }, data: { parentId: null, sortOrder, isActive: true } });
+    }
+    const combinedSeedsId = categoryIds.get("pitten-zaden");
+    if (combinedSeedsId) {
+      await tx.productCategory.deleteMany({ where: { categoryId: combinedSeedsId } });
+      await tx.category.update({
+        where: { id: combinedSeedsId },
+        data: { parentId: null, sortOrder: 99, isActive: false },
+      });
     }
     const bakingId = categoryIds.get("bakproducten");
     if (bakingId) {

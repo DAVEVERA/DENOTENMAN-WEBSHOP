@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  chocolateFamilySlugs,
+  getChocolatePlacementForProductSku,
   getNutFamilyForProductSku,
   nutFamilySlugs,
 } from "../lib/catalog-taxonomy";
@@ -59,5 +61,47 @@ test("fails closed when a new single-nut SKU has no family mapping", () => {
     "pinda-s",
     "pistachenoten",
     "notenmixen",
+  ]);
+});
+
+test("places every active chocolate product in the requested menu family", () => {
+  const expected = {
+    "CHO-5004-250-P": "chocolade-amandelen",
+    "CHO-5005-250-P": "chocolade-amandelen",
+    "CHO-5006-250-P": "chocolade-amandelen",
+    "CHO-5007-250-P": "chocolade-amandelen",
+    "CHO-5008-250-P": "chocolade-amandelen",
+    "CHO-5010-250-P": "chocolade-rotsjes",
+    "CHO-5011-250-P": "chocolade-rotsjes",
+    "CHO-5012-250-P": "chocolade-rotsjes",
+    "CHO-5013-250-P": "chocolade-rotsjes",
+    "CHO-5014-250-P": "chocolade-rotsjes",
+    "CHO-5015-250-P": "chocolade-rotsjes",
+    "CHO-5016-250-P": "chocolade-rotsjes",
+    "CHO-5019-180-P": "chocolade-hazelnoten",
+    "CHO-5020-200-P": "chocolade-pecannoten",
+    "CHO-5021-250-P": "chocolade-pindas",
+    "CHO-5022-250-P": "chocolade-pindas",
+    "CHO-5023-250-P": "chocolade-rozijnen",
+    "CHO-5024-250-P": "chocolade-rozijnen",
+    "CHO-5025-250-P": "chocolade-rozijnen",
+    "CHO-5026-250-P": "chocolade-rozijnen",
+    "CHO-5027-250-P": "studenten-flikken",
+    "CHO-5028-250-P": "studenten-flikken",
+    "CHO-5029-250-P": "studenten-flikken",
+  } as const;
+
+  for (const [sku, family] of Object.entries(expected)) {
+    assert.equal(getChocolatePlacementForProductSku(sku), family, sku);
+  }
+  assert.equal(getChocolatePlacementForProductSku("CHO-9999-250-P"), undefined);
+  assert.deepEqual(chocolateFamilySlugs, [
+    "chocolade-amandelen",
+    "chocolade-rotsjes",
+    "chocolade-hazelnoten",
+    "chocolade-pecannoten",
+    "chocolade-pindas",
+    "chocolade-rozijnen",
+    "studenten-flikken",
   ]);
 });
