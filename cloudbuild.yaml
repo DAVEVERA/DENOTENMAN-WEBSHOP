@@ -69,3 +69,6 @@ availableSecrets:
   secretManager:
     - versionName: projects/project-5dc79156-4200-4528-bfc/secrets/denotenman-database-url/versions/latest
       env: "DATABASE_URL"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
