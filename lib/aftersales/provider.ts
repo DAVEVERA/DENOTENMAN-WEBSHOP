@@ -240,24 +240,72 @@ export async function checkTransactionalProviderReadiness(): Promise<Transaction
   const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
     if (configured.provider === "mailchimp") {
-      const response = await fetch("https://mandrillapp.com/api/1.0/users/ping.json", {
+      const key = process.env.MAILCHIMP_TRANSACTIONAL_API_KEY?.trim();
+      const userResponse = await fetch("https://mandrillapp.com/api/1.0/users/info.json", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
-        body: JSON.stringify({ key: process.env.MAILCHIMP_TRANSACTIONAL_API_KEY?.trim() }),
+        body: JSON.stringify({ key }),
       });
-      if (!response.ok) {
-        const body = await response.json().catch(() => null) as { message?: unknown } | null;
+      if (!userResponse.ok) {
+        const body = await userResponse.json().catch(() => null) as { message?: unknown } | null;
         return {
           ready: false,
           provider: "mailchimp",
-          message: `Mailchimp Transactional-key geweigerd: ${String(body?.message ?? `HTTP ${response.status}`)}`,
+          message: `Mailchimp Transactional-key geweigerd: ${String(body?.message ?? `HTTP ${userResponse.status}`)}`,
+        };
+      }
+
+      const user = await userResponse.json().catch(() => null) as { hourly_quota?: unknown } | null;
+      const hourlyQuota = Number(user?.hourly_quota);
+      if (!Number.isFinite(hourlyQuota) || hourlyQuota <= 25) {
+        return {
+          ready: false,
+          provider: "mailchimp",
+          message:
+            "Mailchimp Transactional-key is geldig, maar het account staat nog in demo-modus (maximaal 25 mails per uur en alleen ontvangers op het eigen domein).",
+        };
+      }
+
+      const domainsResponse = await fetch("https://mandrillapp.com/api/1.0/senders/domains.json", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({ key }),
+      });
+      if (!domainsResponse.ok) {
+        return {
+          ready: false,
+          provider: "mailchimp",
+          message: `Mailchimp kon de verzenddomeinen niet controleren (HTTP ${domainsResponse.status}).`,
+        };
+      }
+      const domains = await domainsResponse.json().catch(() => null) as Array<{
+        domain?: unknown;
+        verified_at?: unknown;
+        spf?: { valid?: unknown };
+        dkim?: { valid?: unknown };
+      }> | null;
+      const domain = senderDomain();
+      const match = Array.isArray(domains)
+        ? domains.find((item) => String(item.domain).toLowerCase() === domain)
+        : undefined;
+      if (!match?.verified_at || match.spf?.valid !== true || match.dkim?.valid !== true) {
+        const missing = [
+          !match?.verified_at ? "domeinverificatie" : null,
+          match?.spf?.valid !== true ? "SPF" : null,
+          match?.dkim?.valid !== true ? "DKIM" : null,
+        ].filter(Boolean).join(", ");
+        return {
+          ready: false,
+          provider: "mailchimp",
+          message: `Mailchimp-key is geldig, maar verzenddomein ${domain || "onbekend"} is niet verzendklaar: ${missing}.`,
         };
       }
       return {
         ready: true,
         provider: "mailchimp",
-        message: "Mailchimp Transactional heeft de API-key geaccepteerd.",
+        message: `Mailchimp Transactional-key en verzenddomein ${domain} zijn productiegeschikt.`,
       };
     }
 

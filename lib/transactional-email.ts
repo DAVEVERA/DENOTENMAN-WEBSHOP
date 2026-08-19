@@ -9,6 +9,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import {
   aftersalesProviderStatus,
+  checkTransactionalProviderReadiness,
   sendAftersalesMail,
   TransactionalProviderError,
 } from "@/lib/aftersales/provider";
@@ -123,6 +124,17 @@ async function attemptExistingDelivery(
 
   try {
     await assertCorrectOrderRecipient(input);
+    const readiness = await checkTransactionalProviderReadiness();
+    if (!readiness.ready) {
+      const code = readiness.provider === "none"
+        ? "TRANSACTIONAL_PROVIDER_NOT_CONFIGURED"
+        : "PROVIDER_NOT_READY";
+      throw new TransactionalProviderError(
+        readiness.message,
+        code,
+        false
+      );
+    }
     const result = await sendAftersalesMail({
       deliveryId: logId,
       orderId: input.orderId ?? "",

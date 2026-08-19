@@ -51,9 +51,20 @@ test("logs every failed attempt, prevents duplicates and records an explicit ret
     assert.equal(await prisma.emailDeliveryAttempt.count({ where: { deliveryId: first.logId } }), 1);
 
     process.env.MAILCHIMP_TRANSACTIONAL_API_KEY = "transactional-test-key";
-    global.fetch = async () => Response.json([
-      { email: "log.test@example.com", status: "sent", _id: "provider-retry-123" },
-    ]);
+    global.fetch = async (input) => {
+      if (String(input).includes("users/info")) return Response.json({ hourly_quota: 500 });
+      if (String(input).includes("senders/domains")) {
+        return Response.json([{
+          domain: "denotenman.com",
+          verified_at: "2026-08-19 12:00:00",
+          spf: { valid: true },
+          dkim: { valid: true },
+        }]);
+      }
+      return Response.json([
+        { email: "log.test@example.com", status: "sent", _id: "provider-retry-123" },
+      ]);
+    };
     const retried = await retryTransactionalEmail(first.logId);
     assert.equal(retried.status, "accepted");
 

@@ -101,3 +101,53 @@ test("marks Resend as not ready when the sender domain is not verified", async (
   assert.equal(readiness.provider, "resend");
   assert.match(readiness.message, /denotenman\.com/);
 });
+
+test("does not mark a Mailchimp demo account as production ready", async () => {
+  process.env.MAILCHIMP_TRANSACTIONAL_API_KEY = "transactional-key";
+  delete process.env.RESEND_API_KEY;
+  global.fetch = async (input) => {
+    assert.match(String(input), /users\/info/);
+    return Response.json({ hourly_quota: 25 });
+  };
+
+  const readiness = await checkTransactionalProviderReadiness();
+  assert.equal(readiness.ready, false);
+  assert.equal(readiness.provider, "mailchimp");
+  assert.match(readiness.message, /demo-modus/);
+});
+
+test("requires verified SPF and DKIM for Mailchimp production sending", async () => {
+  process.env.MAILCHIMP_TRANSACTIONAL_API_KEY = "transactional-key";
+  delete process.env.RESEND_API_KEY;
+  global.fetch = async (input) => {
+    if (String(input).includes("users/info")) return Response.json({ hourly_quota: 500 });
+    return Response.json([{
+      domain: "denotenman.com",
+      verified_at: "2026-08-19 12:00:00",
+      spf: { valid: true },
+      dkim: { valid: false },
+    }]);
+  };
+
+  const readiness = await checkTransactionalProviderReadiness();
+  assert.equal(readiness.ready, false);
+  assert.match(readiness.message, /DKIM/);
+});
+
+test("marks a paid Mailchimp account with an authenticated domain as ready", async () => {
+  process.env.MAILCHIMP_TRANSACTIONAL_API_KEY = "transactional-key";
+  delete process.env.RESEND_API_KEY;
+  global.fetch = async (input) => {
+    if (String(input).includes("users/info")) return Response.json({ hourly_quota: 500 });
+    return Response.json([{
+      domain: "denotenman.com",
+      verified_at: "2026-08-19 12:00:00",
+      spf: { valid: true },
+      dkim: { valid: true },
+    }]);
+  };
+
+  const readiness = await checkTransactionalProviderReadiness();
+  assert.equal(readiness.ready, true);
+  assert.match(readiness.message, /productiegeschikt/);
+});
