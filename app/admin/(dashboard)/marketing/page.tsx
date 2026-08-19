@@ -27,6 +27,12 @@ export default async function MarketingHubPage() {
       description: "Nieuwsbriefcampagnes en verzendstatussen.",
       count: newsletterCount,
     },
+    {
+      title: "Aftersales-flow",
+      href: "/admin/marketing/aftersales",
+      description: "Persoonlijke bestel- en verzendmails via Mailchimp.",
+      count: "P1",
+    },
   ];
 
   return (

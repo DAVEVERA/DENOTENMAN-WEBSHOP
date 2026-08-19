@@ -55,6 +55,18 @@ enum OrderStatus {
   REFUNDED
 }
 
+enum AftersalesTrigger {
+  ORDER_PAID
+  ORDER_FULFILLED
+}
+
+enum AftersalesDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 enum DeliveryMethod {
   SHIPPING
   PICKUP
@@ -391,11 +403,62 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items   OrderItem[]
-  refunds OrderRefund[]
+  items                OrderItem[]
+  refunds              OrderRefund[]
+  aftersalesDeliveries AftersalesDelivery[]
 
   @@index([userId])
   @@index([status])
+}
+
+model AftersalesFlow {
+  id        String   @id @default(cuid())
+  name      String
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  steps AftersalesStep[]
+}
+
+model AftersalesStep {
+  id           String            @id @default(cuid())
+  flowId       String
+  flow         AftersalesFlow    @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  trigger      AftersalesTrigger
+  name         String
+  position     Int
+  enabled      Boolean           @default(true)
+  delayMinutes Int               @default(0)
+  content      Json
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  deliveries AftersalesDelivery[]
+
+  @@unique([flowId, trigger])
+  @@index([flowId, position])
+}
+
+model AftersalesDelivery {
+  id                String                   @id @default(cuid())
+  orderId           String
+  order             Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stepId            String
+  step              AftersalesStep           @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  trigger           AftersalesTrigger
+  status            AftersalesDeliveryStatus @default(PENDING)
+  provider          String?
+  providerMessageId String?
+  attempts          Int                      @default(0)
+  errorMessage      String?
+  sentAt            DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@unique([orderId, stepId, trigger])
+  @@index([status, createdAt])
+  @@index([orderId, createdAt])
 }
 
 model OrderItem {

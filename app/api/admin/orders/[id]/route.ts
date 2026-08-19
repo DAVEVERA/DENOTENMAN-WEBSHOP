@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { OrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
+import { dispatchAftersalesEvent } from "@/lib/aftersales/service";
+import { aftersalesTriggerForOrderTransition } from "@/lib/aftersales/events";
 
 // proxy.ts's matcher explicitly excludes /api/** ("/((?!api|_next|.*\\..*).*)"),
 // so unlike the /admin/** page tree this route is NOT gated by the shared
@@ -82,5 +84,25 @@ export async function PATCH(
     data,
   });
 
-  return NextResponse.json({ order: updated });
+  let aftersalesStatus: string | null = null;
+  if (existing.status !== updated.status) {
+    const trigger = aftersalesTriggerForOrderTransition(
+      existing.status,
+      updated.status,
+      existing.isTest
+    );
+    if (trigger) {
+      const result = await dispatchAftersalesEvent(updated.id, trigger).catch((error) => {
+        console.error("Failed to dispatch order aftersales event", {
+          orderId: updated.id,
+          trigger,
+          error,
+        });
+        return { status: "failed" as const };
+      });
+      aftersalesStatus = result.status;
+    }
+  }
+
+  return NextResponse.json({ order: updated, aftersalesStatus });
 }

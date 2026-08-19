@@ -17,11 +17,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow,
     },
-    sitemap: [
-      `${BASE_URL}/sitemap.xml`,
-      `${BASE_URL}/products/sitemap.xml`,
-      `${BASE_URL}/categories/sitemap.xml`,
-      `${BASE_URL}/blog/sitemap.xml`,
-    ],
+    sitemap: `${BASE_URL}/sitemap.xml`,
   };
 }

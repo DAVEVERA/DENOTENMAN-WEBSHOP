@@ -7,6 +7,7 @@ import type { Locale } from "@/lib/i18n";
 import type { Order, OrderStatus } from "@prisma/client";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
 import { sendOrderConfirmationEmail } from "@/lib/mail";
+import { dispatchAftersalesEvent } from "@/lib/aftersales/service";
 import { getPickupLocation } from "@/lib/pickup-locations";
 import {
   evaluateCheckoutDiscount,
@@ -426,7 +427,10 @@ export async function syncOrderPaymentStatus(order: Order): Promise<Order> {
 
   if (count === 1 && nextStatus === "PAID") {
     try {
-      await sendOrderConfirmationEmail(updated, updated.items);
+      const aftersales = await dispatchAftersalesEvent(updated.id, "ORDER_PAID");
+      if (aftersales.status === "disabled") {
+        await sendOrderConfirmationEmail(updated, updated.items);
+      }
     } catch (error) {
       console.error(`Failed to send order confirmation email for order ${order.id}`, error);
     }

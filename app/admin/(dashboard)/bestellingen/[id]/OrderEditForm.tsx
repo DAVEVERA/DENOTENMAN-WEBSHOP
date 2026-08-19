@@ -2,10 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { OrderStatus } from "@prisma/client";
 import { cn } from "@/lib/cn";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+type PatchOrderResult = {
+  aftersalesStatus?: "sent" | "failed" | "disabled" | "no-step" | "duplicate" | null;
+};
 
 async function patchOrder(orderId: string, body: Record<string, unknown>) {
   const response = await fetch(`/api/admin/orders/${orderId}`, {
@@ -19,7 +23,7 @@ async function patchOrder(orderId: string, body: Record<string, unknown>) {
     throw new Error(data?.error ?? `Opslaan mislukt (${response.status})`);
   }
 
-  return response.json();
+  return response.json() as Promise<PatchOrderResult>;
 }
 
 export function OrderEditForm({
@@ -79,6 +83,7 @@ export function OrderEditForm({
 
   const [statusState, setStatusState] = useState<SaveState>("idle");
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
 
   async function handleTrackingSubmit(event: FormEvent<HTMLFormElement>) {
@@ -102,10 +107,26 @@ export function OrderEditForm({
     setPendingStatus(status);
     setStatusState("saving");
     setStatusError(null);
+    setStatusNotice(null);
 
     try {
-      await patchOrder(orderId, { status });
+      const result = await patchOrder(orderId, { status });
       setStatusState("saved");
+      if (status === "FULFILLED") {
+        setStatusNotice(
+          result.aftersalesStatus === "sent"
+            ? "Bestelling opgeslagen en verzendmail verzonden."
+            : result.aftersalesStatus === "failed"
+              ? "Bestelling is opgeslagen, maar de verzendmail is mislukt. Bekijk de aftersales-verzendlog."
+              : result.aftersalesStatus === "disabled"
+                ? "Bestelling opgeslagen; de aftersales-flow staat nog uit."
+                : result.aftersalesStatus === "no-step"
+                  ? "Bestelling opgeslagen; de verzendmailstap staat uit."
+                  : result.aftersalesStatus === "duplicate"
+                    ? "Bestelling opgeslagen; deze verzendmail was al verwerkt."
+                    : null
+        );
+      }
       router.refresh();
     } catch (error) {
       setStatusState("error");
@@ -231,6 +252,24 @@ export function OrderEditForm({
             <span className="text-body-sm text-red-600">{statusError}</span>
           )}
         </div>
+        {statusNotice ? (
+          <p
+            role="status"
+            className={cn(
+              "mt-3 max-w-2xl rounded-button border px-3 py-2 text-body-sm font-semibold",
+              statusNotice.includes("mislukt")
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-amber-200 bg-amber-50 text-amber-900"
+            )}
+          >
+            {statusNotice}
+            {statusNotice.includes("mislukt") ? (
+              <Link href="/admin/marketing/aftersales" className="ml-2 underline underline-offset-4">
+                Open de verzendlog
+              </Link>
+            ) : null}
+          </p>
+        ) : null}
       </div>
     </div>
   );

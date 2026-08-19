@@ -79,6 +79,10 @@ const AUDITABLE_MODELS = [
   "Quote",
 ] as const;
 
+export function canRevertAuditEntity(entityType: string): boolean {
+  return (AUDITABLE_MODELS as readonly string[]).includes(entityType);
+}
+
 type AuditableDelegate = {
   delete: (args: { where: { id: string } }) => Promise<unknown>;
   create: (args: { data: object }) => Promise<unknown>;
@@ -86,7 +90,7 @@ type AuditableDelegate = {
 };
 
 function getDelegate(tx: Prisma.TransactionClient, entityType: string): AuditableDelegate | null {
-  if (!(AUDITABLE_MODELS as readonly string[]).includes(entityType)) return null;
+  if (!canRevertAuditEntity(entityType)) return null;
   const key = (entityType.charAt(0).toLowerCase() + entityType.slice(1)) as keyof Prisma.TransactionClient;
   return tx[key] as unknown as AuditableDelegate;
 }

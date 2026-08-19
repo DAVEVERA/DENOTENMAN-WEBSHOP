@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/cn";
 import { RevertButton } from "./RevertButton";
 import { DiffView } from "./DiffView";
+import { canRevertAuditEntity } from "@/lib/admin-audit";
 
 const ACTION_LABELS: Record<string, string> = {
   CREATE: "Aangemaakt",
@@ -127,7 +128,7 @@ export default async function LogboekPage({
               <div className="mt-3 border-t border-border pt-3">
                 <DiffView before={entry.before} after={entry.after} />
 
-                {!entry.reverted && entry.action !== "RESTORE" ? (
+                {!entry.reverted && entry.action !== "RESTORE" && canRevertAuditEntity(entry.entityType) ? (
                   <div className="mt-3 flex justify-end">
                     <RevertButton auditLogId={entry.id} />
                   </div>
