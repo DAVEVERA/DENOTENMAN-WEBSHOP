@@ -16,6 +16,19 @@ steps:
   - name: "gcr.io/cloud-builders/docker"
     args: ["push", "${_IMAGE}"]
 
+  # Apply committed Prisma migrations only after the image has built and
+  # pushed successfully. A migration failure stops the Cloud Run rollout.
+  - id: "migrate-database"
+    name: "docker.io/library/node:22-bookworm"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        npm ci --ignore-scripts --no-audit --no-fund
+        npx prisma migrate deploy
+    secretEnv: ["DATABASE_URL"]
+
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     entrypoint: "gcloud"
     args:

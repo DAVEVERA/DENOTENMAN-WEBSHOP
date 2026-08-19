@@ -1,0 +1,79 @@
+steps:
+  - name: "gcr.io/cloud-builders/git"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        if [[ "${_REF}" != "refs/heads/feature/mailchimp-newsletters" ]]; then
+          echo "Ignoring unexpected ref: ${_REF}"
+          exit 2
+        fi
+        if [[ ! "${_COMMIT_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "Invalid commit SHA"
+          exit 2
+        fi
+        git clone --no-checkout https://github.com/DAVEVERA/DENOTENMAN-WEBSHOP.git .
+        git checkout --detach "${_COMMIT_SHA}"
+
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        docker build \
+          --build-arg DATABASE_URL="$$DATABASE_URL" \
+          --build-arg CDN_BASE_URL="${_CDN_BASE_URL}" \
+          --build-arg SITE_URL="${_SITE_URL}" \
+          --build-arg UNLIMITED_STOCK="${_UNLIMITED_STOCK}" \
+          -t "${_IMAGE_BASE}:${_COMMIT_SHA}" \
+          .
+    secretEnv: ["DATABASE_URL"]
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE_BASE}:${_COMMIT_SHA}"]
+
+  # Keep the database schema in lockstep with the immutable image. The
+  # deployment is stopped when a committed migration cannot be applied.
+  - id: "migrate-database"
+    name: "docker.io/library/node:22-bookworm"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        npm ci --ignore-scripts --no-audit --no-fund
+        npx prisma migrate deploy
+    secretEnv: ["DATABASE_URL"]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "services"
+      - "update"
+      - "denotenman-webshop"
+      - "--image=${_IMAGE_BASE}:${_COMMIT_SHA}"
+      - "--region=europe-west4"
+      - "--platform=managed"
+      - "--quiet"
+
+images:
+  - "${_IMAGE_BASE}:${_COMMIT_SHA}"
+
+options:
+  dynamicSubstitutions: true
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _COMMIT_SHA: "0000000000000000000000000000000000000000"
+  _REF: "refs/heads/feature/mailchimp-newsletters"
+  _IMAGE_BASE: "europe-west4-docker.pkg.dev/project-5dc79156-4200-4528-bfc/denotenman-webshop/storefront"
+  _CDN_BASE_URL: "https://storage.googleapis.com/notenbucket"
+  _SITE_URL: "https://denotenman.com"
+  _UNLIMITED_STOCK: "true"
+
+availableSecrets:
+  secretManager:
+    - versionName: "projects/project-5dc79156-4200-4528-bfc/secrets/denotenman-database-url/versions/latest"
+      env: "DATABASE_URL"
