@@ -75,6 +75,11 @@ export default async function LocaleLayout({
             gtag('config', '${gaMeasurementId}');
           `}
         </Script>
+        <Script
+          id="mcjs"
+          src="https://chimpstatic.com/mcjs-connected/js/users/8acdcbab41d6c9a77789a5c6e/e153af6949eb3f4d24a641635.js"
+          strategy="lazyOnload"
+        />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded focus:bg-accent focus:px-4 focus:py-2 focus:text-text"

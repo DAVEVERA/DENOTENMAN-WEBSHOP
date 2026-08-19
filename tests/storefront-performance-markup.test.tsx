@@ -62,3 +62,18 @@ test("analytics waits until load and optimized images receive a durable cache", 
   assert.match(config, /minimumCacheTTL:\s*2678400/);
   assert.match(config, /qualities:\s*\[70, 75\]/);
 });
+
+test("Mailchimp connected-site tracking is scoped to the storefront and loaded lazily", async () => {
+  const [storefrontLayout, adminLayout] = await Promise.all([
+    projectFile("app/[locale]/layout.tsx"),
+    projectFile("app/admin/layout.tsx"),
+  ]);
+
+  assert.match(storefrontLayout, /id="mcjs"/);
+  assert.match(
+    storefrontLayout,
+    /https:\/\/chimpstatic\.com\/mcjs-connected\/js\/users\/8acdcbab41d6c9a77789a5c6e\/e153af6949eb3f4d24a641635\.js/,
+  );
+  assert.match(storefrontLayout, /id="mcjs"[\s\S]*?strategy="lazyOnload"/);
+  assert.doesNotMatch(adminLayout, /chimpstatic|id="mcjs"/);
+});
