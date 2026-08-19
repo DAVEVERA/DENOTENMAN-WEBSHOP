@@ -5,7 +5,11 @@ import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
 import { prisma } from "@/lib/prisma";
 import { aftersalesFlowInputSchema } from "@/lib/aftersales/schema";
-import { aftersalesProviderStatus } from "@/lib/aftersales/provider";
+import {
+  aftersalesProviderStatus,
+  checkTransactionalProviderReadiness,
+} from "@/lib/aftersales/provider";
+import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
 
 export async function PATCH(request: NextRequest) {
   const admin = await getAdminSession(request);
@@ -21,6 +25,15 @@ export async function PATCH(request: NextRequest) {
   const input = parsed.data;
   if (input.isActive && aftersalesProviderStatus().provider === "none") {
     return NextResponse.json({ error: "PROVIDER_NOT_CONFIGURED" }, { status: 409 });
+  }
+  if (input.isActive) {
+    const readiness = await checkTransactionalProviderReadiness();
+    if (!readiness.ready) {
+      return NextResponse.json(
+        { error: "PROVIDER_NOT_READY", message: readiness.message },
+        { status: 409 }
+      );
+    }
   }
 
   try {
@@ -82,6 +95,16 @@ export async function PATCH(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (isAftersalesSchemaUnavailable(error)) {
+      return NextResponse.json(
+        {
+          error: "AFTERSALES_SCHEMA_MISSING",
+          message:
+            "Database-migratie 20260819010000_add_aftersales_automation is nog niet uitgevoerd.",
+        },
+        { status: 503 }
+      );
+    }
     if (error instanceof Error && error.message === "FLOW_NOT_FOUND") {
       return NextResponse.json({ error: "FLOW_NOT_FOUND" }, { status: 404 });
     }

@@ -1,41 +1,12 @@
 import { createElement } from "react";
 import { render } from "react-email";
-import { Resend } from "resend";
-import type { Order, OrderItem } from "@prisma/client";
+import { EmailDeliveryKind, type Order, type OrderItem } from "@prisma/client";
 import { OrderConfirmationEmail } from "@/emails/OrderConfirmationEmail";
 import { BackInStockEmail } from "@/emails/BackInStockEmail";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { BASE_URL, orderConfirmation } from "@/lib/routes";
 import { formatPrice } from "@/lib/format";
 import { getPickupLocation } from "@/lib/pickup-locations";
-
-let client: Resend | undefined;
-const MAX_SEND_ATTEMPTS = 3;
-
-class MailDeliveryError extends Error {
-  constructor(
-    message: string,
-    public readonly retryable: boolean
-  ) {
-    super(message);
-    this.name = "MailDeliveryError";
-  }
-}
-
-function getResendClient(): Resend | undefined {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return undefined;
-  if (!client) client = new Resend(apiKey);
-  return client;
-}
-
-function getFromAddress(): string {
-  if (process.env.MAIL_FROM_ADDRESS) return process.env.MAIL_FROM_ADDRESS;
-
-  const name = process.env.MAIL_FROM_NAME ?? "De Notenman";
-  const email = process.env.MAIL_FROM_EMAIL ?? "bestellingen@denotenman.com";
-  return `${name} <${email}>`;
-}
 
 type OrderCopy = {
   subject: (orderNumber: string) => string;
@@ -248,57 +219,25 @@ export async function sendOrderConfirmationEmail(
   order: Order,
   items: OrderItem[]
 ): Promise<void> {
-  const resend = getResendClient();
-
-  if (!resend) {
-    console.warn(
-      `RESEND_API_KEY not configured — skipped order confirmation email for order ${order.id}`
-    );
-    return;
-  }
-
+  const { deliverTransactionalEmail } = await import("@/lib/transactional-email");
   const { subject, html, text } = await renderOrderConfirmationEmail(order, items);
-  const payload = {
-    from: getFromAddress(),
-    to: order.contactEmail,
-    replyTo: process.env.MAIL_REPLY_TO,
+  const result = await deliverTransactionalEmail({
+    idempotencyKey: `legacy-order-confirmation-${order.id}`,
+    kind: EmailDeliveryKind.ORDER_CONFIRMATION,
+    recipientEmail: order.contactEmail,
+    recipientName: order.contactName,
+    orderId: order.id,
+    trigger: "ORDER_PAID",
     subject,
     html,
     text,
-    tags: [
-      { name: "type", value: "order_confirmation" },
-      { name: "order_id", value: order.id },
-    ],
-  };
-
-  for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt += 1) {
-    try {
-      const { error } = await resend.emails.send(payload, {
-        idempotencyKey: `order-confirmation-${order.id}`,
-      });
-
-      if (!error) return;
-
-      const retryable = error.statusCode === 429 || (error.statusCode ?? 0) >= 500;
-      throw new MailDeliveryError(
-        `Resend rejected order confirmation ${order.id}: ${error.message}`,
-        retryable
-      );
-    } catch (error) {
-      const failure =
-        error instanceof MailDeliveryError
-          ? error
-          : new MailDeliveryError(
-              error instanceof Error ? error.message : "Unknown email provider error",
-              true
-            );
-
-      if (!failure.retryable || attempt === MAX_SEND_ATTEMPTS) throw failure;
-
-      const backoffMs = 400 * 2 ** (attempt - 1) + Math.floor(Math.random() * 200);
-      await new Promise((resolve) => setTimeout(resolve, backoffMs));
-    }
+  });
+  if (result.status === "accepted") return;
+  if (result.status === "duplicate" && result.deliveryStatus === "ACCEPTED") return;
+  if (result.status === "failed") {
+    throw new Error(`${result.code}: ${result.error}`);
   }
+  throw new Error(`Orderbevestiging is niet geaccepteerd (${result.status})`);
 }
 
 const stockCopy: Record<Locale, {
@@ -342,12 +281,7 @@ export async function sendBackInStockEmail(input: {
   productName: string;
   productUrl: string;
 }): Promise<boolean> {
-  const resend = getResendClient();
-  if (!resend) {
-    console.warn(`RESEND_API_KEY not configured — stock alert ${input.notificationId} remains pending`);
-    return false;
-  }
-
+  const { deliverTransactionalEmail } = await import("@/lib/transactional-email");
   const copy = stockCopy[input.locale];
   const html = await render(createElement(BackInStockEmail, {
     locale: input.locale,
@@ -370,28 +304,14 @@ export async function sendBackInStockEmail(input: {
     copy.footer,
   ].join("\n");
 
-  for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt += 1) {
-    const { error } = await resend.emails.send({
-      from: getFromAddress(),
-      to: input.email,
-      replyTo: process.env.MAIL_REPLY_TO,
-      subject: copy.subject(input.productName),
-      html,
-      text,
-      tags: [
-        { name: "type", value: "back_in_stock" },
-        { name: "notification_id", value: input.notificationId },
-      ],
-    }, { idempotencyKey: `stock-alert-${input.notificationId}` });
-
-    if (!error) return true;
-    const retryable = error.statusCode === 429 || (error.statusCode ?? 0) >= 500;
-    if (!retryable || attempt === MAX_SEND_ATTEMPTS) {
-      console.error(`Failed to send stock alert ${input.notificationId}: ${error.message}`);
-      return false;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** (attempt - 1)));
-  }
-
-  return false;
+  const result = await deliverTransactionalEmail({
+    idempotencyKey: `stock-alert-${input.notificationId}`,
+    kind: EmailDeliveryKind.BACK_IN_STOCK,
+    recipientEmail: input.email,
+    subject: copy.subject(input.productName),
+    html,
+    text,
+  });
+  if (result.status === "accepted") return true;
+  return result.status === "duplicate" && result.deliveryStatus === "ACCEPTED";
 }

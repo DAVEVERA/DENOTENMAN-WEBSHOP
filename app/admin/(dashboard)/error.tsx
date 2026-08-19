@@ -4,7 +4,11 @@ import { useEffect } from "react";
 
 export default function AdminDashboardError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error("Admin dashboard render failed", { digest: error.digest });
+    console.error("Admin dashboard render failed", {
+      name: error.name,
+      message: error.message,
+      digest: error.digest,
+    });
   }, [error]);
 
   return (

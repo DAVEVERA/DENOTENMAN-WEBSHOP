@@ -67,6 +67,25 @@ enum AftersalesDeliveryStatus {
   SKIPPED
 }
 
+enum EmailDeliveryKind {
+  ORDER_CONFIRMATION
+  ORDER_FULFILLED
+  AFTERSALES_TEST
+  BACK_IN_STOCK
+}
+
+enum EmailDeliveryStatus {
+  PENDING
+  ACCEPTED
+  FAILED
+}
+
+enum EmailDeliveryAttemptStatus {
+  STARTED
+  ACCEPTED
+  FAILED
+}
+
 enum DeliveryMethod {
   SHIPPING
   PICKUP
@@ -406,6 +425,7 @@ model Order {
   items                OrderItem[]
   refunds              OrderRefund[]
   aftersalesDeliveries AftersalesDelivery[]
+  emailDeliveryLogs    EmailDeliveryLog[]
 
   @@index([userId])
   @@index([status])
@@ -459,6 +479,55 @@ model AftersalesDelivery {
   @@unique([orderId, stepId, trigger])
   @@index([status, createdAt])
   @@index([orderId, createdAt])
+}
+
+model EmailDeliveryLog {
+  id                String              @id @default(cuid())
+  idempotencyKey    String              @unique
+  kind              EmailDeliveryKind
+  status            EmailDeliveryStatus @default(PENDING)
+  recipientEmail    String
+  recipientName     String?
+  subject           String
+  htmlBody          String              @db.Text
+  textBody          String              @db.Text
+  provider          String?
+  providerMessageId String?
+  providerStatus    String?
+  orderId           String?
+  order             Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  trigger           AftersalesTrigger?
+  errorCode         String?
+  errorMessage      String?
+  acceptedAt        DateTime?
+  lastAttemptAt     DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  attempts EmailDeliveryAttempt[]
+
+  @@index([status, createdAt])
+  @@index([kind, createdAt])
+  @@index([orderId, createdAt])
+  @@index([recipientEmail, createdAt])
+}
+
+model EmailDeliveryAttempt {
+  id                String                     @id @default(cuid())
+  deliveryId        String
+  delivery          EmailDeliveryLog           @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  attemptNumber     Int
+  provider          String
+  status            EmailDeliveryAttemptStatus @default(STARTED)
+  providerMessageId String?
+  providerStatus    String?
+  errorCode         String?
+  errorMessage      String?
+  startedAt         DateTime                   @default(now())
+  completedAt       DateTime?
+
+  @@unique([deliveryId, attemptNumber])
+  @@index([status, startedAt])
 }
 
 model OrderItem {

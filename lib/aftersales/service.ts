@@ -1,9 +1,10 @@
 import "server-only";
-import { Prisma, type AftersalesTrigger } from "@prisma/client";
+import { EmailDeliveryKind, Prisma, type AftersalesTrigger } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseAftersalesContent } from "@/lib/aftersales/schema";
 import { renderAftersalesEmail } from "@/lib/aftersales/template";
-import { sendAftersalesMail } from "@/lib/aftersales/provider";
+import { deliverTransactionalEmail } from "@/lib/transactional-email";
+import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
 
 export type DispatchAftersalesResult =
   | { status: "disabled" | "no-step" | "duplicate" }
@@ -14,16 +15,24 @@ export async function dispatchAftersalesEvent(
   orderId: string,
   trigger: AftersalesTrigger
 ): Promise<DispatchAftersalesResult> {
-  const flow = await prisma.aftersalesFlow.findFirst({
-    where: { isActive: true },
-    orderBy: { updatedAt: "desc" },
-    include: {
-      steps: {
-        where: { trigger, enabled: true, delayMinutes: 0 },
-        orderBy: { position: "asc" },
+  let flow;
+  try {
+    flow = await prisma.aftersalesFlow.findFirst({
+      where: { isActive: true },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        steps: {
+          where: { trigger, enabled: true, delayMinutes: 0 },
+          orderBy: { position: "asc" },
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (isAftersalesSchemaUnavailable(error)) {
+      return { status: "disabled" };
+    }
+    throw error;
+  }
   if (!flow) return { status: "disabled" };
   const step = flow.steps[0];
   if (!step) return { status: "no-step" };
@@ -47,21 +56,31 @@ export async function dispatchAftersalesEvent(
     const content = parseAftersalesContent(step.content);
     const locale = order.locale === "en" || order.locale === "fr" ? order.locale : "nl";
     const rendered = renderAftersalesEmail(order, trigger, content[locale]);
-    const result = await sendAftersalesMail({
-      deliveryId: delivery.id,
+    const result = await deliverTransactionalEmail({
+      idempotencyKey: `aftersales-${delivery.id}`,
+      kind: trigger === "ORDER_PAID"
+        ? EmailDeliveryKind.ORDER_CONFIRMATION
+        : EmailDeliveryKind.ORDER_FULFILLED,
+      recipientEmail: order.contactEmail,
+      recipientName: order.contactName,
       orderId,
       trigger,
-      to: order.contactEmail,
       subject: rendered.subject,
       html: rendered.html,
       text: rendered.text,
     });
+    if (result.status !== "accepted") {
+      const message = result.status === "failed"
+        ? `${result.code}: ${result.error}`
+        : `E-mail is niet opnieuw aangeboden (${result.status})`;
+      throw new Error(message);
+    }
     await prisma.aftersalesDelivery.update({
       where: { id: delivery.id },
       data: {
         status: "SENT",
         provider: result.provider,
-        providerMessageId: result.messageId,
+        providerMessageId: result.providerMessageId,
         attempts: { increment: 1 },
         sentAt: new Date(),
         errorMessage: null,

@@ -164,13 +164,15 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(flow),
       });
-      const body = await response.json().catch(() => null) as { error?: string; flow?: { updatedAt: string } } | null;
+      const body = await response.json().catch(() => null) as { error?: string; message?: string; flow?: { updatedAt: string } } | null;
       if (!response.ok) {
         setError(
           body?.error === "STALE_FLOW"
             ? "Deze flow is ondertussen door iemand anders gewijzigd. Vernieuw de pagina."
             : body?.error === "PROVIDER_NOT_CONFIGURED"
               ? "Configureer eerst Mailchimp Transactional of de Resend-fallback."
+              : body?.error === "PROVIDER_NOT_READY"
+                ? body.message ?? "De mailprovider is nog niet verzendklaar."
               : "Opslaan is niet gelukt. Controleer alle velden en probeer opnieuw."
         );
         return;
@@ -213,7 +215,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
         );
         return;
       }
-      setMessage(`Testmail verzonden via ${body?.provider === "MAILCHIMP_TRANSACTIONAL" ? "Mailchimp Transactional" : "Resend fallback"}.`);
+      setMessage(`Testmail geaccepteerd via ${body?.provider === "MAILCHIMP_TRANSACTIONAL" ? "Mailchimp Transactional" : "Resend"}. Controleer het maillogboek voor de provider-ID.`);
     } catch {
       setError("De testmail mislukte door een netwerkfout.");
     } finally {
@@ -388,7 +390,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
             <label htmlFor="test-email" className="mt-5 block font-heading text-body-sm font-semibold">Testadres</label>
             <input id="test-email" type="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} placeholder="test@voorbeeld.nl" className="mt-1 min-h-11 w-full rounded-button border border-border bg-background px-3 py-2" />
             <button type="button" onClick={sendTest} disabled={busy !== null || provider === "none"} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-border bg-background px-4 font-heading text-body-sm font-bold disabled:opacity-50"><Mail size={18} />{busy === "test" ? "Verzenden…" : "Testmail sturen"}</button>
-            <div className="mt-5 rounded-button bg-[#f3efe7] p-3 text-xs leading-5 text-muted">Testmails krijgen <strong>[TEST]</strong> in het onderwerp en worden niet als klantverzending gelogd.</div>
+            <div className="mt-5 rounded-button bg-[#f3efe7] p-3 text-xs leading-5 text-muted">Testmails krijgen <strong>[TEST]</strong> in het onderwerp en worden apart als testmail in het maillogboek vastgelegd.</div>
           </aside>
         </section>
       ) : null}
@@ -403,7 +405,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
               <thead><tr className="border-b border-border text-left text-muted"><th className="px-5 py-3 font-heading">Status</th><th className="px-5 py-3 font-heading">Mail</th><th className="px-5 py-3 font-heading">Klant</th><th className="px-5 py-3 font-heading">Bestelling</th><th className="px-5 py-3 font-heading">Moment</th></tr></thead>
               <tbody>{initialDeliveries.map((delivery) => (
                 <tr key={delivery.id} className="border-b border-border last:border-0">
-                  <td className="px-5 py-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${delivery.status === "SENT" ? "bg-emerald-100 text-emerald-800" : delivery.status === "FAILED" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900"}`}>{delivery.status === "SENT" ? <CheckCircle2 size={14} /> : <Activity size={14} />}{delivery.status === "SENT" ? "Verzonden" : delivery.status === "FAILED" ? "Mislukt" : "Bezig"}</span>{delivery.errorMessage ? <p className="mt-1 max-w-xs text-xs text-red-700">{delivery.errorMessage}</p> : null}</td>
+                  <td className="px-5 py-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${delivery.status === "SENT" ? "bg-emerald-100 text-emerald-800" : delivery.status === "FAILED" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900"}`}>{delivery.status === "SENT" ? <CheckCircle2 size={14} /> : <Activity size={14} />}{delivery.status === "SENT" ? "Geaccepteerd" : delivery.status === "FAILED" ? "Mislukt" : "Bezig"}</span>{delivery.errorMessage ? <p className="mt-1 max-w-xs text-xs text-red-700">{delivery.errorMessage}</p> : null}</td>
                   <td className="px-5 py-4"><p className="font-semibold">{delivery.stepName}</p><p className="text-xs text-muted">{delivery.provider ?? "—"}</p></td>
                   <td className="px-5 py-4"><p>{delivery.customerName}</p><p className="text-xs text-muted">{delivery.customerEmail}</p></td>
                   <td className="px-5 py-4"><a href={`/admin/bestellingen/${delivery.orderId}`} className="font-semibold text-accent-hover underline underline-offset-4">{delivery.orderId}</a></td>

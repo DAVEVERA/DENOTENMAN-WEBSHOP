@@ -1,10 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { EmailDeliveryKind } from "@prisma/client";
 import { z } from "zod";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { prisma } from "@/lib/prisma";
 import { parseAftersalesContent } from "@/lib/aftersales/schema";
 import { renderAftersalesEmail } from "@/lib/aftersales/template";
-import { sendAftersalesMail } from "@/lib/aftersales/provider";
+import { deliverTransactionalEmail } from "@/lib/transactional-email";
+import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
+import { checkTransactionalProviderReadiness } from "@/lib/aftersales/provider";
 
 const inputSchema = z.object({
   stepId: z.string().trim().min(1),
@@ -14,11 +17,31 @@ const inputSchema = z.object({
 export async function POST(request: NextRequest) {
   const admin = await getAdminSession(request);
   if (!admin) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  const readiness = await checkTransactionalProviderReadiness();
+  if (!readiness.ready) {
+    return NextResponse.json(
+      { error: "PROVIDER_NOT_READY", message: readiness.message },
+      { status: 409 }
+    );
+  }
   const parsed = inputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "VALIDATION_ERROR" }, { status: 400 });
   }
-  const step = await prisma.aftersalesStep.findUnique({ where: { id: parsed.data.stepId } });
+  let step;
+  try {
+    step = await prisma.aftersalesStep.findUnique({ where: { id: parsed.data.stepId } });
+  } catch (error) {
+    if (!isAftersalesSchemaUnavailable(error)) throw error;
+    return NextResponse.json(
+      {
+        error: "AFTERSALES_SCHEMA_MISSING",
+        message:
+          "Database-migratie 20260819010000_add_aftersales_automation is nog niet uitgevoerd.",
+      },
+      { status: 503 }
+    );
+  }
   if (!step) return NextResponse.json({ error: "STEP_NOT_FOUND" }, { status: 404 });
   const order = await prisma.order.findFirst({
     where: {
@@ -34,16 +57,28 @@ export async function POST(request: NextRequest) {
     const content = parseAftersalesContent(step.content);
     const locale = order.locale === "en" || order.locale === "fr" ? order.locale : "nl";
     const rendered = renderAftersalesEmail(order, step.trigger, content[locale]);
-    const result = await sendAftersalesMail({
-      deliveryId: `test-${crypto.randomUUID()}`,
+    const result = await deliverTransactionalEmail({
+      idempotencyKey: `aftersales-test-${crypto.randomUUID()}`,
+      kind: EmailDeliveryKind.AFTERSALES_TEST,
+      recipientEmail: parsed.data.email,
+      recipientName: admin.name,
       orderId: order.id,
-      trigger: `test_${step.trigger.toLowerCase()}`,
-      to: parsed.data.email,
+      trigger: step.trigger,
       subject: `[TEST] ${rendered.subject}`,
       html: rendered.html,
       text: rendered.text,
     });
-    return NextResponse.json({ ok: true, provider: result.provider });
+    if (result.status !== "accepted") {
+      return NextResponse.json(
+        {
+          error: "PROVIDER_ERROR",
+          message: result.status === "failed" ? result.error : "Testmail is al verwerkt.",
+          logId: result.logId,
+        },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json({ ok: true, provider: result.provider, logId: result.logId });
   } catch (error) {
     console.error("Failed to send aftersales test", { stepId: step.id, error });
     return NextResponse.json(

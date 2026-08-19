@@ -2,25 +2,53 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseAftersalesContent } from "@/lib/aftersales/schema";
-import { aftersalesProviderStatus } from "@/lib/aftersales/provider";
+import {
+  aftersalesProviderStatus,
+  checkTransactionalProviderReadiness,
+} from "@/lib/aftersales/provider";
+import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
 import { AftersalesFlowEditor } from "./AftersalesFlowEditor";
 
 export default async function AftersalesPage() {
   await connection();
-  const [flow, deliveries] = await Promise.all([
-    prisma.aftersalesFlow.findFirst({
-      orderBy: { createdAt: "asc" },
-      include: { steps: { orderBy: { position: "asc" } } },
-    }),
-    prisma.aftersalesDelivery.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 12,
-      include: {
-        order: { select: { id: true, contactName: true, contactEmail: true } },
-        step: { select: { name: true } },
-      },
-    }),
-  ]);
+  let flow;
+  let deliveries;
+  try {
+    [flow, deliveries] = await Promise.all([
+      prisma.aftersalesFlow.findFirst({
+        orderBy: { createdAt: "asc" },
+        include: { steps: { orderBy: { position: "asc" } } },
+      }),
+      prisma.aftersalesDelivery.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 12,
+        include: {
+          order: { select: { id: true, contactName: true, contactEmail: true } },
+          step: { select: { name: true } },
+        },
+      }),
+    ]);
+  } catch (error) {
+    if (!isAftersalesSchemaUnavailable(error)) throw error;
+
+    return (
+      <div>
+        <Link href="/admin/marketing" className="text-body-sm text-accent-hover underline underline-offset-4">
+          ← Terug naar marketing
+        </Link>
+        <h1 className="mt-3 text-heading-xl text-text">Aftersales-flow niet geïnstalleerd</h1>
+        <div className="mt-6 rounded-panel border border-amber-300 bg-amber-50 p-5 text-body-sm text-amber-950">
+          <p className="font-semibold">De applicatiecode is nieuwer dan het databaseschema.</p>
+          <p className="mt-2">
+            De tabellen <code>AftersalesFlow</code>, <code>AftersalesStep</code> en{" "}
+            <code>AftersalesDelivery</code> ontbreken. Voer migratie{" "}
+            <code>20260819010000_add_aftersales_automation</code> gecontroleerd uit via de
+            releasepipeline. Tot die tijd blijft de bestaande bestelbevestiging actief.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!flow) {
     return (
@@ -61,6 +89,8 @@ export default async function AftersalesPage() {
     customerEmail: delivery.order.contactEmail,
     stepName: delivery.step.name,
   }));
+  const providerStatus = aftersalesProviderStatus();
+  const providerReadiness = await checkTransactionalProviderReadiness();
 
   return (
     <div>
@@ -71,14 +101,21 @@ export default async function AftersalesPage() {
           <h1 className="mt-1 text-heading-xl text-text">Aftersales-flow</h1>
           <p className="mt-1 max-w-2xl text-body-sm text-muted">Bepaal welke persoonlijke e-mail klanten ontvangen na betaling en verzending.</p>
         </div>
-        <span className={`inline-flex min-h-11 items-center rounded-full px-4 text-body-sm font-semibold ${aftersalesProviderStatus().provider === "mailchimp" ? "bg-emerald-100 text-emerald-800" : aftersalesProviderStatus().provider === "resend" ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800"}`}>
-          {aftersalesProviderStatus().label}
-        </span>
+        <div className={`max-w-md rounded-panel border p-4 text-body-sm ${providerStatus.provider === "mailchimp" ? "border-emerald-300 bg-emerald-50 text-emerald-900" : providerStatus.provider === "resend" ? "border-amber-300 bg-amber-50 text-amber-950" : "border-red-300 bg-red-50 text-red-900"}`}>
+          <p className="font-semibold">{providerStatus.label}</p>
+          <p className="mt-1 text-xs leading-5">{providerStatus.detail}</p>
+          <p className={`mt-2 text-xs font-semibold ${providerReadiness.ready ? "text-emerald-800" : "text-red-800"}`}>
+            {providerReadiness.ready ? "Verzendklaar" : "Niet verzendklaar"}: {providerReadiness.message}
+          </p>
+          <Link href="/admin/marketing/email-logboek" className="mt-2 inline-block font-semibold underline underline-offset-4">
+            Open maillogboek
+          </Link>
+        </div>
       </div>
       <AftersalesFlowEditor
         initialFlow={initialFlow}
         initialDeliveries={initialDeliveries}
-        provider={aftersalesProviderStatus().provider}
+        provider={providerReadiness.ready ? providerStatus.provider : "none"}
       />
     </div>
   );
