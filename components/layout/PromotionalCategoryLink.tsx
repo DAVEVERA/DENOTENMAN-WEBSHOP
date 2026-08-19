@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { MainCategoryDto } from "@/lib/queries";
 import type { Locale } from "@/lib/i18n";
 import { category as categoryPath } from "@/lib/routes";
@@ -20,21 +19,13 @@ export function PromotionalCategoryLink({
     mobile ? "w-full text-body-md" : "text-body-sm"
   );
 
-  if (mobile) {
-    return (
-      <a href={categoryPath(locale, category.slug)} className={className}>
-        {category.name}
-      </a>
-    );
-  }
-
   return (
-    <Link
+    <a
       href={categoryPath(locale, category.slug)}
       onClick={onClick}
       className={className}
     >
       {category.name}
-    </Link>
+    </a>
   );
 }

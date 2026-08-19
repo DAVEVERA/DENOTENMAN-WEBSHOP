@@ -17,6 +17,7 @@ import {
 } from "@/lib/routes";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { PromotionalCategoryLink } from "@/components/layout/PromotionalCategoryLink";
+import { NativeCategoryLink } from "@/components/layout/NativeCategoryLink";
 import { cn } from "@/lib/cn";
 
 const focusableSelector =
@@ -64,7 +65,7 @@ export function MobileCategoryRow({
   return (
     <li>
       <div className="flex min-h-12 items-stretch">
-        <Link
+        <NativeCategoryLink
           href={categoryPath(locale, category.slug)}
           onClick={onFollow}
           className={cn(
@@ -73,7 +74,7 @@ export function MobileCategoryRow({
           )}
         >
           {category.name}
-        </Link>
+        </NativeCategoryLink>
         {hasChildren ? (
           <button
             type="button"
@@ -240,14 +241,14 @@ export function MobileNav({
                   >
                     {activeCategory.name}
                   </h2>
-                  <Link
+                  <NativeCategoryLink
                     href={categoryPath(locale, activeCategory.slug)}
                     onClick={followLink}
                     className="mt-2 flex min-h-12 touch-manipulation items-center justify-between rounded-button bg-background px-3 py-3 font-heading font-bold text-accent-hover"
                   >
                     {dictionary.nav.viewAllCategory.replace("{category}", activeCategory.name)}
                     <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
+                  </NativeCategoryLink>
                   <ul className="mt-2 flex flex-col">
                     {visibleCategories.map((category) => (
                       <MobileCategoryRow
@@ -283,13 +284,13 @@ export function MobileNav({
                       >
                         {dictionary.nav.categories}
                       </h2>
-                      <Link
+                      <NativeCategoryLink
                         href={categoriesPath(locale)}
                         onClick={followLink}
                         className="inline-flex min-h-11 touch-manipulation items-center rounded-button px-2 py-2 text-body-sm font-semibold text-muted hover:bg-background hover:text-text"
                       >
                         {dictionary.nav.viewAll}
-                      </Link>
+                      </NativeCategoryLink>
                     </div>
                     <ul className="mt-1 flex flex-col">
                       {visibleCategories.map((category) => (

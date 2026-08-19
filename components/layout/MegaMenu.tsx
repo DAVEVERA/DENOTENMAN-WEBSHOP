@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronDown } from "lucide-react";
@@ -9,6 +8,9 @@ import type { Locale } from "@/lib/i18n";
 import { category as categoryPath } from "@/lib/routes";
 import { cn } from "@/lib/cn";
 import { PromotionalCategoryLink } from "@/components/layout/PromotionalCategoryLink";
+import { NativeCategoryLink } from "@/components/layout/NativeCategoryLink";
+
+export { NativeCategoryLink } from "@/components/layout/NativeCategoryLink";
 
 type MegaMenuLabels = {
   submenu: string;
@@ -57,7 +59,7 @@ function DescendantLinks({
     <ul className={cn(depth === 0 ? "mt-1 space-y-0.5" : "ml-3 border-l border-border pl-3")}>
       {categories.map((category) => (
         <li key={category.id}>
-          <Link
+          <NativeCategoryLink
             data-mega-link
             href={categoryPath(locale, category.slug)}
             onClick={close}
@@ -67,7 +69,7 @@ function DescendantLinks({
             )}
           >
             {category.name}
-          </Link>
+          </NativeCategoryLink>
           {category.children.length > 0 ? (
             <DescendantLinks
               categories={category.children}
@@ -93,14 +95,14 @@ function CategoryColumn({
 }) {
   return (
     <section className="min-w-0 border-t border-border pt-4 first:border-t-0 lg:border-l lg:border-t-0 lg:pl-6 lg:first:border-l-0 lg:first:pl-0">
-      <Link
+      <NativeCategoryLink
         data-mega-link
         href={categoryPath(locale, category.slug)}
         onClick={close}
         className="inline-flex min-h-11 items-center font-heading text-heading-sm font-bold text-text transition-colors duration-hover-fast hover:text-accent-hover"
       >
         {category.name}
-      </Link>
+      </NativeCategoryLink>
       {category.children.length > 0 ? (
         <DescendantLinks categories={category.children} locale={locale} close={close} />
       ) : null}
@@ -249,8 +251,8 @@ export function MegaMenu({
           <div key={category.id} className="flex min-w-0 items-center">
             {hasChildren ? (
               <>
-                <Link
-                  ref={(node) => {
+                <NativeCategoryLink
+                  anchorRef={(node) => {
                     if (node) itemRefs.current.set(category.id, node);
                     else itemRefs.current.delete(category.id);
                   }}
@@ -262,7 +264,7 @@ export function MegaMenu({
                   className={cn(itemClassName, "pr-0")}
                 >
                   {category.name}
-                </Link>
+                </NativeCategoryLink>
                 <button
                   id={`category-trigger-${category.id}`}
                   type="button"
@@ -296,8 +298,8 @@ export function MegaMenu({
                 </button>
               </>
             ) : (
-              <Link
-                ref={(node) => {
+              <NativeCategoryLink
+                anchorRef={(node) => {
                   if (node) itemRefs.current.set(category.id, node);
                   else itemRefs.current.delete(category.id);
                 }}
@@ -307,7 +309,7 @@ export function MegaMenu({
                 className={itemClassName}
               >
                 {category.name}
-              </Link>
+              </NativeCategoryLink>
             )}
 
             {hasChildren ? (
@@ -326,7 +328,7 @@ export function MegaMenu({
                     ))}
                   </div>
                   <div className="flex items-center justify-end border-t border-border bg-background px-6 py-3 xl:px-8">
-                    <Link
+                    <NativeCategoryLink
                       data-mega-link
                       href={categoryPath(locale, category.slug)}
                       onClick={close}
@@ -334,7 +336,7 @@ export function MegaMenu({
                     >
                       {formatLabel(labels.viewAll, category.name)}
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </Link>
+                    </NativeCategoryLink>
                   </div>
                 </div>
               </div>

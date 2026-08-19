@@ -4,6 +4,7 @@ import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { NavigationCategoryDto } from "../lib/categoryGroups";
 import { MegaMenu, nextTopLevelIndex } from "../components/layout/MegaMenu";
+import * as megaMenuModule from "../components/layout/MegaMenu";
 import { resolveCategoryPath } from "../components/layout/MobileNav";
 import * as mobileNavModule from "../components/layout/MobileNav";
 
@@ -74,6 +75,26 @@ test("desktop branch label navigates to its category beside a separate disclosur
   assert.match(markup, /<button[^>]+aria-label="Open submenu voor noten"/);
 });
 
+test("menu category navigation uses a native anchor so localized rewrites resolve on the server", () => {
+  const module = megaMenuModule as unknown as {
+    NativeCategoryLink?: (props: {
+      href: string;
+      children: React.ReactNode;
+    }) => { type: unknown; props: { href?: string } };
+  };
+
+  assert.equal(typeof module.NativeCategoryLink, "function");
+  if (!module.NativeCategoryLink) return;
+
+  const element = module.NativeCategoryLink({
+    href: "/nl/categorie/studenten-flikken",
+    children: "Studenten Flikken",
+  });
+
+  assert.equal(element.type, "a");
+  assert.equal(element.props.href, "/nl/categorie/studenten-flikken");
+});
+
 test("mobile branch label navigates while a separate control opens its children", () => {
   const module = mobileNavModule as unknown as {
     MobileCategoryRow?: (props: {
@@ -116,7 +137,7 @@ test("mobile menu provides drilldown, back, overview and 44px touch targets", ()
   assert.match(source, /min-h-11/);
   assert.match(source, /min-h-12/);
   assert.match(source, /touch-manipulation/);
-  assert.match(source, /<Link\s+href=\{categoryPath\(locale, activeCategory\.slug\)\}/);
+  assert.match(source, /<NativeCategoryLink\s+href=\{categoryPath\(locale, activeCategory\.slug\)\}/);
 });
 
 test("header exposes every standard root returned by the navigation query", () => {
