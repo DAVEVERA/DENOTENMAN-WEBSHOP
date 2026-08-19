@@ -10,6 +10,7 @@ import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 import { BASE_URL, product as productPath } from "@/lib/routes";
 import { buildProductStructuredData } from "@/lib/structured-data";
+import { resolveProductDescription } from "@/lib/product-description";
 
 const dictionaries = { nl, en, fr };
 
@@ -46,7 +47,7 @@ export async function generateMetadata({
 
   return {
     title: data.seoTitle ?? data.name,
-    description: data.metaDescription ?? data.shortDescription ?? data.description ?? undefined,
+    description: data.metaDescription ?? resolveProductDescription(data, rawLocale),
     alternates: {
       canonical: alternates.canonical,
       languages: alternates.languages,

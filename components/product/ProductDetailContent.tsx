@@ -14,6 +14,7 @@ import { category as categoryPath, home } from "@/lib/routes";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
+import { resolveProductDescription } from "@/lib/product-description";
 
 const dictionaries = { nl, en, fr };
 const homeLabels = { nl: "Home", en: "Home", fr: "Accueil" } as const;
@@ -58,6 +59,7 @@ export function ProductDetailContent({
   const primaryImage = data.images.find((image) => image.isPrimary) ?? data.images[0];
   const energyKj = attributes.get("nutrition.energyKj");
   const energyKcal = attributes.get("nutrition.energyKcal");
+  const resolvedDescription = resolveProductDescription(data, locale);
 
   const nutritionEntries = [
     ...(energyKj || energyKcal
@@ -210,7 +212,7 @@ export function ProductDetailContent({
                     dangerouslySetInnerHTML={{ __html: data.descriptionHtml }}
                   />
                 ) : (
-                  <p className="text-text">{data.description}</p>
+                  <p className="text-text">{data.description ?? resolvedDescription}</p>
                 ),
               },
               {

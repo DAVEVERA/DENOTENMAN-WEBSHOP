@@ -51,11 +51,28 @@ test("builds ProductGroup variants, breadcrumb and Organization from storefront 
 
   assert.equal(organization?.name, "De Notenman");
   assert.equal(organization?.logo, "https://denotenman.com/brand/logo-wordmark.svg");
+  assert.equal(organization?.hasShippingService?.["@id"], "https://denotenman.com#standard-shipping");
+  assert.equal(organization?.hasShippingService?.shippingConditions?.length, 4);
+  assert.deepEqual(organization?.hasMerchantReturnPolicy?.applicableCountry, ["NL", "BE"]);
+  assert.equal(organization?.hasMerchantReturnPolicy?.merchantReturnDays, 14);
+  assert.equal(
+    organization?.hasMerchantReturnPolicy?.itemCondition,
+    "https://schema.org/NewCondition"
+  );
   assert.equal(breadcrumb?.itemListElement?.[1]?.name, "Noten");
   assert.equal(group?.productGroupID, "AM-P");
   assert.equal(group?.hasVariant?.length, 2);
   assert.equal(group?.hasVariant?.[0]?.offers.availability, "https://schema.org/InStock");
   assert.equal(group?.hasVariant?.[1]?.offers.availability, "https://schema.org/OutOfStock");
+  assert.equal(
+    group?.hasVariant?.[0]?.offers.shippingDetails.hasShippingService["@id"],
+    "https://denotenman.com#standard-shipping"
+  );
+  assert.equal(
+    group?.hasVariant?.[0]?.offers.hasMerchantReturnPolicy["@id"],
+    "https://denotenman.com#return-policy"
+  );
+  assert.match(group?.hasVariant?.[0]?.description, /Verpakking: 250 gram\./);
   assert.equal(
     group?.hasVariant?.[1]?.offers.url,
     "https://denotenman.com/nl/producten/amandelen?variant=AM-500"
@@ -70,7 +87,26 @@ test("builds ProductGroup variants, breadcrumb and Organization from storefront 
   );
 
   const serialized = JSON.stringify(jsonLd);
-  assert.doesNotMatch(serialized, /shippingDetails|hasMerchantReturnPolicy|gtin|mpn|origin/i);
+  assert.doesNotMatch(serialized, /aggregateRating|"review"|gtin|mpn|origin/i);
+});
+
+test("supplies a visible-safe localized description when product copy is missing", () => {
+  const jsonLd = buildProductStructuredData({
+    product: {
+      ...product,
+      description: null,
+      descriptionHtml: null,
+      shortDescription: null,
+    },
+    locale: "nl",
+    baseUrl: "https://denotenman.com",
+  });
+  const group = (jsonLd["@graph"] as Array<Record<string, any>>).find(
+    (entry) => entry["@type"] === "ProductGroup"
+  );
+
+  assert.equal(group?.description, "Amandelen & meer van De Notenman uit de categorie Noten.");
+  assert.match(group?.hasVariant?.[0]?.description, /Verpakking: 250 gram\./);
 });
 
 test("uses the same orderability rule for JSON-LD and Merchant availability", () => {

@@ -61,3 +61,14 @@ test("renders breadcrumb, weight, price, availability and supplied food facts in
   assert.match(html, /Bewaren[\s\S]*Koel en droog bewaren/);
   assert.match(html, /500 gram[\s\S]*?aria-checked="true"|aria-checked="true"[\s\S]*?500 gram/);
 });
+
+test("renders the same truthful fallback description used by structured data", () => {
+  const html = renderToStaticMarkup(
+    <ProductDetailContent
+      data={{ ...data, description: null, descriptionHtml: null, shortDescription: null }}
+      locale="nl"
+    />
+  );
+
+  assert.match(html, /Amandelen van De Notenman uit de categorie Noten\./);
+});

@@ -5,7 +5,22 @@ import type {
   ProductVariantDto,
 } from "@/lib/queries";
 import { category, home, product as productPath } from "@/lib/routes";
-import { toProductPlainText } from "@/lib/product-content";
+import {
+  resolveProductDescription,
+  resolveProductVariantDescription,
+} from "@/lib/product-description";
+import { pagePath } from "@/lib/pages";
+import {
+  FLAT_SHIPPING_CENTS,
+  FREE_SHIPPING_THRESHOLD_CENTS,
+  RETURN_COUNTRY_CODES,
+  RETURN_POLICY_COUNTRY,
+  RETURN_WINDOW_DAYS,
+  SHIPPING_BUSINESS_DAYS,
+  SHIPPING_COUNTRY_CODES,
+  STANDARD_HANDLING_DAYS,
+  STANDARD_TRANSIT_DAYS,
+} from "@/lib/shipping";
 
 const SCHEMA = "https://schema.org";
 const BRAND_NAME = "De Notenman";
@@ -22,12 +37,97 @@ function absoluteUrl(baseUrl: string, path: string): string {
 
 function organizationEntity(baseUrl: string) {
   const origin = baseUrl.replace(/\/$/, "");
+  const shippingServiceId = `${origin}#standard-shipping`;
+  const returnPolicyId = `${origin}#return-policy`;
+  const paidShippingMax = FREE_SHIPPING_THRESHOLD_CENTS / 100 - 0.01;
+
+  const transitTime = {
+    "@type": "ServicePeriod",
+    duration: {
+      "@type": "QuantitativeValue",
+      minValue: STANDARD_TRANSIT_DAYS.min,
+      maxValue: STANDARD_TRANSIT_DAYS.max,
+      unitCode: "DAY",
+    },
+    businessDays: [...SHIPPING_BUSINESS_DAYS],
+  };
+
+  const shippingConditions = SHIPPING_COUNTRY_CODES.flatMap((country) => [
+    {
+      "@type": "ShippingConditions",
+      shippingDestination: { "@type": "DefinedRegion", addressCountry: country },
+      orderValue: {
+        "@type": "MonetaryAmount",
+        minValue: 0,
+        maxValue: paidShippingMax,
+        currency: "EUR",
+      },
+      shippingRate: {
+        "@type": "MonetaryAmount",
+        value: FLAT_SHIPPING_CENTS / 100,
+        currency: "EUR",
+      },
+      transitTime,
+    },
+    {
+      "@type": "ShippingConditions",
+      shippingDestination: { "@type": "DefinedRegion", addressCountry: country },
+      orderValue: {
+        "@type": "MonetaryAmount",
+        minValue: FREE_SHIPPING_THRESHOLD_CENTS / 100,
+        currency: "EUR",
+      },
+      shippingRate: { "@type": "MonetaryAmount", value: 0, currency: "EUR" },
+      transitTime,
+    },
+  ]);
+
   return {
     "@type": "Organization",
     "@id": `${origin}#organization`,
     name: BRAND_NAME,
     url: origin,
     logo: absoluteUrl(baseUrl, "/brand/logo-wordmark.svg"),
+    hasShippingService: {
+      "@type": "ShippingService",
+      "@id": shippingServiceId,
+      name: "Standaardverzending Nederland en België",
+      fulfillmentType: `${SCHEMA}/FulfillmentTypeDelivery`,
+      handlingTime: {
+        "@type": "ServicePeriod",
+        duration: {
+          "@type": "QuantitativeValue",
+          minValue: STANDARD_HANDLING_DAYS.min,
+          maxValue: STANDARD_HANDLING_DAYS.max,
+          unitCode: "DAY",
+        },
+        businessDays: [...SHIPPING_BUSINESS_DAYS],
+      },
+      shippingConditions,
+    },
+    hasMerchantReturnPolicy: {
+      "@type": "MerchantReturnPolicy",
+      "@id": returnPolicyId,
+      applicableCountry: [...RETURN_COUNTRY_CODES],
+      returnPolicyCountry: RETURN_POLICY_COUNTRY,
+      returnPolicyCategory: `${SCHEMA}/MerchantReturnFiniteReturnWindow`,
+      merchantReturnDays: RETURN_WINDOW_DAYS,
+      itemCondition: `${SCHEMA}/NewCondition`,
+      returnMethod: `${SCHEMA}/ReturnByMail`,
+      returnFees: `${SCHEMA}/ReturnFeesCustomerResponsibility`,
+      merchantReturnLink: absoluteUrl(baseUrl, pagePath("shippingReturns", "nl")),
+    },
+  };
+}
+
+function offerPolicyReferences(baseUrl: string) {
+  const origin = baseUrl.replace(/\/$/, "");
+  return {
+    shippingDetails: {
+      "@type": "OfferShippingDetails",
+      hasShippingService: { "@id": `${origin}#standard-shipping` },
+    },
+    hasMerchantReturnPolicy: { "@id": `${origin}#return-policy` },
   };
 }
 
@@ -100,7 +200,7 @@ function productVariantEntity(input: {
     "@id": `${selectionUrl}#product`,
     url: selectionUrl,
     name: `${product.name} - ${label}`,
-    description: product.shortDescription ?? product.description ?? undefined,
+    description: resolveProductVariantDescription(product, locale, label),
     sku: variant.sku,
     image: imageUrl ? [imageUrl] : undefined,
     size: label,
@@ -114,6 +214,7 @@ function productVariantEntity(input: {
         isStorefrontVariantOrderable(product.isActive, variant)
       ),
       itemCondition: `${SCHEMA}/NewCondition`,
+      ...offerPolicyReferences(baseUrl),
     },
   };
 }
@@ -146,7 +247,7 @@ export function buildProductStructuredData(input: {
           "@id": `${pageUrl}#product-group`,
           url: pageUrl,
           name: product.name,
-          description: product.shortDescription ?? product.description ?? undefined,
+          description: resolveProductDescription(product, locale),
           productGroupID: product.sku,
           image: primaryImage ? [primaryImage.url] : undefined,
           brand: { "@type": "Brand", name: BRAND_NAME },
@@ -158,7 +259,7 @@ export function buildProductStructuredData(input: {
           "@id": `${pageUrl}#product`,
           url: pageUrl,
           name: product.name,
-          description: product.shortDescription ?? product.description ?? undefined,
+          description: resolveProductDescription(product, locale),
           sku: product.sku,
           image: primaryImage ? [primaryImage.url] : undefined,
           brand: { "@type": "Brand", name: BRAND_NAME },
@@ -169,6 +270,7 @@ export function buildProductStructuredData(input: {
             price: (product.basePriceCents / 100).toFixed(2),
             availability: schemaAvailability(false),
             itemCondition: `${SCHEMA}/NewCondition`,
+            ...offerPolicyReferences(baseUrl),
           },
         });
   const breadcrumbItems = [
@@ -230,8 +332,7 @@ export function buildGoogleMerchantFeedXml(input: {
       product.images.find((image) => image.isPrimary) ?? product.images[0];
     if (!primaryImage) return [];
 
-    const description =
-      toProductPlainText(product.shortDescription ?? product.description) || product.name;
+    const description = resolveProductDescription(product, locale);
 
     return product.variants.map((variant) => {
       const label = variantLabel(variant, product.unit);
