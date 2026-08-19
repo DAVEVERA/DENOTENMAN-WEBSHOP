@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Bell, Heart, ShoppingCart } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
@@ -65,11 +66,14 @@ export function ProductCard({
           aria-label={dictionary.product.openQuickView.replace("{product}", product.name)}
           className="flex min-w-0 flex-1 flex-col text-left focus-visible:rounded-card"
         >
-          <span className="mx-auto block aspect-square w-full overflow-hidden rounded-full border border-border bg-background">
+          <span className="relative mx-auto block aspect-square w-full overflow-hidden rounded-full border border-border bg-background">
             {primaryImage ? (
-              <img
+              <Image
                 src={primaryImage.url}
                 alt={primaryImage.alt ?? product.name}
+                fill
+                sizes="(max-width: 639px) calc(50vw - 1.5rem), (max-width: 1023px) calc(33vw - 2rem), 280px"
+                quality={70}
                 style={getProductImageStyle(primaryImage.url)}
                 className="product-image-focal product-image-focal--zoomable h-full w-full rounded-full object-cover transition-transform duration-hover"
               />
@@ -136,7 +140,8 @@ export function ProductCard({
           href={productPath(locale, product.slug)}
           className={`${productActionButtonClass} mt-3 w-full text-center text-sm max-[420px]:px-2 max-[420px]:text-xs`}
         >
-          {dictionary.product.moreInfo}
+          <span>{dictionary.product.moreInfo}</span>
+          <span className="sr-only"> — {product.name}</span>
         </Link>
       </Card>
 

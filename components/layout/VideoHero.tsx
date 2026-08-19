@@ -34,7 +34,8 @@ export function VideoHero({ locale, dictionary }: { locale: Locale; dictionary: 
         src="/hero/hero_bg.png"
         alt=""
         fill
-        priority
+        loading="eager"
+        fetchPriority="high"
         sizes="100vw"
         className="video-hero__bg"
       />
@@ -60,12 +61,14 @@ export function VideoHero({ locale, dictionary }: { locale: Locale; dictionary: 
           <div className="video-hero__grid">
             {favorites.map((item) => (
               <article key={item.slug} className="video-hero__card">
-                <img
+                <Image
                   className="video-hero__card-image"
                   src={item.imageUrl}
                   alt={item.name}
                   width={900}
                   height={900}
+                  sizes="(max-width: 759px) calc(100vw - 48px), 112px"
+                  quality={70}
                 />
                 <div className="video-hero__card-body">
                   <p className="video-hero__card-meta">{item.meta}</p>

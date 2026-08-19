@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { imageConfigDefault } from "next/dist/shared/lib/image-config";
+import { ImageConfigContext } from "next/dist/shared/lib/image-config-context.shared-runtime";
 import { VideoHero } from "../components/layout/VideoHero";
 import {
   buildStorefrontMetadata,
@@ -9,6 +11,20 @@ import {
 } from "../lib/storefront-seo";
 import en from "../dictionaries/en.json";
 import fr from "../dictionaries/fr.json";
+
+const imageConfig = {
+  ...imageConfigDefault,
+  qualities: [70, 75],
+  remotePatterns: [{ protocol: "https" as const, hostname: "storage.googleapis.com" }],
+};
+
+function renderHero(locale: "en" | "fr", dictionary: typeof en | typeof fr) {
+  return renderToStaticMarkup(
+    <ImageConfigContext.Provider value={imageConfig}>
+      <VideoHero locale={locale} dictionary={dictionary} />
+    </ImageConfigContext.Provider>,
+  );
+}
 
 test("builds self-canonical localized metadata and only noindexes an empty collection", () => {
   const alternates = {
@@ -39,7 +55,7 @@ test("builds self-canonical localized metadata and only noindexes an empty colle
 });
 
 test("renders English hero copy with English product links", () => {
-  const markup = renderToStaticMarkup(<VideoHero locale="en" dictionary={en} />);
+  const markup = renderHero("en", en);
 
   assert.match(markup, /Delicious freshly roasted nuts &amp; dried fruit!/);
   assert.match(markup, /href="\/en\/products\/shelled-and-roasted-pistachios"/);
@@ -48,7 +64,7 @@ test("renders English hero copy with English product links", () => {
 });
 
 test("renders French hero copy with current French product links", () => {
-  const markup = renderToStaticMarkup(<VideoHero locale="fr" dictionary={fr} />);
+  const markup = renderHero("fr", fr);
 
   assert.match(markup, /Délicieuses noix fraîchement torréfiées/);
   assert.match(markup, /href="\/fr\/produits\/pistaches-decortiquees-et-grillees"/);

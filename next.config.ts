@@ -7,6 +7,9 @@ import { legacyWordpressRedirects } from "./lib/legacyRedirects";
 
 const cdnBaseUrl = process.env.CDN_BASE_URL;
 const cdnHostname = cdnBaseUrl ? new URL(cdnBaseUrl).hostname : undefined;
+const imageHostnames = Array.from(
+  new Set(["storage.googleapis.com", cdnHostname].filter((hostname): hostname is string => Boolean(hostname)))
+);
 
 function localizedPageRewrites() {
   return locales.flatMap((locale) =>
@@ -81,14 +84,12 @@ const nextConfig: NextConfig = {
     root: path.resolve(import.meta.dirname),
   },
   images: {
-    remotePatterns: cdnHostname
-      ? [
-          {
-            protocol: "https",
-            hostname: cdnHostname,
-          },
-        ]
-      : [],
+    minimumCacheTTL: 2678400,
+    qualities: [70, 75],
+    remotePatterns: imageHostnames.map((hostname) => ({
+      protocol: "https",
+      hostname,
+    })),
   },
   async rewrites() {
     return [
