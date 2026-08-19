@@ -3,8 +3,16 @@ import type { NextRequest } from "next/server";
 import { OrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
-import { dispatchAftersalesEvent } from "@/lib/aftersales/service";
+import {
+  prepareAftersalesEvent,
+  processAftersalesDelivery,
+  queueAftersalesEvent,
+} from "@/lib/aftersales/service";
 import { aftersalesTriggerForOrderTransition } from "@/lib/aftersales/events";
+import {
+  isAllowedAdminOrderTransition,
+  requiresTrackingForFulfillment,
+} from "@/lib/aftersales/order-state";
 
 // proxy.ts's matcher explicitly excludes /api/** ("/((?!api|_next|.*\\..*).*)"),
 // so unlike the /admin/** page tree this route is NOT gated by the shared
@@ -78,31 +86,87 @@ export async function PATCH(
   ) {
     return NextResponse.json({ error: "PAID_ORDER_REQUIRES_REFUND" }, { status: 409 });
   }
-
-  const updated = await prisma.order.update({
-    where: { id },
-    data,
-  });
-
-  let aftersalesStatus: string | null = null;
-  if (existing.status !== updated.status) {
-    const trigger = aftersalesTriggerForOrderTransition(
-      existing.status,
-      updated.status,
-      existing.isTest
+  if (data.status && !isAllowedAdminOrderTransition(existing.status, data.status)) {
+    return NextResponse.json(
+      {
+        error: "INVALID_STATUS_TRANSITION",
+        from: existing.status,
+        to: data.status,
+      },
+      { status: 409 }
     );
-    if (trigger) {
-      const result = await dispatchAftersalesEvent(updated.id, trigger).catch((error) => {
-        console.error("Failed to dispatch order aftersales event", {
-          orderId: updated.id,
-          trigger,
-          error,
-        });
-        return { status: "failed" as const };
-      });
-      aftersalesStatus = result.status;
+  }
+  if (
+    (data.status ?? existing.status) === "FULFILLED" &&
+    requiresTrackingForFulfillment(existing.deliveryMethod)
+  ) {
+    const effectiveTrackingCode =
+      data.postnlTrackingCode !== undefined
+        ? data.postnlTrackingCode
+        : existing.postnlTrackingCode;
+    if (!effectiveTrackingCode) {
+      return NextResponse.json(
+        {
+          error: "TRACKING_CODE_REQUIRED",
+          message: "Een verzendbestelling kan niet zonder trackingcode worden verzonden.",
+        },
+        { status: 409 }
+      );
     }
   }
 
-  return NextResponse.json({ order: updated, aftersalesStatus });
+  const trigger = data.status
+    ? aftersalesTriggerForOrderTransition(existing.status, data.status, existing.isTest)
+    : null;
+  const prepared = trigger ? await prepareAftersalesEvent(trigger) : null;
+
+  try {
+    const transition = await prisma.$transaction(async (transaction) => {
+      const { count } = await transaction.order.updateMany({
+        where: { id, status: existing.status, updatedAt: existing.updatedAt },
+        data,
+      });
+      if (count !== 1) throw new Error("ORDER_CHANGED");
+
+      const queued =
+        trigger && prepared
+          ? await queueAftersalesEvent(transaction, id, trigger, prepared)
+          : null;
+      const updated = await transaction.order.findUniqueOrThrow({ where: { id } });
+      return { queued, updated };
+    });
+
+    let aftersalesStatus: string | null = null;
+    if (trigger) {
+      if (!transition.queued) {
+        aftersalesStatus = "disabled";
+      } else {
+        const result = await processAftersalesDelivery(transition.queued.deliveryId).catch(
+          (error) => {
+            console.error("Failed to process queued order aftersales event", {
+              orderId: transition.updated.id,
+              trigger,
+              error,
+            });
+            return { status: "failed" as const };
+          }
+        );
+        aftersalesStatus = result.status;
+      }
+    }
+
+    return NextResponse.json({ order: transition.updated, aftersalesStatus });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ORDER_CHANGED") {
+      return NextResponse.json(
+        {
+          error: "ORDER_CHANGED",
+          message: "De bestelling is intussen gewijzigd. Herlaad de pagina en probeer opnieuw.",
+        },
+        { status: 409 }
+      );
+    }
+    console.error("Failed to update order", { orderId: id, error });
+    return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
+  }
 }

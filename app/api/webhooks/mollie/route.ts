@@ -41,7 +41,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await syncOrderPaymentStatus(order);
+    // Return 500 when a durable transactional e-mail remains failed. Mollie
+    // will retry the webhook, which resumes the PENDING/FAILED outbox row
+    // without changing the already persisted payment state.
+    await syncOrderPaymentStatus(order, { failOnAftersalesError: true });
     await syncOrderRefundStatuses(order.id);
   } catch (error) {
     console.error("Failed to sync order payment status from webhook", error);

@@ -7,7 +7,12 @@ import type { Locale } from "@/lib/i18n";
 import type { Order, OrderStatus } from "@prisma/client";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
 import { sendOrderConfirmationEmail } from "@/lib/mail";
-import { dispatchAftersalesEvent } from "@/lib/aftersales/service";
+import {
+  prepareAftersalesEvent,
+  processAftersalesDelivery,
+  processPendingAftersalesForOrder,
+  queueAftersalesEvent,
+} from "@/lib/aftersales/service";
 import { getPickupLocation } from "@/lib/pickup-locations";
 import {
   evaluateCheckoutDiscount,
@@ -396,8 +401,21 @@ export async function findOrderForLookup(
  * webhook body or a client-supplied status — that is the only way to make
  * this un-spoofable.
  */
-export async function syncOrderPaymentStatus(order: Order): Promise<Order> {
-  if (!order.molliePaymentId || order.status === "PAID" || order.status === "FULFILLED") {
+export async function syncOrderPaymentStatus(
+  order: Order,
+  options: { failOnAftersalesError?: boolean } = {}
+): Promise<Order> {
+  if (order.status === "PAID" || order.status === "FULFILLED") {
+    if (!order.isTest) {
+      const results = await processPendingAftersalesForOrder(order.id);
+      const failure = results.find((result) => result.status === "failed");
+      if (failure?.status === "failed" && options.failOnAftersalesError) {
+        throw new Error(`AFTERSALES_DELIVERY_FAILED: ${failure.error}`);
+      }
+    }
+    return order;
+  }
+  if (!order.molliePaymentId) {
     return order;
   }
 
@@ -408,33 +426,55 @@ export async function syncOrderPaymentStatus(order: Order): Promise<Order> {
     return order;
   }
 
-  // Guard the transition on the status we read: the webhook and a customer
-  // viewing the confirmation page can both call this concurrently for the
-  // same order, and only whichever caller actually flips PENDING -> PAID
-  // (count === 1) should fire the confirmation email below.
-  const { count } = await prisma.order.updateMany({
-    where: { id: order.id, status: order.status },
-    data: {
-      status: nextStatus,
-      paidAt: nextStatus === "PAID" ? new Date() : order.paidAt,
-    },
+  const prepared = nextStatus === "PAID" && !order.isTest
+    ? await prepareAftersalesEvent("ORDER_PAID")
+    : null;
+
+  // Persist the status transition and its e-mail event in one transaction.
+  // A crash after this commit leaves a PENDING outbox row that a subsequent
+  // Mollie webhook or order lookup can resume safely.
+  const transition = await prisma.$transaction(async (transaction) => {
+    const { count } = await transaction.order.updateMany({
+      where: { id: order.id, status: order.status },
+      data: {
+        status: nextStatus,
+        paidAt: nextStatus === "PAID" ? new Date() : order.paidAt,
+      },
+    });
+    const queued =
+      count === 1 && nextStatus === "PAID" && prepared
+        ? await queueAftersalesEvent(
+            transaction,
+            order.id,
+            "ORDER_PAID",
+            prepared
+          )
+        : null;
+    const updated = await transaction.order.findUniqueOrThrow({
+      where: { id: order.id },
+      include: { items: true },
+    });
+    return { count, queued, updated };
   });
 
-  const updated = await prisma.order.findUniqueOrThrow({
-    where: { id: order.id },
-    include: { items: true },
-  });
-
-  if (count === 1 && nextStatus === "PAID") {
+  if (transition.count === 1 && nextStatus === "PAID") {
     try {
-      const aftersales = await dispatchAftersalesEvent(updated.id, "ORDER_PAID");
-      if (aftersales.status === "disabled") {
-        await sendOrderConfirmationEmail(updated, updated.items);
+      if (transition.queued) {
+        const result = await processAftersalesDelivery(transition.queued.deliveryId);
+        if (result.status === "failed" && options.failOnAftersalesError) {
+          throw new Error(`AFTERSALES_DELIVERY_FAILED: ${result.error}`);
+        }
+      } else {
+        // Compatibility fallback for a database on which the aftersales
+        // migration is not installed yet. The normal production path above
+        // always uses the durable outbox.
+        await sendOrderConfirmationEmail(transition.updated, transition.updated.items);
       }
     } catch (error) {
       console.error(`Failed to send order confirmation email for order ${order.id}`, error);
+      if (options.failOnAftersalesError) throw error;
     }
   }
 
-  return updated;
+  return transition.updated;
 }

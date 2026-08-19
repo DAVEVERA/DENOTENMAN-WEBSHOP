@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { aftersalesProviderStatus } from "@/lib/aftersales/provider";
+import { reconcileAftersalesDeliveryForEmailLog } from "@/lib/aftersales/service";
 import { retryTransactionalEmail } from "@/lib/transactional-email";
 
 export async function POST(
@@ -22,6 +23,7 @@ export async function POST(
   const { id } = await context.params;
   try {
     const result = await retryTransactionalEmail(id);
+    await reconcileAftersalesDeliveryForEmailLog(result.logId);
     if (result.status === "accepted") {
       return NextResponse.json({ ok: true, result });
     }
