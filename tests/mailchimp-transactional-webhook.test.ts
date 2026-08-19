@@ -149,6 +149,49 @@ test("rejects an invalid signature before processing events", async () => {
   }
 });
 
+test("accepts only Mailchimp's signed empty validation batch before key setup", async () => {
+  const previousKey = process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_KEY;
+  const previousUrl = process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_URL;
+  delete process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_KEY;
+  process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_URL = webhookUrl;
+  try {
+    const validationParams = new URLSearchParams({ mandrill_events: "[]" });
+    const validationSignature = createMandrillSignature(
+      "test-webhook",
+      webhookUrl,
+      validationParams
+    );
+    const validationResponse = await POST(new Request(webhookUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "x-mandrill-signature": validationSignature,
+      },
+      body: validationParams,
+    }));
+    assert.equal(validationResponse.status, 200);
+
+    const eventParams = new URLSearchParams({
+      mandrill_events: JSON.stringify([{ event: "delivered", _id: "forged" }]),
+    });
+    const eventSignature = createMandrillSignature("test-webhook", webhookUrl, eventParams);
+    const eventResponse = await POST(new Request(webhookUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "x-mandrill-signature": eventSignature,
+      },
+      body: eventParams,
+    }));
+    assert.equal(eventResponse.status, 503);
+  } finally {
+    if (previousKey === undefined) delete process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_KEY;
+    else process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_KEY = previousKey;
+    if (previousUrl === undefined) delete process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_URL;
+    else process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_URL = previousUrl;
+  }
+});
+
 test("acknowledges a signed empty or repeated-safe batch", async () => {
   const previousKey = process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_KEY;
   const previousUrl = process.env.MAILCHIMP_TRANSACTIONAL_WEBHOOK_URL;
