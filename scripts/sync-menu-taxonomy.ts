@@ -3,6 +3,7 @@ import { collectCategoryAndAncestorIds } from "../lib/category-hierarchy";
 import {
   getChocolatePlacementForProductSku,
   getNutFamilyForProductSku,
+  getSeedPlacementForProductSku,
 } from "../lib/catalog-taxonomy";
 
 const prisma = new PrismaClient();
@@ -202,6 +203,30 @@ const definitions: CategoryDefinition[] = [
     },
   },
   {
+    slug: "pompoenpitten", parentSlug: "pitten", sortOrder: 1,
+    translations: {
+      nl: { name: "Pompoenpitten", slug: "pompoenpitten", description: "Voedzame pompoenpitten voor ontbijt, salade en bakrecepten." },
+      en: { name: "Pumpkin seeds", slug: "pumpkin-seeds", description: "Nutritious pumpkin seeds for breakfast, salads and baking." },
+      fr: { name: "Graines de courge", slug: "graines-de-courge", description: "Graines de courge nutritives pour petit-dejeuner, salades et patisserie." },
+    },
+  },
+  {
+    slug: "zonnebloempitten", parentSlug: "pitten", sortOrder: 2,
+    translations: {
+      nl: { name: "Zonnebloempitten", slug: "zonnebloempitten", description: "Milde zonnebloempitten voor salades, muesli en brood." },
+      en: { name: "Sunflower seeds", slug: "sunflower-seeds", description: "Mild sunflower seeds for salads, muesli and bread." },
+      fr: { name: "Graines de tournesol", slug: "graines-de-tournesol", description: "Graines de tournesol douces pour salades, muesli et pain." },
+    },
+  },
+  {
+    slug: "pijnboompitten", parentSlug: "pitten", sortOrder: 3,
+    translations: {
+      nl: { name: "Pijnboompitten", slug: "pijnboompitten", description: "Romige pijnboompitten voor pesto, salades en warme gerechten." },
+      en: { name: "Pine nuts", slug: "pine-nuts", description: "Creamy pine nuts for pesto, salads and hot dishes." },
+      fr: { name: "Pignons de pin", slug: "pignons-de-pin", description: "Pignons de pin cremeux pour pesto, salades et plats chauds." },
+    },
+  },
+  {
     slug: "zaden", parentSlug: null, sortOrder: 4,
     translations: {
       nl: { name: "Zaden", slug: "zaden", description: "Lijnzaad, sesam, chia, hennep en maanzaad." },
@@ -210,7 +235,47 @@ const definitions: CategoryDefinition[] = [
     },
   },
   {
-    slug: "zadenmixen-granen", parentSlug: "zaden", sortOrder: 1,
+    slug: "lijnzaad", parentSlug: "zaden", sortOrder: 1,
+    translations: {
+      nl: { name: "Lijnzaad", slug: "lijnzaad", description: "Heel en gebroken lijnzaad voor ontbijt, brood en smoothies." },
+      en: { name: "Flaxseed", slug: "flaxseed", description: "Whole and ground flaxseed for breakfast, bread and smoothies." },
+      fr: { name: "Graines de lin", slug: "graines-de-lin", description: "Graines de lin entieres et moulues pour petit-dejeuner, pain et smoothies." },
+    },
+  },
+  {
+    slug: "sesamzaad", parentSlug: "zaden", sortOrder: 2,
+    translations: {
+      nl: { name: "Sesamzaad", slug: "sesamzaad", description: "Wit en bruin sesamzaad voor brood, salades en Aziatische gerechten." },
+      en: { name: "Sesame seeds", slug: "sesame-seeds", description: "White and brown sesame seeds for bread, salads and Asian dishes." },
+      fr: { name: "Graines de sesame", slug: "graines-de-sesame", description: "Graines de sesame blanches et brunes pour pain, salades et plats asiatiques." },
+    },
+  },
+  {
+    slug: "chiazaad", parentSlug: "zaden", sortOrder: 3,
+    translations: {
+      nl: { name: "Chiazaad", slug: "chiazaad", description: "Chiazaad voor ontbijt, pudding, smoothies en bakrecepten." },
+      en: { name: "Chia seeds", slug: "chia-seeds", description: "Chia seeds for breakfast, pudding, smoothies and baking." },
+      fr: { name: "Graines de chia", slug: "graines-de-chia", description: "Graines de chia pour petit-dejeuner, pudding, smoothies et patisserie." },
+    },
+  },
+  {
+    slug: "hennepzaad", parentSlug: "zaden", sortOrder: 4,
+    translations: {
+      nl: { name: "Hennepzaad", slug: "hennepzaad", description: "Zacht hennepzaad voor ontbijt, salades en smoothies." },
+      en: { name: "Hemp seeds", slug: "hemp-seeds", description: "Mild hemp seeds for breakfast, salads and smoothies." },
+      fr: { name: "Graines de chanvre", slug: "graines-de-chanvre", description: "Graines de chanvre douces pour petit-dejeuner, salades et smoothies." },
+    },
+  },
+  {
+    slug: "maanzaad", parentSlug: "zaden", sortOrder: 5,
+    translations: {
+      nl: { name: "Maanzaad", slug: "maanzaad", description: "Maanzaad voor brood, gebak en hartige gerechten." },
+      en: { name: "Poppy seeds", slug: "poppy-seeds", description: "Poppy seeds for bread, pastries and savoury dishes." },
+      fr: { name: "Graines de pavot", slug: "graines-de-pavot", description: "Graines de pavot pour pain, patisserie et plats sales." },
+    },
+  },
+  {
+    slug: "zadenmixen-granen", parentSlug: "zaden", sortOrder: 6,
     translations: {
       nl: { name: "Mixen & quinoa", slug: "mixen-quinoa", description: "Zadenmixen, salademix en quinoa." },
       en: { name: "Mixes & quinoa", slug: "mixes-quinoa", description: "Seed mixes, salad mix and quinoa." },
@@ -279,14 +344,11 @@ const rootOrder = [
   "snacks-zoutjes", "bakproducten", "honing-natuurvoeding",
 ] as const;
 
-const sweetChocolateSkus = new Set(["CHO-5001-250-P", "CHO-5002-250-P", "CHO-5003-300-P", "CHO-5009-500-P"]);
 const fruitSnackSkus = new Set(["SNK-6001-250-P", "SNK-6020-VAR-P"]);
 const sweetSnackSkus = new Set(["SNK-6004-250-P", "SNK-6008-250-P"]);
 const spicySnackSkus = new Set(["SNK-6005-250-P", "SNK-6007-250-P", "SNK-6009-225-P", "SNK-6010-150-P", "SNK-6012-250-P", "SNK-6017-250-P", "SNK-6003-250-P"]);
 const crackerSkus = new Set(["SNK-6011-200-P", "SNK-6013-200-P", "SNK-6014-200-P", "SNK-6015-180-P", "SNK-6016-200-P", "SNK-6018-200-P", "SNK-6019-80-P"]);
 const muesliSkus = new Set(["MUE-11001-500-P", "MUE-11005-500-P", "MUE-11006-250-P"]);
-const kernelSkus = new Set(["PIT-7003-100-P", "PIT-7004-250-P", "PIT-7009-250-P"]);
-const seedMixSkus = new Set(["PIT-7005-500-P", "PIT-7006-250-P", "PIT-7008-250-P"]);
 const bakingNutSkus = new Set(["BAK-9015-100-P", "BAK-9016-VAR-P", "BAK-9017-250-P"]);
 const bakingMealSkus = new Set(["BAK-9001-VAR-P", "BAK-9002-250-P", "BAK-9006-VAR-P", "BAK-9009-VAR-P", "BAK-9014-200-P"]);
 
@@ -295,7 +357,6 @@ function assignmentsForSku(sku: string): string[] {
   if (nutFamily) return [nutFamily];
   if (sku.startsWith("PAS-")) return ["notenpasta-s"];
   if (sku.startsWith("CHO-")) {
-    if (sweetChocolateSkus.has(sku)) return ["snoep-nougat"];
     const placement = getChocolatePlacementForProductSku(sku);
     if (!placement) throw new Error(`Geen chocoladefamilie vastgelegd voor SKU ${sku}.`);
     return [placement];
@@ -303,7 +364,11 @@ function assignmentsForSku(sku: string): string[] {
   if (sku.startsWith("FRU-")) return ["gedroogd-fruit", ...(sku === "FRU-4033-VAR-P" || sku === "FRU-4034-VAR-P" ? ["bakfruit", "gekonfijt-fruit"] : [])];
   if (sku.startsWith("MUE-")) return [muesliSkus.has(sku) ? "muesli-granola" : "havermout-granen"];
   if (sku.startsWith("NAT-")) return ["honing"];
-  if (sku.startsWith("PIT-")) return [kernelSkus.has(sku) ? "pitten" : seedMixSkus.has(sku) ? "zadenmixen-granen" : "zaden"];
+  if (sku.startsWith("PIT-")) {
+    const placement = getSeedPlacementForProductSku(sku);
+    if (!placement) throw new Error(`Geen pitten- of zadenfamilie vastgelegd voor SKU ${sku}.`);
+    return [placement];
+  }
   if (sku.startsWith("SUP-")) return ["superfood"];
   if (sku.startsWith("BAK-")) {
     if (bakingMealSkus.has(sku)) return ["meel-griesmeel"];
@@ -422,6 +487,15 @@ async function applyPlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
     const hierarchy = await tx.category.findMany({
       select: { id: true, parentId: true },
     });
+    const managedCategoryIds = new Set(
+      [
+        ...definitions.map((definition) => definition.slug),
+        ...existingParents.flatMap(([slug, parentSlug]) => [slug, parentSlug]),
+        ...rootOrder,
+      ]
+        .map((slug) => categoryIds.get(slug))
+        .filter((id): id is string => Boolean(id))
+    );
     for (const assignment of plan.assignments) {
       const leafCategoryIds = assignment.leafSlugs.map((slug) => {
         const categoryId = categoryIds.get(slug);
@@ -432,6 +506,19 @@ async function applyPlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
         leafCategoryIds,
         hierarchy
       );
+      const desiredCategoryIdSet = new Set(desiredCategoryIds);
+      const staleManagedCategoryIds = [...managedCategoryIds].filter(
+        (categoryId) => !desiredCategoryIdSet.has(categoryId)
+      );
+
+      if (staleManagedCategoryIds.length > 0) {
+        await tx.productCategory.deleteMany({
+          where: {
+            productId: assignment.id,
+            categoryId: { in: staleManagedCategoryIds },
+          },
+        });
+      }
 
       for (const [sortOrder, categoryId] of desiredCategoryIds.entries()) {
         await tx.productCategory.upsert({

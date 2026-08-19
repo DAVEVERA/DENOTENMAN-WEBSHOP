@@ -76,8 +76,16 @@ test("keeps kernels and seeds as separate roots and exposes chocolate families",
     source("chocolade-rotsjes", { parentId: "chocolade", sortOrder: 2 }),
     source("studenten-flikken", { parentId: "chocolade", sortOrder: 7 }),
     source("pitten", { sortOrder: 3 }),
+    source("pompoenpitten", { parentId: "pitten", sortOrder: 1 }),
+    source("zonnebloempitten", { parentId: "pitten", sortOrder: 2 }),
+    source("pijnboompitten", { parentId: "pitten", sortOrder: 3 }),
     source("zaden", { sortOrder: 4 }),
-    source("zadenmixen-granen", { parentId: "zaden", sortOrder: 1 }),
+    source("lijnzaad", { parentId: "zaden", sortOrder: 1 }),
+    source("sesamzaad", { parentId: "zaden", sortOrder: 2 }),
+    source("chiazaad", { parentId: "zaden", sortOrder: 3 }),
+    source("hennepzaad", { parentId: "zaden", sortOrder: 4 }),
+    source("maanzaad", { parentId: "zaden", sortOrder: 5 }),
+    source("zadenmixen-granen", { parentId: "zaden", sortOrder: 6 }),
   ]);
 
   assert.deepEqual(
@@ -91,8 +99,12 @@ test("keeps kernels and seeds as separate roots and exposes chocolate families",
     ["chocolade-amandelen", "chocolade-rotsjes", "studenten-flikken"]
   );
   assert.deepEqual(
+    navigation.categories[1]?.children.map((category) => category.canonicalSlug),
+    ["pompoenpitten", "zonnebloempitten", "pijnboompitten"]
+  );
+  assert.deepEqual(
     navigation.categories[2]?.children.map((category) => category.canonicalSlug),
-    ["zadenmixen-granen"]
+    ["lijnzaad", "sesamzaad", "chiazaad", "hennepzaad", "maanzaad", "zadenmixen-granen"]
   );
 });
 

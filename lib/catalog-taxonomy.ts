@@ -62,14 +62,18 @@ export const chocolateFamilySlugs = [
 ] as const;
 
 export type ChocolateFamilySlug = (typeof chocolateFamilySlugs)[number];
-export type ChocolatePlacementSlug = ChocolateFamilySlug | "chocolade";
+export type ChocolatePlacementSlug = ChocolateFamilySlug | "snoep-nougat";
 
 const chocolatePlacementByProductSku: Readonly<Record<string, ChocolatePlacementSlug>> = {
+  "CHO-5001-250-P": "snoep-nougat",
+  "CHO-5002-250-P": "snoep-nougat",
+  "CHO-5003-300-P": "snoep-nougat",
   "CHO-5004-250-P": "chocolade-amandelen",
   "CHO-5005-250-P": "chocolade-amandelen",
   "CHO-5006-250-P": "chocolade-amandelen",
   "CHO-5007-250-P": "chocolade-amandelen",
   "CHO-5008-250-P": "chocolade-amandelen",
+  "CHO-5009-500-P": "snoep-nougat",
   "CHO-5010-250-P": "chocolade-rotsjes",
   "CHO-5011-250-P": "chocolade-rotsjes",
   "CHO-5012-250-P": "chocolade-rotsjes",
@@ -77,8 +81,8 @@ const chocolatePlacementByProductSku: Readonly<Record<string, ChocolatePlacement
   "CHO-5014-250-P": "chocolade-rotsjes",
   "CHO-5015-250-P": "chocolade-rotsjes",
   "CHO-5016-250-P": "chocolade-rotsjes",
-  "CHO-5017-VAR-P": "chocolade",
-  "CHO-5018-200-P": "chocolade",
+  "CHO-5017-VAR-P": "snoep-nougat",
+  "CHO-5018-200-P": "snoep-nougat",
   "CHO-5019-180-P": "chocolade-hazelnoten",
   "CHO-5020-200-P": "chocolade-pecannoten",
   "CHO-5021-250-P": "chocolade-pindas",
@@ -96,4 +100,45 @@ export function getChocolatePlacementForProductSku(
   sku: string
 ): ChocolatePlacementSlug | undefined {
   return chocolatePlacementByProductSku[sku];
+}
+
+export const seedPlacementSlugs = [
+  "pompoenpitten",
+  "zonnebloempitten",
+  "pijnboompitten",
+  "lijnzaad",
+  "sesamzaad",
+  "chiazaad",
+  "hennepzaad",
+  "maanzaad",
+  "zadenmixen-granen",
+] as const;
+
+export type SeedPlacementSlug = (typeof seedPlacementSlugs)[number];
+
+const seedPlacementByProductSku: Readonly<Record<string, SeedPlacementSlug>> = {
+  "PIT-7001-250-P": "lijnzaad",
+  "PIT-7002-250-P": "lijnzaad",
+  "PIT-7003-100-P": "pijnboompitten",
+  "PIT-7004-250-P": "pompoenpitten",
+  "PIT-7005-500-P": "zadenmixen-granen",
+  "PIT-7006-250-P": "zadenmixen-granen",
+  "PIT-7007-250-P": "sesamzaad",
+  "PIT-7008-250-P": "zadenmixen-granen",
+  "PIT-7009-250-P": "zonnebloempitten",
+  "PIT-7010-250-P": "chiazaad",
+  "PIT-7011-250-P": "hennepzaad",
+  "PIT-7012-250-P": "sesamzaad",
+  "PIT-7013-VAR-P": "maanzaad",
+};
+
+export function getSeedPlacementForProductSku(
+  sku: string
+): SeedPlacementSlug | undefined {
+  if (!sku.startsWith("PIT-")) return undefined;
+  const placement = seedPlacementByProductSku[sku];
+  if (!placement) {
+    throw new Error(`Geen pitten- of zadenfamilie vastgelegd voor SKU ${sku}.`);
+  }
+  return placement;
 }

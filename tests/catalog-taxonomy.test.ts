@@ -4,6 +4,7 @@ import {
   chocolateFamilySlugs,
   getChocolatePlacementForProductSku,
   getNutFamilyForProductSku,
+  getSeedPlacementForProductSku,
   nutFamilySlugs,
 } from "../lib/catalog-taxonomy";
 
@@ -64,13 +65,17 @@ test("fails closed when a new single-nut SKU has no family mapping", () => {
   ]);
 });
 
-test("places every active chocolate product in the requested menu family", () => {
+test("places every chocolate product in a real requested leaf category", () => {
   const expected = {
+    "CHO-5001-250-P": "snoep-nougat",
+    "CHO-5002-250-P": "snoep-nougat",
+    "CHO-5003-300-P": "snoep-nougat",
     "CHO-5004-250-P": "chocolade-amandelen",
     "CHO-5005-250-P": "chocolade-amandelen",
     "CHO-5006-250-P": "chocolade-amandelen",
     "CHO-5007-250-P": "chocolade-amandelen",
     "CHO-5008-250-P": "chocolade-amandelen",
+    "CHO-5009-500-P": "snoep-nougat",
     "CHO-5010-250-P": "chocolade-rotsjes",
     "CHO-5011-250-P": "chocolade-rotsjes",
     "CHO-5012-250-P": "chocolade-rotsjes",
@@ -78,6 +83,8 @@ test("places every active chocolate product in the requested menu family", () =>
     "CHO-5014-250-P": "chocolade-rotsjes",
     "CHO-5015-250-P": "chocolade-rotsjes",
     "CHO-5016-250-P": "chocolade-rotsjes",
+    "CHO-5017-VAR-P": "snoep-nougat",
+    "CHO-5018-200-P": "snoep-nougat",
     "CHO-5019-180-P": "chocolade-hazelnoten",
     "CHO-5020-200-P": "chocolade-pecannoten",
     "CHO-5021-250-P": "chocolade-pindas",
@@ -104,4 +111,34 @@ test("places every active chocolate product in the requested menu family", () =>
     "chocolade-rozijnen",
     "studenten-flikken",
   ]);
+});
+
+test("places every kernel and seed product in a real leaf category", () => {
+  const expected = {
+    "PIT-7001-250-P": "lijnzaad",
+    "PIT-7002-250-P": "lijnzaad",
+    "PIT-7003-100-P": "pijnboompitten",
+    "PIT-7004-250-P": "pompoenpitten",
+    "PIT-7005-500-P": "zadenmixen-granen",
+    "PIT-7006-250-P": "zadenmixen-granen",
+    "PIT-7007-250-P": "sesamzaad",
+    "PIT-7008-250-P": "zadenmixen-granen",
+    "PIT-7009-250-P": "zonnebloempitten",
+    "PIT-7010-250-P": "chiazaad",
+    "PIT-7011-250-P": "hennepzaad",
+    "PIT-7012-250-P": "sesamzaad",
+    "PIT-7013-VAR-P": "maanzaad",
+  } as const;
+
+  for (const [sku, category] of Object.entries(expected)) {
+    assert.equal(getSeedPlacementForProductSku(sku), category, sku);
+  }
+});
+
+test("fails closed when a new kernel or seed SKU has no leaf mapping", () => {
+  assert.throws(
+    () => getSeedPlacementForProductSku("PIT-9999-250-P"),
+    /Geen pitten- of zadenfamilie vastgelegd/
+  );
+  assert.equal(getSeedPlacementForProductSku("NOT-1001-250-P"), undefined);
 });
