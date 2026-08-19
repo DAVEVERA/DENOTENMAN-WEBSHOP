@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { locales, isLocale } from "@/lib/i18n";
-import { getCategory, getFilteredProducts, getMainCategories } from "@/lib/queries";
+import {
+  getCatalogProducts,
+  getCategory,
+  getMainCategories,
+  normalizeCatalogFilterValues,
+} from "@/lib/queries";
 import { getAlternates } from "@/lib/alternates";
 import {
   buildStorefrontMetadata,
@@ -45,10 +50,12 @@ export async function generateMetadata({
 
 export default async function HomePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ q?: string | string[]; f?: string | string[] }>;
 }) {
-  const { locale: rawLocale } = await params;
+  const [{ locale: rawLocale }, queryParams] = await Promise.all([params, searchParams]);
 
   if (!isLocale(rawLocale)) {
     notFound();
@@ -56,12 +63,15 @@ export default async function HomePage({
 
   const locale = rawLocale;
   const dictionary = dictionaries[locale];
+  const initialQuery = (Array.isArray(queryParams.q) ? queryParams.q[0] : queryParams.q ?? "")
+    .trim()
+    .slice(0, 100);
+  const rawFilters = Array.isArray(queryParams.f) ? queryParams.f[0] : queryParams.f ?? "";
+  const initialFilters = normalizeCatalogFilterValues(rawFilters.split(","));
   const alternates = await getAlternates(locale, { type: "home" });
-  // Explicit high limit: this grid is meant to show the full active catalog
-  // (client-side search/filters below narrow it down), not a paginated
-  // slice — the default page size would otherwise silently drop most of it.
-  const [products, categories] = await Promise.all([
-    getFilteredProducts("all", locale, [], { limit: 300 }),
+  // Keep the initial RSC payload bounded; subsequent catalog pages are fetched on demand.
+  const [catalogPage, categories] = await Promise.all([
+    getCatalogProducts(locale, { query: initialQuery, filters: initialFilters }),
     getMainCategories(locale),
   ]);
   const promotionalSlug = resolvePromotionalCategorySlug(categories);
@@ -79,7 +89,69 @@ export default async function HomePage({
         />
       ) : null}
       <Container className="py-8 sm:py-10">
-        <ProductBrowser products={products} locale={locale} dictionary={dictionary} />
+        <ProductBrowser
+          initialPage={catalogPage}
+          initialQuery={initialQuery}
+          initialFilters={initialFilters}
+          locale={locale}
+          copy={{
+            search: dictionary.common.search,
+            loading: dictionary.common.loading,
+            loadError:
+              locale === "nl"
+                ? "Producten laden is niet gelukt. Probeer het opnieuw."
+                : locale === "fr"
+                  ? "Le chargement des produits a \u00e9chou\u00e9. R\u00e9essayez."
+                  : "Products could not be loaded. Please try again.",
+            retry: locale === "nl" ? "Opnieuw proberen" : locale === "fr" ? "R\u00e9essayer" : "Try again",
+            filters: dictionary.category.filters,
+            noResults: dictionary.category.noResults,
+            categoryLabel: dictionary.filters.categoryLabel,
+            preparationLabel: dictionary.filters.preparationLabel,
+            preparationRoasted: dictionary.filters.preparationRoasted,
+            preparationRaw: dictionary.filters.preparationRaw,
+            saltingLabel: dictionary.filters.saltingLabel,
+            saltingSalted: dictionary.filters.saltingSalted,
+            saltingUnsalted: dictionary.filters.saltingUnsalted,
+            coatingLabel: dictionary.filters.coatingLabel,
+            coatingNone: dictionary.filters.coatingNone,
+            coatingChocolate: dictionary.filters.coatingChocolate,
+            coatingYoghurt: dictionary.filters.coatingYoghurt,
+            coatingFlavored: dictionary.filters.coatingFlavored,
+            reset: dictionary.filters.reset,
+            clearAll: dictionary.filters.clearAll,
+            closeFilters: dictionary.filters.closeFilters,
+            removeFilter: dictionary.filters.removeFilter,
+            resultsCountSingular: dictionary.filters.resultsCountSingular,
+            resultsCountPlural: dictionary.filters.resultsCountPlural,
+            loadMore: dictionary.filters.loadMore,
+            card: {
+              outOfStock: dictionary.product.outOfStock,
+              addToFavorites: dictionary.product.addToFavorites,
+              removeFromFavorites: dictionary.product.removeFromFavorites,
+              openQuickView: dictionary.product.openQuickView,
+              quickOrder: dictionary.product.quickOrder,
+              moreInfo: dictionary.product.moreInfo,
+              stockAlert:
+                locale === "nl" ? "Geef me een seintje" : locale === "fr" ? "Pr\u00e9venez-moi" : "Notify me",
+              loadingQuickView:
+                locale === "nl" ? "Product laden\u2026" : locale === "fr" ? "Chargement du produit\u2026" : "Loading product\u2026",
+            },
+            quickView: {
+              selectQuantity: dictionary.product.selectQuantity,
+              closeQuickView: dictionary.product.closeQuickView,
+              outOfStock: dictionary.product.outOfStock,
+              inStock: dictionary.product.inStock,
+              quantity: dictionary.product.quantity,
+              added: dictionary.product.added,
+              order: dictionary.product.order,
+              quickOrder: dictionary.product.quickOrder,
+              moreInfo: dictionary.product.moreInfo,
+              decrease: dictionary.cart.decrease,
+              increase: dictionary.cart.increase,
+            },
+          }}
+        />
       </Container>
     </SiteShell>
   );

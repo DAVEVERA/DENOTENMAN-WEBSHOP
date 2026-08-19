@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Bell, Heart, ShoppingCart } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
-import type { ProductSummaryDto } from "@/lib/queries";
+import type { CatalogProductDto, ProductSummaryDto } from "@/lib/queries";
 import { product as productPath } from "@/lib/routes";
 import { cn } from "@/lib/cn";
 import { getProductImageStyle } from "@/lib/image-focal";
@@ -16,31 +16,88 @@ import {
   type FavoriteItem,
 } from "@/lib/storefront-state";
 import { Card } from "@/components/ui/Card";
-import { ProductQuickView } from "@/components/product/ProductQuickView";
+import {
+  ProductQuickView,
+  type ProductQuickViewCopy,
+} from "@/components/product/ProductQuickView";
 import { ProductPrice } from "@/components/product/ProductPrice";
-import nl from "@/dictionaries/nl.json";
-import en from "@/dictionaries/en.json";
-import fr from "@/dictionaries/fr.json";
 
-const dictionaries = { nl, en, fr };
-const stockAlertLabel = { nl: "Geef me een seintje", en: "Notify me", fr: "Prévenez-moi" } as const;
+export type ProductCardCopy = {
+  outOfStock: string;
+  addToFavorites: string;
+  removeFromFavorites: string;
+  openQuickView: string;
+  quickOrder: string;
+  moreInfo: string;
+  stockAlert: string;
+  loadingQuickView: string;
+};
+
+const productCardCopies: Record<Locale, ProductCardCopy> = {
+  nl: {
+    outOfStock: "Niet op voorraad",
+    addToFavorites: "Toevoegen aan favorieten",
+    removeFromFavorites: "Verwijderen uit favorieten",
+    openQuickView: "Open snelle productinformatie voor {product}",
+    quickOrder: "Snel bestellen",
+    moreInfo: "Meer info",
+    stockAlert: "Geef me een seintje",
+    loadingQuickView: "Product laden\u2026",
+  },
+  en: {
+    outOfStock: "Out of stock",
+    addToFavorites: "Add to favorites",
+    removeFromFavorites: "Remove from favorites",
+    openQuickView: "Open quick product information for {product}",
+    quickOrder: "Quick order",
+    moreInfo: "More info",
+    stockAlert: "Notify me",
+    loadingQuickView: "Loading product\u2026",
+  },
+  fr: {
+    outOfStock: "Rupture de stock",
+    addToFavorites: "Ajouter aux favoris",
+    removeFromFavorites: "Retirer des favoris",
+    openQuickView: "Ouvrir les informations rapides pour {product}",
+    quickOrder: "Commander rapidement",
+    moreInfo: "Plus d\u2019infos",
+    stockAlert: "Pr\u00e9venez-moi",
+    loadingQuickView: "Chargement du produit\u2026",
+  },
+};
+
+export type ProductCardProduct = CatalogProductDto | ProductSummaryDto;
 
 export function ProductCard({
   product,
   categoryName,
   locale,
+  copy,
+  quickViewCopy,
+  quickViewLoading = false,
+  onQuickView,
 }: {
-  product: ProductSummaryDto;
+  product: ProductCardProduct;
   categoryName?: string;
   locale: Locale;
+  copy?: ProductCardCopy;
+  quickViewCopy?: ProductQuickViewCopy;
+  quickViewLoading?: boolean;
+  onQuickView?: (product: ProductCardProduct) => void;
 }) {
-  const [quickViewOpen, setQuickViewOpen] = useState(false);
+  const [localQuickViewOpen, setLocalQuickViewOpen] = useState(false);
   const storefront = useStorefrontState();
-  const dictionary = dictionaries[locale];
+  const labels = copy ?? productCardCopies[locale];
   const primaryImage = product.images.find((image) => image.isPrimary) ?? product.images[0];
   const favorite = storefront.favorites.some((item) => item.productId === product.id);
-  const openQuickView = useCallback(() => setQuickViewOpen(true), []);
-  const closeQuickView = useCallback(() => setQuickViewOpen(false), []);
+
+  function openQuickView() {
+    if (onQuickView) {
+      onQuickView(product);
+      return;
+    }
+    setLocalQuickViewOpen(true);
+  }
 
   const favoriteItem: FavoriteItem = {
     productId: product.id,
@@ -54,7 +111,7 @@ export function ProductCard({
   return (
     <>
       <Card
-        className="group relative flex h-full cursor-pointer flex-col overflow-hidden p-3 sm:p-card"
+        className="group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden p-3 sm:p-card"
         onClick={(event) => {
           if ((event.target as HTMLElement).closest("button, a")) return;
           openQuickView();
@@ -63,7 +120,7 @@ export function ProductCard({
         <button
           type="button"
           onClick={openQuickView}
-          aria-label={dictionary.product.openQuickView.replace("{product}", product.name)}
+          aria-label={labels.openQuickView.replace("{product}", product.name)}
           className="flex min-w-0 flex-1 flex-col text-left focus-visible:rounded-card"
         >
           <span className="relative mx-auto block aspect-square w-full overflow-hidden rounded-full border border-border bg-background">
@@ -98,7 +155,7 @@ export function ProductCard({
           <div className="min-w-0">
             {!product.isActive ? (
               <span className="block text-xs font-semibold text-red-600">
-                {dictionary.product.outOfStock}
+                {labels.outOfStock}
               </span>
             ) : null}
             <ProductPrice product={product} locale={locale} />
@@ -106,11 +163,7 @@ export function ProductCard({
           <button
             type="button"
             aria-pressed={favorite}
-            aria-label={
-              favorite
-                ? dictionary.product.removeFromFavorites
-                : dictionary.product.addToFavorites
-            }
+            aria-label={favorite ? labels.removeFromFavorites : labels.addToFavorites}
             onClick={() => toggleFavorite(favoriteItem)}
             className={cn(
               "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted shadow-card transition-colors duration-hover-fast hover:border-border-hover hover:text-red-600",
@@ -126,31 +179,50 @@ export function ProductCard({
         </div>
 
         {product.isActive ? (
-          <button type="button" aria-label={dictionary.product.openQuickView.replace("{product}", product.name)} onClick={openQuickView} className={cn(productActionButtonClass, "mt-3 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs")}>
+          <button
+            type="button"
+            aria-label={labels.openQuickView.replace("{product}", product.name)}
+            aria-busy={quickViewLoading}
+            disabled={quickViewLoading}
+            onClick={openQuickView}
+            className={cn(
+              productActionButtonClass,
+              "mt-3 min-h-11 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs"
+            )}
+          >
             <ShoppingCart className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {dictionary.product.quickOrder}
+            {quickViewLoading ? labels.loadingQuickView : labels.quickOrder}
           </button>
         ) : (
-          <Link href={productPath(locale, product.slug)} className={cn(productActionButtonClass, "mt-3 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs")}>
+          <Link
+            href={productPath(locale, product.slug)}
+            className={cn(
+              productActionButtonClass,
+              "mt-3 min-h-11 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs"
+            )}
+          >
             <Bell className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {stockAlertLabel[locale]}
+            {labels.stockAlert}
           </Link>
         )}
         <Link
           href={productPath(locale, product.slug)}
-          className={`${productActionButtonClass} mt-3 w-full text-center text-sm max-[420px]:px-2 max-[420px]:text-xs`}
+          className={`${productActionButtonClass} mt-3 min-h-11 w-full text-center text-sm max-[420px]:px-2 max-[420px]:text-xs`}
         >
-          <span>{dictionary.product.moreInfo}</span>
+          <span>{labels.moreInfo}</span>
           <span className="sr-only"> — {product.name}</span>
         </Link>
       </Card>
 
-      <ProductQuickView
-        open={quickViewOpen}
-        onClose={closeQuickView}
-        product={product}
-        locale={locale}
-      />
+      {!onQuickView && "variants" in product ? (
+        <ProductQuickView
+          open={localQuickViewOpen}
+          onClose={() => setLocalQuickViewOpen(false)}
+          product={product}
+          locale={locale}
+          copy={quickViewCopy}
+        />
+      ) : null}
     </>
   );
 }

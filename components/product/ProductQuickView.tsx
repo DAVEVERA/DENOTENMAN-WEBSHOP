@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Check, Minus, Plus, ShoppingCart, X } from "lucide-react";
@@ -12,26 +13,79 @@ import { getProductImageStyle } from "@/lib/image-focal";
 import { BackInStockForm } from "@/components/product/BackInStockForm";
 import { productActionButtonClass } from "@/lib/product-action-button";
 import { VariantRows } from "@/components/product/VariantRows";
-import nl from "@/dictionaries/nl.json";
-import en from "@/dictionaries/en.json";
-import fr from "@/dictionaries/fr.json";
-
-const dictionaries = { nl, en, fr };
 const focusableSelector =
   'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+export type ProductQuickViewCopy = {
+  selectQuantity: string;
+  closeQuickView: string;
+  outOfStock: string;
+  inStock: string;
+  quantity: string;
+  added: string;
+  order: string;
+  quickOrder: string;
+  moreInfo: string;
+  decrease: string;
+  increase: string;
+};
+
+const quickViewCopies: Record<Locale, ProductQuickViewCopy> = {
+  nl: {
+    selectQuantity: "Selecteer hoeveelheid",
+    closeQuickView: "Sluit productinformatie",
+    outOfStock: "Niet op voorraad",
+    inStock: "Op voorraad",
+    quantity: "Aantal",
+    added: "Toegevoegd",
+    order: "Bestellen",
+    quickOrder: "Snel bestellen",
+    moreInfo: "Meer info",
+    decrease: "Verlaag aantal",
+    increase: "Verhoog aantal",
+  },
+  en: {
+    selectQuantity: "Select quantity",
+    closeQuickView: "Close product information",
+    outOfStock: "Out of stock",
+    inStock: "In stock",
+    quantity: "Quantity",
+    added: "Added",
+    order: "Order",
+    quickOrder: "Quick order",
+    moreInfo: "More info",
+    decrease: "Decrease quantity",
+    increase: "Increase quantity",
+  },
+  fr: {
+    selectQuantity: "S\u00e9lectionnez la quantit\u00e9",
+    closeQuickView: "Fermer les informations produit",
+    outOfStock: "Rupture de stock",
+    inStock: "En stock",
+    quantity: "Quantit\u00e9",
+    added: "Ajout\u00e9",
+    order: "Commander",
+    quickOrder: "Commander rapidement",
+    moreInfo: "Plus d\u2019infos",
+    decrease: "Diminuer la quantit\u00e9",
+    increase: "Augmenter la quantit\u00e9",
+  },
+};
 
 export function ProductQuickView({
   open,
   onClose,
   product,
   locale,
+  copy,
 }: {
   open: boolean;
   onClose: () => void;
   product: ProductSummaryDto;
   locale: Locale;
+  copy?: ProductQuickViewCopy;
 }) {
-  const dictionary = dictionaries[locale];
+  const labels = copy ?? quickViewCopies[locale];
   const firstVariant = [...product.variants].sort(
     (left, right) => left.weightGrams - right.weightGrams
   )[0];
@@ -114,7 +168,7 @@ export function ProductQuickView({
         type="button"
         className="absolute inset-0 cursor-default bg-black/55 backdrop-blur-[2px]"
         onClick={onClose}
-        aria-label={dictionary.product.closeQuickView}
+        aria-label={labels.closeQuickView}
       />
       <div
         ref={dialogRef}
@@ -125,13 +179,13 @@ export function ProductQuickView({
       >
         <header className="flex shrink-0 items-center justify-between bg-[#E8F5F7] px-4 py-4 sm:px-5">
           <h2 id={`quick-view-${product.id}`} className="font-heading text-lg font-bold text-black">
-            {dictionary.product.selectQuantity}
+            {labels.selectQuantity}
           </h2>
           <button
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            aria-label={dictionary.product.closeQuickView}
+            aria-label={labels.closeQuickView}
             className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#FF4646] transition-colors hover:bg-white/70"
           >
             <X className="h-6 w-6" aria-hidden="true" />
@@ -140,11 +194,14 @@ export function ProductQuickView({
 
         <div className="overflow-y-auto px-4 py-5 sm:px-5">
           <div className="flex items-center gap-4">
-            <div className="h-[74px] w-[74px] shrink-0 overflow-hidden rounded-full bg-[#DDEFF5]">
+            <div className="relative h-[74px] w-[74px] shrink-0 overflow-hidden rounded-full bg-[#DDEFF5]">
               {primaryImage ? (
-                <img
+                <Image
                   src={primaryImage.url}
                   alt={primaryImage.alt ?? product.name}
+                  fill
+                  sizes="74px"
+                  quality={70}
                   style={getProductImageStyle(primaryImage.url)}
                   className="product-image-focal h-full w-full rounded-full object-cover"
                 />
@@ -156,7 +213,7 @@ export function ProductQuickView({
               </h3>
               {!product.isActive ? (
                 <span className="mt-1 inline-flex rounded-full bg-red-600 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-white">
-                  {dictionary.product.outOfStock}
+                  {labels.outOfStock}
                 </span>
               ) : null}
               {product.shortDescription ? (
@@ -176,9 +233,9 @@ export function ProductQuickView({
                 onSelect={selectVariant}
                 locale={locale}
                 unit={product.unit}
-                inStockLabel={dictionary.product.inStock}
-                outOfStockLabel={dictionary.product.outOfStock}
-                ariaLabel={dictionary.product.selectQuantity}
+                inStockLabel={labels.inStock}
+                outOfStockLabel={labels.outOfStock}
+                ariaLabel={labels.selectQuantity}
               />
             </div>
           ) : null}
@@ -189,7 +246,7 @@ export function ProductQuickView({
             <div className="grid h-12 w-[114px] shrink-0 grid-cols-3 overflow-hidden rounded border border-[#A8A8A8] bg-white sm:w-[132px]">
               <button
                 type="button"
-                aria-label={dictionary.cart.decrease}
+                aria-label={labels.decrease}
                 onClick={() => {
                   setQuantity((value) => Math.max(1, value - 1));
                   setAdded(false);
@@ -200,13 +257,13 @@ export function ProductQuickView({
               </button>
               <span
                 className="inline-flex min-h-11 items-center justify-center font-semibold text-black"
-                aria-label={dictionary.product.quantity}
+                aria-label={labels.quantity}
               >
                 {quantity}
               </span>
               <button
                 type="button"
-                aria-label={dictionary.cart.increase}
+                aria-label={labels.increase}
                 onClick={() => {
                   setQuantity((value) => value + 1);
                   setAdded(false);
@@ -229,12 +286,12 @@ export function ProductQuickView({
               )}
               <span className="truncate" aria-live="polite">
                 {added ? (
-                  dictionary.product.added
+                  labels.added
                 ) : (
                   <>
-                    <span className="min-[360px]:hidden">{dictionary.product.order}</span>
+                    <span className="min-[360px]:hidden">{labels.order}</span>
                     <span className="hidden min-[360px]:inline">
-                      {dictionary.product.quickOrder}
+                      {labels.quickOrder}
                     </span>
                   </>
                 )}
@@ -246,7 +303,7 @@ export function ProductQuickView({
             onClick={onClose}
             className={`${productActionButtonClass} mt-3 w-full`}
           >
-            {dictionary.product.moreInfo}
+            {labels.moreInfo}
           </Link>
         </footer>
       </div>

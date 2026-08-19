@@ -25,6 +25,9 @@ import type {
   ProductTranslation,
   ProductVariant,
   VariantTranslation,
+  Preparation,
+  Salting,
+  Coating,
   Prisma,
 } from "@prisma/client";
 
@@ -80,6 +83,39 @@ export type ProductSummaryDto = {
   variants: ProductVariantDto[];
   category: ProductCategoryDto | null;
   updatedAt: Date;
+};
+
+export type CatalogProductDto = Pick<
+  ProductSummaryDto,
+  | "id"
+  | "slug"
+  | "name"
+  | "shortDescription"
+  | "basePriceCents"
+  | "regularBasePriceCents"
+  | "salePriceCents"
+  | "hasVariablePrice"
+  | "isActive"
+  | "images"
+  | "category"
+>;
+
+export type CatalogFacetOptionDto = {
+  value: string;
+  label: string;
+};
+
+export type CatalogPageDto = {
+  products: CatalogProductDto[];
+  total: number;
+  categoryOptions: CatalogFacetOptionDto[];
+};
+
+export type CatalogRequest = {
+  query?: string;
+  filters?: string[];
+  limit?: number;
+  offset?: number;
 };
 
 export type ProductDetailDto = ProductSummaryDto & {
@@ -174,6 +210,7 @@ export type ProductSitemapEntryDto = SlugEntryDto & {
 };
 
 const defaultPageLimit = 20;
+export const catalogPageSize = 24;
 const maxShortDescriptionLength = 160;
 // Raised from 100: the homepage's "browse everything" grid (see
 // app/[locale]/page.tsx) explicitly requests every active product in one
@@ -183,6 +220,20 @@ const maxShortDescriptionLength = 160;
 // against a truly unbounded query.
 const maxPageLimit = 500;
 const defaultPageOffset = 0;
+
+const preparationFilters = new Set(["RAW", "ROASTED"]);
+const saltingFilters = new Set(["UNSALTED", "SALTED"]);
+const coatingFilters = new Set(["NONE", "CHOCOLATE", "YOGHURT", "FLAVORED"]);
+
+export function normalizeCatalogFilterValues(values: string[] | undefined): string[] {
+  return Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0 && value.length <= 100)
+    )
+  ).slice(0, 50);
+}
 
 function toShortDescription(value: string | null | undefined): string | null {
   const normalized = value?.replace(/\s+/g, " ").trim();
@@ -641,6 +692,201 @@ export const getCategoryNavigation = cache(
     return buildCategoryNavigation(localized);
   }
 );
+
+export async function getCatalogProducts(
+  locale: Locale,
+  request: CatalogRequest = {}
+): Promise<CatalogPageDto> {
+  const query = request.query?.trim().slice(0, 100) ?? "";
+  const filters = normalizeCatalogFilterValues(request.filters);
+  const preparations = filters.filter((value) => preparationFilters.has(value)) as Preparation[];
+  const saltings = filters.filter((value) => saltingFilters.has(value)) as Salting[];
+  const coatings = filters.filter((value) => coatingFilters.has(value)) as Coating[];
+  const reservedValues = new Set([...preparationFilters, ...saltingFilters, ...coatingFilters]);
+  const requestedCategorySlugs = filters.filter((value) => !reservedValues.has(value));
+  const limit = Math.min(Math.max(request.limit ?? catalogPageSize, 1), catalogPageSize);
+  const offset = Math.max(request.offset ?? 0, 0);
+
+  const [allCategories, selectedCategories] = await Promise.all([
+    prisma.category.findMany({
+      where: {
+        isActive: true,
+        productCategories: { some: { product: { isActive: true } } },
+      },
+      include: { translations: { where: { locale: { in: [locale, defaultLocale] } } } },
+      orderBy: [{ sortOrder: "asc" }, { slug: "asc" }],
+    }),
+    requestedCategorySlugs.length > 0
+      ? prisma.categoryTranslation.findMany({
+          where: {
+            locale: { in: locale === defaultLocale ? [locale] : [locale, defaultLocale] },
+            slug: { in: requestedCategorySlugs },
+            category: { isActive: true },
+          },
+          select: { categoryId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const selectedCategoryIds = selectedCategories.flatMap((selected) =>
+    collectDescendantCategoryIds(selected.categoryId, allCategories)
+  );
+  const conditions: Prisma.ProductWhereInput[] = [];
+
+  if (query) {
+    conditions.push({
+      translations: {
+        some: {
+          locale: { in: locale === defaultLocale ? [locale] : [locale, defaultLocale] },
+          name: { contains: query, mode: "insensitive" },
+        },
+      },
+    });
+  }
+  if (requestedCategorySlugs.length > 0) {
+    conditions.push({
+      productCategories: {
+        some: {
+          categoryId: selectedCategoryIds.length > 0 ? { in: selectedCategoryIds } : { in: [] },
+        },
+      },
+    });
+  }
+  if (preparations.length > 0) {
+    conditions.push({ variants: { some: { isActive: true, preparation: { in: preparations } } } });
+  }
+  if (saltings.length > 0) {
+    conditions.push({ variants: { some: { isActive: true, salting: { in: saltings } } } });
+  }
+  if (coatings.length > 0) {
+    conditions.push({ variants: { some: { isActive: true, coating: { in: coatings } } } });
+  }
+
+  const where: Prisma.ProductWhereInput = {
+    isActive: true,
+    translations: { some: { locale: { in: locale === defaultLocale ? [locale] : [locale, defaultLocale] } } },
+    AND: conditions,
+  };
+  const translationLocales = locale === defaultLocale ? [locale] : [locale, defaultLocale];
+  const productSelect = {
+    id: true,
+    slug: true,
+    basePriceCents: true,
+    salePriceCents: true,
+    isActive: true,
+    translations: {
+      where: { locale: { in: translationLocales } },
+      select: { locale: true, slug: true, name: true, shortDescription: true, description: true },
+    },
+    images: {
+      orderBy: [{ isPrimary: "desc" as const }, { sortOrder: "asc" as const }, { id: "asc" as const }],
+      take: 1,
+    },
+    variants: {
+      where: { isActive: true },
+      select: { priceCents: true, salePriceCents: true },
+    },
+    productCategories: {
+      where: { category: { isActive: true } },
+      orderBy: [
+        { isPrimary: "desc" as const },
+        { sortOrder: "asc" as const },
+        { category: { sortOrder: "asc" as const } },
+      ],
+      take: 1,
+      select: {
+        category: {
+          select: {
+            translations: {
+              where: { locale: { in: translationLocales } },
+              select: { locale: true, slug: true, name: true },
+            },
+          },
+        },
+      },
+    },
+  } satisfies Prisma.ProductSelect;
+
+  const [total, records] = await prisma.$transaction([
+    prisma.product.count({ where }),
+    prisma.product.findMany({
+      where,
+      select: productSelect,
+      orderBy: [{ slug: "asc" }, { id: "asc" }],
+      take: limit,
+      skip: offset,
+    }),
+  ]);
+
+  const products = records.flatMap((product): CatalogProductDto[] => {
+    const translation = resolveTranslation(product.translations, locale);
+    if (!translation) return [];
+
+    const prices = product.variants.map((variant) => ({
+      priceCents: variant.salePriceCents ?? variant.priceCents,
+      regularPriceCents: variant.priceCents,
+      salePriceCents: variant.salePriceCents,
+    }));
+    const displayPrice = resolveProductDisplayPrice(
+      product.basePriceCents,
+      product.salePriceCents,
+      prices
+    );
+    const categoryTranslation = resolveTranslation(
+      product.productCategories[0]?.category.translations ?? [],
+      locale
+    );
+
+    return [{
+      id: product.id,
+      slug: translation.slug,
+      name: translation.name,
+      shortDescription:
+        toShortDescription(translation.shortDescription) ??
+        toShortDescription(translation.description),
+      basePriceCents: displayPrice.priceCents,
+      regularBasePriceCents: displayPrice.regularPriceCents,
+      salePriceCents: displayPrice.salePriceCents,
+      hasVariablePrice: displayPrice.hasVariablePrice,
+      isActive: product.isActive,
+      images: product.images.map(toProductImageDto),
+      category: categoryTranslation
+        ? { slug: categoryTranslation.slug, name: categoryTranslation.name }
+        : null,
+    }];
+  });
+
+  const categoryOptions = allCategories.flatMap((category): CatalogFacetOptionDto[] => {
+    const translation = resolveTranslation(category.translations, locale);
+    return translation ? [{ value: translation.slug, label: translation.name }] : [];
+  });
+
+  return { products, total, categoryOptions };
+}
+
+export async function getProductSummaryById(
+  productId: string,
+  locale: Locale
+): Promise<ProductSummaryDto | null> {
+  const product = await prisma.product.findFirst({
+    where: { id: productId, isActive: true },
+    include: {
+      translations: true,
+      images: true,
+      variants: { where: { isActive: true }, include: { translations: true } },
+      productCategories: {
+        include: { category: { include: { translations: true } } },
+        orderBy: [
+          { isPrimary: "desc" },
+          { sortOrder: "asc" },
+          { category: { sortOrder: "asc" } },
+        ],
+      },
+    },
+  });
+
+  return product ? toProductSummaryDto(product, locale) ?? null : null;
+}
 
 export async function getFilteredProducts(
   categorySlug: string,
