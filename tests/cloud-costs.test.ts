@@ -210,3 +210,30 @@ test("normalizes actual account, project, service and daily costs without fake z
   ]);
   assert.equal(result.latestUsageAt, "2026-08-20T11:00:00.000Z");
 });
+
+test("consolidates actual costs from every exported billing account into one total", () => {
+  const result = normalizeCloudCostRows({
+    days: 7,
+    from: "2026-08-18T00:00:00.000Z",
+    to: "2026-08-25T00:00:00.000Z",
+    accountDiscovery: "LIVE",
+    accounts: [
+      { id: "016DC8-5772EF-E4A1AF", displayName: "thenuttybill", open: true },
+      { id: "01F7DB-1D6944-CA546F", displayName: "Firebase Payment", open: true },
+    ],
+    rows: [
+      row({ gross_cost: "4.5", credits: "-1", net_cost: "3.5" }),
+      row({
+        billing_account_id: "01F7DB-1D6944-CA546F",
+        project_id: "project-two",
+        project_name: "Project Two",
+        gross_cost: "2.5",
+        credits: "-0.5",
+        net_cost: "2",
+      }),
+    ],
+  });
+
+  assert.deepEqual(result.summary, { grossCost: 7, credits: -1.5, netCost: 5.5 });
+  assert.equal(result.projects.length, 2);
+});

@@ -11,18 +11,21 @@ test("cloud cost currency formatting does not show negative zero", () => {
   assert.equal(formatCloudCostMoney(-0.0001), "€ -0,0001");
 });
 
-test("cloud costs dashboard exposes account coverage, actual totals and detail tables", () => {
+test("cloud costs dashboard presents one consolidated the nutty bill total", () => {
   const html = renderToStaticMarkup(<CloudCostsDashboard />);
 
   assert.match(html, /Google Cloud-kosten/);
   assert.match(html, />7 dagen</);
   assert.match(html, />30 dagen</);
   assert.match(html, />90 dagen</);
-  assert.match(html, /Lijstkosten/);
-  assert.match(html, /Kortingen en verschil/);
+  assert.match(html, /the nutty bill/);
   assert.match(html, /Werkelijk gefactureerd/);
-  assert.match(html, /Datadekking/);
-  assert.match(html, /Alle billingaccounts/);
+  assert.doesNotMatch(html, /Lijstkosten/);
+  assert.doesNotMatch(html, /Kortingen en verschil/);
+  assert.doesNotMatch(html, /Datadekking/);
+  assert.doesNotMatch(html, /Alle billingaccounts/);
+  assert.doesNotMatch(html, />Projecten</);
+  assert.doesNotMatch(html, />Billingaccount</);
   assert.match(html, /Kosten per dienst/);
   assert.match(html, /Kosten per project/);
   assert.match(html, /Dagelijks verloop/);
