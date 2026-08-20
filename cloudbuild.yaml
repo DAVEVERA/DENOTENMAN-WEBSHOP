@@ -12,6 +12,11 @@ steps:
       - |
         set -euo pipefail
         npm ci --ignore-scripts --no-audit --no-fund
+        # Prisma's migration advisory lock is session-scoped. Running it through
+        # Neon PgBouncer can return a locked backend to the pool, so migrations
+        # use the equivalent direct endpoint while the application keeps pooling.
+        migration_database_url="$${DATABASE_URL/-pooler./.}"
+        export DATABASE_URL="$$migration_database_url"
         npx prisma migrate deploy && exit 0
         echo "Prisma migrate deploy failed; retrying in 10s (attempt 2/5)"
         sleep 10
