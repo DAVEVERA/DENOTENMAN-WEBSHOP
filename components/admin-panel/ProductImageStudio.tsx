@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
+import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 import {
   ArrowDown,
   ArrowUp,
@@ -376,7 +377,7 @@ export function ProductImageStudio({
       </div>
 
       <div aria-live="polite" className="mt-3 min-h-6 text-body-sm">
-        {busy ? <p className="font-semibold text-muted">Bezig&hellip;</p> : error ? <p className="font-semibold text-red-700">{error}</p> : message ? <p className="font-semibold text-green-700">{message}</p> : null}
+        {busy ? <p className="font-semibold text-muted"><LoadingIndicator size="sm" label="Bezig…" showLabel /></p> : error ? <p className="font-semibold text-red-700">{error}</p> : message ? <p className="font-semibold text-green-700">{message}</p> : null}
       </div>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

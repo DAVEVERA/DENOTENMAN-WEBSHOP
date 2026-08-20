@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
+import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 
 const variantClasses: Record<"primary" | "secondary" | "ghost", string> = {
   primary:
@@ -42,10 +43,7 @@ export function Button({
       {...props}
     >
       {busy ? (
-        <span
-          aria-hidden="true"
-          className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-        />
+        <LoadingIndicator size="sm" decorative />
       ) : null}
       {children}
     </button>

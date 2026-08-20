@@ -151,6 +151,25 @@ enum DesignProvider {
   PHOTOROOM
 }
 
+enum CostProvider {
+  PHOTOROOM
+  PRISMA
+  OTHER
+}
+
+enum CostCategory {
+  SOFTWARE
+  INFRASTRUCTURE
+  MARKETING
+  OTHER
+}
+
+enum CostRecurrence {
+  ONE_TIME
+  MONTHLY
+  YEARLY
+}
+
 enum DesignJobStatus {
   QUEUED
   PROCESSING
@@ -907,10 +926,92 @@ model AdminUser {
   createdAt    DateTime  @default(now())
   lastLoginAt  DateTime?
 
-  auditEntries     AuditLog[]
-  requestedRefunds OrderRefund[]
-  faqRevisions     ProductFaqRevision[]
-  designJobs       DesignJob[]
+  auditEntries         AuditLog[]
+  requestedRefunds     OrderRefund[]
+  faqRevisions         ProductFaqRevision[]
+  designJobs           DesignJob[]
+  createdManagedCosts  ManagedCost[]        @relation("ManagedCostCreatedBy")
+  updatedManagedCosts  ManagedCost[]        @relation("ManagedCostUpdatedBy")
+  deletedManagedCosts  ManagedCost[]        @relation("ManagedCostDeletedBy")
+  uploadedCostInvoices CostInvoice[]        @relation("CostInvoiceUploadedBy")
+  deletedCostInvoices  CostInvoice[]        @relation("CostInvoiceDeletedBy")
+  costMutations        CostMutation[]
+}
+
+model ManagedCost {
+  id                   String         @id @default(uuid()) @db.Uuid
+  provider             CostProvider
+  providerName         String
+  category             CostCategory
+  description          String?
+  amountCents          Int?
+  currency             String         @default("EUR")
+  recurrence           CostRecurrence
+  startsAt             DateTime?
+  endsAt               DateTime?
+  active               Boolean        @default(true)
+  version              Int            @default(1)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  deletedAt            DateTime?
+  createdByAdminUserId String?
+  createdBy            AdminUser?     @relation("ManagedCostCreatedBy", fields: [createdByAdminUserId], references: [id], onDelete: SetNull)
+  updatedByAdminUserId String?
+  updatedBy            AdminUser?     @relation("ManagedCostUpdatedBy", fields: [updatedByAdminUserId], references: [id], onDelete: SetNull)
+  deletedByAdminUserId String?
+  deletedBy            AdminUser?     @relation("ManagedCostDeletedBy", fields: [deletedByAdminUserId], references: [id], onDelete: SetNull)
+
+  invoices CostInvoice[]
+
+  @@index([deletedAt, active, provider])
+  @@index([category, deletedAt])
+}
+
+model CostInvoice {
+  id                    String        @id @default(uuid()) @db.Uuid
+  managedCostId         String?       @db.Uuid
+  managedCost           ManagedCost?  @relation(fields: [managedCostId], references: [id], onDelete: SetNull)
+  provider              CostProvider?
+  category              CostCategory?
+  amountCents           Int?
+  currency              String        @default("EUR")
+  issuedAt              DateTime
+  billingPeriodStart    DateTime?
+  billingPeriodEnd      DateTime?
+  originalFilename      String
+  contentType           String
+  fileSize              Int
+  sha256                String
+  storageKey            String        @unique
+  notes                 String?
+  version               Int           @default(1)
+  uploadedByAdminUserId String
+  uploadedBy            AdminUser     @relation("CostInvoiceUploadedBy", fields: [uploadedByAdminUserId], references: [id])
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  deletedAt             DateTime?
+  deletedByAdminUserId  String?
+  deletedBy             AdminUser?    @relation("CostInvoiceDeletedBy", fields: [deletedByAdminUserId], references: [id], onDelete: SetNull)
+
+  @@index([deletedAt, issuedAt])
+  @@index([managedCostId, deletedAt])
+  @@index([provider, issuedAt])
+}
+
+model CostMutation {
+  id             String    @id @default(uuid()) @db.Uuid
+  adminUserId    String
+  adminUser      AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  idempotencyKey String
+  operation      String
+  requestHash    String
+  entityType     String
+  entityId       String
+  response       Json
+  createdAt      DateTime  @default(now())
+
+  @@unique([adminUserId, idempotencyKey])
+  @@index([createdAt])
 }
 
 enum AuditAction {

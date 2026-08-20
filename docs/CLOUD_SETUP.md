@@ -133,3 +133,19 @@ Provisioning steps, console clicks, and command-line invocations are
 intentionally not documented here. This checklist only defines what
 must exist and the minimal access each identity needs; the person
 performing setup chooses the exact provisioning method.
+
+## Kostenoverzicht: private facturen en ontwikkelaarstoegang
+
+Het kostenoverzicht is voor iedere actieve beheerder alleen-lezen. Mutaties en
+factuuruploads vereisen daarnaast een `OWNER`-account waarvan de bestaande
+admin-gebruikersnaam expliciet staat in de kommagescheiden runtimevariabele
+`COST_OVERVIEW_DEVELOPER_USERNAMES`. Een ontbrekende of lege waarde schakelt
+alle schrijfacties uit. Beheer de exacte productiewaarde in Secret Manager,
+zonder gebruikersnamen of secretwaarden in de repository of logs te zetten.
+
+Facturen gebruiken `COST_INVOICE_GCS_BUCKET`: een aparte private bucket met
+uniform bucket-level access, zonder publieke IAM-binding of CDN-origin. Alleen
+de applicatie-serviceaccount krijgt object read/write-rechten. Gebruik hiervoor
+niet de publieke productbucket uit `GCS_BUCKET`. Na de additieve migratie horen
+PhotoRoom en Prisma zichtbaar te zijn met `BEDRAG_NOG_VASTLEGGEN`; pas na
+controle van een echte factuur vult de toegestane OWNER het bedrag in.

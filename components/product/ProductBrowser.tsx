@@ -25,6 +25,7 @@ import {
   ProductQuickView,
   type ProductQuickViewCopy,
 } from "@/components/product/ProductQuickView";
+import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 
 type FacetOption = { value: string; label: string };
 type Facet = { key: string; label: string; options: FacetOption[] };
@@ -492,7 +493,7 @@ export function ProductBrowser({
       ) : null}
 
       <p className="mt-3 text-body-sm text-muted" aria-live="polite" aria-busy={catalogLoading}>
-        {catalogLoading ? copy.loading : resultsLabel}
+        {catalogLoading ? <LoadingIndicator size="sm" label={copy.loading} showLabel /> : resultsLabel}
       </p>
 
       {catalogError ? (
@@ -537,7 +538,7 @@ export function ProductBrowser({
             onClick={loadMore}
             className="min-h-11 rounded-button border border-border bg-surface px-5 font-heading text-body-sm font-semibold text-text shadow-card transition-colors hover:border-border-hover disabled:cursor-wait disabled:opacity-60"
           >
-            {loadingMore ? copy.loading : copy.loadMore.replace("{remaining}", String(remaining))}
+            {loadingMore ? <LoadingIndicator size="sm" label={copy.loading} showLabel /> : copy.loadMore.replace("{remaining}", String(remaining))}
           </button>
         </div>
       ) : null}

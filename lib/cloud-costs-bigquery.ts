@@ -2,6 +2,7 @@ import "server-only";
 import { google, type bigquery_v2 } from "googleapis";
 import {
   buildCloudCostsQuery,
+  availableCloudCostSourceResults,
   cloudCostsConfiguration,
   CloudCostsConfigurationError,
   normalizeCloudCostRows,
@@ -163,12 +164,13 @@ export async function loadCloudCosts(days: CloudCostPeriod): Promise<CloudCostsR
       scopes: ["https://www.googleapis.com/auth/cloud-platform"],
     });
     const bigquery = google.bigquery({ version: "v2", auth });
-    const [queryResults, accountResult] = await Promise.all([
-      Promise.all(
+    const [settledQueryResults, accountResult] = await Promise.all([
+      Promise.allSettled(
         configuration.sources.map((source) => runSourceQuery({ bigquery, source, days }))
       ),
       discoverBillingAccounts({ auth, configured: configuration.accountCatalog }),
     ]);
+    const queryResults = availableCloudCostSourceResults(settledQueryResults);
     const first = queryResults[0];
     return normalizeCloudCostRows({
       days,

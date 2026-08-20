@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { EyeOff, Globe2, Loader2, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { EyeOff, Globe2, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 import {
   ProductTranslationsEditor,
   type ProductLocale,
@@ -530,7 +531,7 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
               : "bg-green-700 hover:bg-green-800"
           }`}
         >
-          {visibilityStatus === "saving" ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+          {visibilityStatus === "saving" ? <LoadingIndicator size="sm" decorative /> : null}
           {visibilityStatus === "saving"
             ? "Status bijwerken…"
             : product.isActive

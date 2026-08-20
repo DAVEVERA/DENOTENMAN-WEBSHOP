@@ -1,9 +1,9 @@
+import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
+
 export default function AdminDashboardLoading() {
   return (
-    <div role="status" aria-live="polite" className="rounded-panel border border-border bg-surface p-6 shadow-card">
-      <div className="h-6 w-56 animate-pulse rounded bg-border" />
-      <div className="mt-4 h-24 animate-pulse rounded-card bg-background" />
-      <p className="sr-only">Beheeromgeving laden…</p>
+    <div className="flex min-h-64 items-center justify-center rounded-panel border border-border bg-surface p-6 shadow-card">
+      <LoadingIndicator label="Beheeromgeving laden…" size="lg" showLabel className="flex-col font-heading font-bold text-text" />
     </div>
   );
 }

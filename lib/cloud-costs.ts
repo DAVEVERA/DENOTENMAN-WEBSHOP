@@ -230,6 +230,39 @@ export function parseCloudCostDays(value: string | null): CloudCostPeriod {
     : 30;
 }
 
+function providerErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const candidate = error as { code?: unknown; response?: { status?: unknown } };
+  if (typeof candidate.code === "number") return candidate.code;
+  return typeof candidate.response?.status === "number"
+    ? candidate.response.status
+    : undefined;
+}
+
+/**
+ * A newly enabled FOCUS export can take hours before its immutable table exists.
+ * Keep already available accounts readable during that propagation window, but
+ * fail closed for permission/configuration errors and when every source is absent.
+ */
+export function availableCloudCostSourceResults<T>(
+  results: PromiseSettledResult<T>[],
+): T[] {
+  const available: T[] = [];
+  let firstMissing: unknown;
+
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      available.push(result.value);
+      continue;
+    }
+    if (providerErrorStatus(result.reason) !== 404) throw result.reason;
+    firstMissing ??= result.reason;
+  }
+
+  if (available.length === 0 && firstMissing) throw firstMissing;
+  return available;
+}
+
 function startOfUtcDay(value: Date): Date {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
 }

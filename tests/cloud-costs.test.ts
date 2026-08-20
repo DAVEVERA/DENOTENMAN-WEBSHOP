@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CloudCostsConfigurationError,
+  availableCloudCostSourceResults,
   buildCloudCostsQuery,
   cloudCostsConfiguration,
   normalizeCloudCostRows,
@@ -236,4 +237,31 @@ test("consolidates actual costs from every exported billing account into one tot
 
   assert.deepEqual(result.summary, { grossCost: 7, credits: -1.5, netCost: 5.5 });
   assert.equal(result.projects.length, 2);
+});
+
+test("keeps available billing accounts readable while a new FOCUS table propagates", () => {
+  const rows = availableCloudCostSourceResults([
+    { status: "fulfilled", value: { account: "thenuttybill" } },
+    { status: "rejected", reason: { code: 404 } },
+  ]);
+
+  assert.deepEqual(rows, [{ account: "thenuttybill" }]);
+  assert.throws(
+    () => availableCloudCostSourceResults([{ status: "rejected", reason: { code: 404 } }]),
+    (error: unknown) => Boolean(error && typeof error === "object" && "code" in error && error.code === 404),
+  );
+  assert.throws(
+    () =>
+      availableCloudCostSourceResults([
+        { status: "fulfilled", value: { account: "thenuttybill" } },
+        { status: "rejected", reason: { response: { status: 403 } } },
+      ]),
+    (error: unknown) =>
+      Boolean(
+        error &&
+          typeof error === "object" &&
+          "response" in error &&
+          (error.response as { status?: number }).status === 403,
+      ),
+  );
 });

@@ -23,7 +23,7 @@ export const secondaryAdminGroups: NavGroup[] = [
   { label: "Catalogus", items: [{ href: "/admin/categorieen", label: "Categorieën" }, { href: "/admin/notenplan", label: "Notenplan" }] },
   { label: "Groei", items: [{ href: "/admin/advertenties", label: "Google Ads" }] },
   { label: "Creatie", items: [{ href: "/admin/qrcodes", label: "QR-codes" }] },
-  { label: "Beheer", items: [{ href: "/admin/cloud-kosten", label: "Cloud-kosten" }, { href: "/admin/logboek", label: "Logboek" }, { href: "/admin/instellingen", label: "Instellingen" }] },
+  { label: "Beheer", items: [{ href: "/admin/cloud-kosten", label: "Kostenoverzicht" }, { href: "/admin/logboek", label: "Logboek" }, { href: "/admin/instellingen", label: "Instellingen" }] },
 ];
 
 function isActivePath(pathname: string, href: string): boolean {

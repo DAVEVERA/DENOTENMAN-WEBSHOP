@@ -6,7 +6,6 @@ import {
   ArrowUp,
   EyeOff,
   GripVertical,
-  Loader2,
   Plus,
   Save,
   Send,
@@ -15,6 +14,7 @@ import {
   Upload,
 } from "lucide-react";
 import { FaqRichTextEditor } from "@/components/admin-panel/FaqRichTextEditor";
+import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 
 type FaqLocale = "nl" | "en" | "fr";
 type FaqStatus = "DRAFT" | "PUBLISHED" | "HIDDEN";
@@ -314,7 +314,7 @@ export function ProductFaqEditor({ productId }: { productId: string }) {
   })), [faqSet.items]);
 
   if (phase === "loading") {
-    return <div className="flex min-h-40 items-center justify-center text-muted"><Loader2 className="mr-2 h-5 w-5 animate-spin" />FAQ laden…</div>;
+    return <div className="flex min-h-40 items-center justify-center text-muted"><LoadingIndicator label="FAQ laden…" showLabel /></div>;
   }
 
   return (

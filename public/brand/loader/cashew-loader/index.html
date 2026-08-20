@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bouncing cashew loader</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./cashew-loader.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        color: #3c2815;
+        background:
+          radial-gradient(circle at 50% 38%, rgba(255, 222, 143, 0.35), transparent 34%),
+          #f7f2e8;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+
+      .preview {
+        width: min(90vw, 420px);
+        padding: 42px 28px 34px;
+        text-align: center;
+        border: 1px solid rgba(101, 65, 24, 0.14);
+        border-radius: 28px;
+        background: rgba(255, 253, 248, 0.78);
+        box-shadow: 0 24px 70px rgba(94, 60, 18, 0.13);
+        backdrop-filter: blur(10px);
+      }
+
+      .preview h1 {
+        margin: 8px 0 6px;
+        font-size: clamp(1.55rem, 5vw, 2rem);
+        font-weight: 600;
+        letter-spacing: -0.025em;
+      }
+
+      .preview p {
+        margin: 0;
+        color: #80623d;
+        font: 600 0.72rem/1.4 system-ui, sans-serif;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="preview">
+      <div class="cashew-loader" role="status" aria-label="Bezig met laden">
+        <img
+          class="cashew-loader__nut"
+          src="./cashew-transparent.png"
+          alt=""
+          draggable="false"
+        />
+        <span class="cashew-loader__shadow" aria-hidden="true"></span>
+        <span class="sr-only">Bezig met laden</span>
+      </div>
+      <h1>Even geduld</h1>
+      <p>De noten worden geladen</p>
+    </main>
+  </body>
+</html>

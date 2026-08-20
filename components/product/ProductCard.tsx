@@ -21,6 +21,7 @@ import {
   type ProductQuickViewCopy,
 } from "@/components/product/ProductQuickView";
 import { ProductPrice } from "@/components/product/ProductPrice";
+import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 
 export type ProductCardCopy = {
   outOfStock: string;
@@ -190,7 +191,7 @@ export function ProductCard({
               "mt-3 min-h-11 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs"
             )}
           >
-            <ShoppingCart className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {quickViewLoading ? <LoadingIndicator size="sm" decorative /> : <ShoppingCart className="h-4 w-4 shrink-0" aria-hidden="true" />}
             {quickViewLoading ? labels.loadingQuickView : labels.quickOrder}
           </button>
         ) : (

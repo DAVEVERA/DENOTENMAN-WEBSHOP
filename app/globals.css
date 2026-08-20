@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/ui/LoadingIndicator.loader.css";
 @source "../node_modules/streamdown/dist/*.js";
 
 @theme {
