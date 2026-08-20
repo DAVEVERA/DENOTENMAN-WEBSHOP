@@ -122,6 +122,12 @@ enum GoogleAdsStatus {
   ERROR
 }
 
+enum ProductImageProcessingStatus {
+  SUCCEEDED
+  NEEDS_MANUAL_REVIEW
+  FAILED
+}
+
 model Category {
   id        String       @id @default(cuid())
   slug      String       @unique
@@ -315,15 +321,54 @@ model ProductAttribute {
 }
 
 model ProductImage {
-  id         String  @id @default(cuid())
-  productId  String
-  product    Product @relation(fields: [productId], references: [id])
-  storageKey String
-  alt        String?
-  sortOrder  Int     @default(0)
-  isPrimary  Boolean @default(false)
+  id                String                   @id @default(cuid())
+  productId         String
+  product           Product                  @relation(fields: [productId], references: [id])
+  storageKey        String
+  alt               String?
+  sortOrder         Int                      @default(0)
+  isPrimary         Boolean                  @default(false)
+  processingRecords ProductImageProcessing[]
 
   @@index([productId])
+}
+
+model ProductImageProcessing {
+  id                 String                       @id @default(cuid())
+  productImageId     String
+  productImage       ProductImage                 @relation(fields: [productImageId], references: [id], onDelete: Cascade)
+  originalStorageKey String
+  sourceSha256       String?
+  sourceGeneration   String?
+  status             ProductImageProcessingStatus
+  processingVersion  String
+  runId              String
+  masterWebpKey      String?
+  thumbnailWebpKey   String?
+  thumbnailAvifKey   String?
+  cardWebpKey        String?
+  cardAvifKey        String?
+  productWebpKey     String?
+  productAvifKey     String?
+  detectedCenterX    Float?
+  detectedCenterY    Float?
+  detectedRadius     Float?
+  detectedConfidence Float?
+  marginRatio        Float?
+  cropLeft           Int?
+  cropTop            Int?
+  cropSize           Int?
+  errorCode          String?
+  errorMessage       String?
+  details            Json?
+  attemptedAt        DateTime                     @default(now())
+  processedAt        DateTime?
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  @@unique([productImageId, processingVersion])
+  @@index([status, processingVersion])
+  @@index([processingVersion, sourceSha256])
 }
 
 model ProductImageTrash {
