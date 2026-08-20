@@ -11,6 +11,10 @@ const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const localeSchema = z.enum(["nl", "en", "fr"]);
 const optionalText = (maximum: number) => z.string().trim().max(maximum).nullable();
 
+// Products can be cross-listed in multiple complete taxonomy paths. Each path
+// can contain three levels, so a total limit of three rejected existing data.
+export const MAX_PRODUCT_CATEGORY_ASSIGNMENTS = 12;
+
 export const productNutritionKeys = [
   "nutrition.energyKj",
   "nutrition.energyKcal",
@@ -144,8 +148,8 @@ export const productAdminInputSchema = z
     isActive: z.boolean(),
     translation: legacyTranslationSchema.optional(),
     translations: translationsInputSchema.optional(),
-    categoryIds: z.array(z.string().cuid()).max(3).default([]),
-    categories: z.array(productCategoryInputSchema).max(3).optional(),
+    categoryIds: z.array(z.string().cuid()).max(MAX_PRODUCT_CATEGORY_ASSIGNMENTS).default([]),
+    categories: z.array(productCategoryInputSchema).max(MAX_PRODUCT_CATEGORY_ASSIGNMENTS).optional(),
     categoryPlacementMode: z.enum(["auto", "manual"]).default("manual"),
     nutrition: productNutritionInputSchema.optional(),
     recommendationIds: z.array(z.string().cuid()).max(3),

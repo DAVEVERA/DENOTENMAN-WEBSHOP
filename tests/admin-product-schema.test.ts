@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  MAX_PRODUCT_CATEGORY_ASSIGNMENTS,
   getProductTranslations,
   productAdminInputSchema,
   slugifyProduct,
@@ -207,15 +208,29 @@ test("supports main category, subcategory and product group with automatic place
   assert.equal(result.data.categories?.length, 3);
 });
 
-test("rejects more than three category levels", () => {
+test("preserves existing products assigned to multiple complete category paths", () => {
   const result = productAdminInputSchema.safeParse({
     ...additiveProduct,
-    categories: [
-      { categoryId: "cm12345678901234567890123", isPrimary: false, sortOrder: 0 },
-      { categoryId: "cm12345678901234567890124", isPrimary: false, sortOrder: 0 },
-      { categoryId: "cm12345678901234567890125", isPrimary: false, sortOrder: 0 },
-      { categoryId: "cm12345678901234567890126", isPrimary: true, sortOrder: 0 },
-    ],
+    categories: Array.from({ length: 6 }, (_, index) => ({
+      categoryId: `cm12345678901234567890${String(index).padStart(3, "0")}`,
+      isPrimary: index === 0,
+      sortOrder: index,
+    })),
+  });
+
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  assert.equal(result.data.categories?.length, 6);
+});
+
+test("keeps a defensive upper bound on category assignments", () => {
+  const result = productAdminInputSchema.safeParse({
+    ...additiveProduct,
+    categories: Array.from({ length: MAX_PRODUCT_CATEGORY_ASSIGNMENTS + 1 }, (_, index) => ({
+      categoryId: `cm12345678901234567890${String(index).padStart(3, "0")}`,
+      isPrimary: index === 0,
+      sortOrder: index,
+    })),
   });
 
   assert.equal(result.success, false);
