@@ -17,6 +17,7 @@ const links = [
   { href: "/admin/marketing", label: "Marketing" },
   { href: "/admin/kortingen", label: "Kortingen" },
   { href: "/admin/logboek", label: "Logboek" },
+  { href: "/admin/cloud-kosten", label: "Cloud-kosten" },
   { href: "/admin/instellingen", label: "Instellingen" },
 ];
 
