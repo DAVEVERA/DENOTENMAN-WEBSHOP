@@ -225,18 +225,19 @@ model Product {
 }
 
 model ProductTranslation {
-  id               String  @id @default(cuid())
-  productId        String
-  product          Product @relation(fields: [productId], references: [id])
-  locale           Locale
-  name             String
-  slug             String
-  description      String?
-  descriptionHtml  String?
-  shortDescription String?
-  seoTitle         String?
-  metaDescription  String?
-  promotionText    String?
+  id                   String  @id @default(cuid())
+  productId            String
+  product              Product @relation(fields: [productId], references: [id])
+  locale               Locale
+  name                 String
+  slug                 String
+  description          String?
+  descriptionHtml      String?
+  shortDescription     String?
+  shortDescriptionHtml String?
+  seoTitle             String?
+  metaDescription      String?
+  promotionText        String?
 
   @@unique([productId, locale])
   @@unique([locale, slug])

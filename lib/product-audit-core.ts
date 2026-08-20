@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { sanitizeProductHtml, toProductPlainText } from "@/lib/product-content";
+import { sanitizeProductHtml, sanitizeProductShortHtml, toProductPlainText } from "@/lib/product-content";
 
 export const auditLocales = ["nl", "en", "fr"] as const;
 export type AuditLocale = (typeof auditLocales)[number];
@@ -14,6 +14,7 @@ export type ProductAuditTranslationSnapshot = {
   name: string;
   slug: string;
   shortDescription: string | null;
+  shortDescriptionHtml?: string | null;
   description: string | null;
   descriptionHtml: string | null;
   seoTitle: string | null;
@@ -129,6 +130,7 @@ function translationHash(locale: AuditLocale, translation: ProductAuditTranslati
           name: translation.name,
           slug: translation.slug,
           shortDescription: translation.shortDescription,
+          shortDescriptionHtml: translation.shortDescriptionHtml,
           description: translation.description,
           descriptionHtml: translation.descriptionHtml,
           seoTitle: translation.seoTitle,
@@ -713,10 +715,19 @@ export function prepareAuditProposalApplication(snapshot: ProductAuditSnapshot, 
     if (proposal.sourceHash !== currentHash) throw new AuditConflictError("STALE_TRANSLATION");
     const descriptionHtml = sanitizeProductHtml(proposal.fullDescriptionHtml);
     const description = toProductPlainText(descriptionHtml);
+    const escapedShortDescription = proposal.shortDescription
+      .trim()
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+    const shortDescriptionHtml = sanitizeProductShortHtml(`<p>${escapedShortDescription}</p>`);
     if (description.length < 60) throw new z.ZodError([{ code: z.ZodIssueCode.custom, path: ["proposals", proposal.locale, "fullDescriptionHtml"], message: "De volledige omschrijving is te kort." }]);
     return {
       locale: proposal.locale,
       shortDescription: proposal.shortDescription.trim(),
+      shortDescriptionHtml,
       description,
       descriptionHtml,
       seoTitle: proposal.seoTitle.trim(),

@@ -30,6 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           where: { productId_locale: { productId: id, locale: update.locale } },
           data: {
             shortDescription: update.shortDescription,
+            shortDescriptionHtml: update.shortDescriptionHtml,
             description: update.description,
             descriptionHtml: update.descriptionHtml,
             seoTitle: update.seoTitle,

@@ -16,6 +16,7 @@ const product: ProductDetailDto = {
   description: "Knapperige amandelen.",
   descriptionHtml: null,
   shortDescription: "Knapperige amandelen.",
+  shortDescriptionHtml: null,
   seoTitle: null,
   metaDescription: null,
   promotionText: null,

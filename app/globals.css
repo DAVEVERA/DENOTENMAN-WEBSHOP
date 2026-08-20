@@ -383,3 +383,27 @@
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
+
+.product-rich-text [data-rt-font="body"] {
+  font-family: var(--font-body), sans-serif;
+}
+
+.product-rich-text [data-rt-font="heading"] {
+  font-family: var(--font-heading), sans-serif;
+}
+
+.product-rich-text [data-rt-size="sm"] {
+  font-size: 0.875rem;
+}
+
+.product-rich-text [data-rt-size="md"] {
+  font-size: 1rem;
+}
+
+.product-rich-text [data-rt-size="lg"] {
+  font-size: 1.125rem;
+}
+
+.product-short-description p {
+  margin: 0;
+}

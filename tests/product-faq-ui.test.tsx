@@ -29,6 +29,7 @@ const product: ProductDetailDto = {
   description: "Verse noten.",
   descriptionHtml: null,
   shortDescription: "Verse noten.",
+  shortDescriptionHtml: null,
   seoTitle: null,
   metaDescription: null,
   promotionText: null,

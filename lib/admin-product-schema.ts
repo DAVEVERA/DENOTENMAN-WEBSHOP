@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { slugify } from "@/lib/slugify";
-import { sanitizeProductHtml } from "./product-content";
+import {
+  sanitizeProductHtml,
+  sanitizeProductShortHtml,
+  toProductPlainText,
+} from "./product-content";
 
 const optionalSalePrice = z.number().int().nonnegative().nullable();
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -41,24 +45,49 @@ export const productNutritionInputSchema = z
   })
   .strict();
 
-export const productTranslationInputSchema = z.object({
-  locale: localeSchema,
-  slug: z.string().trim().min(2).max(160).regex(slugPattern),
-  name: z.string().trim().min(1).max(180),
-  shortDescription: optionalText(220),
-  description: optionalText(20000),
-  descriptionHtml: z
-    .string()
-    .max(50000)
-    .nullable()
-    .transform((value) => {
-      const sanitized = sanitizeProductHtml(value);
-      return sanitized || null;
-    }),
-  seoTitle: optionalText(60),
-  metaDescription: optionalText(160),
-  promotionText: optionalText(160),
-});
+export const productTranslationInputSchema = z
+  .object({
+    locale: localeSchema,
+    slug: z.string().trim().min(2).max(160).regex(slugPattern),
+    name: z.string().trim().min(1).max(180),
+    shortDescription: optionalText(220),
+    shortDescriptionHtml: z.string().max(10000).nullable().optional(),
+    description: optionalText(20000),
+    descriptionHtml: z.string().max(50000).nullable(),
+    seoTitle: optionalText(60),
+    metaDescription: optionalText(160),
+    promotionText: optionalText(160),
+  })
+  .transform((translation, context) => {
+    const shortDescriptionHtml = sanitizeProductShortHtml(
+      translation.shortDescriptionHtml ?? translation.shortDescription
+    );
+    const shortDescription = toProductPlainText(shortDescriptionHtml);
+    if (shortDescription.length > 220) {
+      context.addIssue({
+        code: z.ZodIssueCode.too_big,
+        maximum: 220,
+        type: "string",
+        inclusive: true,
+        exact: false,
+        path: ["shortDescriptionHtml"],
+        message: "Korte omschrijving mag na opmaak maximaal 220 tekens bevatten.",
+      });
+    }
+
+    const descriptionHtml = sanitizeProductHtml(
+      translation.descriptionHtml ?? translation.description
+    );
+    const description = toProductPlainText(descriptionHtml);
+
+    return {
+      ...translation,
+      shortDescription: shortDescription || null,
+      shortDescriptionHtml: shortDescription ? shortDescriptionHtml : null,
+      description: description || null,
+      descriptionHtml: description ? descriptionHtml : null,
+    };
+  });
 
 const translationsInputSchema = z.preprocess(
   (value) => {
@@ -210,13 +239,18 @@ export type ProductNutritionInput = z.infer<typeof productNutritionInputSchema>;
 export function getProductTranslations(input: ProductAdminInput): ProductTranslationInput[] {
   const translations = [...(input.translations ?? [])];
   if (!translations.some((translation) => translation.locale === "nl") && input.translation && input.slug) {
+    const shortDescriptionHtml = sanitizeProductShortHtml(input.translation.shortDescription);
+    const descriptionHtml = sanitizeProductHtml(input.translation.description);
+    const shortDescription = toProductPlainText(shortDescriptionHtml);
+    const description = toProductPlainText(descriptionHtml);
     translations.unshift({
       locale: "nl",
       slug: input.slug,
       name: input.translation.name,
-      shortDescription: input.translation.shortDescription,
-      description: input.translation.description,
-      descriptionHtml: null,
+      shortDescription: shortDescription || null,
+      shortDescriptionHtml: shortDescription ? shortDescriptionHtml : null,
+      description: description || null,
+      descriptionHtml: description ? descriptionHtml : null,
       seoTitle: null,
       metaDescription: null,
       promotionText: null,

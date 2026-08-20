@@ -24,6 +24,7 @@ function translationData(translation: ProductTranslationInput) {
     name: translation.name,
     slug: translation.slug,
     shortDescription: normalizeOptionalText(translation.shortDescription),
+    shortDescriptionHtml: translation.shortDescriptionHtml,
     description: translation.descriptionHtml
       ? normalizeOptionalText(toProductPlainText(translation.descriptionHtml))
       : normalizeOptionalText(translation.description),
@@ -170,6 +171,20 @@ export async function POST(request: NextRequest) {
       where: { id: productId },
       select: {
         updatedAt: true,
+        translations: {
+          select: {
+            locale: true,
+            slug: true,
+            name: true,
+            shortDescription: true,
+            shortDescriptionHtml: true,
+            description: true,
+            descriptionHtml: true,
+            seoTitle: true,
+            metaDescription: true,
+            promotionText: true,
+          },
+        },
         variants: { select: { id: true, sku: true }, orderBy: { sku: "asc" } },
         images: { select: { id: true, sortOrder: true, isPrimary: true }, orderBy: { sortOrder: "asc" } },
       },
@@ -192,6 +207,7 @@ export async function POST(request: NextRequest) {
       version: created.updatedAt.toISOString(),
       variants: created.variants,
       images: created.images,
+      translations: created.translations,
       frontendSynced: revalidation.frontendSynced,
     }, { status: 201 });
   } catch (error) {

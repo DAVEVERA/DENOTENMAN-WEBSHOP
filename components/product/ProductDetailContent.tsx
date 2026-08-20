@@ -149,10 +149,13 @@ export function ProductDetailContent({
           />
         </div>
 
-        {data.shortDescription ? (
-          <p className="mt-3 max-w-2xl text-body-md leading-relaxed text-text">
-            {data.shortDescription}
-          </p>
+        {data.shortDescriptionHtml ? (
+          <div
+            className="product-rich-text product-short-description mt-3 max-w-2xl text-body-md"
+            dangerouslySetInnerHTML={{ __html: data.shortDescriptionHtml }}
+          />
+        ) : data.shortDescription ? (
+          <p className="mt-3 max-w-2xl text-body-md leading-relaxed text-text">{data.shortDescription}</p>
         ) : null}
 
         {productFacts.length > 0 ? (

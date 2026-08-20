@@ -10,6 +10,7 @@ function emptyTranslation(locale: (typeof productLocales)[number]) {
     slug: "",
     name: "",
     shortDescription: "",
+    shortDescriptionHtml: "",
     description: "",
     descriptionHtml: "",
     seoTitle: "",

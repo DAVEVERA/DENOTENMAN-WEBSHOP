@@ -4,6 +4,7 @@ import { defaultLocale, type Locale } from "@/lib/i18n";
 import { publicImageUrl } from "@/lib/storage";
 import { resolveProductDisplayPrice } from "@/lib/product-price";
 import { collectDescendantCategoryIds } from "@/lib/category-hierarchy";
+import { sanitizeProductHtml, sanitizeProductShortHtml } from "@/lib/product-content";
 import {
   isKiloknallerCategory,
   kiloknallerProductWhere,
@@ -73,6 +74,7 @@ export type ProductSummaryDto = {
   description: string | null;
   descriptionHtml: string | null;
   shortDescription: string | null;
+  shortDescriptionHtml: string | null;
   seoTitle: string | null;
   metaDescription: string | null;
   promotionText: string | null;
@@ -323,10 +325,11 @@ function toProductSummaryDto(
     slug: translation.slug,
     name: translation.name,
     description: translation.description,
-    descriptionHtml: translation.descriptionHtml,
+    descriptionHtml: sanitizeProductHtml(translation.descriptionHtml) || null,
     shortDescription:
       toShortDescription(translation.shortDescription) ??
       toShortDescription(translation.description),
+    shortDescriptionHtml: sanitizeProductShortHtml(translation.shortDescriptionHtml) || null,
     seoTitle: translation.seoTitle,
     metaDescription: translation.metaDescription,
     promotionText: translation.promotionText,

@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { productAdminInputSchema, slugifyProduct } from "../lib/admin-product-schema";
+import {
+  getProductTranslations,
+  productAdminInputSchema,
+  slugifyProduct,
+} from "../lib/admin-product-schema";
 import { hasValidImageSignature } from "../lib/storage";
 
 const validProduct = {
@@ -25,6 +29,7 @@ const additiveProduct = {
       slug: "amandelen-gebrand",
       name: "Amandelen gebrand",
       shortDescription: "Vol van smaak.",
+      shortDescriptionHtml: '<p><span data-rt-font="heading" data-rt-size="lg">Vol</span> van smaak.</p>',
       description: "Een veilige platte omschrijving.",
       descriptionHtml: '<p>Een <strong>rijke</strong> omschrijving.</p><script>alert("xss")</script>',
       seoTitle: "Gebrande amandelen kopen",
@@ -75,21 +80,114 @@ test("accepts a complete, safe product payload", () => {
   assert.equal(productAdminInputSchema.safeParse(validProduct).success, true);
 });
 
+test("normalizes the legacy Dutch description path into the rich and plain contract", () => {
+  const result = productAdminInputSchema.safeParse(validProduct);
+  assert.equal(result.success, true);
+  if (!result.success) return;
+
+  const [translation] = getProductTranslations(result.data);
+  assert.equal(translation?.shortDescription, "Vol van smaak.");
+  assert.equal(translation?.shortDescriptionHtml, "Vol van smaak.");
+  assert.equal(translation?.description, "Een duidelijke productomschrijving.");
+  assert.equal(translation?.descriptionHtml, "Een duidelijke productomschrijving.");
+});
+
 test("retains localized content, nutrition and category assignments in the parsed contract", () => {
   const result = productAdminInputSchema.safeParse(additiveProduct);
   assert.equal(result.success, true);
   if (!result.success) return;
 
   const parsed = result.data as unknown as {
-    translations?: Array<{ locale: string; descriptionHtml: string | null; seoTitle: string | null }>;
+    translations?: Array<{
+      locale: string;
+      shortDescription: string | null;
+      shortDescriptionHtml: string | null;
+      description: string | null;
+      descriptionHtml: string | null;
+      seoTitle: string | null;
+    }>;
     nutrition?: Record<string, string | null>;
     categories?: Array<{ categoryId: string; isPrimary: boolean; sortOrder: number }>;
   };
   assert.equal(parsed.translations?.length, 3);
   assert.equal(parsed.translations?.[0]?.seoTitle, "Gebrande amandelen kopen");
+  assert.equal(parsed.translations?.[0]?.shortDescription, "Vol van smaak.");
+  assert.equal(
+    parsed.translations?.[0]?.shortDescriptionHtml,
+    '<p><span data-rt-font="heading" data-rt-size="lg">Vol</span> van smaak.</p>'
+  );
+  assert.equal(parsed.translations?.[0]?.description, "Een rijke omschrijving.");
   assert.equal(parsed.translations?.[0]?.descriptionHtml, "<p>Een <strong>rijke</strong> omschrijving.</p>");
   assert.equal(parsed.nutrition?.["nutrition.protein"], "21.0");
   assert.deepEqual(parsed.categories?.map((category) => category.sortOrder), [4, 9]);
+});
+
+test("derives both plain descriptions from sanitized rich text", () => {
+  const result = productAdminInputSchema.safeParse({
+    ...additiveProduct,
+    translations: [
+      {
+        ...additiveProduct.translations[0],
+        shortDescription: "Deze clientwaarde mag niet leidend zijn.",
+        shortDescriptionHtml: '<div><b>Knapperig</b> &amp; <i>romig</i><script>alert(1)</script></div>',
+        description: "Ook deze clientwaarde mag niet leidend zijn.",
+        descriptionHtml: '<div>Volle <span data-rt-font="body" data-rt-size="md" style="color:red">noten</span>.</div>',
+      },
+    ],
+  });
+
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  const translation = result.data.translations?.[0];
+  assert.equal(translation?.shortDescription, "Knapperig & romig");
+  assert.equal(translation?.shortDescriptionHtml, "<p><strong>Knapperig</strong> &amp; <em>romig</em></p>");
+  assert.equal(translation?.description, "Volle noten.");
+  assert.equal(
+    translation?.descriptionHtml,
+    '<p>Volle <span data-rt-font="body" data-rt-size="md">noten</span>.</p>'
+  );
+});
+
+test("normalizes empty rich markup to null", () => {
+  const result = productAdminInputSchema.safeParse({
+    ...additiveProduct,
+    translations: [
+      {
+        ...additiveProduct.translations[0],
+        shortDescription: null,
+        shortDescriptionHtml: "<p><br></p>",
+        description: null,
+        descriptionHtml: "<div> </div>",
+      },
+    ],
+  });
+
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  assert.equal(result.data.translations?.[0]?.shortDescription, null);
+  assert.equal(result.data.translations?.[0]?.shortDescriptionHtml, null);
+  assert.equal(result.data.translations?.[0]?.description, null);
+  assert.equal(result.data.translations?.[0]?.descriptionHtml, null);
+});
+
+test("rejects a short rich description whose sanitized plain text exceeds 220 characters", () => {
+  const result = productAdminInputSchema.safeParse({
+    ...additiveProduct,
+    translations: [
+      {
+        ...additiveProduct.translations[0],
+        shortDescription: null,
+        shortDescriptionHtml: `<p>${"a".repeat(221)}</p>`,
+      },
+    ],
+  });
+
+  assert.equal(result.success, false);
+  if (result.success) return;
+  assert.equal(
+    result.error.issues.some((issue) => issue.path.join(".") === "translations.0.shortDescriptionHtml"),
+    true
+  );
 });
 
 test("supports main category, subcategory and product group with automatic placement", () => {

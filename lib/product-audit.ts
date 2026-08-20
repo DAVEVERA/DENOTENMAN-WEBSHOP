@@ -67,6 +67,7 @@ export async function loadProductAuditSnapshot(productId: string): Promise<Produ
         name: translation.name,
         slug: translation.slug,
         shortDescription: translation.shortDescription,
+        shortDescriptionHtml: translation.shortDescriptionHtml,
         description: translation.description,
         descriptionHtml: translation.descriptionHtml,
         seoTitle: translation.seoTitle,

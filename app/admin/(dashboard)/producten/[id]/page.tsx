@@ -4,8 +4,20 @@ import { prisma } from "@/lib/prisma";
 import { publicImageUrl } from "@/lib/storage";
 import { ProductEditForm } from "./ProductEditForm";
 import { ProductEditorNav } from "@/components/admin-panel/ProductEditorNav";
+import { sanitizeProductHtml, sanitizeProductShortHtml } from "@/lib/product-content";
 
 const productLocales = ["nl", "en", "fr"] as const;
+
+function plainTextEditorHtml(value: string | null | undefined): string {
+  if (!value?.trim()) return "";
+  const escaped = value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+  return `<p>${escaped.replace(/\r?\n/g, "<br>")}</p>`;
+}
 
 export default async function AdminProductEditPage({
   params,
@@ -91,8 +103,13 @@ export default async function AdminProductEditPage({
       slug: translation?.slug ?? "",
       name: translation?.name ?? "",
       shortDescription: translation?.shortDescription ?? "",
+      shortDescriptionHtml:
+        sanitizeProductShortHtml(translation?.shortDescriptionHtml) ||
+        plainTextEditorHtml(translation?.shortDescription),
       description: translation?.description ?? "",
-      descriptionHtml: translation?.descriptionHtml ?? "",
+      descriptionHtml:
+        sanitizeProductHtml(translation?.descriptionHtml) ||
+        plainTextEditorHtml(translation?.description),
       seoTitle: translation?.seoTitle ?? "",
       metaDescription: translation?.metaDescription ?? "",
       promotionText: translation?.promotionText ?? "",

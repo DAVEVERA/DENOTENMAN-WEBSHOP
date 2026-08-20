@@ -12,6 +12,7 @@ const data: ProductDetailDto = {
   description: "Knapperige amandelen.",
   descriptionHtml: null,
   shortDescription: "Knapperige amandelen.",
+  shortDescriptionHtml: null,
   seoTitle: null,
   metaDescription: null,
   promotionText: null,
@@ -71,4 +72,21 @@ test("renders the same truthful fallback description used by structured data", (
   );
 
   assert.match(html, /Amandelen van De Notenman uit de categorie Noten\./);
+});
+
+test("renders the stored safe short-description formatting on product detail", () => {
+  const html = renderToStaticMarkup(
+    <ProductDetailContent
+      data={{
+        ...data,
+        shortDescriptionHtml: '<p>Vol en <strong>knapperig</strong> met <span data-rt-font="heading" data-rt-size="lg">karakter</span>.</p>',
+      }}
+      locale="nl"
+    />
+  );
+
+  assert.match(html, /product-short-description/);
+  assert.match(html, /<strong>knapperig<\/strong>/);
+  assert.match(html, /data-rt-font="heading"/);
+  assert.match(html, /data-rt-size="lg"/);
 });

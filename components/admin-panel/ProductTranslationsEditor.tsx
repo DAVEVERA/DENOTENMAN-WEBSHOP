@@ -11,6 +11,7 @@ export type ProductTranslationDraft = {
   name: string;
   slug: string;
   shortDescription: string;
+  shortDescriptionHtml: string;
   description: string;
   descriptionHtml: string;
   seoTitle: string;
@@ -50,7 +51,7 @@ function translationStatus(translation: ProductTranslationDraft): "empty" | "par
   const values = [
     translation.name,
     translation.slug,
-    translation.shortDescription,
+    translation.shortDescriptionHtml || translation.shortDescription,
     translation.descriptionHtml || translation.description,
     translation.seoTitle,
     translation.metaDescription,
@@ -176,15 +177,17 @@ export function ProductTranslationsEditor({
               </button>
             </div>
           </label>
-          <label className={`${labelClass} md:col-span-2`}>
-            Korte omschrijving <span className="font-normal text-muted">({current.shortDescription.length}/220)</span>
-            <textarea
-              value={current.shortDescription}
-              onChange={(event) => setField("shortDescription", event.target.value.slice(0, 220))}
-              rows={3}
-              className={inputClass}
+          <div className={`${labelClass} md:col-span-2`}>
+            Korte omschrijving <span className="font-normal text-muted">(maximaal 220 teksttekens)</span>
+            <RichTextEditor
+              id={`short-description-${activeLocale}`}
+              value={current.shortDescriptionHtml || current.shortDescription}
+              onChange={(value) => setField("shortDescriptionHtml", value)}
+              ariaLabel={`Korte omschrijving ${localeLabels[activeLocale]}`}
+              profile="short"
+              maxPlainTextLength={220}
             />
-          </label>
+          </div>
           <div className={`${labelClass} md:col-span-2`}>
             Volledige omschrijving
             <RichTextEditor

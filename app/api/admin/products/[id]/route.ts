@@ -10,7 +10,7 @@ import {
   type ProductNutritionInput,
   type ProductTranslationInput,
 } from "@/lib/admin-product-schema";
-import { toProductPlainText } from "@/lib/product-content";
+import { shouldPreserveImprovedProductCopy, toProductPlainText } from "@/lib/product-content";
 import { revalidateProductStorefront } from "@/lib/product-revalidation";
 import {
   buildProductIndexNowUrls,
@@ -68,11 +68,19 @@ function errorResponse(error: unknown, requestId: string, productId: string) {
   return jsonError("INTERNAL_ERROR", { requestId });
 }
 
-function translationData(translation: ProductTranslationInput) {
-  return {
+type ExistingTranslationCopy = {
+  shortDescription: string | null;
+  shortDescriptionHtml: string | null;
+  description: string | null;
+  descriptionHtml: string | null;
+};
+
+function translationData(translation: ProductTranslationInput, previous?: ExistingTranslationCopy) {
+  const data = {
     name: translation.name,
     slug: translation.slug,
     shortDescription: normalizeOptionalText(translation.shortDescription),
+    shortDescriptionHtml: translation.shortDescriptionHtml,
     description: translation.descriptionHtml
       ? normalizeOptionalText(toProductPlainText(translation.descriptionHtml))
       : normalizeOptionalText(translation.description),
@@ -81,6 +89,15 @@ function translationData(translation: ProductTranslationInput) {
     metaDescription: normalizeOptionalText(translation.metaDescription),
     promotionText: normalizeOptionalText(translation.promotionText),
   };
+  if (previous && shouldPreserveImprovedProductCopy(previous.shortDescription, data.shortDescription)) {
+    data.shortDescription = previous.shortDescription;
+    data.shortDescriptionHtml = previous.shortDescriptionHtml;
+  }
+  if (previous && shouldPreserveImprovedProductCopy(previous.description, data.description)) {
+    data.description = previous.description;
+    data.descriptionHtml = previous.descriptionHtml;
+  }
+  return data;
 }
 
 async function upsertNutrition(
@@ -261,7 +278,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       });
 
       for (const translation of translations) {
-        const data = translationData(translation);
+        const previous = current.translations.find((item) => item.locale === translation.locale);
+        const data = translationData(translation, previous);
         await tx.productTranslation.upsert({
           where: { productId_locale: { productId: id, locale: translation.locale } },
           update: data,
@@ -396,6 +414,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     where: { id },
     select: {
       updatedAt: true,
+      translations: {
+        select: {
+          locale: true,
+          slug: true,
+          name: true,
+          shortDescription: true,
+          shortDescriptionHtml: true,
+          description: true,
+          descriptionHtml: true,
+          seoTitle: true,
+          metaDescription: true,
+          promotionText: true,
+        },
+      },
       variants: { select: { id: true, sku: true }, orderBy: { sku: "asc" } },
       images: { select: { id: true, sortOrder: true, isPrimary: true }, orderBy: { sortOrder: "asc" } },
     },
@@ -405,6 +437,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     version: updated?.updatedAt.toISOString(),
     variants: updated?.variants ?? [],
     images: updated?.images ?? [],
+    translations: updated?.translations ?? [],
     frontendSynced: revalidation.frontendSynced,
   });
 }

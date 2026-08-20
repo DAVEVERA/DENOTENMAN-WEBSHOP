@@ -29,6 +29,24 @@ test("mobile admin controls expose at least 44px target classes", () => {
   assert.match(loginSource, /min-h-11/);
 });
 
+test("product rich text exposes constrained font and size controls", () => {
+  const full = renderToStaticMarkup(
+    <RichTextEditor id="full-description" value="" onChange={() => undefined} ariaLabel="Volledige omschrijving" />
+  );
+  const short = renderToStaticMarkup(
+    <RichTextEditor id="short-description" value="" onChange={() => undefined} ariaLabel="Korte omschrijving" profile="short" maxPlainTextLength={220} />
+  );
+
+  assert.match(full, /aria-label="Lettertype"/);
+  assert.match(full, /aria-label="Tekstgrootte"/);
+  assert.match(full, /aria-label="Alinea"/);
+  assert.match(full, /aria-label="Link invoegen"/);
+  assert.match(short, /aria-label="Lettertype"/);
+  assert.match(short, /aria-label="Tekstgrootte"/);
+  assert.doesNotMatch(short, /aria-label="Link invoegen"/);
+  assert.doesNotMatch(short, /aria-label="Kop 2"/);
+});
+
 test("translation tabs support Arrow, Home and End keyboard navigation", () => {
   const module = translationsModule as unknown as {
     nextProductLocale?: (
@@ -52,6 +70,7 @@ test("Maak van naam derives the slug from the active Crème translation", () => 
       name: string;
       slug: string;
       shortDescription: string;
+      shortDescriptionHtml: string;
       description: string;
       descriptionHtml: string;
       seoTitle: string;
@@ -67,6 +86,7 @@ test("Maak van naam derives the slug from the active Crème translation", () => 
     name: "Gemengde Bloemenhoning Crème",
     slug: "oude-slug",
     shortDescription: "",
+    shortDescriptionHtml: "",
     description: "",
     descriptionHtml: "",
     seoTitle: "",

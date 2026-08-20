@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import {
   productRevalidationPaths,
   type ProductRevalidationInput,
@@ -19,6 +19,7 @@ export function revalidateProductStorefront(
     // atomically. Calling revalidatePath once per localized URL made the save
     // response needlessly slow and could leave only part of the storefront fresh.
     revalidatePath("/", "layout");
+    revalidateTag("google-merchant-products", "max");
   } catch (error) {
     console.error("Failed to revalidate product storefront", {
       productId: input.productId,

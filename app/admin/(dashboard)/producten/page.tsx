@@ -18,29 +18,43 @@ type ProductRow = {
 export default async function AdminProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const { q: rawQ } = await searchParams;
+  const { q: rawQ, page: rawPage } = await searchParams;
   const q = rawQ?.trim() ?? "";
+  const requestedPage = Number.parseInt(rawPage ?? "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const pageSize = 50;
+  const where = q
+    ? {
+        translations: {
+          some: { locale: "nl" as const, name: { contains: q, mode: "insensitive" as const } },
+        },
+      }
+    : undefined;
 
-  const products = await prisma.product.findMany({
-    where: q
-      ? {
-          translations: {
-            some: { locale: "nl", name: { contains: q, mode: "insensitive" } },
-          },
-        }
-      : undefined,
-    include: {
-      translations: { where: { locale: "nl" } },
-      images: true,
+  const [totalProducts, products] = await Promise.all([
+    prisma.product.count({ where }),
+    prisma.product.findMany({
+    where,
+    select: {
+      id: true,
+      basePriceCents: true,
+      isActive: true,
+      translations: { where: { locale: "nl" }, select: { name: true } },
+      images: { select: { storageKey: true, alt: true, isPrimary: true, sortOrder: true } },
       variants: { select: { isActive: true } },
       productCategories: {
-        include: { category: { include: { translations: { where: { locale: "nl" } } } } },
+        select: { category: { select: { isActive: true, translations: { where: { locale: "nl" }, select: { name: true } } } } },
         orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
       },
     },
-  });
+    orderBy: [{ slug: "asc" }, { id: "asc" }],
+    skip: (page - 1) * pageSize,
+    take: pageSize,
+  }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
 
   const rows: ProductRow[] = products
     .map((product) => {
@@ -77,7 +91,7 @@ export default async function AdminProductsPage({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-heading-xl text-text">Producten</h1>
         <p className="text-body-sm text-muted">
-          {rows.length} {rows.length === 1 ? "product" : "producten"}
+          {rows.length} van {totalProducts} {totalProducts === 1 ? "product" : "producten"}
           {q ? ` gevonden voor “${q}”` : ""}
         </p>
         <Link href="/admin/producten/nieuw" className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button">
@@ -186,6 +200,27 @@ export default async function AdminProductsPage({
           </tbody>
         </table>
       </div>
+      {totalPages > 1 ? (
+        <nav className="mt-4 flex items-center justify-end gap-2" aria-label="Productpagina's">
+          <span className="text-body-sm text-muted">Pagina {Math.min(page, totalPages)} van {totalPages}</span>
+          {page > 1 ? (
+            <Link
+              className="inline-flex min-h-11 items-center rounded-button border border-border px-4 font-semibold"
+              href={`/admin/producten?page=${page - 1}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+            >
+              Vorige
+            </Link>
+          ) : null}
+          {page < totalPages ? (
+            <Link
+              className="inline-flex min-h-11 items-center rounded-button border border-border px-4 font-semibold"
+              href={`/admin/producten?page=${page + 1}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+            >
+              Volgende
+            </Link>
+          ) : null}
+        </nav>
+      ) : null}
     </div>
   );
 }

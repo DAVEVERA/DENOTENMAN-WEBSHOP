@@ -68,7 +68,7 @@ function integer(value: string, minimum: number): number | null {
 }
 
 function emptyTranslation(locale: ProductLocale): ProductTranslationDraft {
-  return { locale, slug: "", name: "", shortDescription: "", description: "", descriptionHtml: "", seoTitle: "", metaDescription: "", promotionText: "" };
+  return { locale, slug: "", name: "", shortDescription: "", shortDescriptionHtml: "", description: "", descriptionHtml: "", seoTitle: "", metaDescription: "", promotionText: "" };
 }
 
 function initialTranslations(initial: InitialProduct): Record<ProductLocale, ProductTranslationDraft> {
@@ -398,7 +398,8 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
         ...translation,
         slug: translation.slug.trim(),
         name: translation.name.trim(),
-        shortDescription: translation.shortDescription.trim() || null,
+        shortDescription: (translation.shortDescription.trim() || plainTextFromHtml(translation.shortDescriptionHtml)) || null,
+        shortDescriptionHtml: translation.shortDescriptionHtml.trim() || null,
         description: (translation.description.trim() || plainTextFromHtml(translation.descriptionHtml)) || null,
         descriptionHtml: translation.descriptionHtml.trim() || null,
         seoTitle: translation.seoTitle.trim() || null,
@@ -429,9 +430,48 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
           variants,
         }),
       });
-      const body = await response.json().catch(() => null) as { productId?: string; version?: string; variants?: { id: string; sku: string }[]; frontendSynced?: boolean; error?: string; message?: string } | null;
+      const body = await response.json().catch(() => null) as {
+        productId?: string;
+        version?: string;
+        variants?: { id: string; sku: string }[];
+        translations?: Array<{
+          locale: ProductLocale;
+          slug: string;
+          name: string;
+          shortDescription: string | null;
+          shortDescriptionHtml: string | null;
+          description: string | null;
+          descriptionHtml: string | null;
+          seoTitle: string | null;
+          metaDescription: string | null;
+          promotionText: string | null;
+        }>;
+        frontendSynced?: boolean;
+        error?: string;
+        message?: string;
+      } | null;
       if (!response.ok) { setStatus("error"); setMessage(productSaveErrorMessage(body)); return; }
       if (mode === "create" && body?.productId) { router.push(`/admin/producten/${body.productId}`); return; }
+      if (body?.translations) {
+        setTranslations((current) => {
+          const next = { ...current };
+          for (const translation of body.translations ?? []) {
+            next[translation.locale] = {
+              locale: translation.locale,
+              slug: translation.slug,
+              name: translation.name,
+              shortDescription: translation.shortDescription ?? "",
+              shortDescriptionHtml: translation.shortDescriptionHtml ?? "",
+              description: translation.description ?? "",
+              descriptionHtml: translation.descriptionHtml ?? "",
+              seoTitle: translation.seoTitle ?? "",
+              metaDescription: translation.metaDescription ?? "",
+              promotionText: translation.promotionText ?? "",
+            };
+          }
+          return next;
+        });
+      }
       if (body?.version) setProduct((current) => ({
         ...current,
         version: body.version,

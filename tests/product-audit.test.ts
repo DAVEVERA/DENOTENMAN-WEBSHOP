@@ -232,7 +232,12 @@ async function testReviewApplyRejectsStaleAndOnlyReturnsEditorialUpdates() {
     "metaDescription",
     "seoTitle",
     "shortDescription",
+    "shortDescriptionHtml",
   ]);
+  assert.equal(
+    application.updates[0]?.shortDescriptionHtml,
+    "<p>Een nieuwe korte omschrijving met een volle smaak, stevige beet en helder gebruiksmoment.</p>"
+  );
 
   const stale = snapshot();
   stale.translations[0] = { ...stale.translations[0], descriptionHtml: "<p>Intussen door een beheerder gewijzigd.</p>" };
