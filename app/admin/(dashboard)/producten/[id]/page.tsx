@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { publicImageUrl } from "@/lib/storage";
 import { ProductEditForm } from "./ProductEditForm";
+import { ProductEditorNav } from "@/components/admin-panel/ProductEditorNav";
 
 const productLocales = ["nl", "en", "fr"] as const;
 
@@ -150,13 +151,17 @@ export default async function AdminProductEditPage({
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-heading-xl text-text">{nlTranslation?.name ?? product.slug}</h1>
+          <h1 className="break-words text-heading-xl text-text [overflow-wrap:anywhere]">
+            {nlTranslation?.name ?? product.slug}
+          </h1>
           <p className="mt-1 text-body-sm text-muted">
             SKU {product.sku} · Slug {product.slug}
             {categoryName ? ` · ${categoryName}` : ""}
           </p>
         </div>
       </div>
+
+      <ProductEditorNav productId={product.id} active="product" />
 
       <div className="mt-8">
         <ProductEditForm

@@ -128,6 +128,42 @@ enum ProductImageProcessingStatus {
   FAILED
 }
 
+enum ProductFaqStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
+enum ProductFaqPlacement {
+  BELOW_DESCRIPTION
+  BELOW_PRODUCT_DETAILS
+  BEFORE_REVIEWS
+  PAGE_BOTTOM
+}
+
+enum ProductFaqMediaType {
+  IMAGE
+  INFOGRAPHIC
+  INSTRUCTION
+}
+
+enum DesignProvider {
+  PHOTOROOM
+}
+
+enum DesignJobStatus {
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
+enum DesignAssetStatus {
+  DRAFT
+  PUBLISHED
+  DISCARDED
+}
+
 model Category {
   id        String       @id @default(cuid())
   slug      String       @unique
@@ -182,6 +218,10 @@ model Product {
   recommendedBy          ProductRecommendation[] @relation("RecommendationTarget")
   stockNotifications     StockNotification[]
   googleAdsConfiguration GoogleAdsConfiguration?
+  faqSet                 ProductFaqSet?
+  faqMediaAssets         ProductFaqMediaAsset[]
+  designJobs             DesignJob[]
+  designAssets           DesignAsset[]
 }
 
 model ProductTranslation {
@@ -321,16 +361,176 @@ model ProductAttribute {
 }
 
 model ProductImage {
-  id                String                   @id @default(cuid())
-  productId         String
-  product           Product                  @relation(fields: [productId], references: [id])
-  storageKey        String
-  alt               String?
-  sortOrder         Int                      @default(0)
-  isPrimary         Boolean                  @default(false)
-  processingRecords ProductImageProcessing[]
+  id                    String                   @id @default(cuid())
+  productId             String
+  product               Product                  @relation(fields: [productId], references: [id])
+  storageKey            String
+  alt                   String?
+  sortOrder             Int                      @default(0)
+  isPrimary             Boolean                  @default(false)
+  processingRecords     ProductImageProcessing[]
+  sourceDesignJobs      DesignJob[]              @relation("DesignJobSourceImage")
+  sourceDesignAssets    DesignAsset[]            @relation("DesignAssetSourceImage")
+  publishedDesignAssets DesignAsset[]            @relation("DesignAssetPublishedImage")
 
   @@index([productId])
+}
+
+model ProductFaqSet {
+  id                String   @id @default(cuid())
+  productId         String   @unique
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  aggregateRevision Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  items     ProductFaqItem[]
+  mutations ProductFaqMutation[]
+}
+
+model ProductFaqItem {
+  id                  String              @id @default(cuid())
+  faqSetId            String
+  faqSet              ProductFaqSet       @relation(fields: [faqSetId], references: [id], onDelete: Cascade)
+  status              ProductFaqStatus    @default(DRAFT)
+  placement           ProductFaqPlacement @default(BELOW_PRODUCT_DETAILS)
+  sortOrder           Int                 @default(0)
+  version             Int                 @default(0)
+  draftRevisionId     String?             @unique
+  draftRevision       ProductFaqRevision? @relation("FaqDraftRevision", fields: [draftRevisionId], references: [id], onDelete: SetNull)
+  publishedRevisionId String?             @unique
+  publishedRevision   ProductFaqRevision? @relation("FaqPublishedRevision", fields: [publishedRevisionId], references: [id], onDelete: SetNull)
+  deletedAt           DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  revisions ProductFaqRevision[] @relation("FaqItemRevisions")
+
+  @@index([faqSetId, deletedAt, placement, sortOrder])
+  @@index([faqSetId, status, placement, sortOrder])
+}
+
+model ProductFaqRevision {
+  id           String                @id @default(cuid())
+  itemId       String
+  item         ProductFaqItem        @relation("FaqItemRevisions", fields: [itemId], references: [id], onDelete: Cascade)
+  revision     Int
+  mediaAssetId String?
+  mediaAsset   ProductFaqMediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  createdById  String
+  createdBy    AdminUser             @relation(fields: [createdById], references: [id])
+  createdAt    DateTime              @default(now())
+
+  translations      ProductFaqTranslation[]
+  draftForItems     ProductFaqItem[]        @relation("FaqDraftRevision")
+  publishedForItems ProductFaqItem[]        @relation("FaqPublishedRevision")
+
+  @@unique([itemId, revision])
+  @@index([mediaAssetId])
+}
+
+model ProductFaqTranslation {
+  id         String             @id @default(cuid())
+  revisionId String
+  revision   ProductFaqRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  locale     Locale
+  question   String
+  answerHtml String             @db.Text
+  mediaLabel String?
+
+  @@unique([revisionId, locale])
+}
+
+model ProductFaqMediaAsset {
+  id               String              @id @default(cuid())
+  productId        String
+  product          Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type             ProductFaqMediaType
+  storageKey       String              @unique
+  originalFilename String
+  contentType      String
+  fileSize         Int
+  width            Int?
+  height           Int?
+  pageCount        Int?
+  durationMs       Int?
+  createdAt        DateTime            @default(now())
+  deletedAt        DateTime?
+
+  revisions ProductFaqRevision[]
+
+  @@index([productId, deletedAt])
+}
+
+model ProductFaqMutation {
+  id             String        @id @default(cuid())
+  faqSetId       String
+  faqSet         ProductFaqSet @relation(fields: [faqSetId], references: [id], onDelete: Cascade)
+  idempotencyKey String
+  operation      String
+  requestHash    String
+  itemId         String?
+  createdAt      DateTime      @default(now())
+
+  @@unique([faqSetId, idempotencyKey])
+  @@index([createdAt])
+}
+
+model DesignJob {
+  id                     String          @id @default(cuid())
+  productId              String
+  product                Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sourceImageId          String
+  sourceImage            ProductImage    @relation("DesignJobSourceImage", fields: [sourceImageId], references: [id])
+  requestedByAdminUserId String
+  requestedByAdminUser   AdminUser       @relation(fields: [requestedByAdminUserId], references: [id])
+  idempotencyKey         String          @unique
+  provider               DesignProvider  @default(PHOTOROOM)
+  status                 DesignJobStatus @default(QUEUED)
+  options                Json
+  providerRequestId      String?
+  errorCode              String?
+  errorMessage           String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  assets DesignAsset[]
+
+  @@index([productId, createdAt])
+  @@index([status, createdAt])
+}
+
+model DesignAsset {
+  id             String            @id @default(cuid())
+  jobId          String
+  job            DesignJob         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sourceImageId  String
+  sourceImage    ProductImage      @relation("DesignAssetSourceImage", fields: [sourceImageId], references: [id])
+  storageKey     String            @unique
+  contentType    String
+  width          Int
+  height         Int
+  fileSize       Int
+  status         DesignAssetStatus @default(DRAFT)
+  productImageId String?           @unique
+  productImage   ProductImage?     @relation("DesignAssetPublishedImage", fields: [productImageId], references: [id], onDelete: SetNull)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([productId, status, createdAt])
+}
+
+model DesignProviderUsage {
+  id        String         @id @default(cuid())
+  dayKey    String
+  provider  DesignProvider
+  attempts  Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([dayKey, provider])
 }
 
 model ProductImageProcessing {
@@ -708,6 +908,8 @@ model AdminUser {
 
   auditEntries     AuditLog[]
   requestedRefunds OrderRefund[]
+  faqRevisions     ProductFaqRevision[]
+  designJobs       DesignJob[]
 }
 
 enum AuditAction {

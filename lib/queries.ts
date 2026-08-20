@@ -10,6 +10,10 @@ import {
 } from "@/lib/kiloknallers";
 import { hiddenNavCategorySlugs } from "@/lib/navVisibility";
 import {
+  getStorefrontProductFaqs,
+  type StorefrontProductFaqs,
+} from "@/lib/product-faq";
+import {
   buildCategoryNavigation,
   type CategoryNavigationDto,
   type NavigationCategorySourceDto,
@@ -122,6 +126,7 @@ export type ProductDetailDto = ProductSummaryDto & {
   slugsByLocale: Partial<Record<Locale, string>>;
   attributes: ProductAttributeDto[];
   recommendations: ProductRecommendationDto[];
+  faqs?: StorefrontProductFaqs;
 };
 
 export type ProductRecommendationDto = {
@@ -543,11 +548,15 @@ export const getProductBySlug = cache(async function getProductBySlug(
       variant: [...candidate.variants].sort((left, right) => left.weightGrams - right.weightGrams)[0] ?? null,
     }));
 
+  const attributes = toProductAttributesDto(product.attributes, locale);
+  const faqs = await getStorefrontProductFaqs(product.id, locale);
+
   return {
     ...summary,
     slugsByLocale: toSlugsByLocale(product.translations),
-    attributes: toProductAttributesDto(product.attributes, locale),
+    attributes,
     recommendations: recommendationSummaries,
+    faqs,
   };
 });
 

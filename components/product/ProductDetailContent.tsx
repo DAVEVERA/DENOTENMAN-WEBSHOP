@@ -15,6 +15,7 @@ import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 import { resolveProductDescription } from "@/lib/product-description";
+import { ProductFaqAccordion } from "@/components/product/ProductFaqAccordion";
 
 const dictionaries = { nl, en, fr };
 const homeLabels = { nl: "Home", en: "Home", fr: "Accueil" } as const;
@@ -55,6 +56,12 @@ export function ProductDetailContent({
   initialVariantSku?: string;
 }) {
   const dictionary = dictionaries[locale];
+  const faqs = data.faqs ?? {
+    BELOW_DESCRIPTION: [],
+    BELOW_PRODUCT_DETAILS: [],
+    BEFORE_REVIEWS: [],
+    PAGE_BOTTOM: [],
+  };
   const attributes = new Map(data.attributes.map((attribute) => [attribute.key, attribute.value]));
   const primaryImage = data.images.find((image) => image.isPrimary) ?? data.images[0];
   const energyKj = attributes.get("nutrition.energyKj");
@@ -87,11 +94,6 @@ export function ProductDetailContent({
     const value = attributes.get(key)?.trim();
     return value ? [{ label: dictionary.product[dictKey], value }] : [];
   });
-  const faq1Question = attributes.get("faq.1.question");
-  const faq1Answer = attributes.get("faq.1.answer");
-  const faq2Question = attributes.get("faq.2.question");
-  const faq2Answer = attributes.get("faq.2.answer");
-  const hasFaq = Boolean(faq1Question && faq1Answer) || Boolean(faq2Question && faq2Answer);
 
   return (
     <div className="grid grid-cols-1 gap-7 p-4 sm:p-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-9 lg:p-8">
@@ -207,12 +209,18 @@ export function ProductDetailContent({
                 id: "description",
                 label: dictionary.product.tabDescription,
                 content: data.descriptionHtml ? (
-                  <div
-                    className="product-rich-text"
-                    dangerouslySetInnerHTML={{ __html: data.descriptionHtml }}
-                  />
+                  <>
+                    <div
+                      className="product-rich-text"
+                      dangerouslySetInnerHTML={{ __html: data.descriptionHtml }}
+                    />
+                    <ProductFaqAccordion items={faqs.BELOW_DESCRIPTION} locale={locale} placement="BELOW_DESCRIPTION" />
+                  </>
                 ) : (
-                  <p className="text-text">{data.description ?? resolvedDescription}</p>
+                  <>
+                    <p className="text-text">{data.description ?? resolvedDescription}</p>
+                    <ProductFaqAccordion items={faqs.BELOW_DESCRIPTION} locale={locale} placement="BELOW_DESCRIPTION" />
+                  </>
                 ),
               },
               {
@@ -258,33 +266,14 @@ export function ProductDetailContent({
                   </div>
                 ),
               },
-              {
-                id: "faq",
-                label: dictionary.product.tabFaq,
-                content: hasFaq ? (
-                  <dl className="space-y-4">
-                    {faq1Question && faq1Answer ? (
-                      <div>
-                        <dt className="font-heading text-text">{faq1Question}</dt>
-                        <dd className="mt-1 text-muted">{faq1Answer}</dd>
-                      </div>
-                    ) : null}
-                    {faq2Question && faq2Answer ? (
-                      <div>
-                        <dt className="font-heading text-text">{faq2Question}</dt>
-                        <dd className="mt-1 text-muted">{faq2Answer}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                ) : (
-                  <p className="text-muted">{dictionary.product.faqFallback}</p>
-                ),
-              },
             ]}
           />
         </div>
+        <ProductFaqAccordion items={faqs.BELOW_PRODUCT_DETAILS} locale={locale} placement="BELOW_PRODUCT_DETAILS" />
       </div>
+      <ProductFaqAccordion items={faqs.BEFORE_REVIEWS} locale={locale} placement="BEFORE_REVIEWS" />
       <ProductRecommendations items={data.recommendations} locale={locale} />
+      <ProductFaqAccordion items={faqs.PAGE_BOTTOM} locale={locale} placement="PAGE_BOTTOM" />
     </div>
   );
 }

@@ -52,6 +52,10 @@ export function ProductDetailModal({
       if (event.key !== "Tab" || !dialogRef.current) return;
       const focusable = Array.from(
         dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector)
+      ).filter((node) =>
+        !node.closest('[hidden], [aria-hidden="true"], [inert]') &&
+        window.getComputedStyle(node).visibility !== "hidden" &&
+        window.getComputedStyle(node).display !== "none"
       );
       if (focusable.length === 0) return;
       const first = focusable[0];

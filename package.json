@@ -16,7 +16,11 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "images:migrate": "tsx scripts/migrate-product-images.ts",
     "images:verify": "tsx scripts/verify-product-image-migration.ts",
+    "faqs:migrate": "tsx scripts/migrate-product-faqs.ts",
+    "photoroom:smoke": "tsx scripts/run-photoroom-smoke.ts",
+    "test:product-faqs": "tsx --test tests/product-faq-*.test.ts tests/product-faq-*.test.tsx",
     "test:product-images": "tsx --test tests/product-image-migration*.test.ts",
+    "test:transactional-email": "node scripts/run-transactional-email-tests.cjs",
     "seo:fix-french-slugs": "tsx scripts/fix-french-slugs.ts",
     "catalog:sync-menu-taxonomy": "tsx scripts/sync-menu-taxonomy.ts"
   },

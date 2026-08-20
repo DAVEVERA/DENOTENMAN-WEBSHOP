@@ -91,6 +91,10 @@ export default async function AftersalesPage() {
   }));
   const providerStatus = aftersalesProviderStatus();
   const providerReadiness = await checkTransactionalProviderReadiness();
+  const showMailchimpUpgrade =
+    providerReadiness.provider === "mailchimp" && providerReadiness.reason === "demo_mode";
+  const showMailchimpQuotaCheck =
+    providerReadiness.provider === "mailchimp" && providerReadiness.reason === "quota_unavailable";
 
   return (
     <div>
@@ -107,7 +111,51 @@ export default async function AftersalesPage() {
           <p className={`mt-2 text-xs font-semibold ${providerReadiness.ready ? "text-emerald-800" : "text-red-800"}`}>
             {providerReadiness.ready ? "Verzendklaar" : "Niet verzendklaar"}: {providerReadiness.message}
           </p>
-          <Link href="/admin/marketing/email-logboek" className="mt-2 inline-block font-semibold underline underline-offset-4">
+          {showMailchimpUpgrade ? (
+            <div className="mt-3 border-t border-emerald-200 pt-3">
+              <p id="mailchimp-transactional-plan-note" className="text-xs leading-5">
+                Laagste bundel: 1 blok van 25.000 transactionele e-mails per maand.
+              </p>
+              <a
+                href="https://admin.mailchimp.com/account/billing/plans"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-describedby="mailchimp-transactional-plan-note"
+                className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-accent bg-accent px-4 py-2 text-center font-heading text-body-sm font-bold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
+              >
+                Activeer laagste Transactional-bundel
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          ) : null}
+          {showMailchimpQuotaCheck ? (
+            <div className="mt-3 border-t border-emerald-200 pt-3">
+              <p id="mailchimp-transactional-quota-note" className="text-xs leading-5">
+                Mailchimp accepteert de API-key, maar geeft nog quota 0 terug. Controleer in Billing dat
+                Transactional Email op minimaal 1 blok van 25.000 e-mails staat en dat de betaling is afgerond.
+              </p>
+              <a
+                href="https://admin.mailchimp.com/account/billing/plans"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-describedby="mailchimp-transactional-quota-note"
+                className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-accent bg-accent px-4 py-2 text-center font-heading text-body-sm font-bold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
+              >
+                Rond laagste bundel af in Billing
+                <span aria-hidden="true">↗</span>
+              </a>
+              <a
+                href="https://mandrillapp.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 text-center font-semibold underline underline-offset-4"
+              >
+                Controleer daarna de Transactional-quota
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          ) : null}
+          <Link href="/admin/marketing/email-logboek" className="mt-3 inline-block font-semibold underline underline-offset-4">
             Open maillogboek
           </Link>
         </div>

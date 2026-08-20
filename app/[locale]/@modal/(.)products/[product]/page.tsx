@@ -10,6 +10,8 @@ import fr from "@/dictionaries/fr.json";
 
 const dictionaries = { nl, en, fr };
 
+export const dynamic = "force-dynamic";
+
 export default async function InterceptedProductPage({
   params,
 }: {

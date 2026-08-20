@@ -13,8 +13,14 @@ test("logs every failed attempt, prevents duplicates and records an explicit ret
   const originalFetch = global.fetch;
   const originalTransactionalKey = process.env.MAILCHIMP_TRANSACTIONAL_API_KEY;
   const originalResendKey = process.env.RESEND_API_KEY;
+  const originalMailFromEmail = process.env.MAIL_FROM_EMAIL;
+  const originalMailFromAddress = process.env.MAIL_FROM_ADDRESS;
+  const originalNodeTlsRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   delete process.env.MAILCHIMP_TRANSACTIONAL_API_KEY;
   delete process.env.RESEND_API_KEY;
+  process.env.MAIL_FROM_EMAIL = "bestellingen@denotenman.com";
+  delete process.env.MAIL_FROM_ADDRESS;
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
 
   try {
     const first = await deliverTransactionalEmail({
@@ -81,6 +87,12 @@ test("logs every failed attempt, prevents duplicates and records an explicit ret
     else process.env.MAILCHIMP_TRANSACTIONAL_API_KEY = originalTransactionalKey;
     if (originalResendKey === undefined) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = originalResendKey;
+    if (originalMailFromEmail === undefined) delete process.env.MAIL_FROM_EMAIL;
+    else process.env.MAIL_FROM_EMAIL = originalMailFromEmail;
+    if (originalMailFromAddress === undefined) delete process.env.MAIL_FROM_ADDRESS;
+    else process.env.MAIL_FROM_ADDRESS = originalMailFromAddress;
+    if (originalNodeTlsRejectUnauthorized === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalNodeTlsRejectUnauthorized;
     await prisma.emailDeliveryLog.deleteMany({ where: { idempotencyKey } });
   }
 });

@@ -35,6 +35,57 @@ export function publicImageUrl(storageKey: string): string {
   return `${cdnBaseUrl.replace(/\/+$/, "")}/${storageKey}`;
 }
 
+export const publicStorageUrl = publicImageUrl;
+
+function sanitizeKeySegment(value: string, label: string): string {
+  const sanitized = value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-|-$/g, "");
+  if (!sanitized || sanitized === "." || sanitized === "..") {
+    throw new Error(`Invalid ${label}`);
+  }
+  return sanitized;
+}
+
+/** Builds an immutable key from database identity, never from a mutable slug. */
+export function buildProductAssetKey(productId: string, namespace: string, filename: string): string {
+  if (filename.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(filename) || filename.includes("..")) {
+    throw new Error("Filename must not contain an absolute or traversing path");
+  }
+  const safeProductId = sanitizeKeySegment(productId, "product id");
+  const safeNamespace = namespace
+    .split("/")
+    .map((segment) => sanitizeKeySegment(segment, "asset namespace"))
+    .join("/");
+  return `products/by-id/${safeProductId}/${safeNamespace}/${randomUUID()}.${extractExtension(filename)}`;
+}
+
+export async function saveImmutableProductAsset(
+  storageKey: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<void> {
+  await bucket().file(storageKey).save(bytes, {
+    resumable: false,
+    validation: "crc32c",
+    preconditionOpts: { ifGenerationMatch: 0 },
+    metadata: { contentType, cacheControl: "public, max-age=31536000, immutable" },
+  });
+}
+
+export async function readProductAsset(storageKey: string, maxBytes = 50 * 1024 * 1024): Promise<Buffer> {
+  const [metadata] = await bucket().file(storageKey).getMetadata();
+  const size = Number(metadata.size ?? 0);
+  if (!Number.isSafeInteger(size) || size <= 0 || size > maxBytes) {
+    throw new Error("Stored asset exceeds the permitted read size");
+  }
+  const [bytes] = await bucket().file(storageKey).download();
+  if (bytes.length > maxBytes) throw new Error("Stored asset exceeds the permitted read size");
+  return bytes;
+}
+
+export async function deleteProductAsset(storageKey: string): Promise<void> {
+  await bucket().file(storageKey).delete({ ignoreNotFound: true });
+}
+
 export async function createUploadUrl(
   storageKey: string,
   contentType: string,

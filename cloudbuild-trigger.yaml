@@ -16,25 +16,9 @@ steps:
         git clone --no-checkout https://github.com/DAVEVERA/DENOTENMAN-WEBSHOP.git .
         git checkout --detach "${_COMMIT_SHA}"
 
-  - name: "gcr.io/cloud-builders/docker"
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        docker build \
-          --build-arg DATABASE_URL="$$DATABASE_URL" \
-          --build-arg CDN_BASE_URL="${_CDN_BASE_URL}" \
-          --build-arg SITE_URL="${_SITE_URL}" \
-          --build-arg UNLIMITED_STOCK="${_UNLIMITED_STOCK}" \
-          -t "${_IMAGE_BASE}:${_COMMIT_SHA}" \
-          .
-    secretEnv: ["DATABASE_URL"]
-
-  - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "${_IMAGE_BASE}:${_COMMIT_SHA}"]
-
-  # Keep the database schema in lockstep with the immutable image. The
-  # deployment is stopped when a committed migration cannot be applied.
+  # The build statically reads product data. Apply only committed expand-only
+  # migrations before Docker invokes `next build`; a later build failure leaves
+  # the currently serving revision compatible with the additive schema.
   - id: "migrate-database"
     name: "docker.io/library/node:22-bookworm"
     entrypoint: "bash"
@@ -58,6 +42,32 @@ steps:
         npx prisma migrate deploy
     secretEnv: ["DATABASE_URL"]
 
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        build_database_url="$$DATABASE_URL"
+        if [[ "$$build_database_url" != *"connection_limit="* ]]; then
+          if [[ "$$build_database_url" == *"?"* ]]; then
+            build_database_url="$${build_database_url}&connection_limit=10&pool_timeout=30"
+          else
+            build_database_url="$${build_database_url}?connection_limit=10&pool_timeout=30"
+          fi
+        fi
+        docker build \
+          --build-arg DATABASE_URL="$$build_database_url" \
+          --build-arg CDN_BASE_URL="${_CDN_BASE_URL}" \
+          --build-arg SITE_URL="${_SITE_URL}" \
+          --build-arg UNLIMITED_STOCK="${_UNLIMITED_STOCK}" \
+          -t "${_IMAGE_BASE}:${_COMMIT_SHA}" \
+          .
+    secretEnv: ["DATABASE_URL"]
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE_BASE}:${_COMMIT_SHA}"]
+
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     entrypoint: "gcloud"
     args:
@@ -68,6 +78,7 @@ steps:
       - "--image=${_IMAGE_BASE}:${_COMMIT_SHA}"
       - "--region=europe-west4"
       - "--platform=managed"
+      - "--no-traffic"
       - "--quiet"
 
 images:

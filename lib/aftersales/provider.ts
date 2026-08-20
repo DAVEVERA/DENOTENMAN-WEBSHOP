@@ -28,15 +28,37 @@ export class TransactionalProviderError extends Error {
   }
 }
 
+function configuredSenderEmail(): string {
+  for (const rawValue of [process.env.MAIL_FROM_EMAIL, process.env.MAIL_FROM_ADDRESS]) {
+    const value = rawValue?.trim();
+    if (!value) continue;
+    const bracketed = value.match(/<([^<>]+)>\s*$/)?.[1]?.trim();
+    const candidate = bracketed || value;
+    if (/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(candidate)) return candidate;
+  }
+  return "bestellingen@denotenman.com";
+}
+
+function assertProviderTlsVerification(): void {
+  if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+    throw new TransactionalProviderError(
+      "TLS-certificaatcontrole is uitgeschakeld; de transactionele provider-call is veilig afgebroken",
+      "INSECURE_TLS_CONFIGURATION",
+      false
+    );
+  }
+}
+
 function sender(): { email: string; name: string; replyTo?: string } {
   return {
-    email: process.env.MAIL_FROM_EMAIL?.trim() || "bestellingen@denotenman.com",
+    email: configuredSenderEmail(),
     name: process.env.MAIL_FROM_NAME?.trim() || "De Notenman",
     replyTo: process.env.MAIL_REPLY_TO?.trim() || undefined,
   };
 }
 
 async function sendWithMailchimp(payload: AftersalesMailPayload): Promise<AftersalesProviderResult> {
+  assertProviderTlsVerification();
   const key = process.env.MAILCHIMP_TRANSACTIONAL_API_KEY?.trim();
   if (!key) {
     throw new TransactionalProviderError(
@@ -145,6 +167,7 @@ async function sendWithMailchimp(payload: AftersalesMailPayload): Promise<Afters
 }
 
 async function sendWithResend(payload: AftersalesMailPayload): Promise<AftersalesProviderResult> {
+  assertProviderTlsVerification();
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
     throw new TransactionalProviderError(
@@ -224,6 +247,7 @@ export type TransactionalProviderReadiness = {
   ready: boolean;
   provider: "mailchimp" | "resend" | "none";
   message: string;
+  reason?: "demo_mode" | "quota_unavailable" | "insecure_tls";
 };
 
 function senderDomain(): string {
@@ -234,6 +258,14 @@ export async function checkTransactionalProviderReadiness(): Promise<Transaction
   const configured = aftersalesProviderStatus();
   if (configured.provider === "none") {
     return { ready: false, provider: "none", message: configured.detail };
+  }
+  if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+    return {
+      ready: false,
+      provider: configured.provider,
+      reason: "insecure_tls",
+      message: "TLS-certificaatcontrole is uitgeschakeld; providercontrole en verzending zijn veilig geblokkeerd.",
+    };
   }
 
   const controller = new AbortController();
@@ -256,14 +288,28 @@ export async function checkTransactionalProviderReadiness(): Promise<Transaction
         };
       }
 
-      const user = await userResponse.json().catch(() => null) as { hourly_quota?: unknown } | null;
+      const user = await userResponse.json().catch(() => null) as {
+        hourly_quota?: unknown;
+        reputation?: unknown;
+      } | null;
       const hourlyQuota = Number(user?.hourly_quota);
-      if (!Number.isFinite(hourlyQuota) || hourlyQuota <= 25) {
+      if (hourlyQuota === 25) {
         return {
           ready: false,
           provider: "mailchimp",
+          reason: "demo_mode",
           message:
             "Mailchimp Transactional-key is geldig, maar het account staat nog in demo-modus (maximaal 25 mails per uur en alleen ontvangers op het eigen domein).",
+        };
+      }
+      if (!Number.isFinite(hourlyQuota) || hourlyQuota <= 0) {
+        return {
+          ready: false,
+          provider: "mailchimp",
+          reason: "quota_unavailable",
+          message: Number.isFinite(hourlyQuota)
+            ? `Mailchimp Transactional accepteert de key, maar rapporteert verzendquota ${hourlyQuota}. De betaalde add-on is mogelijk nog niet volledig geprovisioneerd.`
+            : "Mailchimp Transactional accepteert de key, maar retourneert geen geldige verzendquota.",
         };
       }
 
@@ -305,7 +351,7 @@ export async function checkTransactionalProviderReadiness(): Promise<Transaction
       return {
         ready: true,
         provider: "mailchimp",
-        message: `Mailchimp Transactional-key en verzenddomein ${domain} zijn productiegeschikt.`,
+        message: `Mailchimp Transactional-key en verzenddomein ${domain} zijn productiegeschikt (actuele quota ${hourlyQuota} per uur).`,
       };
     }
 

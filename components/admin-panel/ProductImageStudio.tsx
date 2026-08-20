@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import Link from "next/link";
 import {
   ArrowDown,
   ArrowUp,
   GripVertical,
   ImagePlus,
+  Palette,
   Save,
   Sparkles,
   Star,
@@ -407,6 +409,9 @@ export function ProductImageStudio({
               <input value={image.alt ?? ""} onChange={(event) => setImages(images.map((item) => item.id === image.id ? { ...item, alt: event.target.value } : item))} className={inputClass} />
             </label>
             <div className="mt-3 grid grid-cols-2 gap-2">
+              <Link href={`/admin/design-studio/productfotos?productId=${encodeURIComponent(productId)}&imageId=${encodeURIComponent(image.id)}`} className={`${buttonClass} col-span-2 bg-background text-text`}>
+                <Palette className="h-4 w-4" />Open in Design Studio
+              </Link>
               <button type="button" onClick={() => move(image.id, -1)} disabled={busy || index === 0} className={buttonClass}><ArrowUp className="h-4 w-4" />Omhoog</button>
               <button type="button" onClick={() => move(image.id, 1)} disabled={busy || index === images.length - 1} className={buttonClass}><ArrowDown className="h-4 w-4" />Omlaag</button>
               <button type="button" onClick={() => void persistOrder(images, image.id)} disabled={busy || image.isPrimary} className={buttonClass}><Star className="h-4 w-4" />Primair</button>

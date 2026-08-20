@@ -9,6 +9,7 @@ type ProductPageProps = {
 };
 
 export const generateMetadata = generateProductMetadata;
+export const dynamic = "force-dynamic";
 
 export default async function FrenchProductPage(props: ProductPageProps) {
   const { locale } = await props.params;

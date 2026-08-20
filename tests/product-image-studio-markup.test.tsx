@@ -44,6 +44,8 @@ test("the image studio exposes progress, selection and an accessible empty state
   assert.match(populated, /loading="lazy"/);
   assert.match(populated, /decoding="async"/);
   assert.match(populated, /focus-within:/);
+  assert.match(populated, /Open in Design Studio/);
+  assert.match(populated, /productId=product_1&amp;imageId=image_1/);
   assert.match(empty, /Nog geen productafbeeldingen/);
 });
 

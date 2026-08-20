@@ -1,23 +1,9 @@
 steps:
-  - name: "gcr.io/cloud-builders/docker"
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        docker build \
-          --build-arg DATABASE_URL="$$DATABASE_URL" \
-          --build-arg CDN_BASE_URL="${_CDN_BASE_URL}" \
-          --build-arg SITE_URL="${_SITE_URL}" \
-          --build-arg UNLIMITED_STOCK="${_UNLIMITED_STOCK}" \
-          -t "${_IMAGE}" \
-          .
-    secretEnv: ["DATABASE_URL"]
-
-  - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "${_IMAGE}"]
-
-  # Apply committed Prisma migrations only after the image has built and
-  # pushed successfully. A migration failure stops the Cloud Run rollout.
+  # Apply expand-only migrations before the image build. Product pages query
+  # the production database during `next build`, so the generated Prisma
+  # client must never encounter a schema that is older than the checked-out
+  # application code. A failed build leaves the current Cloud Run revision
+  # serving normally; the additive schema remains backwards compatible.
   - id: "migrate-database"
     name: "docker.io/library/node:22-bookworm"
     entrypoint: "bash"
@@ -41,6 +27,32 @@ steps:
         npx prisma migrate deploy
     secretEnv: ["DATABASE_URL"]
 
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        build_database_url="$$DATABASE_URL"
+        if [[ "$$build_database_url" != *"connection_limit="* ]]; then
+          if [[ "$$build_database_url" == *"?"* ]]; then
+            build_database_url="$${build_database_url}&connection_limit=10&pool_timeout=30"
+          else
+            build_database_url="$${build_database_url}?connection_limit=10&pool_timeout=30"
+          fi
+        fi
+        docker build \
+          --build-arg DATABASE_URL="$$build_database_url" \
+          --build-arg CDN_BASE_URL="${_CDN_BASE_URL}" \
+          --build-arg SITE_URL="${_SITE_URL}" \
+          --build-arg UNLIMITED_STOCK="${_UNLIMITED_STOCK}" \
+          -t "${_IMAGE}" \
+          .
+    secretEnv: ["DATABASE_URL"]
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE}"]
+
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     entrypoint: "gcloud"
     args:
@@ -51,6 +63,7 @@ steps:
       - "--image=${_IMAGE}"
       - "--region=europe-west4"
       - "--platform=managed"
+      - "--no-traffic"
       - "--quiet"
 
 images:

@@ -21,6 +21,7 @@ import {
   STANDARD_HANDLING_DAYS,
   STANDARD_TRANSIT_DAYS,
 } from "@/lib/shipping";
+import { plainTextFromFaqHtml } from "@/lib/product-faq-schema";
 
 const SCHEMA = "https://schema.org";
 const BRAND_NAME = "De Notenman";
@@ -297,6 +298,21 @@ export function buildProductStructuredData(input: {
       item: pageUrl,
     },
   ];
+  const storefrontFaqs = product.faqs ? Object.values(product.faqs).flat() : [];
+  const faqEntity = storefrontFaqs.length
+    ? {
+        "@type": "FAQPage",
+        "@id": `${pageUrl}#faq`,
+        mainEntity: storefrontFaqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: plainTextFromFaqHtml(faq.answerHtml),
+          },
+        })),
+      }
+    : null;
 
   return {
     "@context": SCHEMA,
@@ -308,6 +324,7 @@ export function buildProductStructuredData(input: {
         itemListElement: breadcrumbItems,
       },
       productEntity,
+      ...(faqEntity ? [faqEntity] : []),
     ],
   };
 }

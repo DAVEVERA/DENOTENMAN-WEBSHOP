@@ -1,7 +1,7 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
-import { locales, isLocale, type Locale } from "@/lib/i18n";
-import { getProductBySlug, getProductSlugs } from "@/lib/queries";
+import { isLocale, type Locale } from "@/lib/i18n";
+import { getProductBySlug } from "@/lib/queries";
 import { getAlternates } from "@/lib/alternates";
 import { ProductDetailContent } from "@/components/product/ProductDetailContent";
 import { ProductDetailModal } from "@/components/product/ProductDetailModal";
@@ -14,16 +14,7 @@ import { resolveProductDescription } from "@/lib/product-description";
 
 const dictionaries = { nl, en, fr };
 
-export async function generateStaticParams() {
-  const params = await Promise.all(
-    locales.map(async (locale) => {
-      const entries = await getProductSlugs(locale);
-      return entries.map((entry) => ({ locale, product: entry.slug }));
-    })
-  );
-
-  return params.flat();
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
