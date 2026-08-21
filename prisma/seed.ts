@@ -11,6 +11,9 @@ const translateClient = new v3.TranslationServiceClient();
 
 const locales = ["nl", "en", "fr"] as const;
 const maxShortDescriptionLength = 160;
+const destructiveCatalogReseedConfirmed =
+  process.argv.includes("--destructive-catalog-reseed")
+  && process.env.ALLOW_DESTRUCTIVE_CATALOG_RESEED === "CONFIRMED";
 
 const pageTitles: Record<(typeof pageKeys)[number], Record<(typeof locales)[number], string>> = {
   about: { nl: "Over ons", en: "About us", fr: "À propos" },
@@ -338,6 +341,12 @@ async function main() {
     fetchTab(spreadsheetId, "Nog_te_controleren"),
   ]);
   console.log(`Fetched ${exportRows.length} rows from Developer_export.`);
+
+  if (!destructiveCatalogReseedConfirmed) {
+    throw new Error(
+      "Destructieve catalogus-seed geblokkeerd. Maak en verifieer eerst een databaseback-up en gebruik daarna zowel --destructive-catalog-reseed als ALLOW_DESTRUCTIVE_CATALOG_RESEED=CONFIRMED.",
+    );
+  }
 
   const archivedFamilies = new Set(
     archiefRows.map((r) => (r["Productgroep"] || "").trim().toLowerCase()).filter(Boolean)
