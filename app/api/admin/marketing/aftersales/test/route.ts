@@ -8,6 +8,7 @@ import { renderAftersalesEmail } from "@/lib/aftersales/template";
 import { deliverTransactionalEmail } from "@/lib/transactional-email";
 import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
 import { checkTransactionalProviderReadiness } from "@/lib/aftersales/provider";
+import { aftersalesTestSampleFilters } from "@/lib/aftersales/test-sample";
 
 const inputSchema = z.object({
   stepId: z.string().trim().min(1),
@@ -43,14 +44,19 @@ export async function POST(request: NextRequest) {
     );
   }
   if (!step) return NextResponse.json({ error: "STEP_NOT_FOUND" }, { status: 404 });
-  const order = await prisma.order.findFirst({
-    where: {
-      isTest: false,
-      status: step.trigger === "ORDER_FULFILLED" ? "FULFILLED" : { in: ["PAID", "FULFILLED"] },
-    },
+  const [realOrderFilter, testOrderFilter] = aftersalesTestSampleFilters(step.trigger);
+  let order = await prisma.order.findFirst({
+    where: realOrderFilter,
     orderBy: { createdAt: "desc" },
     include: { items: true },
   });
+  if (!order) {
+    order = await prisma.order.findFirst({
+      where: testOrderFilter,
+      orderBy: { createdAt: "desc" },
+      include: { items: true },
+    });
+  }
   if (!order) return NextResponse.json({ error: "NO_SAMPLE_ORDER" }, { status: 409 });
 
   try {

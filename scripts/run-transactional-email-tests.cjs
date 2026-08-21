@@ -4,6 +4,8 @@ const { join } = require("node:path");
 const inheritedOptions = process.env.NODE_OPTIONS?.trim();
 const nodeOptions = [inheritedOptions, "--conditions=react-server"].filter(Boolean).join(" ");
 const testFiles = [
+  "tests/aftersales-test-sample.test.ts",
+  "tests/test-order-confirmation-delivery.test.ts",
   "tests/transactional-email-provider.test.ts",
   "tests/transactional-email-log.integration.test.ts",
   "tests/mailchimp-transactional-webhook.test.ts",

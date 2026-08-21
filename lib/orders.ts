@@ -7,6 +7,7 @@ import type { Locale } from "@/lib/i18n";
 import type { Order, OrderStatus } from "@prisma/client";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
 import { sendOrderConfirmationEmail } from "@/lib/mail";
+import { sendCompletedTestOrderConfirmation } from "@/lib/test-order-confirmation";
 import {
   prepareAftersalesEvent,
   processAftersalesDelivery,
@@ -303,9 +304,11 @@ export async function createOrderWithPayment(
         })),
       },
     },
+    include: { items: true },
   });
 
   if (resolvePaymentDisposition(isTest, totalCents) === "TEST_COMPLETE") {
+    await sendCompletedTestOrderConfirmation(order);
     return {
       orderId: order.id,
       checkoutUrl: `${BASE_URL}/${locale}/order/${order.id}`,

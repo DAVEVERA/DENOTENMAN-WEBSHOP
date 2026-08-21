@@ -210,7 +210,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
       if (!response.ok) {
         setError(
           body?.error === "NO_SAMPLE_ORDER"
-            ? "Er is nog geen geschikte echte bestelling om als testvoorbeeld te gebruiken."
+            ? "Er is nog geen geschikte betaalde bestelling of testbestelling om als voorbeeld te gebruiken."
             : body?.message || "De testmail is niet geaccepteerd door de provider."
         );
         return;
