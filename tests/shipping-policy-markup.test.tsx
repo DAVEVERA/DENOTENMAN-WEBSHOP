@@ -9,6 +9,6 @@ test("shows the same shipping threshold, rate and return window as checkout poli
   assert.match(html, /€(?:\s|&nbsp;|\u00a0)50,00/);
   assert.match(html, /€(?:\s|&nbsp;|\u00a0)4,95/);
   assert.match(html, /14 dagen bedenktijd/);
-  assert.match(html, /ongeopende en verzegelde/i);
+  assert.match(html, /ongeopend is en .*verzegeling intact is/i);
   assert.doesNotMatch(html, /€(?:\s|&nbsp;|\u00a0)(?:5,95|7,95|40,00)/);
 });

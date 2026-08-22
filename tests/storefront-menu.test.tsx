@@ -128,6 +128,9 @@ test("mobile branch label navigates while a separate control opens its children"
 
 test("mobile menu provides drilldown, back, overview and 44px touch targets", () => {
   const source = readFileSync("components/layout/MobileNav.tsx", "utf8");
+  const dialogClasses = [...source.matchAll(/role="dialog"[\s\S]*?className="([^"]+)"/g)].map(
+    (match) => match[1]
+  );
 
   assert.match(source, /setLevel\(\[\.\.\.categoryIds, category\.id\]\)/);
   assert.match(source, /categoryIds\.slice\(0, -1\)/);
@@ -138,6 +141,10 @@ test("mobile menu provides drilldown, back, overview and 44px touch targets", ()
   assert.match(source, /min-h-12/);
   assert.match(source, /touch-manipulation/);
   assert.match(source, /<NativeCategoryLink\s+href=\{categoryPath\(locale, activeCategory\.slug\)\}/);
+  assert.match(source, /createPortal\(/);
+  assert.equal(source.match(/,\s*document\.body\s*\)/g)?.length, 2);
+  assert.equal(dialogClasses.length, 2);
+  assert.ok(dialogClasses.every((className) => className.split(" ").includes("z-10")));
 });
 
 test("header exposes every standard root returned by the navigation query", () => {
@@ -145,4 +152,24 @@ test("header exposes every standard root returned by the navigation query", () =
 
   assert.match(source, /const categories = navigation\.categories;/);
   assert.doesNotMatch(source, /hiddenNavCategorySlugs/);
+});
+
+test("header switches mobile and desktop navigation at one coherent breakpoint", () => {
+  const headerSource = readFileSync("components/layout/Header.tsx", "utf8");
+  const mobileSource = readFileSync("components/layout/MobileNav.tsx", "utf8");
+
+  assert.match(headerSource, /border-b-2 border-contrast bg-surface xl:block/);
+  assert.match(mobileSource, /grid w-full grid-cols-4[^"]*xl:hidden/);
+});
+
+test("mobile search dialog traps keyboard focus inside its own panel", () => {
+  const source = readFileSync("components/layout/MobileNav.tsx", "utf8");
+
+  assert.match(source, /const searchPanelRef = useRef<HTMLElement>\(null\)/);
+  assert.match(source, /searchOpen\s*\? searchPanelRef\.current/);
+  assert.match(source, /input:not\(\[disabled\]\)/);
+  assert.match(source, /textarea:not\(\[disabled\]\), summary/);
+  assert.match(source, /element\.getClientRects\(\)\.length > 0/);
+  assert.match(source, /element\.closest\("details:not\(\[open\]\)"\)/);
+  assert.match(source, /ref=\{searchPanelRef\}\s+role="dialog"/);
 });

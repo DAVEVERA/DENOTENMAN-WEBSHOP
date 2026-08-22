@@ -16,7 +16,7 @@ import { Container } from "@/components/ui/Container";
 import { ProductBrowser } from "@/components/product/ProductBrowser";
 import { FeaturedBanner } from "@/components/product/FeaturedBanner";
 import { SiteShell } from "@/components/layout/SiteShell";
-import { VideoHero } from "@/components/layout/VideoHero";
+import { VisualHero } from "@/components/layout/VisualHero";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -79,7 +79,7 @@ export default async function HomePage({
 
   return (
     <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
-      <VideoHero locale={locale} dictionary={dictionary} />
+      <VisualHero dictionary={dictionary} />
       {promotionalSlug ? (
         <FeaturedBanner
           products={featuredCategory?.products ?? []}
@@ -143,7 +143,9 @@ export default async function HomePage({
               outOfStock: dictionary.product.outOfStock,
               inStock: dictionary.product.inStock,
               quantity: dictionary.product.quantity,
-              added: dictionary.product.added,
+              added: dictionary.product.addedToCart,
+              goToCart: dictionary.product.goToCart,
+              continueShopping: dictionary.product.continueShopping,
               order: dictionary.product.order,
               quickOrder: dictionary.product.quickOrder,
               moreInfo: dictionary.product.moreInfo,

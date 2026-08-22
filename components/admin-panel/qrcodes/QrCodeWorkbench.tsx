@@ -12,6 +12,7 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
+import { addCampaignParametersToOwnedUrl, campaignSlug } from "@/lib/campaign-urls";
 import { cn } from "@/lib/cn";
 
 type ProductOption = {
@@ -201,16 +202,34 @@ function normalizePhone(value = "") {
   return value.replace(/[^\d+]/g, "").replace(/^\+/, "");
 }
 
-function createTargetPayload(targetType: QrCodeTargetType, config: TargetConfig, siteUrl: string) {
+function createTargetPayload(
+  targetType: QrCodeTargetType,
+  config: TargetConfig,
+  siteUrl: string,
+  campaignName: string
+) {
   const baseUrl = normalizeSiteUrl(siteUrl || "https://www.denotenman.nl");
+  const trackOwnedTarget = (target: string) =>
+    addCampaignParametersToOwnedUrl(target, baseUrl, {
+      source: "qr_code",
+      medium: "offline",
+      campaign: campaignSlug(campaignName),
+      content: targetType,
+    });
 
   switch (targetType) {
     case "product":
-      return config.productSlug ? `${baseUrl}/winkel/${config.productSlug}` : baseUrl;
+      return trackOwnedTarget(
+        config.productSlug ? `${baseUrl}/winkel/${config.productSlug}` : baseUrl
+      );
     case "category":
-      return config.categorySlug ? `${baseUrl}/categorie/${config.categorySlug}` : `${baseUrl}/categorie`;
+      return trackOwnedTarget(
+        config.categorySlug
+          ? `${baseUrl}/categorie/${config.categorySlug}`
+          : `${baseUrl}/categorie`
+      );
     case "discount":
-      return config.url || baseUrl;
+      return trackOwnedTarget(config.url || baseUrl);
     case "whatsapp": {
       const phone = normalizePhone(config.phone);
       const message = config.message ? `?text=${encodeURIComponent(config.message)}` : "";
@@ -234,7 +253,7 @@ function createTargetPayload(targetType: QrCodeTargetType, config: TargetConfig,
       return config.text || "De Notenman";
     case "url":
     default:
-      return config.url || baseUrl;
+      return trackOwnedTarget(config.url || baseUrl);
   }
 }
 
@@ -333,7 +352,8 @@ export function QrCodeWorkbench({ initialDesign, products, categories, siteUrl, 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const qrPayload = useMemo(() => createTargetPayload(targetType, targetConfig, siteUrl), [
+  const qrPayload = useMemo(() => createTargetPayload(targetType, targetConfig, siteUrl, name), [
+    name,
     targetType,
     targetConfig,
     siteUrl,

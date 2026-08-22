@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
@@ -9,6 +9,12 @@ import { cart as cartPath } from "@/lib/routes";
 import { useStorefrontState } from "@/lib/storefront-state";
 import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
 import { getPickupLocationsForCountry, closestPickupLocationId } from "@/lib/pickup-locations";
+import { pagePath } from "@/lib/pages";
+import {
+  GOOGLE_ANALYTICS_READY_EVENT,
+  cartToGoogleAnalyticsItems,
+  sendGoogleAnalyticsEvent,
+} from "@/lib/analytics";
 import { Button } from "@/components/ui/Button";
 
 type DeliveryMethod = "SHIPPING" | "PICKUP";
@@ -41,6 +47,7 @@ export function CheckoutForm({
   const [country, setCountry] = useState<CountryCode>("NL");
   const [pickupLocationId, setPickupLocationId] = useState<string>("");
   const [pickupPostalCode, setPickupPostalCode] = useState("");
+  const trackedCheckoutKey = useRef<string | null>(null);
 
   const pickupLocations = getPickupLocationsForCountry(country);
   const isPickup = deliveryMethod === "PICKUP";
@@ -53,6 +60,32 @@ export function CheckoutForm({
   const discountCents = appliedDiscount?.discountCents ?? 0;
   const shippingCents = isPickup ? 0 : appliedDiscount?.shippingCents ?? regularShippingCents;
   const totalCents = appliedDiscount?.totalCents ?? subtotalCents + regularShippingCents;
+  const merchandiseValue = Math.max(0, subtotalCents - discountCents) / 100;
+
+  useEffect(() => {
+    if (cart.length === 0) return;
+
+    const checkoutKey = cart
+      .map((item) => `${item.variantId}:${item.quantity}`)
+      .sort()
+      .join("|");
+
+    function trackCheckoutStart() {
+      if (trackedCheckoutKey.current === checkoutKey) return;
+
+      const sent = sendGoogleAnalyticsEvent("begin_checkout", {
+        currency: "EUR",
+        value: merchandiseValue,
+        ...(appliedDiscount?.code ? { coupon: appliedDiscount.code } : {}),
+        items: cartToGoogleAnalyticsItems(cart),
+      });
+      if (sent) trackedCheckoutKey.current = checkoutKey;
+    }
+
+    trackCheckoutStart();
+    window.addEventListener(GOOGLE_ANALYTICS_READY_EVENT, trackCheckoutStart);
+    return () => window.removeEventListener(GOOGLE_ANALYTICS_READY_EVENT, trackCheckoutStart);
+  }, [appliedDiscount?.code, cart, merchandiseValue]);
 
   function handleDeliveryMethodChange(method: DeliveryMethod) {
     setDeliveryMethod(method);
@@ -134,7 +167,12 @@ export function CheckoutForm({
                   city: form.get("city"),
                 }),
           },
-          lines: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity })),
+          lines: cart.map((item) => ({
+            variantId: item.variantId,
+            quantity: item.quantity,
+            productSlug: item.slug,
+            variantLabel: item.variantLabel,
+          })),
           discountCode: appliedDiscount?.code ?? undefined,
         }),
       });
@@ -142,6 +180,16 @@ export function CheckoutForm({
       const data = await response.json();
 
       if (!response.ok) {
+        sendGoogleAnalyticsEvent("checkout_error", {
+          checkout_stage: "create_payment",
+          error_code:
+            typeof data?.error === "string" ? data.error : `HTTP_${response.status}`,
+          delivery_method: deliveryMethod.toLowerCase(),
+          payment_provider: "mollie",
+          currency: "EUR",
+          value: merchandiseValue,
+          items: cartToGoogleAnalyticsItems(cart),
+        });
         if (data.error === "OUT_OF_STOCK") {
           setError(dictionary.errorOutOfStock);
         } else if (data.error === "INVALID_CONTACT") {
@@ -161,8 +209,24 @@ export function CheckoutForm({
         return;
       }
 
+      sendGoogleAnalyticsEvent("add_payment_info", {
+        currency: "EUR",
+        value: merchandiseValue,
+        payment_type: "Mollie",
+        ...(appliedDiscount?.code ? { coupon: appliedDiscount.code } : {}),
+        items: cartToGoogleAnalyticsItems(cart),
+      });
       window.location.href = data.checkoutUrl;
     } catch {
+      sendGoogleAnalyticsEvent("checkout_error", {
+        checkout_stage: "create_payment",
+        error_code: "NETWORK_OR_CLIENT_ERROR",
+        delivery_method: deliveryMethod.toLowerCase(),
+        payment_provider: "mollie",
+        currency: "EUR",
+        value: merchandiseValue,
+        items: cartToGoogleAnalyticsItems(cart),
+      });
       setError(dictionary.genericError);
       setSubmitting(false);
     }
@@ -463,6 +527,34 @@ export function CheckoutForm({
             {error}
           </p>
         ) : null}
+
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-card border border-border bg-surface p-4 text-body-sm text-text">
+          <input
+            type="checkbox"
+            name="legalAgreement"
+            required
+            className="mt-1 h-5 w-5 shrink-0 accent-[#333333]"
+          />
+          <span className="leading-relaxed">
+            {dictionary.legalAgreement}{" "}
+            <Link className="font-semibold underline underline-offset-4" href={pagePath("terms", locale)}>
+              {dictionary.termsLabel}
+            </Link>
+            ,{" "}
+            <Link className="font-semibold underline underline-offset-4" href={pagePath("additionalTerms", locale)}>
+              {dictionary.additionalTermsLabel}
+            </Link>
+            ,{" "}
+            <Link className="font-semibold underline underline-offset-4" href={pagePath("privacy", locale)}>
+              {dictionary.privacyLabel}
+            </Link>{" "}
+            {dictionary.and}{" "}
+            <Link className="font-semibold underline underline-offset-4" href={pagePath("shippingReturns", locale)}>
+              {dictionary.returnsLabel}
+            </Link>
+            .
+          </span>
+        </label>
 
         <Button type="submit" busy={submitting} className="mt-4 w-full" size="lg">
           {submitting ? dictionary.submitting : dictionary.submit}

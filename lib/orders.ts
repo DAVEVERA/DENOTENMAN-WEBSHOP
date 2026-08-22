@@ -40,7 +40,41 @@ export class CheckoutError extends Error {
   }
 }
 
-export type CartLineInput = { variantId: string; quantity: number };
+export type CartLineInput = {
+  variantId: string;
+  quantity: number;
+  productSlug?: string;
+  variantLabel?: string;
+};
+
+type CheckoutVariant = {
+  id: string;
+  product: { slug: string };
+  translations: Array<{ locale: string; label: string }>;
+};
+
+export function resolveCheckoutVariant<T extends CheckoutVariant>(
+  line: CartLineInput,
+  variants: T[],
+  locale: Locale
+): T | undefined {
+  const directMatch = variants.find((variant) => variant.id === line.variantId);
+  if (directMatch) return directMatch;
+
+  const productSlug = line.productSlug?.trim().toLocaleLowerCase("nl-NL");
+  const variantLabel = line.variantLabel?.trim().toLocaleLowerCase(locale);
+  if (!productSlug || !variantLabel) return undefined;
+
+  return variants.find(
+    (variant) =>
+      variant.product.slug.trim().toLocaleLowerCase("nl-NL") === productSlug &&
+      variant.translations.some(
+        (translation) =>
+          translation.locale === locale &&
+          translation.label.trim().toLocaleLowerCase(locale) === variantLabel
+      )
+  );
+}
 
 export type CheckoutContactInput = {
   name: string;
@@ -114,19 +148,32 @@ export async function priceCartLines(
   }
 
   const variantIds = [...new Set(lines.map((line) => line.variantId))];
+  const fallbackProductSlugs = [
+    ...new Set(
+      lines
+        .map((line) => line.productSlug?.trim())
+        .filter((slug): slug is string => Boolean(slug))
+    ),
+  ];
 
   const variants = await prisma.productVariant.findMany({
-    where: { id: { in: variantIds } },
+    where:
+      fallbackProductSlugs.length > 0
+        ? {
+            OR: [
+              { id: { in: variantIds } },
+              { product: { slug: { in: fallbackProductSlugs } } },
+            ],
+          }
+        : { id: { in: variantIds } },
     include: {
       translations: true,
       product: { include: { translations: true } },
     },
   });
 
-  const variantById = new Map(variants.map((variant) => [variant.id, variant]));
-
   const priced = lines.map((line) => {
-    const variant = variantById.get(line.variantId);
+    const variant = resolveCheckoutVariant(line, variants, locale);
 
     if (!variant) {
       throw new CheckoutError("VARIANT_NOT_FOUND", `Variant not found: ${line.variantId}`);
@@ -375,6 +422,11 @@ export type OrderLookupResult = Order & {
   }[];
 };
 
+export type MolliePaymentMeasurement = {
+  status: string;
+  method: string | null;
+};
+
 /**
  * There is no login system — order status is looked up with the order id
  * (shown once on the confirmation page) plus the contact email used at
@@ -406,7 +458,10 @@ export async function findOrderForLookup(
  */
 export async function syncOrderPaymentStatus(
   order: Order,
-  options: { failOnAftersalesError?: boolean } = {}
+  options: {
+    failOnAftersalesError?: boolean;
+    onPaymentObserved?: (payment: MolliePaymentMeasurement) => void;
+  } = {}
 ): Promise<Order> {
   if (order.status === "PAID" || order.status === "FULFILLED") {
     if (!order.isTest) {
@@ -416,6 +471,21 @@ export async function syncOrderPaymentStatus(
         throw new Error(`AFTERSALES_DELIVERY_FAILED: ${failure.error}`);
       }
     }
+
+    // The order status remains the source of truth. Provider detail is only
+    // supplementary funnel context and must never break an already confirmed
+    // order page if Mollie is briefly unavailable.
+    if (options.onPaymentObserved && order.molliePaymentId) {
+      try {
+        const payment = await getMollieClient().payments.get(order.molliePaymentId);
+        options.onPaymentObserved({
+          status: payment.status,
+          method: payment.method ? String(payment.method) : null,
+        });
+      } catch (error) {
+        console.error(`Could not read Mollie measurement for order ${order.id}`, error);
+      }
+    }
     return order;
   }
   if (!order.molliePaymentId) {
@@ -423,6 +493,10 @@ export async function syncOrderPaymentStatus(
   }
 
   const payment = await getMollieClient().payments.get(order.molliePaymentId);
+  options.onPaymentObserved?.({
+    status: payment.status,
+    method: payment.method ? String(payment.method) : null,
+  });
   const nextStatus = mapMollieStatusToOrderStatus(payment.status);
 
   if (!nextStatus || nextStatus === order.status) {

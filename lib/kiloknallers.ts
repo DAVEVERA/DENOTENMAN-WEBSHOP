@@ -20,6 +20,7 @@ export function isKiloknallerVariant(
 
 export const kiloknallerProductWhere = {
   isActive: true,
+  unit: { in: ["WEIGHT", "VOLUME"] },
   variants: {
     some: {
       isActive: true,

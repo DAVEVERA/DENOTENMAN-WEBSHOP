@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { Check, Minus, Plus, ShoppingCart, X } from "lucide-react";
+import { useEffect, useRef, useState, type Ref } from "react";
+import { ArrowLeft, Check, Minus, Plus, ShoppingCart, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
-import { product as productPath } from "@/lib/routes";
+import { cart as cartPath, product as productPath } from "@/lib/routes";
 import { addCartItem } from "@/lib/storefront-state";
 import { getProductImageStyle } from "@/lib/image-focal";
 import { BackInStockForm } from "@/components/product/BackInStockForm";
@@ -23,12 +23,71 @@ export type ProductQuickViewCopy = {
   inStock: string;
   quantity: string;
   added: string;
+  goToCart: string;
+  continueShopping: string;
   order: string;
   quickOrder: string;
   moreInfo: string;
   decrease: string;
   increase: string;
 };
+
+export function ProductQuickViewAddedActions({
+  locale,
+  productName,
+  quantity,
+  labels,
+  onContinue,
+  primaryActionRef,
+}: {
+  locale: Locale;
+  productName: string;
+  quantity: number;
+  labels: { added: string; goToCart: string; continueShopping: string };
+  onContinue: () => void;
+  primaryActionRef?: Ref<HTMLAnchorElement>;
+}) {
+  return (
+    <div>
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="flex items-start gap-3 rounded-[10px] border border-emerald-300 border-l-4 border-l-emerald-600 bg-emerald-50 px-4 py-3 text-emerald-950"
+      >
+        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+          <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-heading text-sm font-bold sm:text-base">{labels.added}</span>
+          <span className="mt-0.5 block text-xs leading-snug text-emerald-900 sm:text-sm">
+            {quantity}× {productName}
+          </span>
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
+        <Link
+          ref={primaryActionRef}
+          href={cartPath(locale)}
+          onClick={onContinue}
+          className={`${productActionButtonClass} min-h-12 touch-manipulation px-4 text-center`}
+        >
+          <ShoppingCart className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span>{labels.goToCart}</span>
+        </Link>
+        <button
+          type="button"
+          onClick={onContinue}
+          className="inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded border-2 border-black bg-white px-4 font-heading font-semibold text-black transition-colors hover:bg-[#F6F3EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 active:bg-[#EDE7DE]"
+        >
+          <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span>{labels.continueShopping}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const quickViewCopies: Record<Locale, ProductQuickViewCopy> = {
   nl: {
@@ -37,7 +96,9 @@ const quickViewCopies: Record<Locale, ProductQuickViewCopy> = {
     outOfStock: "Niet op voorraad",
     inStock: "Op voorraad",
     quantity: "Aantal",
-    added: "Toegevoegd",
+    added: "Toegevoegd aan je winkelwagen",
+    goToCart: "Naar winkelwagen",
+    continueShopping: "Verder winkelen",
     order: "Bestellen",
     quickOrder: "Snel bestellen",
     moreInfo: "Meer info",
@@ -50,7 +111,9 @@ const quickViewCopies: Record<Locale, ProductQuickViewCopy> = {
     outOfStock: "Out of stock",
     inStock: "In stock",
     quantity: "Quantity",
-    added: "Added",
+    added: "Added to your cart",
+    goToCart: "Go to cart",
+    continueShopping: "Continue shopping",
     order: "Order",
     quickOrder: "Quick order",
     moreInfo: "More info",
@@ -63,7 +126,9 @@ const quickViewCopies: Record<Locale, ProductQuickViewCopy> = {
     outOfStock: "Rupture de stock",
     inStock: "En stock",
     quantity: "Quantit\u00e9",
-    added: "Ajout\u00e9",
+    added: "Ajout\u00e9 \u00e0 votre panier",
+    goToCart: "Voir le panier",
+    continueShopping: "Continuer mes achats",
     order: "Commander",
     quickOrder: "Commander rapidement",
     moreInfo: "Plus d\u2019infos",
@@ -94,6 +159,7 @@ export function ProductQuickView({
   const [added, setAdded] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const cartActionRef = useRef<HTMLAnchorElement>(null);
   const primaryImage = product.images.find((image) => image.isPrimary) ?? product.images[0];
   const selected =
     product.variants.find((variant) => variant.id === selectedId) ?? firstVariant;
@@ -136,6 +202,12 @@ export function ProductQuickView({
       window.requestAnimationFrame(() => previouslyFocused?.focus());
     };
   }, [firstVariant?.id, onClose, open]);
+
+  useEffect(() => {
+    if (!added) return;
+    const frame = window.requestAnimationFrame(() => cartActionRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [added]);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -242,69 +314,64 @@ export function ProductQuickView({
         </div>
 
         <footer className="shrink-0 border-t border-[#E4DFD5] bg-white px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-5 sm:pb-5">
-          <div className="flex items-stretch gap-3">
-            <div className="grid h-12 w-[114px] shrink-0 grid-cols-3 overflow-hidden rounded border border-[#A8A8A8] bg-white sm:w-[132px]">
-              <button
-                type="button"
-                aria-label={labels.decrease}
-                onClick={() => {
-                  setQuantity((value) => Math.max(1, value - 1));
-                  setAdded(false);
-                }}
-                className="inline-flex min-h-11 items-center justify-center border-r border-[#A8A8A8] hover:bg-[#F6F3EE]"
-              >
-                <Minus className="h-4 w-4" aria-hidden="true" />
-              </button>
-              <span
-                className="inline-flex min-h-11 items-center justify-center font-semibold text-black"
-                aria-label={labels.quantity}
-              >
-                {quantity}
-              </span>
-              <button
-                type="button"
-                aria-label={labels.increase}
-                onClick={() => {
-                  setQuantity((value) => value + 1);
-                  setAdded(false);
-                }}
-                className="inline-flex min-h-11 items-center justify-center border-l border-[#A8A8A8] hover:bg-[#F6F3EE]"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-            <button
-              type="button"
-              disabled={!product.isActive || !selected || selected.stock <= 0}
-              onClick={addSelectedToCart}
-              className={`${productActionButtonClass} h-12 min-w-0 flex-1 px-3 sm:px-6`}
-            >
-              {added ? (
-                <Check className="h-5 w-5 shrink-0" aria-hidden="true" />
-              ) : (
-                <ShoppingCart className="h-5 w-5 shrink-0" aria-hidden="true" />
-              )}
-              <span className="truncate" aria-live="polite">
-                {added ? (
-                  labels.added
-                ) : (
-                  <>
+          {added ? (
+            <ProductQuickViewAddedActions
+              locale={locale}
+              productName={product.name}
+              quantity={quantity}
+              labels={labels}
+              onContinue={onClose}
+              primaryActionRef={cartActionRef}
+            />
+          ) : (
+            <>
+              <div className="flex items-stretch gap-3">
+                <div className="grid h-12 w-[114px] shrink-0 grid-cols-3 overflow-hidden rounded border border-[#A8A8A8] bg-white sm:w-[132px]">
+                  <button
+                    type="button"
+                    aria-label={labels.decrease}
+                    onClick={() => setQuantity((value) => Math.max(1, value - 1))}
+                    className="inline-flex min-h-11 items-center justify-center border-r border-[#A8A8A8] hover:bg-[#F6F3EE]"
+                  >
+                    <Minus className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <span
+                    className="inline-flex min-h-11 items-center justify-center font-semibold text-black"
+                    aria-label={labels.quantity}
+                  >
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={labels.increase}
+                    onClick={() => setQuantity((value) => value + 1)}
+                    className="inline-flex min-h-11 items-center justify-center border-l border-[#A8A8A8] hover:bg-[#F6F3EE]"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  disabled={!product.isActive || !selected || selected.stock <= 0}
+                  onClick={addSelectedToCart}
+                  className={`${productActionButtonClass} h-12 min-w-0 flex-1 px-3 sm:px-6`}
+                >
+                  <ShoppingCart className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">
                     <span className="min-[360px]:hidden">{labels.order}</span>
-                    <span className="hidden min-[360px]:inline">
-                      {labels.quickOrder}
-                    </span>
-                  </>
-                )}
-              </span>
-            </button>
-          </div>
-          <Link
-            href={productPath(locale, product.slug)}
-            onClick={onClose}
-            className={`${productActionButtonClass} mt-3 w-full`}
-          >
-            {labels.moreInfo}
-          </Link>
+                    <span className="hidden min-[360px]:inline">{labels.quickOrder}</span>
+                  </span>
+                </button>
+              </div>
+              <Link
+                href={productPath(locale, product.slug)}
+                onClick={onClose}
+                className={`${productActionButtonClass} mt-3 w-full`}
+              >
+                {labels.moreInfo}
+              </Link>
+            </>
+          )}
         </footer>
       </div>
     </div>,

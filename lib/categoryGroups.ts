@@ -29,6 +29,13 @@ export type MainCategoryGroupDto<T extends NavigationCategoryDto = NavigationCat
   categories: T[];
 };
 
+export function storefrontCategoryName(
+  canonicalSlug: string,
+  translatedName: string
+): string {
+  return canonicalSlug === "acties" ? "Kiloknallers" : translatedName;
+}
+
 /** Build one locale-correct navigation tree from the Prisma Category graph. */
 export function buildCategoryNavigation(
   sources: NavigationCategorySourceDto[]
@@ -43,7 +50,7 @@ export function buildCategoryNavigation(
       id: source.id,
       canonicalSlug: source.canonicalSlug,
       slug: source.slug,
-      name: source.name,
+      name: storefrontCategoryName(source.canonicalSlug, source.name),
       description: source.description,
       type: source.type,
       parentId: source.parentId,

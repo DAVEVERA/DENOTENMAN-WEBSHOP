@@ -8,9 +8,11 @@ export const pageKeys = [
   "shippingReturns",
   "markets",
   "terms",
+  "additionalTerms",
   "privacy",
   "cookies",
   "withdrawal",
+  "processingAgreement",
   "subscribe",
   "optOut",
 ] as const;
@@ -18,14 +20,12 @@ export const pageKeys = [
 export type PageKey = (typeof pageKeys)[number];
 
 export const indexablePageKeys = pageKeys.filter(
-  (key): key is Exclude<PageKey, "subscribe" | "optOut"> =>
-    key !== "subscribe" && key !== "optOut"
+  (key): key is Exclude<PageKey, "subscribe" | "optOut" | "processingAgreement"> =>
+    key !== "subscribe" && key !== "optOut" && key !== "processingAgreement"
 );
 
-export function pageRobots(
-  key: PageKey
-): { index: false; follow: true } | undefined {
-  return key === "subscribe" || key === "optOut"
+export function pageRobots(key: PageKey): { index: false; follow: true } | undefined {
+  return key === "subscribe" || key === "optOut" || key === "processingAgreement"
     ? { index: false, follow: true }
     : undefined;
 }
@@ -45,9 +45,19 @@ export const pageSlugs: Record<PageKey, Record<Locale, string>> = {
     en: "terms-and-conditions",
     fr: "conditions-generales",
   },
+  additionalTerms: {
+    nl: "aanvullende-voorwaarden",
+    en: "additional-terms",
+    fr: "conditions-complementaires",
+  },
   privacy: { nl: "privacybeleid", en: "privacy-policy", fr: "politique-de-confidentialite" },
   cookies: { nl: "cookiebeleid", en: "cookie-policy", fr: "politique-de-cookies" },
   withdrawal: { nl: "herroepingsrecht", en: "right-of-withdrawal", fr: "droit-de-retractation" },
+  processingAgreement: {
+    nl: "verwerkersovereenkomst",
+    en: "data-processing-agreement",
+    fr: "accord-de-traitement-des-donnees",
+  },
   subscribe: { nl: "aanmelden-nieuwsbrief", en: "newsletter-signup", fr: "inscription-newsletter" },
   optOut: { nl: "afmelden-nieuwsbrief", en: "newsletter-opt-out", fr: "desinscription-newsletter" },
 };

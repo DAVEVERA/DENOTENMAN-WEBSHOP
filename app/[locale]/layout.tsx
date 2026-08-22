@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Dosis, Montserrat } from "next/font/google";
 import { locales, isLocale } from "@/lib/i18n";
 import { BASE_URL } from "@/lib/routes";
@@ -8,6 +7,7 @@ import { buildOrganizationStructuredData } from "@/lib/structured-data";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
+import { CookieConsent } from "@/components/privacy/CookieConsent";
 import "@/app/globals.css";
 
 const dosis = Dosis({
@@ -28,8 +28,6 @@ export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   icons,
 };
-
-const gaMeasurementId = "G-5YW8C6Y7F4";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -63,23 +61,7 @@ export default async function LocaleLayout({
             __html: JSON.stringify(organizationStructuredData).replace(/</g, "\\u003c"),
           }}
         />
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
-          strategy="lazyOnload"
-        />
-        <Script id="google-analytics" strategy="lazyOnload">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${gaMeasurementId}');
-          `}
-        </Script>
-        <Script
-          id="mcjs"
-          src="https://chimpstatic.com/mcjs-connected/js/users/8acdcbab41d6c9a77789a5c6e/e153af6949eb3f4d24a641635.js"
-          strategy="lazyOnload"
-        />
+        <CookieConsent locale={locale} />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded focus:bg-accent focus:px-4 focus:py-2 focus:text-text"

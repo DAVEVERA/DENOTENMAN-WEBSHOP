@@ -8,6 +8,10 @@ import { getPageBySlug } from "@/lib/queries";
 import { Terms } from "./_components/Terms";
 import { Privacy } from "./_components/Privacy";
 import { ShippingReturns } from "./_components/ShippingReturns";
+import { AdditionalTerms } from "./_components/AdditionalTerms";
+import { ProcessingAgreement } from "./_components/ProcessingAgreement";
+import { CookiePolicy } from "./_components/CookiePolicy";
+import { Withdrawal } from "./_components/Withdrawal";
 
 export function generateStaticParams() {
   return locales.flatMap((locale) =>
@@ -90,6 +94,34 @@ export default async function ContentPage({
       return (
         <Container className="py-12">
           <ShippingReturns locale={locale} />
+        </Container>
+      );
+    }
+    if (key === "additionalTerms") {
+      return (
+        <Container className="py-12">
+          <AdditionalTerms locale={locale} />
+        </Container>
+      );
+    }
+    if (key === "processingAgreement") {
+      return (
+        <Container className="py-12">
+          <ProcessingAgreement locale={locale} />
+        </Container>
+      );
+    }
+    if (key === "cookies") {
+      return (
+        <Container className="py-12">
+          <CookiePolicy locale={locale} />
+        </Container>
+      );
+    }
+    if (key === "withdrawal") {
+      return (
+        <Container className="py-12">
+          <Withdrawal locale={locale} />
         </Container>
       );
     }

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { syncOrderPaymentStatus } from "@/lib/orders";
+import { syncOrderPaymentStatus, type MolliePaymentMeasurement } from "@/lib/orders";
+import { buildGoogleAnalyticsPurchase } from "@/lib/analytics";
 import { formatPrice } from "@/lib/format";
 import { checkout as checkoutPath, home, account as accountPath } from "@/lib/routes";
 import { Container } from "@/components/ui/Container";
@@ -26,13 +27,21 @@ export default async function OrderConfirmationPage({
 
   const dictionary = dictionaries[locale];
 
-  const existing = await prisma.order.findUnique({ where: { id: orderId } });
+  const existing = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  });
 
   if (!existing) {
     notFound();
   }
 
-  const order = await syncOrderPaymentStatus(existing);
+  const observedPayment: { current: MolliePaymentMeasurement | null } = { current: null };
+  const order = await syncOrderPaymentStatus(existing, {
+    onPaymentObserved(payment) {
+      observedPayment.current = payment;
+    },
+  });
 
   const view: "PAID" | "PENDING" | "CANCELLED" =
     order.status === "PAID" || order.status === "FULFILLED"
@@ -47,9 +56,31 @@ export default async function OrderConfirmationPage({
     CANCELLED: { title: dictionary.order.cancelledTitle, body: dictionary.order.cancelledBody },
   }[view];
 
+  const paymentMeasurement = observedPayment.current as MolliePaymentMeasurement | null;
+  const analyticsMeasurement = order.isTest
+    ? undefined
+    : {
+        transactionId: order.id,
+        paymentStatus: paymentMeasurement?.status ?? view.toLowerCase(),
+        paymentMethod: paymentMeasurement?.method ?? "unknown",
+        ...(view === "PAID"
+          ? {
+              purchase: buildGoogleAnalyticsPurchase({
+                id: order.id,
+                currency: order.currency,
+                subtotalCents: order.subtotalCents,
+                discountCode: order.discountCode,
+                discountCents: order.discountCents,
+                shippingCents: order.shippingCents,
+                items: existing.items,
+              }),
+            }
+          : {}),
+      };
+
   return (
     <Container className="py-10">
-      <OrderStatusEffects status={view} />
+      <OrderStatusEffects status={view} measurement={analyticsMeasurement} />
       <div className="mx-auto max-w-xl text-center">
         <h1 className="text-heading-xl">{copy.title}</h1>
         <p className="mt-3 text-body-lg text-muted">{copy.body}</p>

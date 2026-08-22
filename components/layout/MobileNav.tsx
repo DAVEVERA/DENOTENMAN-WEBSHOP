@@ -1,7 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ChevronRight, Menu, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import {
+  ArrowLeft,
+  ChevronRight,
+  Menu,
+  Search,
+  ShoppingCart,
+  UserRound,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type nl from "@/dictionaries/nl.json";
@@ -18,16 +27,27 @@ import {
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { PromotionalCategoryLink } from "@/components/layout/PromotionalCategoryLink";
 import { NativeCategoryLink } from "@/components/layout/NativeCategoryLink";
+import { NavbarSearch } from "@/components/layout/NavbarSearch";
 import { cn } from "@/lib/cn";
+import { useStorefrontState } from "@/lib/storefront-state";
 
 const focusableSelector =
-  'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
 const backLabel: Record<Locale, string> = {
   nl: "Terug",
   en: "Back",
   fr: "Retour",
 };
+
+const closeSearchLabel: Record<Locale, string> = {
+  nl: "Sluit zoeken",
+  en: "Close search",
+  fr: "Fermer la recherche",
+};
+
+const mobileActionClass =
+  "relative flex min-h-14 min-w-0 touch-manipulation flex-col items-center justify-center gap-1 px-1 font-heading text-[0.68rem] font-semibold leading-none text-text transition-colors duration-hover-fast hover:bg-background hover:text-accent-hover aria-[expanded=true]:bg-background aria-[expanded=true]:text-accent-hover";
 
 export function resolveCategoryPath(
   categories: NavigationCategoryDto[],
@@ -105,17 +125,23 @@ export function MobileNav({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
+  const searchPanelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const levelHeadingRef = useRef<HTMLHeadingElement>(null);
   const previousPathnameRef = useRef(pathname);
   const activeCategory = resolveCategoryPath(categories, categoryIds);
   const visibleCategories = activeCategory?.children ?? categories;
+  const { cart: cartItems } = useStorefrontState();
+  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const resetMenu = useCallback(() => {
     setOpen(false);
+    setSearchOpen(false);
     setCategoryIds([]);
   }, []);
 
@@ -123,6 +149,11 @@ export function MobileNav({
     resetMenu();
     window.requestAnimationFrame(() => triggerRef.current?.focus());
   }, [resetMenu]);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    window.requestAnimationFrame(() => searchTriggerRef.current?.focus());
+  }, []);
 
   const followLink = useCallback(() => {
     resetMenu();
@@ -145,26 +176,41 @@ export function MobileNav({
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open && !searchOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [open]);
+  }, [open, searchOpen]);
 
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if (!open) return;
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && searchOpen) {
+        event.preventDefault();
+        closeSearch();
+        return;
+      }
+      if (event.key === "Escape" && open) {
         event.preventDefault();
         closeMenu();
         return;
       }
-      if (event.key !== "Tab" || !panelRef.current) return;
+      const activePanel = searchOpen
+        ? searchPanelRef.current
+        : open
+          ? panelRef.current
+          : null;
+      if (event.key !== "Tab" || !activePanel) return;
       const focusable = Array.from(
-        panelRef.current.querySelectorAll<HTMLElement>(focusableSelector)
-      );
+        activePanel.querySelectorAll<HTMLElement>(focusableSelector)
+      ).filter((element) => {
+        const closedDetails = element.closest("details:not([open])");
+        return (
+          element.getClientRects().length > 0 &&
+          (!closedDetails || element.tagName === "SUMMARY")
+        );
+      });
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -178,23 +224,106 @@ export function MobileNav({
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [closeMenu, open]);
+  }, [closeMenu, closeSearch, open, searchOpen]);
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-label={dictionary.nav.openMenu}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-40 inline-flex h-14 min-w-14 -translate-x-1/2 touch-manipulation items-center justify-center rounded-full border border-contrast bg-contrast px-4 text-surface shadow-card-hover lg:hidden"
+      <nav
+        aria-label={dictionary.nav.mainMenu}
+        className="grid w-full grid-cols-4 divide-x divide-border bg-surface xl:hidden"
       >
-        <Menu className="h-6 w-6" aria-hidden="true" />
-      </button>
-      {open ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-label={dictionary.nav.openMenu}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          onClick={() => {
+            setSearchOpen(false);
+            setOpen(true);
+          }}
+          className={mobileActionClass}
+        >
+          <Menu className="h-5 w-5" aria-hidden="true" />
+          <span>{dictionary.nav.mobileMenu}</span>
+        </button>
+        <button
+          ref={searchTriggerRef}
+          type="button"
+          aria-label={dictionary.nav.search}
+          aria-expanded={searchOpen}
+          aria-haspopup="dialog"
+          onClick={() => {
+            setOpen(false);
+            setSearchOpen(true);
+          }}
+          className={mobileActionClass}
+        >
+          <Search className="h-5 w-5" aria-hidden="true" />
+          <span>{dictionary.nav.search}</span>
+        </button>
+        <Link href={account(locale)} className={mobileActionClass}>
+          <UserRound className="h-5 w-5" aria-hidden="true" />
+          <span>{dictionary.nav.account}</span>
+        </Link>
+        <Link
+          href={cart(locale)}
+          aria-label={dictionary.nav.cartWithCount.replace("{count}", String(cartCount))}
+          className={mobileActionClass}
+        >
+          <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+          {cartCount > 0 ? (
+            <span
+              aria-hidden="true"
+              className="absolute right-[calc(50%_-_1.35rem)] top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[0.58rem] font-bold text-contrast"
+            >
+              {cartCount}
+            </span>
+          ) : null}
+          <span>{dictionary.nav.cart}</span>
+        </Link>
+      </nav>
+      {searchOpen ? createPortal(
+        <div className="fixed inset-0 z-[60] xl:hidden">
+          <div
+            className="absolute inset-0 bg-contrast/50"
+            onClick={closeSearch}
+            aria-hidden="true"
+          />
+          <section
+            ref={searchPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={dictionary.nav.search}
+            className="absolute left-4 right-4 top-[calc(1rem+env(safe-area-inset-top))] z-10 rounded-panel border border-border bg-surface p-4 shadow-card-hover"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-heading text-heading-sm font-bold">
+                {dictionary.nav.search}
+              </h2>
+              <button
+                type="button"
+                onClick={closeSearch}
+                aria-label={closeSearchLabel[locale]}
+                className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-full hover:bg-background"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+            <NavbarSearch
+              locale={locale}
+              label={dictionary.nav.search}
+              placeholder={dictionary.nav.searchPlaceholder}
+              mobile
+              autoFocus
+              onSubmitted={closeSearch}
+            />
+          </section>
+        </div>,
+        document.body
+      ) : null}
+      {open ? createPortal(
+        <div className="fixed inset-0 z-[60] xl:hidden">
           <div
             className="absolute inset-0 bg-contrast/50"
             onClick={closeMenu}
@@ -205,7 +334,7 @@ export function MobileNav({
             role="dialog"
             aria-modal="true"
             aria-label={dictionary.nav.mainMenu}
-            className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 right-4 flex max-h-[min(74dvh,40rem)] flex-col overflow-hidden rounded-panel border border-border bg-surface shadow-card-hover"
+            className="absolute bottom-4 left-4 right-4 top-[calc(4.75rem+env(safe-area-inset-top))] z-10 flex flex-col overflow-hidden rounded-panel border border-border bg-surface shadow-card-hover"
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <p className="font-heading text-heading-sm font-bold">{dictionary.nav.mainMenu}</p>
@@ -337,7 +466,8 @@ export function MobileNav({
               )}
             </nav>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );

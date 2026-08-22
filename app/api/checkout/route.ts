@@ -53,7 +53,12 @@ export async function POST(request: NextRequest) {
       (line): line is CartLineInput =>
         typeof line?.variantId === "string" && typeof line?.quantity === "number"
     )
-    .map((line) => ({ variantId: line.variantId, quantity: line.quantity }));
+    .map((line) => ({
+      variantId: line.variantId,
+      quantity: line.quantity,
+      productSlug: typeof line.productSlug === "string" ? line.productSlug : undefined,
+      variantLabel: typeof line.variantLabel === "string" ? line.variantLabel : undefined,
+    }));
 
   try {
     const { orderId, checkoutUrl } = await createOrderWithPayment(

@@ -111,7 +111,7 @@ test("keeps kernels and seeds as separate roots and exposes chocolate families",
 test("keeps the promotional root separate from standard category dropdowns", () => {
   const navigation = buildCategoryNavigation([
     source("noten"),
-    source("acties", { name: "Kiloknallers", type: "PROMOTIONAL", sortOrder: 1 }),
+    source("acties", { name: "Acties", type: "PROMOTIONAL", sortOrder: 1 }),
   ]);
 
   assert.equal(navigation.promotional?.name, "Kiloknallers");

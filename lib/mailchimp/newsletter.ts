@@ -3,6 +3,7 @@ import { getMailchimpEnvironment } from "@/lib/env";
 import { getMailchimpClient } from "@/lib/mailchimp/client";
 import { runMailchimpRequest } from "@/lib/mailchimp/limiter";
 import { buildNewsletterHtml, extractNewsletterContent } from "@/lib/mailchimp/template";
+import { campaignSlug } from "@/lib/campaign-urls";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -141,6 +142,15 @@ function settings(input: NewsletterDraftInput): UnknownRecord {
   };
 }
 
+function tracking(input: NewsletterDraftInput): UnknownRecord {
+  return {
+    opens: true,
+    html_clicks: true,
+    text_clicks: true,
+    google_analytics: `denotenman_${campaignSlug(input.title)}`,
+  };
+}
+
 export async function listNewsletterCampaigns(): Promise<{
   drafts: NewsletterSummary[];
   sent: NewsletterSummary[];
@@ -194,6 +204,7 @@ export async function createNewsletterCampaign(
       type: "regular",
       recipients: { list_id: environment.MAILCHIMP_AUDIENCE_ID },
       settings: settings(input),
+      tracking: tracking(input),
     })
   );
   const summary = mapCampaign(created);
@@ -207,7 +218,9 @@ export async function updateNewsletterCampaign(
   input: NewsletterDraftInput
 ): Promise<NewsletterDetail> {
   const campaigns = campaignSdk();
-  const updated = await runMailchimpRequest(() => campaigns.update(campaignId, { settings: settings(input) }));
+  const updated = await runMailchimpRequest(() =>
+    campaigns.update(campaignId, { settings: settings(input), tracking: tracking(input) })
+  );
   const html = buildNewsletterHtml(input);
   await runMailchimpRequest(() => campaigns.setContent(campaignId, { html }));
   return { ...mapCampaign(updated), contentHtml: html };

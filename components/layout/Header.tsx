@@ -5,7 +5,6 @@ import { home } from "@/lib/routes";
 import { getCategoryNavigation } from "@/lib/queries";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
-import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { MegaMenu } from "@/components/layout/MegaMenu";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { HeaderActions } from "@/components/layout/HeaderActions";
@@ -24,14 +23,20 @@ export async function Header({
   const categories = navigation.categories;
 
   return (
-    <>
-      <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
-        <div className="border-y-2 border-contrast bg-surface">
-          <Container
-            fullWidth
-            className="grid justify-items-center gap-3 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-gap-md sm:py-gap-md"
-          >
-            <div className="flex min-w-0 items-center gap-2 sm:gap-gap-md">
+    <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+      <div className="border-y-2 border-contrast bg-surface">
+        <Container fullWidth>
+          <div className="-mx-4 sm:-mx-6 lg:-mx-8 xl:hidden">
+            <MobileNav
+              categories={categories}
+              promotional={navigation.promotional}
+              locale={locale}
+              dictionary={dictionary}
+              languages={languages}
+            />
+          </div>
+          <div className="hidden w-full grid-cols-[minmax(12.5rem,15.25rem)_minmax(17.5rem,1fr)_auto] items-center gap-6 py-4 xl:grid">
+            <div className="min-w-0">
               <Link href={home(locale)} className="shrink-0">
                 <Logo
                   alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
@@ -41,41 +46,34 @@ export async function Header({
                 />
               </Link>
             </div>
-            <div className="flex shrink-0 items-center gap-3 sm:gap-gap-md">
-              <div className="hidden sm:block">
-                <LocaleSwitcher currentLocale={locale} languages={languages} />
-              </div>
-              <HeaderActions locale={locale} dictionary={dictionary} />
-            </div>
-          </Container>
-        </div>
-        <div className="hidden border-b-2 border-contrast bg-surface lg:block">
-          <Container fullWidth className="relative py-3">
-            <nav
-              aria-label={dictionary.nav.categories}
-              className="min-w-0 xl:px-14 min-[1760px]:pr-72"
-            >
-              <MegaMenu
-                categories={categories}
-                promotional={navigation.promotional}
-                locale={locale}
-                labels={{
-                  submenu: dictionary.nav.categoryMenu,
-                  viewAll: dictionary.nav.viewAllCategory,
-                }}
-              />
-            </nav>
-            <NavbarSearch locale={locale} label={dictionary.common.search} />
-          </Container>
-        </div>
-      </header>
-      <MobileNav
-        categories={categories}
-        promotional={navigation.promotional}
-        locale={locale}
-        dictionary={dictionary}
-        languages={languages}
-      />
-    </>
+            <NavbarSearch
+              locale={locale}
+              label={dictionary.common.search}
+              placeholder={dictionary.nav.searchPlaceholder}
+            />
+            <HeaderActions
+              locale={locale}
+              dictionary={dictionary}
+              languages={languages}
+            />
+          </div>
+        </Container>
+      </div>
+      <div className="hidden border-b-2 border-contrast bg-surface xl:block">
+        <Container fullWidth className="py-3">
+          <nav aria-label={dictionary.nav.categories} className="min-w-0">
+            <MegaMenu
+              categories={categories}
+              promotional={navigation.promotional}
+              locale={locale}
+              labels={{
+                submenu: dictionary.nav.categoryMenu,
+                viewAll: dictionary.nav.viewAllCategory,
+              }}
+            />
+          </nav>
+        </Container>
+      </div>
+    </header>
   );
 }

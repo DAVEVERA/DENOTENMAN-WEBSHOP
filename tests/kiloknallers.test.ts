@@ -4,6 +4,7 @@ import {
   KILOKNALLER_MINIMUM_BASE_UNITS,
   isKiloknallerCategory,
   isKiloknallerVariant,
+  kiloknallerProductWhere,
 } from "../lib/kiloknallers";
 
 test("includes active variants from 1000 gram or milliliter", () => {
@@ -13,6 +14,7 @@ test("includes active variants from 1000 gram or milliliter", () => {
   assert.equal(isKiloknallerVariant("VOLUME", 999, true), false);
   assert.equal(isKiloknallerVariant("WEIGHT", 1500, false), false);
   assert.equal(KILOKNALLER_MINIMUM_BASE_UNITS, 1000);
+  assert.deepEqual(kiloknallerProductWhere.unit, { in: ["WEIGHT", "VOLUME"] });
 });
 
 test("applies the automatic collection only to the canonical actions category", () => {

@@ -5,6 +5,7 @@ import { category as categoryPath } from "@/lib/routes";
 import { getMainCategories } from "@/lib/queries";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
+import { CookieSettingsButton } from "@/components/privacy/CookieSettingsButton";
 
 export async function Footer({
   locale,
@@ -50,6 +51,11 @@ export async function Footer({
                 </a>
               </li>
               <li>
+                <a href={pagePath("additionalTerms", locale)} className="text-background/80 hover:text-background">
+                  {dictionary.footer.additionalTerms}
+                </a>
+              </li>
+              <li>
                 <a href={pagePath("privacy", locale)} className="text-background/80 hover:text-background">
                   {dictionary.footer.privacy}
                 </a>
@@ -57,6 +63,14 @@ export async function Footer({
               <li>
                 <a href={pagePath("cookies", locale)} className="text-background/80 hover:text-background">
                   {dictionary.footer.cookies}
+                </a>
+              </li>
+              <li>
+                <CookieSettingsButton label={dictionary.footer.cookieSettings} />
+              </li>
+              <li>
+                <a href={pagePath("shippingReturns", locale)} className="text-background/80 hover:text-background">
+                  {dictionary.footer.returns}
                 </a>
               </li>
               <li>
@@ -72,6 +86,11 @@ export async function Footer({
               <li>
                 <a href={pagePath("optOut", locale)} className="text-background/80 hover:text-background">
                   {dictionary.footer.optOut}
+                </a>
+              </li>
+              <li>
+                <a href={pagePath("processingAgreement", locale)} className="text-background/80 hover:text-background">
+                  {dictionary.footer.processingAgreement}
                 </a>
               </li>
             </ul>

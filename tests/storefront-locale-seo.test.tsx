@@ -4,7 +4,7 @@ import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { imageConfigDefault } from "next/dist/shared/lib/image-config";
 import { ImageConfigContext } from "next/dist/shared/lib/image-config-context.shared-runtime";
-import { VideoHero } from "../components/layout/VideoHero";
+import { VisualHero } from "../components/layout/VisualHero";
 import {
   buildStorefrontMetadata,
   resolvePromotionalCategorySlug,
@@ -18,10 +18,10 @@ const imageConfig = {
   remotePatterns: [{ protocol: "https" as const, hostname: "storage.googleapis.com" }],
 };
 
-function renderHero(locale: "en" | "fr", dictionary: typeof en | typeof fr) {
+function renderHero(dictionary: typeof en | typeof fr) {
   return renderToStaticMarkup(
     <ImageConfigContext.Provider value={imageConfig}>
-      <VideoHero locale={locale} dictionary={dictionary} />
+      <VisualHero dictionary={dictionary} />
     </ImageConfigContext.Provider>,
   );
 }
@@ -54,22 +54,18 @@ test("builds self-canonical localized metadata and only noindexes an empty colle
   assert.deepEqual(empty.robots, { index: false, follow: true });
 });
 
-test("renders English hero copy with English product links", () => {
-  const markup = renderHero("en", en);
+test("renders the English accessible hero heading without visible actions", () => {
+  const markup = renderHero(en);
 
-  assert.match(markup, /Delicious freshly roasted nuts &amp; dried fruit!/);
-  assert.match(markup, /href="\/en\/products\/shelled-and-roasted-pistachios"/);
-  assert.match(markup, /href="\/en\/products\/salted-cashew-nuts"/);
-  assert.doesNotMatch(markup, /\/en\/products\/pistaches-gepeld-gebrand/);
+  assert.match(markup, />Nuts, honey and dried fruit from De Notenman<\/h1>/);
+  assert.doesNotMatch(markup, /<a\b|<button\b/);
 });
 
-test("renders French hero copy with current French product links", () => {
-  const markup = renderHero("fr", fr);
+test("renders the French accessible hero heading without visible actions", () => {
+  const markup = renderHero(fr);
 
-  assert.match(markup, /Délicieuses noix fraîchement torréfiées/);
-  assert.match(markup, /href="\/fr\/produits\/pistaches-decortiquees-et-grillees"/);
-  assert.match(markup, /href="\/fr\/produits\/noix-de-cajou-salees"/);
-  assert.doesNotMatch(markup, /\/fr\/produits\/cashewnoten-gezouten/);
+  assert.match(markup, />Noix, miel et fruits secs de De Notenman<\/h1>/);
+  assert.doesNotMatch(markup, /<a\b|<button\b/);
 });
 
 test("resolves the localized promotional slug instead of assuming the Dutch slug", () => {

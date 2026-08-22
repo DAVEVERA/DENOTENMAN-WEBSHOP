@@ -16,6 +16,7 @@ import {
 } from "@/lib/product-faq";
 import {
   buildCategoryNavigation,
+  storefrontCategoryName,
   type CategoryNavigationDto,
   type NavigationCategorySourceDto,
 } from "@/lib/categoryGroups";
@@ -445,7 +446,7 @@ function toCategoryDto(
   return {
     id: category.id,
     slug: translation.slug,
-    name: translation.name,
+    name: storefrontCategoryName(category.slug, translation.name),
     description: translation.description,
     updatedAt: category.updatedAt,
   };
@@ -661,7 +662,7 @@ export const getMainCategories = cache(
         return {
           id: category.id,
           slug: translation.slug,
-          name: translation.name,
+          name: storefrontCategoryName(category.slug, translation.name),
           description: translation.description,
           type: category.type,
         };
@@ -690,7 +691,7 @@ export const getCategoryNavigation = cache(
           id: category.id,
           canonicalSlug: category.slug,
           slug: translation.slug,
-          name: translation.name,
+          name: storefrontCategoryName(category.slug, translation.name),
           description: translation.description,
           type: category.type,
           parentId: category.parentId,

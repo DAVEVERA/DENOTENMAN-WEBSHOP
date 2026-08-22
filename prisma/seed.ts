@@ -30,9 +30,19 @@ const pageTitles: Record<(typeof pageKeys)[number], Record<(typeof locales)[numb
     en: "Terms and conditions",
     fr: "Conditions générales",
   },
+  additionalTerms: {
+    nl: "Aanvullende voorwaarden",
+    en: "Additional terms",
+    fr: "Conditions complémentaires",
+  },
   privacy: { nl: "Privacybeleid", en: "Privacy policy", fr: "Politique de confidentialité" },
   cookies: { nl: "Cookiebeleid", en: "Cookie policy", fr: "Politique de cookies" },
   withdrawal: { nl: "Herroepingsrecht", en: "Right of withdrawal", fr: "Droit de rétractation" },
+  processingAgreement: {
+    nl: "Verwerkersovereenkomst",
+    en: "Data processing agreement",
+    fr: "Accord de traitement des données",
+  },
   subscribe: { nl: "Aanmelden nieuwsbrief", en: "Newsletter signup", fr: "Inscription newsletter" },
   optOut: { nl: "Afmelden nieuwsbrief", en: "Newsletter opt-out", fr: "Désinscription newsletter" },
 };
