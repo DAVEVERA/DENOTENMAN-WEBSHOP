@@ -130,6 +130,9 @@ export function ProductBrowser({
   const [categoryOptions, setCategoryOptions] = useState<CatalogFacetOptionDto[]>(
     initialPage.categoryOptions
   );
+  const [availableVariantFilters, setAvailableVariantFilters] = useState(
+    () => new Set(initialPage.availableVariantFilters)
+  );
   const [query, setQuery] = useState(initialQuery);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(initialSelected);
@@ -221,6 +224,7 @@ export function ProductBrowser({
         setProducts(page.products);
         setTotal(page.total);
         setCategoryOptions(page.categoryOptions);
+        setAvailableVariantFilters(new Set(page.availableVariantFilters));
         lastLoadedSignature.current = signature;
       } catch (error) {
         if (controller.signal.aborted || requestId !== catalogRequestId.current) return;
@@ -286,7 +290,7 @@ export function ProductBrowser({
         options: [
           { value: "ROASTED", label: copy.preparationRoasted },
           { value: "RAW", label: copy.preparationRaw },
-        ],
+        ].filter(({ value }) => availableVariantFilters.has(value) || selected.has(value)),
       },
       {
         key: "salting",
@@ -294,7 +298,7 @@ export function ProductBrowser({
         options: [
           { value: "SALTED", label: copy.saltingSalted },
           { value: "UNSALTED", label: copy.saltingUnsalted },
-        ],
+        ].filter(({ value }) => availableVariantFilters.has(value) || selected.has(value)),
       },
       {
         key: "coating",
@@ -304,10 +308,10 @@ export function ProductBrowser({
           { value: "CHOCOLATE", label: copy.coatingChocolate },
           { value: "YOGHURT", label: copy.coatingYoghurt },
           { value: "FLAVORED", label: copy.coatingFlavored },
-        ],
+        ].filter(({ value }) => availableVariantFilters.has(value) || selected.has(value)),
       },
     ],
-    [categoryOptions, copy]
+    [availableVariantFilters, categoryOptions, copy, selected]
   );
 
   function toggleValue(value: string) {
@@ -444,7 +448,7 @@ export function ProductBrowser({
               value={sort}
               onChange={(event) => setSort(normalizeCatalogSort(event.target.value))}
               aria-label={copy.sortLabel}
-              className="h-11 w-full min-w-0 rounded-button border border-border bg-surface pl-9 pr-3 font-heading text-body-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent"
+              className="h-11 w-full min-w-0 rounded-button border border-border bg-surface pl-9 pr-3 font-heading text-body-md font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent sm:text-body-sm"
             >
               <option value="POPULAR">{copy.sortPopular}</option>
               <option value="PRICE_ASC">{copy.sortPriceLowHigh}</option>

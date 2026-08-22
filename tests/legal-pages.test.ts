@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { pageKeys, pagePath, pageRobots, resolvePageKey } from "../lib/pages";
-import { LEGAL_IDENTITY, LEGAL_REVIEW_REQUIRED } from "../lib/legal";
+import { LEGAL_IDENTITY } from "../lib/legal";
 test("all requested De Notenman legal pages have stable Dutch routes", () => {
   const expected = {
     terms: "/nl/paginas/algemene-voorwaarden",
@@ -31,8 +32,13 @@ test("all legal pages share the supplied De Notenman registration identity", () 
     ["47279", "47210"]
   );
   assert.equal(LEGAL_IDENTITY.email, "info@denotenman.com");
-  assert.equal(LEGAL_IDENTITY.vatIdentificationNumber, null);
-  assert.deepEqual(LEGAL_REVIEW_REQUIRED, ["btw-identificatienummer"]);
+});
+
+test("legal identity does not invent an owner name, legal name, phone number or VAT id", () => {
+  const identitySource = readFileSync("lib/legal.ts", "utf8");
+  const pageSource = readFileSync("components/legal/LegalPage.tsx", "utf8");
+  assert.doesNotMatch(identitySource, /legalName|phoneDisplay|phoneHref|vatIdentificationNumber/);
+  assert.doesNotMatch(pageSource, /btw-identificatienummer|LEGAL_REVIEW_REQUIRED/i);
 });
 
 test("the processor agreement is public to counterparties but excluded from search indexing", () => {

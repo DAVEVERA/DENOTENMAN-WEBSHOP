@@ -24,9 +24,10 @@ export function Terms({ locale: _locale }: { locale: string }) {
       <LegalSection title="Artikel 2 – Identiteit en contact">
         <IdentityDetails />
         <p>
-          Vragen, klachten en retourmeldingen kunnen naar {LEGAL_IDENTITY.email}. Telefonisch en via
-          WhatsApp is De Notenman bereikbaar op {LEGAL_IDENTITY.phoneDisplay}. De actuele bereikbaarheid
-          wordt op de contactpagina vermeld.
+          Vragen, klachten en retourmeldingen kunnen naar{" "}
+          <a className="underline underline-offset-4" href={`mailto:${LEGAL_IDENTITY.email}`}>
+            {LEGAL_IDENTITY.email}
+          </a>. De actuele bereikbaarheid wordt op de contactpagina vermeld.
         </p>
       </LegalSection>
 

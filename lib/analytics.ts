@@ -1,4 +1,8 @@
 import type { CartItem } from "@/lib/storefront-state";
+import {
+  COOKIE_CONSENT_STORAGE_KEY,
+  parseCookieConsent,
+} from "@/lib/cookie-consent";
 
 export const GOOGLE_ANALYTICS_MEASUREMENT_ID = "G-5YW8C6Y7F4";
 export const GOOGLE_ANALYTICS_READY_EVENT = "denotenman-google-analytics-ready";
@@ -40,13 +44,44 @@ type PurchaseOrder = {
 
 declare global {
   interface Window {
-    gtag?: (
-      command: "event",
-      eventName: string,
-      parameters: Record<string, unknown>
-    ) => void;
+    gtag?: (...args: unknown[]) => void;
     __denotenmanGoogleAnalyticsReady?: boolean;
   }
+}
+
+export type RoutePageTitleContext = {
+  currentTitle: string;
+  previousDocumentTitle: string | null;
+  pathChanged: boolean;
+  dialogHeading?: string;
+  pageHeading?: string;
+  pathname: string;
+};
+
+export function canonicalizeBrowserRoute(pathname: string, query: string): string {
+  const canonicalQuery = new URLSearchParams(query).toString();
+  return `${pathname}${canonicalQuery ? `?${canonicalQuery}` : ""}`;
+}
+
+export function resolveRoutePageTitle({
+  currentTitle,
+  previousDocumentTitle,
+  pathChanged,
+  dialogHeading,
+  pageHeading,
+  pathname,
+}: RoutePageTitleContext): string {
+  const heading = dialogHeading || pageHeading;
+  if (pathChanged && heading) return `${heading} | De Notenman`;
+
+  const titleIsFromPreviousPath =
+    pathChanged &&
+    previousDocumentTitle !== null &&
+    currentTitle === previousDocumentTitle;
+
+  if (!titleIsFromPreviousPath && currentTitle) return currentTitle;
+
+  return heading ? `${heading} | De Notenman` : pathname;
 }
 
 function euros(cents: number): number {
@@ -112,11 +147,37 @@ export function isMollieReferrer(referrer: string): boolean {
   }
 }
 
+export function hasCurrentAnalyticsConsent(): boolean {
+  if (typeof window === "undefined") return false;
+
+  try {
+    return Boolean(
+      parseCookieConsent(window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY))?.analytics
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function denyGoogleAnalyticsConsent() {
+  window.gtag?.("consent", "update", {
+    analytics_storage: "denied",
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+  });
+  window.__denotenmanGoogleAnalyticsReady = false;
+}
+
 export function sendGoogleAnalyticsEvent(
   eventName: string,
   parameters: Record<string, unknown>
 ): boolean {
-  if (typeof window === "undefined" || typeof window.gtag !== "function") {
+  if (
+    typeof window === "undefined" ||
+    typeof window.gtag !== "function" ||
+    !hasCurrentAnalyticsConsent()
+  ) {
     return false;
   }
 
@@ -126,4 +187,31 @@ export function sendGoogleAnalyticsEvent(
 
   window.gtag("event", eventName, eventParameters);
   return true;
+}
+
+export function sendGoogleAnalyticsEventBeforeNavigation(
+  eventName: string,
+  parameters: Record<string, unknown>,
+  navigate: () => void,
+  timeoutMs = 500
+) {
+  let navigated = false;
+  const continueNavigation = () => {
+    if (navigated) return;
+    navigated = true;
+    navigate();
+  };
+
+  const sent = sendGoogleAnalyticsEvent(eventName, {
+    ...parameters,
+    event_callback: continueNavigation,
+    event_timeout: timeoutMs,
+  });
+
+  if (!sent) {
+    continueNavigation();
+    return;
+  }
+
+  window.setTimeout(continueNavigation, timeoutMs + 50);
 }

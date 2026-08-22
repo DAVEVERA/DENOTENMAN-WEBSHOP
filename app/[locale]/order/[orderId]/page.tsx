@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import type { Order } from "@prisma/client";
 import { isLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { syncOrderPaymentStatus, type MolliePaymentMeasurement } from "@/lib/orders";
@@ -13,6 +15,20 @@ import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 
 const dictionaries = { nl, en, fr };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; orderId: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+
+  return {
+    title: `${dictionaries[locale].accountOrders.itemsTitle} | De Notenman`,
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function OrderConfirmationPage({
   params,
@@ -37,11 +53,18 @@ export default async function OrderConfirmationPage({
   }
 
   const observedPayment: { current: MolliePaymentMeasurement | null } = { current: null };
-  const order = await syncOrderPaymentStatus(existing, {
-    onPaymentObserved(payment) {
-      observedPayment.current = payment;
-    },
-  });
+  let order: Order = existing;
+  try {
+    order = await syncOrderPaymentStatus(existing, {
+      onPaymentObserved(payment) {
+        observedPayment.current = payment;
+      },
+    });
+  } catch (error) {
+    // A temporary Mollie/API failure must not turn the return page into a 500.
+    // Keep the persisted state visible; PENDING pages retry automatically.
+    console.error(`Could not refresh payment status for order ${existing.id}`, error);
+  }
 
   const view: "PAID" | "PENDING" | "CANCELLED" =
     order.status === "PAID" || order.status === "FULFILLED"

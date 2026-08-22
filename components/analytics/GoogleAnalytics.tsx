@@ -4,8 +4,10 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
+  canonicalizeBrowserRoute,
   GOOGLE_ANALYTICS_MEASUREMENT_ID,
   GOOGLE_ANALYTICS_READY_EVENT,
+  resolveRoutePageTitle,
   sendGoogleAnalyticsEvent,
 } from "@/lib/analytics";
 
@@ -15,7 +17,6 @@ function RoutePageViewTracker({ ready }: { ready: boolean }) {
   const query = searchParams.toString();
   const lastPageLocation = useRef<string | null>(null);
   const lastPathname = useRef<string | null>(null);
-  const lastPageTitle = useRef<string | null>(null);
 
   useEffect(() => {
     if (!ready) return;
@@ -23,7 +24,10 @@ function RoutePageViewTracker({ ready }: { ready: boolean }) {
     let cancelled = false;
     let timeout = 0;
     const startedAt = Date.now();
-    const routeChanged = lastPathname.current !== null && lastPathname.current !== pathname;
+    const pathChanged = lastPathname.current !== null && lastPathname.current !== pathname;
+    const routeStartTitle = document.title.trim();
+    let lastDomSignature = "";
+    let stableSince = startedAt;
 
     function trackWhenMetadataIsFinal() {
       if (cancelled) return;
@@ -31,32 +35,53 @@ function RoutePageViewTracker({ ready }: { ready: boolean }) {
       const pageLocation = window.location.href;
       if (lastPageLocation.current === pageLocation) return;
 
-      const currentTitle = document.title.trim();
-      const metadataIsPending =
-        !currentTitle ||
-        (routeChanged &&
-          lastPageTitle.current !== null &&
-          currentTitle === lastPageTitle.current);
-
-      // Next can stream metadata after the route itself has committed. Wait
-      // for the new non-empty title instead of recording "(not set)" or the
-      // previous route title. The heading fallback is only a last resort.
-      if (metadataIsPending && Date.now() - startedAt < 2000) {
+      const expectedRoute = canonicalizeBrowserRoute(pathname, query);
+      const actualRoute = canonicalizeBrowserRoute(
+        window.location.pathname,
+        window.location.search
+      );
+      if (actualRoute !== expectedRoute) {
         timeout = window.setTimeout(trackWhenMetadataIsFinal, 50);
         return;
       }
 
-      const modalHeading = document
+      const currentTitle = document.title.trim();
+      const dialogHeading = document
         .querySelector('[role="dialog"][aria-modal="true"] h1')
         ?.textContent?.trim();
-      const titleDidNotFollowRoute =
-        routeChanged &&
-        lastPageTitle.current !== null &&
-        currentTitle === lastPageTitle.current;
-      const pageTitle =
-        (titleDidNotFollowRoute && modalHeading
-          ? `${modalHeading} | De Notenman`
-          : currentTitle) || document.querySelector("h1")?.textContent?.trim() || pathname;
+      const pageHeading = document.querySelector("main h1")?.textContent?.trim();
+      const metadataIsPending =
+        (!currentTitle && !dialogHeading && !pageHeading) ||
+        (pathChanged &&
+          !dialogHeading &&
+          !pageHeading &&
+          currentTitle === routeStartTitle);
+      const domSignature = [actualRoute, currentTitle, dialogHeading, pageHeading].join("\u0000");
+
+      if (domSignature !== lastDomSignature) {
+        lastDomSignature = domSignature;
+        stableSince = Date.now();
+      }
+
+      // Next can stream metadata after the route itself has committed. Wait
+      // for the new non-empty title instead of recording "(not set)" or the
+      // previous route title. The heading fallback is only a last resort.
+      if (
+        (metadataIsPending || Date.now() - stableSince < 100) &&
+        Date.now() - startedAt < 2000
+      ) {
+        timeout = window.setTimeout(trackWhenMetadataIsFinal, 50);
+        return;
+      }
+
+      const pageTitle = resolveRoutePageTitle({
+        currentTitle,
+        previousDocumentTitle: routeStartTitle || null,
+        pathChanged,
+        dialogHeading,
+        pageHeading,
+        pathname,
+      });
       if (
         sendGoogleAnalyticsEvent("page_view", {
           page_title: pageTitle,
@@ -65,7 +90,6 @@ function RoutePageViewTracker({ ready }: { ready: boolean }) {
       ) {
         lastPageLocation.current = pageLocation;
         lastPathname.current = pathname;
-        lastPageTitle.current = pageTitle;
       }
     }
 
@@ -97,7 +121,14 @@ export function GoogleAnalytics() {
           window.gtag = window.gtag || function(){window.dataLayer.push(arguments);};
           window.gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
           window.gtag('js', new Date());
-          window.gtag('config', '${GOOGLE_ANALYTICS_MEASUREMENT_ID}', { anonymize_ip: true, send_page_view: false });
+          var denotenmanGaConfig = { anonymize_ip: true, send_page_view: false };
+          try {
+            var denotenmanReferrerHost = new URL(document.referrer).hostname.toLowerCase();
+            if (denotenmanReferrerHost === 'mollie.com' || denotenmanReferrerHost.endsWith('.mollie.com')) {
+              denotenmanGaConfig.ignore_referrer = true;
+            }
+          } catch (_) {}
+          window.gtag('config', '${GOOGLE_ANALYTICS_MEASUREMENT_ID}', denotenmanGaConfig);
         `}
       </Script>
       <Script

@@ -58,7 +58,14 @@ export function OrderStatusEffects({
     if (!measurement) return;
     const analytics: OrderAnalyticsMeasurement = measurement;
 
-    function trackConfirmedState() {
+    function trackConfirmedState(event?: Event) {
+      if (
+        event instanceof CustomEvent &&
+        typeof event.detail?.analytics === "boolean" &&
+        !event.detail.analytics
+      ) {
+        return;
+      }
       if (!window.__denotenmanGoogleAnalyticsReady) return;
 
       const statusKey = `denotenman-ga4-payment-status:${analytics.transactionId}:${analytics.paymentStatus}`;

@@ -16,6 +16,13 @@ test("GA4 page views are consent gated, explicit and supplied with final route c
   assert.match(analytics, /send_page_view: false/);
   assert.match(analytics, /sendGoogleAnalyticsEvent\("page_view"/);
   assert.match(analytics, /const currentTitle = document\.title\.trim\(\)/);
+  assert.match(analytics, /const routeStartTitle = document\.title\.trim\(\)/);
+  assert.match(analytics, /currentTitle === routeStartTitle/);
+  assert.match(analytics, /actualRoute !== expectedRoute/);
+  assert.match(analytics, /canonicalizeBrowserRoute/);
+  assert.match(analytics, /resolveRoutePageTitle/);
+  assert.match(analytics, /denotenmanGaConfig\.ignore_referrer = true/);
+  assert.match(consent, /denyGoogleAnalyticsConsent\(\)/);
   assert.match(analytics, /page_title: pageTitle/);
   assert.match(analytics, /page_location: pageLocation/);
   assert.match(analytics, /usePathname\(\)/);
@@ -30,11 +37,13 @@ test("purchase is only exposed from a server-confirmed paid non-test order and i
   ]);
 
   assert.match(page, /syncOrderPaymentStatus\(existing/);
+  assert.match(page, /Could not refresh payment status/);
   assert.match(page, /order\.isTest\s*\?\s*undefined/);
   assert.match(page, /view === "PAID"[\s\S]*?buildGoogleAnalyticsPurchase/);
   assert.match(effects, /sendGoogleAnalyticsEvent\("purchase"/);
   assert.match(effects, /denotenman-ga4-purchase:/);
   assert.match(effects, /window\.localStorage/);
+  assert.match(effects, /!event\.detail\.analytics/);
   assert.match(orders, /onPaymentObserved/);
   assert.match(orders, /method: payment\.method/);
 });
@@ -43,8 +52,12 @@ test("checkout emits standard funnel events and structured failure context", asy
   const checkout = await projectFile("components/checkout/CheckoutForm.tsx");
 
   assert.match(checkout, /sendGoogleAnalyticsEvent\("begin_checkout"/);
-  assert.match(checkout, /sendGoogleAnalyticsEvent\("add_payment_info"/);
+  assert.match(
+    checkout,
+    /sendGoogleAnalyticsEventBeforeNavigation\(\s*"add_payment_info"/
+  );
   assert.match(checkout, /sendGoogleAnalyticsEvent\("checkout_error"/);
+  assert.match(checkout, /sendGoogleAnalyticsEventBeforeNavigation/);
   assert.match(checkout, /error_code:/);
   assert.match(checkout, /delivery_method:/);
   assert.match(checkout, /payment_provider: "mollie"/);

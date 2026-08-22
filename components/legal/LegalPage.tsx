@@ -1,16 +1,14 @@
 import type { ReactNode } from "react";
-import { AlertTriangle, FileCheck2 } from "lucide-react";
-import { LEGAL_IDENTITY, LEGAL_LAST_UPDATED, LEGAL_REVIEW_REQUIRED } from "@/lib/legal";
+import { FileCheck2 } from "lucide-react";
+import { LEGAL_IDENTITY, LEGAL_LAST_UPDATED } from "@/lib/legal";
 export function LegalPage({
   title,
   intro,
   children,
-  showIdentityWarning = true,
 }: {
   title: string;
   intro: string;
   children: ReactNode;
-  showIdentityWarning?: boolean;
 }) {
   return (
     <article className="mx-auto max-w-4xl">
@@ -23,28 +21,6 @@ export function LegalPage({
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-muted">{intro}</p>
       </header>
-
-      {showIdentityWarning ? (
-        <aside
-          data-legal-review-required="true"
-          className="mb-8 rounded-card border-2 border-amber-500 bg-amber-50 p-5 text-amber-950"
-          aria-labelledby="legal-review-title"
-        >
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0" aria-hidden="true" />
-            <div>
-              <h2 id="legal-review-title" className="font-heading text-lg font-bold">
-                Btw-identificatienummer nog aanleveren
-              </h2>
-              <p className="mt-1 leading-relaxed">
-                Voor volledige publicatie moet het {LEGAL_REVIEW_REQUIRED.join(", ")} van De Notenman
-                nog worden gecontroleerd en ingevuld. De overige aangeleverde bedrijfsgegevens staan hieronder;
-                deze versie is door het ontbrekende nummer nog niet publicatiegereed.
-              </p>
-            </div>
-          </div>
-        </aside>
-      ) : null}
 
       <div className="rounded-panel border-t-8 border-t-accent bg-surface p-6 shadow-card sm:p-10">
         <div className="legal-copy space-y-10 text-text">{children}</div>
@@ -87,8 +63,6 @@ export function IdentityDetails() {
     <dl className="grid gap-x-6 gap-y-2 rounded-card border border-border bg-background/40 p-5 sm:grid-cols-[12rem_1fr]">
       <dt className="font-semibold">Handelsnaam</dt>
       <dd>{LEGAL_IDENTITY.tradeName}</dd>
-      <dt className="font-semibold">Juridische naam</dt>
-      <dd>{LEGAL_IDENTITY.legalName}</dd>
       <dt className="font-semibold">Ter attentie van</dt>
       <dd>{LEGAL_IDENTITY.attention}</dd>
       <dt className="font-semibold">Bedrijfsactiviteit</dt>
@@ -105,18 +79,10 @@ export function IdentityDetails() {
           <dd>{registration.code} - {registration.description}</dd>
         </div>
       ))}
-      <dt className="font-semibold">Btw-identificatienummer</dt>
-      <dd className="font-semibold text-amber-800">Nog niet aangeleverd</dd>
       <dt className="font-semibold">E-mail</dt>
       <dd>
         <a className="underline underline-offset-4" href={`mailto:${LEGAL_IDENTITY.email}`}>
           {LEGAL_IDENTITY.email}
-        </a>
-      </dd>
-      <dt className="font-semibold">Telefoon en WhatsApp</dt>
-      <dd>
-        <a className="underline underline-offset-4" href={`tel:${LEGAL_IDENTITY.phoneHref}`}>
-          {LEGAL_IDENTITY.phoneDisplay}
         </a>
       </dd>
       <dt className="font-semibold">Website</dt>

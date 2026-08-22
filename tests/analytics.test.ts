@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildGoogleAnalyticsPurchase,
+  canonicalizeBrowserRoute,
   cartToGoogleAnalyticsItems,
   isMollieReferrer,
+  resolveRoutePageTitle,
 } from "../lib/analytics";
 import {
   addCampaignParametersToOwnedUrl,
@@ -74,6 +76,49 @@ test("only Mollie domains are recognized as payment-provider referrers", () => {
   assert.equal(isMollieReferrer("https://payments.mollie.com/payments/example"), true);
   assert.equal(isMollieReferrer("https://mollie.com.evil.example/"), false);
   assert.equal(isMollieReferrer("not a url"), false);
+});
+
+test("a stale document title falls back to the final route heading", () => {
+  assert.equal(
+    resolveRoutePageTitle({
+      currentTitle: "Cashews | De Notenman",
+      previousDocumentTitle: "Cashews | De Notenman",
+      pathChanged: true,
+      pageHeading: "Noten",
+      pathname: "/nl/categorie/noten",
+    }),
+    "Noten | De Notenman"
+  );
+
+  assert.equal(
+    resolveRoutePageTitle({
+      currentTitle: "Winkelwagen | De Notenman",
+      previousDocumentTitle: "Producten | De Notenman",
+      pathChanged: true,
+      pageHeading: "Winkelwagen",
+      pathname: "/nl/cart",
+    }),
+    "Winkelwagen | De Notenman"
+  );
+
+  assert.equal(
+    resolveRoutePageTitle({
+      currentTitle: "Nieuwe SEO-titel | De Notenman",
+      previousDocumentTitle: "Oude titel | De Notenman",
+      pathChanged: true,
+      dialogHeading: "Amandelen",
+      pageHeading: "Producten",
+      pathname: "/nl/producten/amandelen",
+    }),
+    "Amandelen | De Notenman"
+  );
+});
+
+test("equivalent campaign query encodings settle on the same SPA route", () => {
+  assert.equal(
+    canonicalizeBrowserRoute("/nl", "utm_campaign=noten%20actie"),
+    canonicalizeBrowserRoute("/nl", "?utm_campaign=noten+actie")
+  );
 });
 
 test("owned QR targets receive one consistent UTM set and external URLs stay untouched", () => {

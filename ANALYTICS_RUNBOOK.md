@@ -15,23 +15,21 @@ Deze implementatie meet alleen nadat de bezoeker analyticscookies heeft toegesta
 
 `purchase.value` bevat de productwaarde na orderkorting en sluit verzendkosten uit. Verzendkosten staan afzonderlijk in `shipping`. De order-ID is de unieke `transaction_id`; de browser bewaart bovendien een verzendmarkering per transactie om dubbele events na vernieuwen te voorkomen.
 
-## Eenmalige GA4-beheeractie: Mollie uitsluiten als verwijzer
+## GA4-beheerinstellingen (opgeslagen op 23 augustus 2026)
 
-Dit kan niet betrouwbaar vanuit de webshopcode voor de hele GA4-property worden ingesteld en moet eenmaal in GA4 worden opgeslagen door een gebruiker met minimaal de rol Editor:
+In webstream `G-5YW8C6Y7F4` zijn de volgende productie-instellingen opgeslagen:
 
-1. Open **Beheerder** > **Gegevensverzameling en -wijziging** > **Gegevensstreams**.
-2. Open de webstream met meet-ID `G-5YW8C6Y7F4`.
-3. Kies **Taginstellingen configureren** > **Alles tonen** > **Lijst met ongewenste verwijzingen**.
-4. Voeg een voorwaarde toe met matchtype **verwijzend domein bevat** en waarde `mollie.com`.
-5. Sla de wijziging op.
+- browsegeschiedenis-gebaseerde automatische paginaweergaven zijn uitgeschakeld; de webshop verstuurt zelf pas na de definitieve Next.js-route een `page_view`;
+- ongewenste verwijzer: **verwijzend domein bevat** `mollie.com`;
+- cross-domain bevat Mollie niet. De getoonde Cloud Run-previewdomeinen zijn evenmin toegevoegd.
 
-Mollie is een externe betaalprovider, geen eigen domein. Configureer Mollie daarom niet als cross-domain-domein. De return-URL blijft op dezelfde webshopbasis (`/{locale}/order/{orderId}`). De code geeft op events die direct van een Mollie-referrer terugkomen aanvullend `ignore_referrer: true` mee; de property-instelling hierboven blijft de structurele oplossing.
+Mollie is een externe betaalprovider, geen eigen domein. Configureer Mollie daarom niet als cross-domain-domein. De return-URL blijft op dezelfde webshopbasis (`/{locale}/order/{orderId}`). De code geeft bij de eerste tagconfiguratie en bij events die direct van een Mollie-referrer terugkomen aanvullend `ignore_referrer: true` mee. Historische sessies worden niet met terugwerkende kracht aangepast.
 
 Officiële documentatie: [ongewenste verwijzingen in GA4](https://support.google.com/analytics/answer/10327750), [GA4 aanbevolen events](https://developers.google.com/analytics/devguides/collection/ga4/reference/events) en [e-commercemeting](https://developers.google.com/analytics/devguides/collection/ga4/ecommerce).
 
 ## Uitval analyseren
 
-Maak in GA4 gebeurtenisgebonden aangepaste dimensies aan voor:
+De volgende zes gebeurtenisgebonden aangepaste dimensies zijn in GA4 aanwezig en op 23 augustus 2026 opnieuw gecontroleerd:
 
 - `payment_status`
 - `payment_method`
@@ -43,6 +41,8 @@ Maak in GA4 gebeurtenisgebonden aangepaste dimensies aan voor:
 Apparaatcategorie is al een ingebouwde GA4-dimensie. `payment_method` komt rechtstreeks uit de gecontroleerde Mollie-payment wanneer Mollie deze waarde levert; anders is de waarde `unknown`. `payment_status` bewaart waar mogelijk de precieze Mollie-status, waaronder `paid`, `failed`, `expired`, `canceled`, `open` of `pending`.
 
 Bouw daarna een verkenning met `begin_checkout` > `add_payment_info` > `checkout_payment_status` > `purchase` en splits op apparaatcategorie, `payment_method`, `payment_status` en `error_code`.
+
+Browsermeting blijft terecht afhankelijk van geldige analytics-toestemming en een terugkeer naar de webshop. Een server-side `purchase` voor bezoekers die niet terugkeren vereist een aparte Measurement Protocol-secret, een consent-snapshot en een privacy-goedgekeurde client-/sessiekoppeling. Maak die secret niet aan zonder afzonderlijke beheer- en privacygoedkeuring.
 
 ## Campagneparameters
 

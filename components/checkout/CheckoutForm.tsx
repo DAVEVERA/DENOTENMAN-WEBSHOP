@@ -14,6 +14,7 @@ import {
   GOOGLE_ANALYTICS_READY_EVENT,
   cartToGoogleAnalyticsItems,
   sendGoogleAnalyticsEvent,
+  sendGoogleAnalyticsEventBeforeNavigation,
 } from "@/lib/analytics";
 import { Button } from "@/components/ui/Button";
 
@@ -209,14 +210,19 @@ export function CheckoutForm({
         return;
       }
 
-      sendGoogleAnalyticsEvent("add_payment_info", {
-        currency: "EUR",
-        value: merchandiseValue,
-        payment_type: "Mollie",
-        ...(appliedDiscount?.code ? { coupon: appliedDiscount.code } : {}),
-        items: cartToGoogleAnalyticsItems(cart),
-      });
-      window.location.href = data.checkoutUrl;
+      sendGoogleAnalyticsEventBeforeNavigation(
+        "add_payment_info",
+        {
+          currency: "EUR",
+          value: merchandiseValue,
+          payment_type: "Mollie",
+          ...(appliedDiscount?.code ? { coupon: appliedDiscount.code } : {}),
+          items: cartToGoogleAnalyticsItems(cart),
+        },
+        () => {
+          window.location.href = data.checkoutUrl;
+        }
+      );
     } catch {
       sendGoogleAnalyticsEvent("checkout_error", {
         checkout_stage: "create_payment",

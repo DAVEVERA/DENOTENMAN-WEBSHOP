@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import type { Locale } from "@/lib/i18n";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { denyGoogleAnalyticsConsent } from "@/lib/analytics";
 import {
   COOKIE_CONSENT_EVENT,
   COOKIE_CONSENT_STORAGE_KEY,
@@ -132,6 +133,11 @@ export function CookieConsent({ locale }: { locale: Locale }) {
       consent &&
       ((consent.analytics && !nextAnalytics) || (consent.marketing && !nextMarketing))
     );
+
+    if (consent?.analytics && !nextAnalytics) {
+      // Deny Google before notifying listeners, closing the revoke race.
+      denyGoogleAnalyticsConsent();
+    }
 
     window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, JSON.stringify(next));
     setConsent(next);

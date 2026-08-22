@@ -122,6 +122,7 @@ export type CatalogPageDto = {
   products: CatalogProductDto[];
   total: number;
   categoryOptions: CatalogFacetOptionDto[];
+  availableVariantFilters: string[];
 };
 
 export type CatalogRequest = {
@@ -302,7 +303,7 @@ async function getProductViewCounts(productIds: string[]): Promise<Map<string, n
     return new Map(rows.map((row) => [row.productId, row.viewCount]));
   } catch (error) {
     // Backward-compatible rollout: a revision can start before the additive
-    // column is deployed. Only the precise missing-column error is tolerated.
+    // table is deployed. Only Prisma's precise missing-table error is tolerated.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
       return new Map();
     }
@@ -788,7 +789,7 @@ export async function getCatalogProducts(
   const limit = Math.min(Math.max(request.limit ?? catalogPageSize, 1), catalogPageSize);
   const offset = Math.max(request.offset ?? 0, 0);
 
-  const [allCategories, selectedCategories] = await Promise.all([
+  const [allCategories, selectedCategories, activeVariantFacets] = await Promise.all([
     prisma.category.findMany({
       where: {
         isActive: true,
@@ -807,6 +808,11 @@ export async function getCatalogProducts(
           select: { categoryId: true },
         })
       : Promise.resolve([]),
+    prisma.productVariant.findMany({
+      where: { isActive: true, product: { isActive: true } },
+      select: { preparation: true, salting: true, coating: true },
+      distinct: ["preparation", "salting", "coating"],
+    }),
   ]);
 
   const selectedCategoryIds = selectedCategories.flatMap((selected) =>
@@ -967,8 +973,17 @@ export async function getCatalogProducts(
     const translation = resolveTranslation(category.translations, locale);
     return translation ? [{ value: translation.slug, label: translation.name }] : [];
   });
+  const availableVariantFilters = Array.from(
+    new Set(
+      activeVariantFacets.flatMap(({ preparation, salting, coating }) => [
+        preparation,
+        salting,
+        coating,
+      ])
+    )
+  );
 
-  return { products, total, categoryOptions };
+  return { products, total, categoryOptions, availableVariantFilters };
 }
 
 export async function getProductSummaryById(

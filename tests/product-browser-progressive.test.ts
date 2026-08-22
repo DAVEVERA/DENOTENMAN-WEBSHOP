@@ -22,6 +22,9 @@ test("homepage progressively fetches bounded server-side catalog pages", () => {
   assert.match(browser, /value="POPULAR"/);
   assert.match(browser, /value="BEST_SELLING"/);
   assert.match(browser, /value="MOST_VIEWED"/);
+  assert.match(queries, /activeVariantFacets/);
+  assert.match(queries, /availableVariantFilters/);
+  assert.match(browser, /availableVariantFilters\.has\(value\) \|\| selected\.has\(value\)/);
   assert.match(browser, /products\.length/);
   assert.match(browser, /copy\.loadMore/);
 });
