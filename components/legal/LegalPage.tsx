@@ -89,8 +89,6 @@ export function IdentityDetails() {
       <dd>{LEGAL_IDENTITY.address}</dd>
       <dt className="font-semibold">KvK-nummer</dt>
       <dd>{LEGAL_IDENTITY.registrationNumber}</dd>
-      <dt className="font-semibold">Btw-nummer</dt>
-      <dd>{LEGAL_IDENTITY.vatNumber}</dd>
       <dt className="font-semibold">E-mail</dt>
       <dd>
         <a className="underline underline-offset-4" href={`mailto:${LEGAL_IDENTITY.email}`}>

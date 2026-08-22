@@ -81,6 +81,8 @@ test("the client carousel exposes infinite motion, swipe, keyboard and existing 
   assert.match(componentSource, /viewportCenter < setWidth/);
   assert.match(componentSource, /setOffset \* setWidthRef\.current/);
   assert.match(componentSource, /ArrowLeft/);
+  assert.doesNotMatch(componentSource, /styles\.hint|styles\.controls/);
+  assert.doesNotMatch(componentSource, /\b(?:ChevronLeft|ChevronRight|Pause|Play)\b/);
   assert.match(componentSource, /onPointerEnter/);
   assert.match(componentSource, /addCartItem/);
   assert.match(componentSource, /cartPath\(locale\)/);

@@ -4,11 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Check,
-  ChevronLeft,
-  ChevronRight,
   Heart,
-  Pause,
-  Play,
   ShoppingCart,
   X,
 } from "lucide-react";
@@ -35,12 +31,7 @@ import styles from "@/components/home/HomeProductSlider.module.css";
 
 type HomeProductSliderCopy = {
   carouselLabel: string;
-  touchHint: string;
   openProduct: string;
-  previous: string;
-  next: string;
-  pause: string;
-  resume: string;
   position: string;
   fromPrice: string;
   close: string;
@@ -89,7 +80,6 @@ export function HomeProductSlider({
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [openReason, setOpenReason] = useState<OpenReason | null>(null);
   const [addedKey, setAddedKey] = useState<string | null>(null);
-  const [isUserPaused, setIsUserPaused] = useState(false);
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
   const [isReducedMotion, setIsReducedMotion] = useState(false);
@@ -101,7 +91,6 @@ export function HomeProductSlider({
     products.find((product) => product.key === activeKey) ?? null;
   const isModal = Boolean(activeProduct && openReason === "click");
   const motionPaused =
-    isUserPaused ||
     isPointerInside ||
     isInteracting ||
     isReducedMotion ||
@@ -442,8 +431,6 @@ export function HomeProductSlider({
       }}
       onKeyDown={handleKeyDown}
     >
-      <p className={styles.hint}>{copy.touchHint}</p>
-
       <div
         ref={viewportRef}
         className={styles.viewport}
@@ -545,45 +532,6 @@ export function HomeProductSlider({
             );
           })}
         </div>
-      </div>
-
-      <div
-        className={styles.controls}
-        aria-label={copy.carouselLabel}
-        aria-hidden={isModal ? true : undefined}
-        inert={isModal ? true : undefined}
-      >
-        <button
-          type="button"
-          className={styles.iconButton}
-          aria-label={copy.previous}
-          onClick={() => step(-1)}
-          disabled={products.length < 2}
-        >
-          <ChevronLeft aria-hidden="true" />
-        </button>
-        <span className={styles.position} aria-hidden="true">
-          {activeIndex + 1} / {products.length}
-        </span>
-        <button
-          type="button"
-          className={`${styles.iconButton} ${styles.motionControl}`}
-          aria-label={isUserPaused ? copy.resume : copy.pause}
-          aria-pressed={isUserPaused}
-          onClick={() => setIsUserPaused((paused) => !paused)}
-          disabled={products.length < 2}
-        >
-          {isUserPaused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
-        </button>
-        <button
-          type="button"
-          className={styles.iconButton}
-          aria-label={copy.next}
-          onClick={() => step(1)}
-          disabled={products.length < 2}
-        >
-          <ChevronRight aria-hidden="true" />
-        </button>
       </div>
 
       <span className="sr-only" aria-live="polite" aria-atomic="true">

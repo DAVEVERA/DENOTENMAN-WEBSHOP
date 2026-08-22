@@ -25,21 +25,6 @@
   mask-image: linear-gradient(to bottom, black, transparent 88%);
 }
 
-.hint {
-  position: absolute;
-  inset-block-start: 1rem;
-  inset-inline: 1rem;
-  z-index: 3;
-  margin: 0;
-  color: rgba(20, 20, 20, 0.72);
-  font-family: var(--font-heading), sans-serif;
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-align: center;
-  text-transform: uppercase;
-}
-
 .viewport {
   position: absolute;
   inset: 0;
@@ -67,7 +52,7 @@
   height: 100%;
   display: flex;
   align-items: center;
-  padding-block: 3.5rem 4.8rem;
+  padding-block: 2rem;
 }
 
 .productSet {
@@ -152,24 +137,6 @@
     0 1.1rem 2rem rgba(20, 20, 20, 0.22);
 }
 
-.controls {
-  position: absolute;
-  inset-inline-start: 50%;
-  inset-block-end: 0.75rem;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem;
-  border: 1px solid rgba(20, 20, 20, 0.22);
-  border-radius: 999px;
-  background: rgba(246, 243, 238, 0.9);
-  box-shadow: 0 0.55rem 1.4rem rgba(20, 20, 20, 0.14);
-  backdrop-filter: blur(12px);
-  transform: translateX(-50%);
-}
-
-.iconButton,
 .favoriteButton,
 .closeButton {
   min-width: 2.75rem;
@@ -188,7 +155,6 @@
     transform 160ms ease;
 }
 
-.iconButton svg,
 .favoriteButton svg,
 .closeButton svg,
 .primaryButton svg {
@@ -196,33 +162,17 @@
   height: 1.15rem;
 }
 
-.iconButton:hover,
 .favoriteButton:hover,
 .closeButton:hover {
   background: rgba(20, 20, 20, 0.08);
 }
 
-.iconButton:focus-visible,
 .favoriteButton:focus-visible,
 .closeButton:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible {
   outline: 2px solid var(--color-text);
   outline-offset: 2px;
-}
-
-.iconButton:disabled {
-  cursor: default;
-  opacity: 0.42;
-}
-
-.position {
-  min-width: 3.1rem;
-  color: rgba(20, 20, 20, 0.7);
-  font-family: var(--font-heading), sans-serif;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-align: center;
 }
 
 .backdrop {
@@ -479,7 +429,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .imageShell,
-  .iconButton,
   .favoriteButton,
   .closeButton {
     transition: none;
@@ -488,9 +437,5 @@
   .backdrop,
   .productCard {
     animation: none;
-  }
-
-  .motionControl {
-    display: none;
   }
 }

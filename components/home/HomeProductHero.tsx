@@ -20,12 +20,7 @@ export function HomeProductHero({
           products={products}
           copy={{
             carouselLabel: dictionary.hero.carouselLabel,
-            touchHint: dictionary.hero.touchHint,
             openProduct: dictionary.product.openQuickView,
-            previous: dictionary.hero.previous,
-            next: dictionary.hero.next,
-            pause: dictionary.hero.pauseCarousel,
-            resume: dictionary.hero.resumeCarousel,
             position: dictionary.hero.productPosition,
             fromPrice: dictionary.hero.fromPrice,
             close: dictionary.product.closeDetails,

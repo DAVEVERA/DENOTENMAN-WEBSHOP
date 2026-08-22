@@ -36,12 +36,12 @@ test("builds self-canonical localized metadata and only noindexes an empty colle
   assert.deepEqual(empty.robots, { index: false, follow: true });
 });
 
-test("renders the English accessible hero heading and carousel controls", () => {
+test("renders the English accessible hero heading and carousel label", () => {
   assert.equal(en.hero.accessibleHeadline, "Nuts, honey and dried fruit from De Notenman");
   assert.equal(en.hero.carouselLabel, "Product carousel");
 });
 
-test("renders the French accessible hero heading and carousel controls", () => {
+test("renders the French accessible hero heading and carousel label", () => {
   assert.equal(fr.hero.accessibleHeadline, "Noix, miel et fruits secs de De Notenman");
   assert.equal(fr.hero.carouselLabel, "Carrousel de produits");
 });
