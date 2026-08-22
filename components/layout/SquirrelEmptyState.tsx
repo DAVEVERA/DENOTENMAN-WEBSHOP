@@ -5,7 +5,7 @@ import styles from "./SquirrelEmptyState.module.css";
 
 const copy: Record<Locale, { title: string; body: string; cta: string }> = {
   nl: {
-    title: "404 – Pagina onder onderzoek",
+    title: "404 – Pagina is momenteel neit bereikbaar",
     body: "Deze pagina maakt momenteel deel uit van een plaats delict. We werken er hard aan om de sporen zo snel mogelijk veilig te stellen en de pagina weer vrij te geven.",
     cta: "Terug naar de hoofdpagina",
   },

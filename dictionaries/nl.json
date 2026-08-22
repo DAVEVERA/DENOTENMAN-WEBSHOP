@@ -212,7 +212,7 @@
     "cta": "Bestel nu",
     "shopProduct": "Bekijk product",
     "revealProduct": "Toon product bij etiket",
-    "touchHint": "Veeg door de producten · tik voor details",
+    "touchHint": "",
     "carouselLabel": "Productcarrousel",
     "pauseCarousel": "Pauzeer productcarrousel",
     "resumeCarousel": "Hervat productcarrousel",
@@ -242,9 +242,9 @@
         "ctaLabel": "Bestel pecannoten"
       }
     ],
-    "previous": "Vorige dia",
-    "next": "Volgende dia",
-    "goToSlide": "Ga naar dia {n}"
+    "previous": "Vorige",
+    "next": "Volgende",
+    "goToSlide": "Ga naar{n}"
   },
   "home": {
     "fedorsFavorite": "Fedor's Favoriet!",
