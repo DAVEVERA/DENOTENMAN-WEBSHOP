@@ -212,7 +212,12 @@
     "cta": "Commander",
     "shopProduct": "Voir le produit",
     "revealProduct": "Afficher le produit de l’étiquette",
-    "touchHint": "Faites glisser la photo · touchez une étiquette",
+    "touchHint": "Faites défiler les produits · touchez pour les détails",
+    "carouselLabel": "Carrousel de produits",
+    "pauseCarousel": "Mettre le carrousel en pause",
+    "resumeCarousel": "Reprendre le carrousel",
+    "productPosition": "Produit {current} sur {total}",
+    "fromPrice": "À partir de",
     "favoritesTitle": "Nos favoris",
     "favorites": [
       {

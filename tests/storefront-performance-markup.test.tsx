@@ -2,36 +2,24 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import { imageConfigDefault } from "next/dist/shared/lib/image-config";
-import { ImageConfigContext } from "next/dist/shared/lib/image-config-context.shared-runtime";
-
-import { VisualHero } from "../components/layout/VisualHero";
-import en from "../dictionaries/en.json";
 
 const projectFile = (relativePath: string) =>
   readFile(path.join(process.cwd(), relativePath), "utf8");
 
-const imageConfig = {
-  ...imageConfigDefault,
-  qualities: [70, 75],
-  remotePatterns: [{ protocol: "https" as const, hostname: "storage.googleapis.com" }],
-};
+test("the homepage hero prioritizes one LCP resource and eagerly loads only the initial loop window", async () => {
+  const [slider, hero, contract] = await Promise.all([
+    projectFile("components/home/HomeProductSlider.tsx"),
+    projectFile("components/home/HomeProductHero.tsx"),
+    projectFile("lib/home-product-slider.ts"),
+  ]);
 
-test("the homepage hero prioritizes only the LCP image and optimizes product imagery", async () => {
-  const markup = renderToStaticMarkup(
-    <ImageConfigContext.Provider value={imageConfig}>
-      <VisualHero dictionary={en} />
-    </ImageConfigContext.Provider>,
-  );
-
-  assert.match(markup, /fetchpriority="high"/i);
-  assert.match(markup, /loading="eager"/i);
-  assert.match(markup, /\/_next\/image\?url=/);
-  assert.match(markup, /wellness-lifestyle-product-labels\.webp/);
-  assert.match(markup, /sizes="100vw"/);
-  assert.match(markup, />Nuts, honey and dried fruit from De Notenman<\/h1>/);
-  assert.doesNotMatch(markup, /<a\b|<button\b/);
+  assert.match(slider, /import Image from "next\/image"/);
+  assert.match(slider, /index <= 2 \|\| index >= products\.length - 3 \? "eager" : "lazy"/);
+  assert.match(slider, /fetchPriority=\{setIndex === 1 && index === 0 \? "high" : "auto"\}/);
+  assert.match(slider, /sizes="\(max-width: 639px\) 46vw, \(max-width: 1023px\) 24vw, 13rem"/);
+  assert.match(slider, /aria-roledescription="carousel"/);
+  assert.match(hero, /<h1 id="home-product-hero-title" className="sr-only">/);
+  assert.match(contract, /imageSrc: "\/product4slider\/abrikozen\.png"/);
 });
 
 test("storefront product cards use responsive Next images and unique link names", async () => {

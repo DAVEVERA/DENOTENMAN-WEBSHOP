@@ -212,7 +212,12 @@
     "cta": "Bestel nu",
     "shopProduct": "Bekijk product",
     "revealProduct": "Toon product bij etiket",
-    "touchHint": "Veeg door de foto · tik op een etiket",
+    "touchHint": "Veeg door de producten · tik voor details",
+    "carouselLabel": "Productcarrousel",
+    "pauseCarousel": "Pauzeer productcarrousel",
+    "resumeCarousel": "Hervat productcarrousel",
+    "productPosition": "Product {current} van {total}",
+    "fromPrice": "Vanaf",
     "favoritesTitle": "Onze favorieten",
     "favorites": [
       {

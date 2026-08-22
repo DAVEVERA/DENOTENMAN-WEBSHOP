@@ -13,6 +13,7 @@ import { ProcessingAgreement } from "./_components/ProcessingAgreement";
 import { CookiePolicy } from "./_components/CookiePolicy";
 import { Withdrawal } from "./_components/Withdrawal";
 import { MarketRouteMap, type MarketRouteCopy } from "./_components/MarketRouteMap";
+import { SquirrelEmptyState } from "@/components/layout/SquirrelEmptyState";
 
 const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTitle: string; metadataDescription: string }> = {
   nl: {
@@ -215,17 +216,6 @@ export default async function ContentPage({
     );
   }
 
-  // 3. Render elegant placeholder if page translation is empty or does not exist
-  return (
-    <Container className="py-12">
-      <article className="prose max-w-4xl mx-auto text-text text-center py-20">
-        <h1 className="text-3xl font-bold text-contrast mb-4">
-          {key.charAt(0).toUpperCase() + key.slice(1)}
-        </h1>
-        <p className="text-muted">
-          Deze pagina is momenteel nog niet gevuld. Kom snel terug voor meer informatie!
-        </p>
-      </article>
-    </Container>
-  );
+  // 3. Keep known-but-empty content pages useful instead of rendering a dead end.
+  return <SquirrelEmptyState locale={locale} />;
 }

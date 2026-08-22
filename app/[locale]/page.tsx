@@ -5,7 +5,7 @@ import {
   getCatalogProducts,
   normalizeCatalogFilterValues,
 } from "@/lib/queries";
-import { getHeroProductHotspots } from "@/lib/hero-hotspots.server";
+import { getHomeSliderProducts } from "@/lib/home-product-slider.server";
 import { getAlternates } from "@/lib/alternates";
 import { buildStorefrontMetadata } from "@/lib/storefront-seo";
 import { Container } from "@/components/ui/Container";
@@ -65,14 +65,14 @@ export default async function HomePage({
   const initialFilters = normalizeCatalogFilterValues(rawFilters.split(","));
   const alternates = await getAlternates(locale, { type: "home" });
   // Keep the initial RSC payload bounded; subsequent catalog pages are fetched on demand.
-  const [catalogPage, heroHotspots] = await Promise.all([
+  const [catalogPage, heroProducts] = await Promise.all([
     getCatalogProducts(locale, { query: initialQuery, filters: initialFilters }),
-    getHeroProductHotspots(locale),
+    getHomeSliderProducts(locale),
   ]);
 
   return (
     <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
-      <VisualHero dictionary={dictionary} hotspots={heroHotspots} />
+      <VisualHero locale={locale} dictionary={dictionary} products={heroProducts} />
       <Container className="py-8 sm:py-10">
         <ProductBrowser
           initialPage={catalogPage}
