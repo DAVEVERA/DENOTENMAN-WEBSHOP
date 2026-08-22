@@ -3,18 +3,13 @@ import type { Metadata } from "next";
 import { locales, isLocale } from "@/lib/i18n";
 import {
   getCatalogProducts,
-  getCategory,
-  getMainCategories,
   normalizeCatalogFilterValues,
 } from "@/lib/queries";
+import { getHeroProductHotspots } from "@/lib/hero-hotspots.server";
 import { getAlternates } from "@/lib/alternates";
-import {
-  buildStorefrontMetadata,
-  resolvePromotionalCategorySlug,
-} from "@/lib/storefront-seo";
+import { buildStorefrontMetadata } from "@/lib/storefront-seo";
 import { Container } from "@/components/ui/Container";
 import { ProductBrowser } from "@/components/product/ProductBrowser";
-import { FeaturedBanner } from "@/components/product/FeaturedBanner";
 import { SiteShell } from "@/components/layout/SiteShell";
 import { VisualHero } from "@/components/layout/VisualHero";
 import nl from "@/dictionaries/nl.json";
@@ -70,24 +65,14 @@ export default async function HomePage({
   const initialFilters = normalizeCatalogFilterValues(rawFilters.split(","));
   const alternates = await getAlternates(locale, { type: "home" });
   // Keep the initial RSC payload bounded; subsequent catalog pages are fetched on demand.
-  const [catalogPage, categories] = await Promise.all([
+  const [catalogPage, heroHotspots] = await Promise.all([
     getCatalogProducts(locale, { query: initialQuery, filters: initialFilters }),
-    getMainCategories(locale),
+    getHeroProductHotspots(locale),
   ]);
-  const promotionalSlug = resolvePromotionalCategorySlug(categories);
-  const featuredCategory = promotionalSlug ? await getCategory(promotionalSlug, locale) : null;
 
   return (
     <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
-      <VisualHero dictionary={dictionary} />
-      {promotionalSlug ? (
-        <FeaturedBanner
-          products={featuredCategory?.products ?? []}
-          categorySlug={promotionalSlug}
-          locale={locale}
-          dictionary={dictionary}
-        />
-      ) : null}
+      <VisualHero dictionary={dictionary} hotspots={heroHotspots} />
       <Container className="py-8 sm:py-10">
         <ProductBrowser
           initialPage={catalogPage}

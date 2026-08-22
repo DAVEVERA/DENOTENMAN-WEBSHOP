@@ -1,0 +1,281 @@
+.page {
+  padding-block: clamp(2.25rem, 5vw, 4.75rem);
+}
+
+.intro {
+  max-width: 50rem;
+  margin-inline: auto;
+  margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  text-align: center;
+}
+
+.eyebrow {
+  margin-bottom: .55rem;
+  color: var(--color-accent-ink);
+  font-family: var(--font-body), sans-serif;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 18ch;
+  margin-inline: auto;
+  color: var(--color-contrast);
+  font-size: clamp(2.25rem, 6vw, 4.5rem);
+  line-height: .98;
+  text-wrap: balance;
+}
+
+.lead {
+  max-width: 44rem;
+  margin: 1rem auto 0;
+  color: var(--color-muted);
+  font-size: clamp(.98rem, 2vw, 1.1rem);
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.mapCard {
+  overflow: hidden;
+  border: 2px solid var(--color-contrast);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  box-shadow: 0 18px 44px rgba(20, 20, 20, .13);
+}
+
+.statusBar {
+  min-height: 3.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .7rem 1rem;
+  background: var(--color-contrast);
+  color: var(--color-surface);
+}
+
+.statusLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.statusDot {
+  width: .65rem;
+  height: .65rem;
+  flex: 0 0 auto;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #d51f2a;
+  box-shadow: 0 0 0 3px rgba(213, 31, 42, .32);
+}
+
+.statusValue {
+  min-width: 0;
+  font-family: var(--font-heading), sans-serif;
+  font-size: clamp(.95rem, 2vw, 1.1rem);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.mapViewport {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  background: #fff;
+  scrollbar-color: var(--color-accent) var(--color-border);
+  scrollbar-width: thin;
+  touch-action: pan-x;
+}
+
+.mapViewport:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: -3px;
+}
+
+.mapStage {
+  position: relative;
+  width: 58rem;
+  aspect-ratio: 1672 / 941;
+}
+
+.mapImage {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.marker {
+  position: absolute;
+  z-index: 2;
+  left: calc(var(--marker-x) * 1%);
+  top: calc(var(--marker-y) * 1%);
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #d51f2a;
+  box-shadow:
+    0 0 0 2px #111,
+    0 4px 12px rgba(20, 20, 20, .35);
+  transform: translate(-50%, -50%);
+}
+
+.marker::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border: 2px solid rgba(213, 31, 42, .8);
+  border-radius: inherit;
+  animation: route-marker-pulse 1.8s ease-out infinite;
+}
+
+.mapHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 2.8rem;
+  padding: .65rem 1rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-muted);
+  font-size: .76rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.mapHint::before,
+.mapHint::after {
+  content: "";
+  width: 1rem;
+  height: 1px;
+  background: currentColor;
+}
+
+.schedule {
+  margin-top: clamp(2rem, 5vw, 3.5rem);
+}
+
+.scheduleHeader {
+  max-width: 42rem;
+  margin: 0 auto 1.25rem;
+  text-align: center;
+}
+
+.scheduleTitle {
+  color: var(--color-contrast);
+  font-size: clamp(1.65rem, 4vw, 2.35rem);
+  line-height: 1.1;
+}
+
+.scheduleText {
+  margin-top: .5rem;
+  color: var(--color-muted);
+  font-size: .9rem;
+  line-height: 1.6;
+}
+
+.scheduleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem;
+}
+
+.scheduleItem {
+  position: relative;
+  min-height: 7.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.scheduleItemActive {
+  border-color: #d51f2a;
+  box-shadow: 0 0 0 2px rgba(213, 31, 42, .1);
+}
+
+.scheduleDay {
+  color: var(--color-muted);
+  font-family: var(--font-body), sans-serif;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.schedulePlace {
+  color: var(--color-contrast);
+  font-family: var(--font-heading), sans-serif;
+  font-size: clamp(1.15rem, 3vw, 1.4rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.todayBadge {
+  align-self: flex-start;
+  padding: .2rem .45rem;
+  border-radius: 999px;
+  background: #d51f2a;
+  color: #fff;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+@keyframes route-marker-pulse {
+  0% {
+    opacity: .9;
+    transform: scale(.65);
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+@media (min-width: 900px) {
+  .mapStage {
+    width: 100%;
+  }
+
+  .mapHint {
+    display: none;
+  }
+
+  .scheduleGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .scheduleItem {
+    min-height: 8rem;
+    padding: 1.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker::after {
+    animation: none;
+    opacity: .45;
+  }
+}

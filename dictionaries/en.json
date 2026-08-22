@@ -210,6 +210,9 @@
     "headline": "Delicious freshly roasted nuts & dried fruit!",
     "intro": "Now delivered to your home",
     "cta": "Shop now",
+    "shopProduct": "View product",
+    "revealProduct": "Show product for label",
+    "touchHint": "Swipe across the photo · tap a label",
     "favoritesTitle": "Our favourites",
     "favorites": [
       {

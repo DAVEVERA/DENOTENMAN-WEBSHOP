@@ -12,6 +12,73 @@ import { AdditionalTerms } from "./_components/AdditionalTerms";
 import { ProcessingAgreement } from "./_components/ProcessingAgreement";
 import { CookiePolicy } from "./_components/CookiePolicy";
 import { Withdrawal } from "./_components/Withdrawal";
+import { MarketRouteMap, type MarketRouteCopy } from "./_components/MarketRouteMap";
+
+const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTitle: string; metadataDescription: string }> = {
+  nl: {
+    eyebrow: "De vaste weekroute",
+    title: "Waar is De Notenman?",
+    lead: "Van de markt tot onze thuisbasis: bekijk waar je De Notenman vandaag vindt. De rode stip volgt automatisch onze vaste weekroute.",
+    today: "Vandaag",
+    locating: "Bestemming bepalen…",
+    scheduleTitle: "Hier staan we deze week",
+    scheduleText: "Donderdag, vrijdag en zaterdag staan we op de markt. De overige dagen vind je ons in Haaren.",
+    swipeHint: "Veeg over de kaart om de volledige route te bekijken",
+    mapAlt: "Getekende routekaart tussen Antwerpen, Hilvarenbeek, Uden en Haaren.",
+    mapScrollLabel: "Routekaart. Horizontaal scrollen is mogelijk.",
+    weekdayNames: ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"],
+    scheduleDays: {
+      hilvarenbeek: "Donderdag",
+      uden: "Vrijdag",
+      antwerpen: "Zaterdag",
+      haaren: "Zondag t/m woensdag",
+    },
+    metadataTitle: "Waar is De Notenman vandaag?",
+    metadataDescription: "Bekijk de vaste weekroute van De Notenman: Hilvarenbeek op donderdag, Uden op vrijdag, Antwerpen op zaterdag en Haaren op de overige dagen.",
+  },
+  en: {
+    eyebrow: "Our weekly route",
+    title: "Where is De Notenman?",
+    lead: "From the market to our home base: see where to find De Notenman today. The red dot automatically follows our weekly route.",
+    today: "Today",
+    locating: "Finding today’s location…",
+    scheduleTitle: "Where to find us this week",
+    scheduleText: "We visit the markets on Thursday, Friday and Saturday. On the other days you can find us in Haaren.",
+    swipeHint: "Swipe across the map to see the complete route",
+    mapAlt: "Illustrated route map between Antwerp, Hilvarenbeek, Uden and Haaren.",
+    mapScrollLabel: "Route map. Horizontal scrolling is available.",
+    weekdayNames: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    scheduleDays: {
+      hilvarenbeek: "Thursday",
+      uden: "Friday",
+      antwerpen: "Saturday",
+      haaren: "Sunday through Wednesday",
+    },
+    metadataTitle: "Where is De Notenman today?",
+    metadataDescription: "View De Notenman’s weekly route: Hilvarenbeek on Thursday, Uden on Friday, Antwerp on Saturday and Haaren on all other days.",
+  },
+  fr: {
+    eyebrow: "Notre itinéraire hebdomadaire",
+    title: "Où est De Notenman ?",
+    lead: "Du marché à notre base : découvrez où trouver De Notenman aujourd’hui. Le point rouge suit automatiquement notre itinéraire fixe.",
+    today: "Aujourd’hui",
+    locating: "Recherche du lieu du jour…",
+    scheduleTitle: "Où nous trouver cette semaine",
+    scheduleText: "Nous sommes au marché le jeudi, le vendredi et le samedi. Les autres jours, vous nous trouverez à Haaren.",
+    swipeHint: "Faites glisser la carte pour voir l’itinéraire complet",
+    mapAlt: "Carte illustrée de l’itinéraire entre Anvers, Hilvarenbeek, Uden et Haaren.",
+    mapScrollLabel: "Carte de l’itinéraire. Le défilement horizontal est disponible.",
+    weekdayNames: ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"],
+    scheduleDays: {
+      hilvarenbeek: "Jeudi",
+      uden: "Vendredi",
+      antwerpen: "Samedi",
+      haaren: "Du dimanche au mercredi",
+    },
+    metadataTitle: "Où est De Notenman aujourd’hui ?",
+    metadataDescription: "Consultez l’itinéraire hebdomadaire de De Notenman : Hilvarenbeek le jeudi, Uden le vendredi, Anvers le samedi et Haaren les autres jours.",
+  },
+};
 
 export function generateStaticParams() {
   return locales.flatMap((locale) =>
@@ -43,11 +110,14 @@ export async function generateMetadata({
     return {};
   }
 
-  const page = await getPageBySlug(slug, locale);
-  const title = page?.title || key.charAt(0).toUpperCase() + key.slice(1);
+  const page = key === "markets" ? null : await getPageBySlug(slug, locale);
+  const title = key === "markets"
+    ? marketRouteCopy[locale].metadataTitle
+    : page?.title || key.charAt(0).toUpperCase() + key.slice(1);
 
   return {
     title,
+    description: key === "markets" ? marketRouteCopy[locale].metadataDescription : undefined,
     robots: pageRobots(key),
     alternates: {
       canonical: alternates.canonical,
@@ -72,6 +142,10 @@ export default async function ContentPage({
 
   if (!key) {
     notFound();
+  }
+
+  if (key === "markets") {
+    return <MarketRouteMap copy={marketRouteCopy[locale]} />;
   }
 
   // 1. Render custom high-quality statically-styled Dutch components

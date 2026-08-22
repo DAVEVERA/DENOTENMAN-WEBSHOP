@@ -210,6 +210,9 @@
     "headline": "Délicieuses noix fraîchement torréfiées & fruits secs !",
     "intro": "Désormais livrés chez vous",
     "cta": "Commander",
+    "shopProduct": "Voir le produit",
+    "revealProduct": "Afficher le produit de l’étiquette",
+    "touchHint": "Faites glisser la photo · touchez une étiquette",
     "favoritesTitle": "Nos favoris",
     "favorites": [
       {
