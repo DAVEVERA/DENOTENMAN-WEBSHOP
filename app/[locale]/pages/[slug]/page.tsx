@@ -24,7 +24,7 @@ const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTi
     locating: "Bestemming bepalen…",
     scheduleTitle: "Hier staan we deze week",
     scheduleText: "Donderdag, vrijdag en zaterdag staan we op de markt. De overige dagen vind je ons in Haaren.",
-    swipeHint: "Veeg over de kaart om de volledige route te bekijken",
+    swipeHint: "",
     mapAlt: "Getekende routekaart tussen Antwerpen, Hilvarenbeek, Uden en Haaren.",
     mapScrollLabel: "Routekaart. Horizontaal scrollen is mogelijk.",
     weekdayNames: ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"],
