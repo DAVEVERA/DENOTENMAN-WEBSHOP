@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, Search, SlidersHorizontal, X } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 import type {
   CatalogFacetOptionDto,
@@ -12,6 +12,11 @@ import type {
 } from "@/lib/queries";
 import { product as productPath } from "@/lib/routes";
 import { cn } from "@/lib/cn";
+import {
+  defaultCatalogSort,
+  normalizeCatalogSort,
+  type CatalogSort,
+} from "@/lib/catalog-sort";
 import {
   CATALOG_SEARCH_EVENT,
   type CatalogSearchEventDetail,
@@ -49,6 +54,12 @@ export type CatalogBrowserCopy = {
   coatingChocolate: string;
   coatingYoghurt: string;
   coatingFlavored: string;
+  sortLabel: string;
+  sortPriceLowHigh: string;
+  sortPriceHighLow: string;
+  sortPopular: string;
+  sortBestSelling: string;
+  sortMostViewed: string;
   reset: string;
   clearAll: string;
   closeFilters: string;
@@ -62,11 +73,14 @@ export type CatalogBrowserCopy = {
 
 const QUERY_PARAM = "q";
 const FILTERS_PARAM = "f";
+const SORT_PARAM = "sort";
 const URL_SYNC_DELAY_MS = 300;
 const CATALOG_FETCH_DELAY_MS = 250;
+const focusableSelector =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-function requestKey(query: string, filters: Set<string>): string {
-  return `${query.trim()}::${Array.from(filters).sort().join(",")}`;
+function requestKey(query: string, filters: Set<string>, sort: CatalogSort): string {
+  return `${query.trim()}::${Array.from(filters).sort().join(",")}::${sort}`;
 }
 
 function filterValuesFromUrl(params: URLSearchParams): Set<string> {
@@ -83,12 +97,14 @@ function catalogApiUrl(
   locale: Locale,
   query: string,
   filters: Set<string>,
+  sort: CatalogSort,
   offset: number
 ): string {
   const params = new URLSearchParams({ locale, offset: String(offset) });
   const trimmedQuery = query.trim();
   if (trimmedQuery) params.set(QUERY_PARAM, trimmedQuery);
   if (filters.size > 0) params.set(FILTERS_PARAM, Array.from(filters).sort().join(","));
+  params.set(SORT_PARAM, sort);
   return `/api/storefront/catalog?${params.toString()}`;
 }
 
@@ -96,12 +112,14 @@ export function ProductBrowser({
   initialPage,
   initialQuery,
   initialFilters,
+  initialSort,
   locale,
   copy,
 }: {
   initialPage: CatalogPageDto;
   initialQuery: string;
   initialFilters: string[];
+  initialSort: CatalogSort;
   locale: Locale;
   copy: CatalogBrowserCopy;
 }) {
@@ -115,6 +133,7 @@ export function ProductBrowser({
   const [query, setQuery] = useState(initialQuery);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(initialSelected);
+  const [sort, setSort] = useState<CatalogSort>(initialSort);
   const [hydrated, setHydrated] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -123,16 +142,22 @@ export function ProductBrowser({
   const [quickViewProduct, setQuickViewProduct] = useState<ProductSummaryDto | null>(null);
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
-  const lastLoadedSignature = useRef(`${requestKey(initialQuery, initialSelected)}::0`);
+  const lastLoadedSignature = useRef(
+    `${requestKey(initialQuery, initialSelected, initialSort)}::0`
+  );
   const catalogRequestId = useRef(0);
   const quickViewRequestId = useRef(0);
   const quickViewCache = useRef(new Map<string, ProductSummaryDto>());
+  const filterTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
+  const filterCloseRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const restoreFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
       setQuery(params.get(QUERY_PARAM) ?? "");
       setSelected(filterValuesFromUrl(params));
+      setSort(normalizeCatalogSort(params.get(SORT_PARAM)));
       setHydrated(true);
     };
     const applyNavbarSearch = (event: Event) => {
@@ -161,19 +186,21 @@ export function ProductBrowser({
       const trimmedQuery = query.trim();
       params.delete(QUERY_PARAM);
       params.delete(FILTERS_PARAM);
+      params.delete(SORT_PARAM);
       if (trimmedQuery) params.set(QUERY_PARAM, trimmedQuery);
       if (selected.size > 0) {
         params.set(FILTERS_PARAM, Array.from(selected).sort().join(","));
       }
+      if (sort !== defaultCatalogSort) params.set(SORT_PARAM, sort);
       const queryString = params.toString();
       window.history.replaceState(null, "", queryString ? `${pathname}?${queryString}` : pathname);
     }, URL_SYNC_DELAY_MS);
     return () => window.clearTimeout(timeout);
-  }, [query, selected, hydrated, pathname]);
+  }, [query, selected, sort, hydrated, pathname]);
 
   useEffect(() => {
     if (!hydrated) return;
-    const key = requestKey(query, selected);
+    const key = requestKey(query, selected, sort);
     const signature = `${key}::${reloadNonce}`;
     if (signature === lastLoadedSignature.current) return;
 
@@ -184,7 +211,7 @@ export function ProductBrowser({
       setLoadingMore(false);
       setCatalogError(false);
       try {
-        const response = await fetch(catalogApiUrl(locale, query, selected, 0), {
+        const response = await fetch(catalogApiUrl(locale, query, selected, sort, 0), {
           signal: controller.signal,
           headers: { Accept: "application/json" },
         });
@@ -208,19 +235,45 @@ export function ProductBrowser({
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [hydrated, locale, query, reloadNonce, selected]);
+  }, [hydrated, locale, query, reloadNonce, selected, sort]);
 
   useEffect(() => {
     if (!filtersOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => filterCloseRef.current?.focus());
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setFiltersOpen(false);
+      if (event.key === "Escape") {
+        setFiltersOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !filterPanelRef.current) return;
+
+      const focusable = Array.from(
+        filterPanelRef.current.querySelectorAll<HTMLElement>(focusableSelector)
+      ).filter((node) =>
+        !node.closest('[hidden], [aria-hidden="true"], [inert]') &&
+        window.getComputedStyle(node).visibility !== "hidden" &&
+        window.getComputedStyle(node).display !== "none"
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
+      window.requestAnimationFrame(() => filterTriggerRef.current?.focus());
     };
   }, [filtersOpen]);
 
@@ -292,9 +345,12 @@ export function ProductBrowser({
     setLoadingMore(true);
     setCatalogError(false);
     try {
-      const response = await fetch(catalogApiUrl(locale, query, selected, products.length), {
-        headers: { Accept: "application/json" },
-      });
+      const response = await fetch(
+        catalogApiUrl(locale, query, selected, sort, products.length),
+        {
+          headers: { Accept: "application/json" },
+        }
+      );
       if (!response.ok) throw new Error(`Catalog request failed (${response.status})`);
       const page = (await response.json()) as CatalogPageDto;
       if (requestId !== catalogRequestId.current) return;
@@ -361,7 +417,7 @@ export function ProductBrowser({
 
   return (
     <div id="product-search" className="min-w-0 scroll-mt-36">
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">{copy.search}</span>
           <Search
@@ -377,25 +433,47 @@ export function ProductBrowser({
           />
         </label>
 
-        <div className="relative min-w-0 shrink-0">
-          <button
-            type="button"
-            aria-expanded={filtersOpen}
-            aria-controls="product-filters-panel"
-            onClick={() => setFiltersOpen((value) => !value)}
-            className={cn(
-              "inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-md font-semibold text-text transition-colors duration-hover-fast hover:border-border-hover sm:w-auto",
-              activeCount > 0 && "border-accent text-accent-ink"
-            )}
-          >
-            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-            {copy.filters}
-            {activeCount > 0 ? (
-              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[0.65rem] font-bold text-contrast">
-                {activeCount}
-              </span>
-            ) : null}
-          </button>
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex sm:items-center">
+          <label className="relative min-w-0 sm:w-52">
+            <span className="sr-only">{copy.sortLabel}</span>
+            <ArrowUpDown
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+              aria-hidden="true"
+            />
+            <select
+              value={sort}
+              onChange={(event) => setSort(normalizeCatalogSort(event.target.value))}
+              aria-label={copy.sortLabel}
+              className="h-11 w-full min-w-0 rounded-button border border-border bg-surface pl-9 pr-3 font-heading text-body-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <option value="POPULAR">{copy.sortPopular}</option>
+              <option value="PRICE_ASC">{copy.sortPriceLowHigh}</option>
+              <option value="PRICE_DESC">{copy.sortPriceHighLow}</option>
+              <option value="BEST_SELLING">{copy.sortBestSelling}</option>
+              <option value="MOST_VIEWED">{copy.sortMostViewed}</option>
+            </select>
+          </label>
+
+          <div className="relative min-w-0 shrink-0">
+            <button
+              ref={filterTriggerRef}
+              type="button"
+              aria-expanded={filtersOpen}
+              aria-controls="product-filters-panel"
+              onClick={() => setFiltersOpen((value) => !value)}
+              className={cn(
+                "inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-md font-semibold text-text transition-colors duration-hover-fast hover:border-border-hover sm:w-auto",
+                activeCount > 0 && "border-accent text-accent-ink"
+              )}
+            >
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              {copy.filters}
+              {activeCount > 0 ? (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[0.65rem] font-bold text-contrast">
+                  {activeCount}
+                </span>
+              ) : null}
+            </button>
 
           {filtersOpen ? (
             <>
@@ -407,14 +485,17 @@ export function ProductBrowser({
                 className="fixed inset-0 z-40 cursor-default bg-contrast/55 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none"
               />
               <div
+                ref={filterPanelRef}
                 id="product-filters-panel"
-                role="region"
-                aria-label={copy.filters}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="product-filters-title"
                 className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] min-w-0 flex-col overflow-hidden rounded-t-panel border border-border bg-surface shadow-card-hover sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:max-h-[70vh] sm:w-[min(92vw,26rem)] sm:rounded-panel"
               >
                 <div className="flex shrink-0 items-center justify-between border-b border-border bg-background px-4 py-3">
-                  <p className="font-heading text-body-md font-bold text-text">{copy.filters}</p>
+                  <p id="product-filters-title" className="font-heading text-body-md font-bold text-text">{copy.filters}</p>
                   <button
+                    ref={filterCloseRef}
                     type="button"
                     onClick={() => setFiltersOpen(false)}
                     aria-label={copy.closeFilters}
@@ -463,6 +544,7 @@ export function ProductBrowser({
               </div>
             </>
           ) : null}
+          </div>
         </div>
       </div>
 

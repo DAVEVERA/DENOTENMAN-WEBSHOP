@@ -34,12 +34,12 @@ export function LegalPage({
             <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0" aria-hidden="true" />
             <div>
               <h2 id="legal-review-title" className="font-heading text-lg font-bold">
-                Verplichte bedrijfsgegevens nog invullen
+                Btw-identificatienummer nog aanleveren
               </h2>
               <p className="mt-1 leading-relaxed">
-                Voor publicatie moeten de {LEGAL_REVIEW_REQUIRED.join(", ")} van De Notenman in
-                <code className="mx-1 rounded bg-amber-100 px-1 py-0.5 text-sm">lib/legal.ts</code>
-                worden gecontroleerd en ingevuld. De bekende contactgegevens staan al vermeld.
+                Voor volledige publicatie moet het {LEGAL_REVIEW_REQUIRED.join(", ")} van De Notenman
+                nog worden gecontroleerd en ingevuld. De overige aangeleverde bedrijfsgegevens staan hieronder;
+                deze versie is door het ontbrekende nummer nog niet publicatiegereed.
               </p>
             </div>
           </div>
@@ -49,6 +49,10 @@ export function LegalPage({
       <div className="rounded-panel border-t-8 border-t-accent bg-surface p-6 shadow-card sm:p-10">
         <div className="legal-copy space-y-10 text-text">{children}</div>
         <footer className="mt-12 border-t border-border pt-5 text-sm text-muted">
+          <p>
+            {LEGAL_IDENTITY.tradeName} · KvK {LEGAL_IDENTITY.registrationNumber} · Vestigingsnummer{" "}
+            {LEGAL_IDENTITY.establishmentNumber} · {LEGAL_IDENTITY.address} · {LEGAL_IDENTITY.email}
+          </p>
           <p>Laatst bijgewerkt: {LEGAL_LAST_UPDATED}.</p>
           <p className="mt-1">
             Versie: 1.0. Bewaar de versie die gold op het moment waarop u een overeenkomst sloot.
@@ -85,10 +89,24 @@ export function IdentityDetails() {
       <dd>{LEGAL_IDENTITY.tradeName}</dd>
       <dt className="font-semibold">Juridische naam</dt>
       <dd>{LEGAL_IDENTITY.legalName}</dd>
+      <dt className="font-semibold">Ter attentie van</dt>
+      <dd>{LEGAL_IDENTITY.attention}</dd>
+      <dt className="font-semibold">Bedrijfsactiviteit</dt>
+      <dd>{LEGAL_IDENTITY.businessDescription}</dd>
       <dt className="font-semibold">Vestigingsadres</dt>
       <dd>{LEGAL_IDENTITY.address}</dd>
       <dt className="font-semibold">KvK-nummer</dt>
       <dd>{LEGAL_IDENTITY.registrationNumber}</dd>
+      <dt className="font-semibold">Vestigingsnummer</dt>
+      <dd>{LEGAL_IDENTITY.establishmentNumber}</dd>
+      {LEGAL_IDENTITY.sbiRegistrations.map((registration) => (
+        <div className="contents" key={`${registration.source}-${registration.code}`}>
+          <dt className="font-semibold">{registration.source}</dt>
+          <dd>{registration.code} - {registration.description}</dd>
+        </div>
+      ))}
+      <dt className="font-semibold">Btw-identificatienummer</dt>
+      <dd className="font-semibold text-amber-800">Nog niet aangeleverd</dd>
       <dt className="font-semibold">E-mail</dt>
       <dd>
         <a className="underline underline-offset-4" href={`mailto:${LEGAL_IDENTITY.email}`}>

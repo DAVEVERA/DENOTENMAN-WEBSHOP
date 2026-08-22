@@ -241,6 +241,16 @@ model Product {
   faqMediaAssets         ProductFaqMediaAsset[]
   designJobs             DesignJob[]
   designAssets           DesignAsset[]
+  viewMetric             ProductViewMetric?
+}
+
+model ProductViewMetric {
+  productId String   @id
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  viewCount Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@index([viewCount])
 }
 
 model ProductTranslation {

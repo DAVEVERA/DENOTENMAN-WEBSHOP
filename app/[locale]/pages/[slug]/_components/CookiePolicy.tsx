@@ -48,6 +48,7 @@ export function CookiePolicy({ locale: _locale }: { locale: string }) {
           <table className="w-full min-w-[46rem] border-collapse text-left text-sm">
             <thead><tr className="border-b-2 border-border"><th className="p-3">Naam</th><th className="p-3">Partij</th><th className="p-3">Doel</th><th className="p-3">Gebruikelijke maximumtermijn</th></tr></thead>
             <tbody className="divide-y divide-border">
+              <tr><td className="p-3">denotenman-product-view-v1:*</td><td className="p-3">Sessieopslag, De Notenman</td><td className="p-3">Voorkomen dat hetzelfde product binnen één browsersessie dubbel wordt geteld; de database bewaart alleen het totaalaantal per product</td><td className="p-3">Browsersessie</td></tr>
               <tr><td className="p-3">_ga en _ga_*</td><td className="p-3">Google Analytics</td><td className="p-3">Bezoeker en sessies onderscheiden</td><td className="p-3">2 jaar</td></tr>
               <tr><td className="p-3">_gid</td><td className="p-3">Google Analytics</td><td className="p-3">Bezoekers onderscheiden</td><td className="p-3">24 uur</td></tr>
               <tr><td className="p-3">_gat*</td><td className="p-3">Google Analytics</td><td className="p-3">Aantal meetverzoeken begrenzen</td><td className="p-3">1 minuut</td></tr>

@@ -13,7 +13,15 @@ test("homepage progressively fetches bounded server-side catalog pages", () => {
   assert.match(queries, /catalogPageSize\s*=\s*24/);
   assert.match(queries, /Math\.min\(Math\.max\(request\.limit[\s\S]*catalogPageSize\)/);
   assert.match(route, /offset/);
+  assert.match(route, /normalizeCatalogSort/);
   assert.match(browser, /\/api\/storefront\/catalog/);
+  assert.match(browser, /SORT_PARAM/);
+  assert.match(browser, /catalogApiUrl\(locale, query, selected, sort, products\.length\)/);
+  assert.match(browser, /value="PRICE_ASC"/);
+  assert.match(browser, /value="PRICE_DESC"/);
+  assert.match(browser, /value="POPULAR"/);
+  assert.match(browser, /value="BEST_SELLING"/);
+  assert.match(browser, /value="MOST_VIEWED"/);
   assert.match(browser, /products\.length/);
   assert.match(browser, /copy\.loadMore/);
 });
@@ -32,6 +40,12 @@ test("homepage quick view is shared and fetches variant data only on demand", ()
 test("catalog controls retain 44px touch targets and mobile overflow guards", () => {
   const browser = readFileSync("components/product/ProductBrowser.tsx", "utf8");
   assert.match(browser, /min-h-11 max-w-full rounded-button/);
+  assert.match(browser, /className="h-11 w-full min-w-0 rounded-button/);
   assert.match(browser, /overflow-y-auto overflow-x-hidden/);
   assert.match(browser, /grid min-w-0 grid-cols-2/);
+  assert.match(browser, /role="dialog"/);
+  assert.match(browser, /aria-modal="true"/);
+  assert.match(browser, /filterCloseRef\.current\?\.focus/);
+  assert.match(browser, /event\.shiftKey && document\.activeElement === first/);
+  assert.match(browser, /filterTriggerRef\.current\?\.focus/);
 });

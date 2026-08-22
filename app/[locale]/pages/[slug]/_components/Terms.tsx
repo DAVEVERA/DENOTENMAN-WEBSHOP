@@ -13,7 +13,7 @@ export function Terms({ locale: _locale }: { locale: string }) {
     >
       <LegalSection title="Artikel 1 – Definities">
         <LegalList>
-          <li><strong>De Notenman:</strong> de ondernemer die voedingsmiddelen en aanverwante producten aanbiedt.</li>
+          <li><strong>De Notenman:</strong> de ondernemer met als handelsactiviteit {LEGAL_IDENTITY.businessDescription.toLowerCase()}</li>
           <li><strong>Consument:</strong> een natuurlijke persoon die niet handelt voor bedrijfs- of beroepsdoeleinden.</li>
           <li><strong>Overeenkomst:</strong> de koop op afstand tussen De Notenman en de consument.</li>
           <li><strong>Dag:</strong> kalenderdag; <strong>werkdag:</strong> maandag tot en met vrijdag, met uitzondering van erkende feestdagen.</li>

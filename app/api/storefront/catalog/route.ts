@@ -4,6 +4,7 @@ import {
   getCatalogProducts,
   normalizeCatalogFilterValues,
 } from "@/lib/queries";
+import { normalizeCatalogSort } from "@/lib/catalog-sort";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
   const filters = normalizeCatalogFilterValues(
     (url.searchParams.get("f") ?? "").split(",")
   );
+  const sort = normalizeCatalogSort(url.searchParams.get("sort"));
   const parsedOffset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
   const offset = Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
 
@@ -24,6 +26,7 @@ export async function GET(request: Request) {
     const page = await getCatalogProducts(locale, {
       query,
       filters,
+      sort,
       limit: catalogPageSize,
       offset,
     });

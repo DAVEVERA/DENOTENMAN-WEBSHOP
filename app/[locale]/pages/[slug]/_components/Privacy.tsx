@@ -34,7 +34,7 @@ export function Privacy({ locale: _locale }: { locale: string }) {
           <li>berichten aan de klantenservice, klachten en bijbehorende correspondentie;</li>
           <li>bedrijfsnaam, contactpersoon en btw-gegevens bij zakelijke aanvragen;</li>
           <li>IP-adres, apparaat-, browser-, beveiligings- en loggegevens;</li>
-          <li>cookievoorkeuren en, na toestemming, gebruiks- en marketinggegevens.</li>
+          <li>cookievoorkeuren en, na toestemming, gebruiks- en marketinggegevens, waaronder een geaggregeerde productweergaveteller.</li>
         </LegalList>
         <p>
           De Notenman ontvangt geen volledige betaalkaart- of bankgegevens. Betalingen worden in
@@ -109,6 +109,7 @@ export function Privacy({ locale: _locale }: { locale: string }) {
           <li>voorraadmelding: tot verzending of intrekking en uiterlijk 3 maanden daarna verwijderd of geanonimiseerd;</li>
           <li>beveiligings- en foutlogs: normaal maximaal 90 dagen, tenzij onderzoek naar misbruik langer bewaren vereist;</li>
           <li>analyticsgegevens: maximaal 14 maanden, tenzij de ingestelde termijn aantoonbaar korter is;</li>
+          <li>de interne productweergaveteller bewaart uitsluitend een totaalaantal per product en geen bezoeker, tijdstip of ruwe gebeurtenis;</li>
           <li>cookievoorkeur: 6 maanden, waarna opnieuw om een keuze kan worden gevraagd.</li>
         </LegalList>
         <p>

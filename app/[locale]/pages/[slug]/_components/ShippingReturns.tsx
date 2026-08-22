@@ -78,10 +78,11 @@ export function ShippingReturns({ locale: _locale }: { locale: string }) {
           <li>Verstuur uiterlijk 14 dagen na uw melding en bewaar het verzendbewijs.</li>
         </ol>
         <div className="rounded-card border border-border bg-background/40 p-5">
-          <p className="font-bold">Retouradres na bevestiging</p>
+          <p className="font-bold">Retouradres</p>
           <p>{LEGAL_IDENTITY.returnAddress}</p>
           <p className="mt-2 text-sm text-muted">
-            Stuur niets naar een marktkraam. Het definitieve retouradres moet vóór publicatie worden ingevuld.
+            Meld uw retour altijd vooraf aan en stuur niets naar een marktkraam. Gebruik na onze
+            bevestiging uitsluitend het hierboven vermelde retouradres.
           </p>
         </div>
       </LegalSection>

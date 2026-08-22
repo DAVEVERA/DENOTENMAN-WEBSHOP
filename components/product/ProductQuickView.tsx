@@ -13,6 +13,7 @@ import { getProductImageStyle } from "@/lib/image-focal";
 import { BackInStockForm } from "@/components/product/BackInStockForm";
 import { productActionButtonClass } from "@/lib/product-action-button";
 import { VariantRows } from "@/components/product/VariantRows";
+import { ProductViewTracker } from "@/components/product/ProductViewTracker";
 const focusableSelector =
   'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -236,6 +237,7 @@ export function ProductQuickView({
 
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-end justify-center p-0 sm:items-center sm:p-6">
+      <ProductViewTracker productId={product.id} />
       <button
         type="button"
         className="absolute inset-0 cursor-default bg-black/55 backdrop-blur-[2px]"

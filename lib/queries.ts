@@ -20,6 +20,13 @@ import {
   type CategoryNavigationDto,
   type NavigationCategorySourceDto,
 } from "@/lib/categoryGroups";
+import {
+  defaultCatalogSort,
+  normalizeCatalogSort,
+  sortCatalogCandidates,
+  type CatalogSort,
+} from "@/lib/catalog-sort";
+import { Prisma } from "@prisma/client";
 import type {
   Category,
   CategoryTranslation,
@@ -34,7 +41,6 @@ import type {
   Preparation,
   Salting,
   Coating,
-  Prisma,
 } from "@prisma/client";
 
 export type ProductImageDto = {
@@ -121,6 +127,7 @@ export type CatalogPageDto = {
 export type CatalogRequest = {
   query?: string;
   filters?: string[];
+  sort?: CatalogSort;
   limit?: number;
   offset?: number;
 };
@@ -220,18 +227,15 @@ export type ProductSitemapEntryDto = SlugEntryDto & {
 const defaultPageLimit = 20;
 export const catalogPageSize = 24;
 const maxShortDescriptionLength = 160;
-// Raised from 100: the homepage's "browse everything" grid (see
-// app/[locale]/page.tsx) explicitly requests every active product in one
-// call so client-side search/filtering has the full catalog to work with.
-// The catalog is already ~120 active products (191 total) — above the old
-// cap — so this ceiling now leaves headroom for growth while still guarding
-// against a truly unbounded query.
+// Shared ceiling for older bounded query helpers. The progressive homepage
+// catalog has its own page size and sort-candidate guard below.
 const maxPageLimit = 500;
 const defaultPageOffset = 0;
 
 const preparationFilters = new Set(["RAW", "ROASTED"]);
 const saltingFilters = new Set(["UNSALTED", "SALTED"]);
 const coatingFilters = new Set(["NONE", "CHOCOLATE", "YOGHURT", "FLAVORED"]);
+export const maxCatalogSortCandidates = 500;
 
 export function normalizeCatalogFilterValues(values: string[] | undefined): string[] {
   return Array.from(
@@ -241,6 +245,69 @@ export function normalizeCatalogFilterValues(values: string[] | undefined): stri
         .filter((value) => value.length > 0 && value.length <= 100)
     )
   ).slice(0, 50);
+}
+
+export function buildCatalogVariantWhere(
+  preparations: Preparation[],
+  saltings: Salting[],
+  coatings: Coating[]
+): Prisma.ProductVariantWhereInput {
+  return {
+    isActive: true,
+    ...(preparations.length > 0 ? { preparation: { in: preparations } } : {}),
+    ...(saltings.length > 0 ? { salting: { in: saltings } } : {}),
+    ...(coatings.length > 0 ? { coating: { in: coatings } } : {}),
+  };
+}
+
+type NetSalesRow = { productId: string; soldQuantity: bigint | number };
+
+async function getNetSoldQuantities(productIds: string[]): Promise<Map<string, number>> {
+  if (productIds.length === 0) return new Map();
+
+  const rows = await prisma.$queryRaw<NetSalesRow[]>(Prisma.sql`
+    SELECT
+      pv."productId" AS "productId",
+      SUM(GREATEST(oi."quantity" - COALESCE(refunded."quantity", 0), 0))::bigint AS "soldQuantity"
+    FROM "OrderItem" oi
+    INNER JOIN "Order" o ON o."id" = oi."orderId"
+    INNER JOIN "ProductVariant" pv ON pv."id" = oi."variantId"
+    LEFT JOIN (
+      SELECT ri."orderItemId", SUM(ri."quantity")::integer AS "quantity"
+      FROM "OrderRefundItem" ri
+      INNER JOIN "OrderRefund" r ON r."id" = ri."refundId"
+      WHERE r."status" = 'REFUNDED'
+      GROUP BY ri."orderItemId"
+    ) refunded ON refunded."orderItemId" = oi."id"
+    WHERE
+      o."isTest" = false
+      AND o."status" IN ('PAID', 'FULFILLED', 'REFUNDED')
+      AND pv."productId" IN (${Prisma.join(productIds)})
+    GROUP BY pv."productId"
+  `);
+
+  return new Map(
+    rows.map((row) => [row.productId, Math.max(0, Number(row.soldQuantity) || 0)])
+  );
+}
+
+async function getProductViewCounts(productIds: string[]): Promise<Map<string, number>> {
+  if (productIds.length === 0) return new Map();
+
+  try {
+    const rows = await prisma.productViewMetric.findMany({
+      where: { productId: { in: productIds } },
+      select: { productId: true, viewCount: true },
+    });
+    return new Map(rows.map((row) => [row.productId, row.viewCount]));
+  } catch (error) {
+    // Backward-compatible rollout: a revision can start before the additive
+    // column is deployed. Only the precise missing-column error is tolerated.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+      return new Map();
+    }
+    throw error;
+  }
 }
 
 function toShortDescription(value: string | null | undefined): string | null {
@@ -712,6 +779,7 @@ export async function getCatalogProducts(
 ): Promise<CatalogPageDto> {
   const query = request.query?.trim().slice(0, 100) ?? "";
   const filters = normalizeCatalogFilterValues(request.filters);
+  const sort = normalizeCatalogSort(request.sort ?? defaultCatalogSort);
   const preparations = filters.filter((value) => preparationFilters.has(value)) as Preparation[];
   const saltings = filters.filter((value) => saltingFilters.has(value)) as Salting[];
   const coatings = filters.filter((value) => coatingFilters.has(value)) as Coating[];
@@ -765,14 +833,13 @@ export async function getCatalogProducts(
       },
     });
   }
-  if (preparations.length > 0) {
-    conditions.push({ variants: { some: { isActive: true, preparation: { in: preparations } } } });
-  }
-  if (saltings.length > 0) {
-    conditions.push({ variants: { some: { isActive: true, salting: { in: saltings } } } });
-  }
-  if (coatings.length > 0) {
-    conditions.push({ variants: { some: { isActive: true, coating: { in: coatings } } } });
+  if (preparations.length > 0 || saltings.length > 0 || coatings.length > 0) {
+    conditions.push({
+      // Every selected variant facet must match the same active variant. This
+      // prevents, for example, a raw variant and a separate salted variant
+      // from incorrectly satisfying a combined raw + salted filter.
+      variants: { some: buildCatalogVariantWhere(preparations, saltings, coatings) },
+    });
   }
 
   const where: Prisma.ProductWhereInput = {
@@ -820,18 +887,32 @@ export async function getCatalogProducts(
     },
   } satisfies Prisma.ProductSelect;
 
-  const [total, records] = await prisma.$transaction([
-    prisma.product.count({ where }),
-    prisma.product.findMany({
-      where,
-      select: productSelect,
-      orderBy: [{ slug: "asc" }, { id: "asc" }],
-      take: limit,
-      skip: offset,
-    }),
-  ]);
+  const total = await prisma.product.count({ where });
+  if (total > maxCatalogSortCandidates) {
+    throw new Error(
+      `Catalog sort candidate limit exceeded (${total}/${maxCatalogSortCandidates})`
+    );
+  }
 
-  const products = records.flatMap((product): CatalogProductDto[] => {
+  // The public catalog currently contains far fewer than this explicit cap.
+  // Fetching the bounded candidate set lets every sort use the same derived
+  // sale/variant display price and keeps pagination deterministic.
+  const records = await prisma.product.findMany({
+    where,
+    select: productSelect,
+    orderBy: [{ slug: "asc" }, { id: "asc" }],
+    take: maxCatalogSortCandidates,
+  });
+  const soldQuantities =
+    sort === "POPULAR" || sort === "BEST_SELLING"
+      ? await getNetSoldQuantities(records.map((record) => record.id))
+      : new Map<string, number>();
+  const viewCounts =
+    sort === "POPULAR" || sort === "MOST_VIEWED"
+      ? await getProductViewCounts(records.map((record) => record.id))
+      : new Map<string, number>();
+
+  const candidates = records.flatMap((product) => {
     const translation = resolveTranslation(product.translations, locale);
     if (!translation) return [];
 
@@ -850,7 +931,7 @@ export async function getCatalogProducts(
       locale
     );
 
-    return [{
+    const catalogProduct: CatalogProductDto = {
       id: product.id,
       slug: translation.slug,
       name: translation.name,
@@ -866,8 +947,21 @@ export async function getCatalogProducts(
       category: categoryTranslation
         ? { slug: categoryTranslation.slug, name: categoryTranslation.name }
         : null,
+    };
+
+    return [{
+      product: catalogProduct,
+      id: catalogProduct.id,
+      name: catalogProduct.name,
+      priceCents: catalogProduct.basePriceCents,
+      soldQuantity: soldQuantities.get(product.id) ?? 0,
+      viewCount: viewCounts.get(product.id) ?? 0,
     }];
   });
+
+  const products = sortCatalogCandidates(candidates, sort, locale)
+    .slice(offset, offset + limit)
+    .map((candidate) => candidate.product);
 
   const categoryOptions = allCategories.flatMap((category): CatalogFacetOptionDto[] => {
     const translation = resolveTranslation(category.translations, locale);

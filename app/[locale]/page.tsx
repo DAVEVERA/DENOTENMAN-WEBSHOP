@@ -5,6 +5,7 @@ import {
   getCatalogProducts,
   normalizeCatalogFilterValues,
 } from "@/lib/queries";
+import { normalizeCatalogSort } from "@/lib/catalog-sort";
 import { getHomeSliderProducts } from "@/lib/home-product-slider.server";
 import { getAlternates } from "@/lib/alternates";
 import { buildStorefrontMetadata } from "@/lib/storefront-seo";
@@ -48,7 +49,11 @@ export default async function HomePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ q?: string | string[]; f?: string | string[] }>;
+  searchParams: Promise<{
+    q?: string | string[];
+    f?: string | string[];
+    sort?: string | string[];
+  }>;
 }) {
   const [{ locale: rawLocale }, queryParams] = await Promise.all([params, searchParams]);
 
@@ -63,10 +68,17 @@ export default async function HomePage({
     .slice(0, 100);
   const rawFilters = Array.isArray(queryParams.f) ? queryParams.f[0] : queryParams.f ?? "";
   const initialFilters = normalizeCatalogFilterValues(rawFilters.split(","));
+  const initialSort = normalizeCatalogSort(
+    Array.isArray(queryParams.sort) ? queryParams.sort[0] : queryParams.sort
+  );
   const alternates = await getAlternates(locale, { type: "home" });
   // Keep the initial RSC payload bounded; subsequent catalog pages are fetched on demand.
   const [catalogPage, heroProducts] = await Promise.all([
-    getCatalogProducts(locale, { query: initialQuery, filters: initialFilters }),
+    getCatalogProducts(locale, {
+      query: initialQuery,
+      filters: initialFilters,
+      sort: initialSort,
+    }),
     getHomeSliderProducts(locale),
   ]);
 
@@ -78,6 +90,7 @@ export default async function HomePage({
           initialPage={catalogPage}
           initialQuery={initialQuery}
           initialFilters={initialFilters}
+          initialSort={initialSort}
           locale={locale}
           copy={{
             search: dictionary.common.search,
@@ -103,6 +116,12 @@ export default async function HomePage({
             coatingChocolate: dictionary.filters.coatingChocolate,
             coatingYoghurt: dictionary.filters.coatingYoghurt,
             coatingFlavored: dictionary.filters.coatingFlavored,
+            sortLabel: dictionary.filters.sortLabel,
+            sortPriceLowHigh: dictionary.filters.sortPriceLowHigh,
+            sortPriceHighLow: dictionary.filters.sortPriceHighLow,
+            sortPopular: dictionary.filters.sortPopular,
+            sortBestSelling: dictionary.filters.sortBestSelling,
+            sortMostViewed: dictionary.filters.sortMostViewed,
             reset: dictionary.filters.reset,
             clearAll: dictionary.filters.clearAll,
             closeFilters: dictionary.filters.closeFilters,

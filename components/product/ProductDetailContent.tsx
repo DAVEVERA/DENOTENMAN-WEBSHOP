@@ -16,6 +16,7 @@ import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 import { resolveProductDescription } from "@/lib/product-description";
 import { ProductFaqAccordion } from "@/components/product/ProductFaqAccordion";
+import { ProductViewTracker } from "@/components/product/ProductViewTracker";
 
 const dictionaries = { nl, en, fr };
 const homeLabels = { nl: "Home", en: "Home", fr: "Accueil" } as const;
@@ -97,6 +98,7 @@ export function ProductDetailContent({
 
   return (
     <div className="grid grid-cols-1 gap-7 p-4 sm:p-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-9 lg:p-8">
+      <ProductViewTracker productId={data.id} />
       <nav
         aria-label={breadcrumbLabels[locale]}
         className="-mb-3 min-w-0 text-body-sm text-muted lg:col-span-2"

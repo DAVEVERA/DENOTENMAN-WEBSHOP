@@ -12,6 +12,7 @@ import {
   parseCookieConsent,
   type CookieConsent as CookieConsentState,
 } from "@/lib/cookie-consent";
+import { clearProductViewSessionStorage } from "@/lib/product-view-consent";
 
 const mailchimpConnectedSiteUrl =
   "https://chimpstatic.com/mcjs-connected/js/users/8acdcbab41d6c9a77789a5c6e/e153af6949eb3f4d24a641635.js";
@@ -140,6 +141,9 @@ export function CookieConsent({ locale }: { locale: Locale }) {
     setShowDetails(false);
     window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_EVENT, { detail: next }));
 
+    if (consent?.analytics && !nextAnalytics) {
+      clearProductViewSessionStorage(window.sessionStorage);
+    }
     if (revokedOptionalConsent) {
       deleteOptionalCookies();
       window.location.reload();
