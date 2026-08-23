@@ -12,6 +12,10 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# The production catalogue is statically prerendered and TypeScript can exceed
+# Node's container-aware default heap during this build stage.
+ENV NODE_OPTIONS=--max-old-space-size=4096
+
 # next build statically prerenders product/category pages via
 # generateStaticParams, which queries the database — it needs a real
 # connection at build time, not just at runtime. Passed as a build arg
