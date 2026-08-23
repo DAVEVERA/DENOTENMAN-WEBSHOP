@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="icon" href="notenman-noot-icon.png">
+  <link rel="icon" type="image/webp" href="notenman-noot-icon-64.webp">
   <meta name="theme-color" content="#f3f0e8">
   <title>Interactief lepelpanorama</title>
   <style>
@@ -546,11 +546,11 @@
           role="img"
           aria-label="Extra breed panorama met houten lepels, noten, granen, gedroogd fruit en een honinglepel"
         >
-          <img class="panorama-tile" src="panorama-tiles/panorama-01.png" width="1784" height="1002" alt="" draggable="false" decoding="async" style="left:0">
-          <img class="panorama-tile" src="panorama-tiles/panorama-02.png" width="1784" height="1002" alt="" draggable="false" decoding="async" style="left:1784px">
-          <img class="panorama-tile" src="panorama-tiles/panorama-03.png" width="1784" height="1002" alt="" draggable="false" decoding="async" style="left:3568px">
-          <img class="panorama-tile" src="panorama-tiles/panorama-04.png" width="1784" height="1002" alt="" draggable="false" decoding="async" style="left:5352px">
-          <img class="panorama-tile" src="panorama-tiles/panorama-05.png" width="1784" height="1002" alt="" draggable="false" decoding="async" style="left:7136px">
+          <img class="panorama-tile" src="panorama-tiles/panorama-01.webp" width="1784" height="1002" alt="" draggable="false" decoding="async" loading="eager" fetchpriority="high" style="left:0">
+          <img class="panorama-tile" src="panorama-tiles/panorama-02.webp" width="1784" height="1002" alt="" draggable="false" decoding="async" loading="eager" fetchpriority="low" style="left:1784px">
+          <img class="panorama-tile" src="panorama-tiles/panorama-03.webp" width="1784" height="1002" alt="" draggable="false" decoding="async" loading="lazy" fetchpriority="low" style="left:3568px">
+          <img class="panorama-tile" src="panorama-tiles/panorama-04.webp" width="1784" height="1002" alt="" draggable="false" decoding="async" loading="lazy" fetchpriority="low" style="left:5352px">
+          <img class="panorama-tile" src="panorama-tiles/panorama-05.webp" width="1784" height="1002" alt="" draggable="false" decoding="async" loading="lazy" fetchpriority="low" style="left:7136px">
         </div>
         <div class="hotspots" id="hotspots" aria-label="Productpunten in de panorama"></div>
       </div>
@@ -665,12 +665,18 @@
       const hotspotCenters = [128, 345, 562, 784, 998, 1218, 1438, 1698, 1916, 2134, 2350, 2570, 2790, 3010, 3268, 3488, 3706, 3923, 4141, 4361, 4581, 4844, 5062, 5280, 5506, 5723, 5942, 6162, 6397, 6608, 6818, 7026, 7242, 7455, 7680, 7890, 8094, 8292, 8496, 8717];
       const hotspotBoundaries = [0, ...hotspotCenters.slice(0, -1).map((center, index) => Math.floor((center + hotspotCenters[index + 1]) / 2)), 8920];
       const spoonLayers = [];
+      const spoonAssets = [];
       const spoonReleaseTimers = new WeakMap();
+      const viewportMetrics = { width: 1, height: 1 };
+      const panelMetrics = { width: 264, height: 560 };
 
       let activeProductId = '';
       let activeHotspot = null;
       let closeTimer = 0;
       let suppressFocusOpen = false;
+      let resizeFrame = 0;
+      let spoonWindowFrame = 0;
+      let loadedSpoonWindow = '';
 
       const state = {
         naturalWidth: 8920,
@@ -711,20 +717,54 @@
 
       function positionProductPanel() {
         if (!activeHotspot || mobileQuery.matches || !productPanel.classList.contains('is-open')) return;
-        const markerRect = activeHotspot.getBoundingClientRect();
-        const markerX = markerRect.left + markerRect.width / 2;
-        const markerY = markerRect.top + markerRect.height / 2;
-        const width = productPanel.offsetWidth || 264;
-        const height = productPanel.offsetHeight || 560;
+        const scale = currentScale();
+        const markerX = state.x + Number(activeHotspot.dataset.x) * scale;
+        const markerY = state.y + Number(activeHotspot.dataset.y) * scale;
+        const { width, height } = panelMetrics;
         const gap = 24;
-        const left = markerX + gap + width <= viewport.clientWidth - 16
+        const left = markerX + gap + width <= viewportMetrics.width - 16
           ? markerX + gap
           : markerX - width - gap;
-        productPanel.style.left = `${clamp(left, 16, Math.max(16, viewport.clientWidth - width - 16))}px`;
-        productPanel.style.top = `${clamp(markerY - 112, 16, Math.max(16, viewport.clientHeight - height - 16))}px`;
+        productPanel.style.left = `${clamp(left, 16, Math.max(16, viewportMetrics.width - width - 16))}px`;
+        productPanel.style.top = `${clamp(markerY - 112, 16, Math.max(16, viewportMetrics.height - height - 16))}px`;
+      }
+
+      function loadSpoonAsset(index) {
+        const asset = spoonAssets[index];
+        if (!asset) return;
+        [asset.background, asset.image].forEach((element) => {
+          if (!element.hasAttribute('src') && element.dataset.src) element.src = element.dataset.src;
+        });
+      }
+
+      function loadVisibleSpoonAssets() {
+        const scale = currentScale();
+        const visibleStart = clamp(-state.x / scale, 0, state.naturalWidth);
+        const visibleEnd = clamp((viewportMetrics.width - state.x) / scale, 0, state.naturalWidth);
+        const firstVisible = hotspotBoundaries.findIndex((boundary, index) => index < productSequence.length && hotspotBoundaries[index + 1] >= visibleStart);
+        const lastVisible = Math.max(firstVisible, hotspotBoundaries.findLastIndex((boundary) => boundary <= visibleEnd));
+        const start = Math.max(0, firstVisible - 2);
+        const end = Math.min(productSequence.length - 1, lastVisible + 2);
+        const nextWindow = `${start}:${end}`;
+        if (nextWindow === loadedSpoonWindow) return;
+        loadedSpoonWindow = nextWindow;
+        for (let index = start; index <= end; index += 1) loadSpoonAsset(index);
+      }
+
+      function scheduleVisibleSpoonAssets() {
+        if (spoonWindowFrame) return;
+        spoonWindowFrame = window.requestAnimationFrame(() => {
+          spoonWindowFrame = 0;
+          loadVisibleSpoonAssets();
+        });
       }
 
       function setActiveSpoon(activeIndex = -1) {
+        if (activeIndex >= 0) {
+          loadSpoonAsset(activeIndex - 1);
+          loadSpoonAsset(activeIndex);
+          loadSpoonAsset(activeIndex + 1);
+        }
         spoonLayers.forEach((layer, index) => {
           const distance = activeIndex < 0 ? Number.POSITIVE_INFINITY : Math.abs(index - activeIndex);
           const nextClass = distance === 0 ? 'is-active' : distance === 1 ? 'is-neighbor' : '';
@@ -810,6 +850,7 @@
       }
 
       function initializeHotspots() {
+        const layerFragment = document.createDocumentFragment();
         productSequence.forEach((productId, index) => {
           const left = hotspotBoundaries[index];
           const width = hotspotBoundaries[index + 1] - left;
@@ -821,14 +862,14 @@
           layer.style.width = `${width}px`;
           layer.setAttribute('aria-hidden', 'true');
           background.className = 'spoon-background';
-          background.src = `spoon-layers/spoon-background-${String(index + 1).padStart(2, '0')}.png`;
+          background.dataset.src = `spoon-layers/spoon-background-${String(index + 1).padStart(2, '0')}.webp`;
           background.alt = '';
           background.width = width;
           background.height = 1002;
           background.draggable = false;
           background.decoding = 'async';
           image.className = 'spoon-image';
-          image.src = `spoon-layers/spoon-${String(index + 1).padStart(2, '0')}.png`;
+          image.dataset.src = `spoon-layers/spoon-${String(index + 1).padStart(2, '0')}.webp`;
           image.alt = '';
           image.width = width;
           image.height = 1002;
@@ -836,10 +877,13 @@
           image.decoding = 'async';
           layer.appendChild(background);
           layer.appendChild(image);
-          hotspotsElement.appendChild(layer);
+          layerFragment.appendChild(layer);
           spoonLayers.push(layer);
+          spoonAssets.push({ background, image });
         });
+        hotspotsElement.appendChild(layerFragment);
 
+        const buttonFragment = document.createDocumentFragment();
         productSequence.forEach((productId, index) => {
           const product = products[productId];
           const button = document.createElement('button');
@@ -853,7 +897,7 @@
           button.style.top = '175px';
           button.setAttribute('aria-label', `${product.name} bekijken`);
           button.setAttribute('aria-expanded', 'false');
-          button.innerHTML = '<img class="hotspot-icon" src="notenman-noot-icon.png" alt="" width="30" height="30" draggable="false">';
+          button.innerHTML = '<img class="hotspot-icon" src="notenman-noot-icon-64.webp" alt="" width="30" height="30" draggable="false" decoding="async">';
           button.addEventListener('pointerdown', (event) => event.stopPropagation());
           button.addEventListener('mouseenter', () => {
             if (!mobileQuery.matches) openProduct(productId, button, 'hover');
@@ -871,8 +915,9 @@
               openProduct(productId, button, 'click');
             }
           });
-          hotspotsElement.appendChild(button);
+          buttonFragment.appendChild(button);
         });
+        hotspotsElement.appendChild(buttonFragment);
       }
 
       productPanel.addEventListener('mouseenter', cancelScheduledClose);
@@ -904,18 +949,18 @@
 
       function horizontalBounds() {
         const scaledWidth = state.naturalWidth * currentScale();
-        const edge = Math.min(34, viewport.clientWidth * 0.035);
+        const edge = Math.min(34, viewportMetrics.width * 0.035);
         return {
           max: edge,
-          min: Math.min(edge, viewport.clientWidth - scaledWidth - edge)
+          min: Math.min(edge, viewportMetrics.width - scaledWidth - edge)
         };
       }
 
       function verticalBounds() {
         const scaledHeight = state.naturalHeight * currentScale();
-        const center = (viewport.clientHeight - scaledHeight) / 2;
-        if (scaledHeight <= viewport.clientHeight) return { min: center, max: center };
-        return { min: viewport.clientHeight - scaledHeight - 22, max: 22 };
+        const center = (viewportMetrics.height - scaledHeight) / 2;
+        if (scaledHeight <= viewportMetrics.height) return { min: center, max: center };
+        return { min: viewportMetrics.height - scaledHeight - 22, max: 22 };
       }
 
       function constrain() {
@@ -940,6 +985,7 @@
           world.style.transform = `translate3d(${state.x.toFixed(2)}px, ${state.y.toFixed(2)}px, 0) scale(${scale.toFixed(5)})`;
         }
         positionProductPanel();
+        scheduleVisibleSpoonAssets();
       }
 
       function dismissCoach() {
@@ -953,14 +999,25 @@
         render();
       }
 
-      function resizeLayout(preserveProgress = true) {
+      function resizeLayout(preserveProgress = true, nextWidth = viewportMetrics.width, nextHeight = viewportMetrics.height) {
         const previousProgress = preserveProgress ? progressValue() : 0;
         const visibleSpoonFraction = 0.75;
-        state.baseScale = viewport.clientHeight / (state.naturalHeight * visibleSpoonFraction);
+        viewportMetrics.width = Math.max(1, nextWidth);
+        viewportMetrics.height = Math.max(1, nextHeight);
+        state.baseScale = viewportMetrics.height / (state.naturalHeight * visibleSpoonFraction);
         panorama.style.width = `${state.naturalWidth}px`;
         panorama.style.height = `${state.naturalHeight}px`;
         state.y = 0;
+        loadedSpoonWindow = '';
         setProgress(previousProgress);
+      }
+
+      function scheduleResize(width, height) {
+        if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+        resizeFrame = window.requestAnimationFrame(() => {
+          resizeFrame = 0;
+          resizeLayout(true, width, height);
+        });
       }
 
       function resetView(announce = true) {
@@ -971,7 +1028,7 @@
         if (announce) status.textContent = 'Weergave hersteld.';
       }
 
-      function zoomAt(nextZoom, clientX = viewport.clientWidth / 2, clientY = viewport.clientHeight / 2) {
+      function zoomAt(nextZoom, clientX = viewportMetrics.width / 2, clientY = viewportMetrics.height / 2) {
         const oldScale = currentScale();
         const worldX = (clientX - state.x) / oldScale;
         const worldY = (clientY - state.y) / oldScale;
@@ -988,7 +1045,7 @@
         stopTour();
         cancelInertia();
         dismissCoach();
-        state.x -= direction * viewport.clientWidth * 0.58;
+        state.x -= direction * viewportMetrics.width * 0.58;
         constrain();
         render();
       }
@@ -1210,10 +1267,20 @@
       };
       panoramaTiles.forEach((tile) => tile.addEventListener('error', showPanoramaError));
 
-      window.addEventListener('resize', () => resizeLayout(true), { passive: true });
-      new ResizeObserver(() => resizeLayout(true)).observe(viewport);
+      new ResizeObserver(([entry]) => {
+        scheduleResize(entry.contentRect.width, entry.contentRect.height);
+      }).observe(viewport);
+      new ResizeObserver(([entry]) => {
+        const borderBox = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
+        panelMetrics.width = borderBox?.inlineSize || entry.contentRect.width || panelMetrics.width;
+        panelMetrics.height = borderBox?.blockSize || entry.contentRect.height || panelMetrics.height;
+        positionProductPanel();
+      }).observe(productPanel);
 
       initializeHotspots();
+      const initialViewportRect = viewport.getBoundingClientRect();
+      viewportMetrics.width = initialViewportRect.width;
+      viewportMetrics.height = initialViewportRect.height;
       resetView(false);
     })();
   </script>

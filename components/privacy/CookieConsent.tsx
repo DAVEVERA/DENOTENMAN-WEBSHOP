@@ -7,6 +7,7 @@ import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { denyGoogleAnalyticsConsent } from "@/lib/analytics";
 import {
   COOKIE_CONSENT_EVENT,
+  COOKIE_CONSENT_KNOWN_ATTRIBUTE,
   COOKIE_CONSENT_STORAGE_KEY,
   COOKIE_SETTINGS_EVENT,
   createCookieConsent,
@@ -96,9 +97,8 @@ function deleteOptionalCookies() {
 
 export function CookieConsent({ locale }: { locale: Locale }) {
   const labels = copy[locale];
-  const [ready, setReady] = useState(false);
   const [consent, setConsent] = useState<CookieConsentState | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
@@ -110,9 +110,14 @@ export function CookieConsent({ locale }: { locale: Locale }) {
     setAnalytics(stored?.analytics ?? false);
     setMarketing(stored?.marketing ?? false);
     setOpen(!stored);
-    setReady(true);
+    if (stored) {
+      document.documentElement.setAttribute(COOKIE_CONSENT_KNOWN_ATTRIBUTE, "true");
+    } else {
+      document.documentElement.removeAttribute(COOKIE_CONSENT_KNOWN_ATTRIBUTE);
+    }
 
     function openSettings() {
+      document.documentElement.removeAttribute(COOKIE_CONSENT_KNOWN_ATTRIBUTE);
       setShowDetails(true);
       setOpen(true);
     }
@@ -140,6 +145,7 @@ export function CookieConsent({ locale }: { locale: Locale }) {
     }
 
     window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, JSON.stringify(next));
+    document.documentElement.setAttribute(COOKIE_CONSENT_KNOWN_ATTRIBUTE, "true");
     setConsent(next);
     setAnalytics(nextAnalytics);
     setMarketing(nextMarketing);
@@ -166,8 +172,8 @@ export function CookieConsent({ locale }: { locale: Locale }) {
         <Script id="mailchimp-connected-site" src={mailchimpConnectedSiteUrl} strategy="lazyOnload" />
       ) : null}
 
-      {ready && open ? (
-        <div className="fixed inset-x-0 bottom-0 z-[100] p-3 sm:p-5">
+      {open ? (
+        <div data-cookie-consent-banner className="fixed inset-x-0 bottom-0 z-[100] p-3 sm:p-5">
           <section
             role={showDetails ? "dialog" : "region"}
             aria-modal={showDetails || undefined}
@@ -226,7 +232,7 @@ export function CookieConsent({ locale }: { locale: Locale }) {
             </div>
 
             {consent ? (
-              <button type="button" onClick={() => { setOpen(false); setShowDetails(false); }} className="mt-4 min-h-11 text-sm font-semibold text-muted underline underline-offset-4">
+              <button type="button" onClick={() => { document.documentElement.setAttribute(COOKIE_CONSENT_KNOWN_ATTRIBUTE, "true"); setOpen(false); setShowDetails(false); }} className="mt-4 min-h-11 text-sm font-semibold text-muted underline underline-offset-4">
                 {labels.close}
               </button>
             ) : null}

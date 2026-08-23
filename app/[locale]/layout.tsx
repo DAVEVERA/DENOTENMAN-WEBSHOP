@@ -8,6 +8,7 @@ import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 import { CookieConsent } from "@/components/privacy/CookieConsent";
+import { COOKIE_CONSENT_BOOTSTRAP_SCRIPT } from "@/lib/cookie-consent-bootstrap";
 import "@/app/globals.css";
 
 const dosis = Dosis({
@@ -55,6 +56,7 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${dosis.variable} ${montserrat.variable}`}>
       <body className="bg-background font-body text-text">
+        <script dangerouslySetInnerHTML={{ __html: COOKIE_CONSENT_BOOTSTRAP_SCRIPT }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

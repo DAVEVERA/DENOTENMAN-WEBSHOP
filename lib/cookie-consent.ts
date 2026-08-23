@@ -1,6 +1,7 @@
 export const COOKIE_CONSENT_STORAGE_KEY = "denotenman-cookie-consent-v1";
 export const COOKIE_CONSENT_EVENT = "denotenman-cookie-consent-change";
 export const COOKIE_SETTINGS_EVENT = "denotenman-open-cookie-settings";
+export const COOKIE_CONSENT_KNOWN_ATTRIBUTE = "data-cookie-consent-known";
 export const COOKIE_CONSENT_VERSION = 1;
 export const COOKIE_CONSENT_LIFETIME_DAYS = 180;
 

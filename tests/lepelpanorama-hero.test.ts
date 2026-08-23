@@ -13,25 +13,41 @@ test("the production hero keeps the supplied runtime and complete asset set", as
     readdir(path.join(assetDirectory, "spoon-layers")),
   ]);
 
-  assert.equal(panoramaTiles.length, 5);
-  assert.equal(productImages.length, 19);
-  assert.equal(spoonLayers.filter((name) => /^spoon-\d{2}\.png$/.test(name)).length, 40);
-  assert.equal(
-    spoonLayers.filter((name) => /^spoon-background-\d{2}\.png$/.test(name)).length,
-    40
-  );
-  assert.equal((await stat(path.join(assetDirectory, "notenman-noot-icon.png"))).isFile(), true);
+  const optimizedPanoramaTiles = panoramaTiles.filter((name) => /^panorama-\d{2}\.webp$/.test(name));
+  const optimizedSpoonLayers = spoonLayers.filter((name) => /^spoon-(?:background-)?\d{2}\.webp$/.test(name));
+  const panoramaBytes = (
+    await Promise.all(optimizedPanoramaTiles.map((name) => stat(path.join(assetDirectory, "panorama-tiles", name))))
+  ).reduce((total, file) => total + file.size, 0);
+  const spoonBytes = (
+    await Promise.all(optimizedSpoonLayers.map((name) => stat(path.join(assetDirectory, "spoon-layers", name))))
+  ).reduce((total, file) => total + file.size, 0);
 
+  assert.equal(optimizedPanoramaTiles.length, 5);
+  assert.equal(productImages.length, 19);
+  assert.equal(optimizedSpoonLayers.filter((name) => /^spoon-\d{2}\.webp$/.test(name)).length, 40);
+  assert.equal(optimizedSpoonLayers.filter((name) => /^spoon-background-\d{2}\.webp$/.test(name)).length, 40);
+  assert.ok(panoramaBytes < 1_200_000);
+  assert.ok(spoonBytes < 1_300_000);
+  assert.ok((await stat(path.join(assetDirectory, "notenman-noot-icon-64.webp"))).size < 3_000);
+
+  assert.match(html, /panorama-01\.webp[^>]+fetchpriority="high"/);
+  assert.match(html, /background\.dataset\.src = `spoon-layers\/spoon-background-/);
+  assert.match(html, /function scheduleVisibleSpoonAssets\(\)/);
+  assert.match(html, /notenman-noot-icon-64\.webp/);
+  assert.doesNotMatch(html, /panorama-tiles\/panorama-\d{2}\.png/);
+  assert.doesNotMatch(html, /spoon-layers\/spoon-(?:background-)?\$\{[^\n]+\.png/);
   assert.match(html, /viewport\.addEventListener\('pointermove'/);
   assert.match(html, /viewport\.addEventListener\('wheel'/);
   assert.match(html, /function startTour\(\)/);
   assert.match(html, /function openProduct\(/);
   assert.match(html, /function setActiveSpoon\(/);
   assert.match(html, /visibleSpoonFraction = 0\.75/);
-  assert.match(html, /state\.baseScale = viewport\.clientHeight/);
+  assert.match(html, /state\.baseScale = viewportMetrics\.height/);
   assert.match(html, /state\.y = 0/);
   assert.match(html, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(html, /navigator\s*\.\s*serviceWorker|serviceWorker\s*\./i);
+  assert.doesNotMatch(html, /activeHotspot\.getBoundingClientRect|productPanel\.offset(?:Width|Height)/);
+  assert.doesNotMatch(html, /window\.addEventListener\('resize'/);
   assert.doesNotMatch(html, /window\.(?:top|parent|opener|open)|document\.domain|<form\b/i);
 });
 
