@@ -955,12 +955,11 @@
 
       function resizeLayout(preserveProgress = true) {
         const previousProgress = preserveProgress ? progressValue() : 0;
-        const reserved = mobileQuery.matches ? 68 : 74;
-        const usableHeight = Math.max(190, viewport.clientHeight - reserved);
-        state.baseScale = usableHeight / state.naturalHeight;
+        const visibleSpoonFraction = 0.75;
+        state.baseScale = viewport.clientHeight / (state.naturalHeight * visibleSpoonFraction);
         panorama.style.width = `${state.naturalWidth}px`;
         panorama.style.height = `${state.naturalHeight}px`;
-        state.y = (viewport.clientHeight - state.naturalHeight * currentScale()) / 2;
+        state.y = 0;
         setProgress(previousProgress);
       }
 
@@ -1198,6 +1197,7 @@
       });
 
       mobileQuery.addEventListener('change', () => {
+        resizeLayout(true);
         if (!productPanel.classList.contains('is-open')) return;
         productBackdrop.classList.toggle('is-open', mobileQuery.matches);
         window.requestAnimationFrame(positionProductPanel);

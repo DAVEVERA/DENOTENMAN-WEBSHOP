@@ -6,13 +6,12 @@ import {
   normalizeCatalogFilterValues,
 } from "@/lib/queries";
 import { normalizeCatalogSort } from "@/lib/catalog-sort";
-import { getHomeSliderProducts } from "@/lib/home-product-slider.server";
 import { getAlternates } from "@/lib/alternates";
 import { buildStorefrontMetadata } from "@/lib/storefront-seo";
 import { Container } from "@/components/ui/Container";
 import { ProductBrowser } from "@/components/product/ProductBrowser";
 import { SiteShell } from "@/components/layout/SiteShell";
-import { VisualHero } from "@/components/layout/VisualHero";
+import { LepelPanoramaHero } from "@/components/home/LepelPanoramaHero";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -73,18 +72,15 @@ export default async function HomePage({
   );
   const alternates = await getAlternates(locale, { type: "home" });
   // Keep the initial RSC payload bounded; subsequent catalog pages are fetched on demand.
-  const [catalogPage, heroProducts] = await Promise.all([
-    getCatalogProducts(locale, {
-      query: initialQuery,
-      filters: initialFilters,
-      sort: initialSort,
-    }),
-    getHomeSliderProducts(locale),
-  ]);
+  const catalogPage = await getCatalogProducts(locale, {
+    query: initialQuery,
+    filters: initialFilters,
+    sort: initialSort,
+  });
 
   return (
     <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
-      <VisualHero locale={locale} dictionary={dictionary} products={heroProducts} />
+      <LepelPanoramaHero />
       <Container className="py-8 sm:py-10">
         <ProductBrowser
           initialPage={catalogPage}

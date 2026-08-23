@@ -1,8 +1,7 @@
 .hero {
   position: relative;
   width: 100%;
-  height: 100svh;
-  min-height: 32rem;
+  height: clamp(24rem, 56svh, 30rem);
   overflow: hidden;
   background: #f3f0e8;
   isolation: isolate;
@@ -16,8 +15,8 @@
   background: #f3f0e8;
 }
 
-@media (max-width: 720px) {
+@media (min-width: 721px) {
   .hero {
-    min-height: 30rem;
+    height: clamp(30rem, 68svh, 42rem);
   }
 }

@@ -56,16 +56,11 @@ test("carousel index wrapping is stable in both directions", () => {
   assert.equal(wrapHomeSliderIndex(0, 0), 0);
 });
 
-test("the homepage fetches one server-side slider DTO list and removes the old hotspot hero", async () => {
+test("the homepage uses the spoon panorama without a slider database query", async () => {
   const pageSource = await readFile("app/[locale]/page.tsx", "utf8");
-  const querySource = await readFile("lib/home-product-slider.server.ts", "utf8");
 
-  assert.match(pageSource, /getHomeSliderProducts\(locale\)/);
-  assert.match(pageSource, /products=\{heroProducts\}/);
-  assert.doesNotMatch(pageSource, /getHeroProductHotspots|heroHotspots|FeaturedBanner/);
-  assert.match(querySource, /sku:\s*\{ in: HOME_SLIDER_SKUS \}/);
-  assert.match(querySource, /isActive:\s*true/);
-  assert.doesNotMatch(querySource, /findUnique|findFirst/);
+  assert.match(pageSource, /<LepelPanoramaHero\s*\/>/);
+  assert.doesNotMatch(pageSource, /getHomeSliderProducts|heroProducts|<VisualHero/);
 });
 
 test("the client carousel exposes infinite motion, swipe, keyboard and existing cart actions", async () => {
