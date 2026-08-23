@@ -30,6 +30,7 @@ import { NativeCategoryLink } from "@/components/layout/NativeCategoryLink";
 import { NavbarSearch } from "@/components/layout/NavbarSearch";
 import { cn } from "@/lib/cn";
 import { useStorefrontState } from "@/lib/storefront-state";
+import { CUSTOMER_SERVICE_WHATSAPP_URL } from "@/lib/customer-service";
 
 const focusableSelector =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
@@ -459,6 +460,13 @@ export function MobileNav({
                   >
                     {dictionary.nav.account}
                   </Link>
+                  <a
+                    href={CUSTOMER_SERVICE_WHATSAPP_URL}
+                    onClick={followLink}
+                    className="flex min-h-12 touch-manipulation items-center rounded-button px-3 py-3 font-heading font-bold hover:bg-background"
+                  >
+                    {dictionary.nav.customerService}
+                  </a>
                   <div className="mt-2 border-t border-border px-3 pt-4">
                     <LocaleSwitcher currentLocale={locale} languages={languages} />
                   </div>

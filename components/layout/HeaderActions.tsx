@@ -7,6 +7,7 @@ import { account as accountPath, cart as cartPath } from "@/lib/routes";
 import { pagePath } from "@/lib/pages";
 import { useStorefrontState } from "@/lib/storefront-state";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
+import { CUSTOMER_SERVICE_WHATSAPP_URL } from "@/lib/customer-service";
 
 const iconButtonClass =
   "relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background text-text shadow-card transition-colors duration-hover-fast hover:border-border-hover hover:text-accent-hover";
@@ -46,7 +47,7 @@ export function HeaderActions({
         {dictionary.nav.business}
       </a>
       <a
-        href={pagePath("contact", locale)}
+        href={CUSTOMER_SERVICE_WHATSAPP_URL}
         className={utilityLinkClass}
       >
         {dictionary.nav.customerService}
