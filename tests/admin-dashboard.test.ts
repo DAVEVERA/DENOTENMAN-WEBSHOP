@@ -79,6 +79,14 @@ test("dashboard is request-time and admin API routes authenticate before returni
   assert.doesNotMatch(provider, /GA4_PROPERTY_ID\?\.trim\(\) \|\|/);
 });
 
+test("GA4 property configuration survives both Cloud Run deployment paths", () => {
+  for (const path of ["cloudbuild.yaml", "cloudbuild-trigger.yaml"]) {
+    const build = readFileSync(path, "utf8");
+    assert.match(build, /--update-env-vars=GA4_PROPERTY_ID=\$\{_GA4_PROPERTY_ID\}/);
+    assert.match(build, /_GA4_PROPERTY_ID:\s*"549991816"/);
+  }
+});
+
 test("customer service uses the supplied WhatsApp Business number", () => {
   assert.equal(CUSTOMER_SERVICE_WHATSAPP_URL, "https://wa.me/31411700232");
 });

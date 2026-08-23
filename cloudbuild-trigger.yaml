@@ -78,6 +78,7 @@ steps:
       - "--image=${_IMAGE_BASE}:${_COMMIT_SHA}"
       - "--region=europe-west4"
       - "--platform=managed"
+      - "--update-env-vars=GA4_PROPERTY_ID=${_GA4_PROPERTY_ID}"
       - "--no-traffic"
       - "--quiet"
 
@@ -94,6 +95,7 @@ substitutions:
   _IMAGE_BASE: "europe-west4-docker.pkg.dev/project-5dc79156-4200-4528-bfc/denotenman-webshop/storefront"
   _CDN_BASE_URL: "https://storage.googleapis.com/notenbucket"
   _SITE_URL: "https://denotenman.com"
+  _GA4_PROPERTY_ID: "549991816"
   _UNLIMITED_STOCK: "true"
 
 availableSecrets:

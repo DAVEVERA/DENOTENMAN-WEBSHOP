@@ -68,6 +68,7 @@ steps:
       - "--image=${_IMAGE}"
       - "--region=europe-west4"
       - "--platform=managed"
+      - "--update-env-vars=GA4_PROPERTY_ID=${_GA4_PROPERTY_ID}"
       - "--no-traffic"
       - "--quiet"
 
@@ -78,6 +79,7 @@ substitutions:
   _IMAGE: europe-west4-docker.pkg.dev/project-5dc79156-4200-4528-bfc/denotenman-webshop/storefront:latest
   _CDN_BASE_URL: https://storage.googleapis.com/notenbucket
   _SITE_URL: https://denotenman.com
+  _GA4_PROPERTY_ID: "549991816"
   # TEMPORARY: see UNLIMITED_STOCK note in lib/orders.ts — remove once real
   # inventory is imported. Must match the runtime Cloud Run env var, since
   # product/category pages are statically prerendered at build time.
