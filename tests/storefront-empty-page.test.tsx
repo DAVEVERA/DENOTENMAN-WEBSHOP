@@ -22,7 +22,7 @@ test("keeps the artwork decorative while exposing the message as real text", asy
   assert.match(component, /alt=""/);
   assert.match(component, /aria-labelledby="squirrel-empty-title"/);
   assert.match(component, /title: "404 – Pagina is momenteel niet bereikbaar"/);
-  assert.match(component, /Deze pagina maakt deel uit van een plaats delict/);
+  assert.match(component, /Deze pagina maakt momenteel deel uit van een plaats delict/);
 });
 
 test("routes known empty content pages and unknown storefront URLs through the same state", async () => {

@@ -218,6 +218,8 @@
     "carouselLabel": "Productcarrousel",
     "pauseMotion": "Pauzeer de productcarrousel",
     "resumeMotion": "Start de productcarrousel",
+    "previousProduct": "Vorig product",
+    "nextProduct": "Volgend product",
     "productPosition": "Product {current} van {total}",
     "fromPrice": "Vanaf",
     "favoritesTitle": "Onze favorieten",

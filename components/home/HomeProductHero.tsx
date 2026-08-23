@@ -22,6 +22,8 @@ export function HomeProductHero({
             carouselLabel: dictionary.hero.carouselLabel,
             pauseMotion: dictionary.hero.pauseMotion,
             resumeMotion: dictionary.hero.resumeMotion,
+            previousProduct: dictionary.hero.previousProduct,
+            nextProduct: dictionary.hero.nextProduct,
             openProduct: dictionary.product.openQuickView,
             position: dictionary.hero.productPosition,
             fromPrice: dictionary.hero.fromPrice,

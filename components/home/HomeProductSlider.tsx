@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   Heart,
   Pause,
   Play,
@@ -35,6 +37,8 @@ type HomeProductSliderCopy = {
   carouselLabel: string;
   pauseMotion: string;
   resumeMotion: string;
+  previousProduct: string;
+  nextProduct: string;
   openProduct: string;
   position: string;
   fromPrice: string;
@@ -116,9 +120,9 @@ export function HomeProductSlider({
     }
   }, []);
 
-  const syncActiveIndexToScroll = useCallback(() => {
+  const closestIndexToScroll = useCallback(() => {
     const viewport = viewportRef.current;
-    if (!viewport || products.length === 0) return;
+    if (!viewport || products.length === 0) return 0;
 
     const viewportCenter = viewport.scrollLeft + viewport.clientWidth / 2;
     let closestIndex = 0;
@@ -134,8 +138,13 @@ export function HomeProductSlider({
       }
     });
 
-    setActiveIndex((current) => (current === closestIndex ? current : closestIndex));
+    return closestIndex;
   }, [products.length]);
+
+  const syncActiveIndexToScroll = useCallback(() => {
+    const closestIndex = closestIndexToScroll();
+    setActiveIndex((current) => (current === closestIndex ? current : closestIndex));
+  }, [closestIndexToScroll]);
 
   const handleScroll = useCallback(() => {
     if (scrollFrameRef.current !== null) return;
@@ -291,7 +300,8 @@ export function HomeProductSlider({
   const step = useCallback(
     (direction: -1 | 1, moveFocus = false) => {
       if (products.length < 2) return;
-      const nextIndex = wrapHomeSliderIndex(activeIndex + direction, products.length);
+      const currentIndex = closestIndexToScroll();
+      const nextIndex = wrapHomeSliderIndex(currentIndex + direction, products.length);
       setActiveIndex(nextIndex);
       if (activeProduct) {
         setActiveKey(products[nextIndex]?.key ?? null);
@@ -304,14 +314,14 @@ export function HomeProductSlider({
       );
       pauseForInteraction();
       const setOffset =
-        activeIndex === 0 && direction === -1
+        currentIndex === 0 && direction === -1
           ? -1
-          : activeIndex === products.length - 1 && direction === 1
+          : currentIndex === products.length - 1 && direction === 1
             ? 1
             : 0;
       focusProduct(nextIndex, moveFocus, setOffset);
     },
-    [activeIndex, activeProduct, copy.position, focusProduct, pauseForInteraction, products],
+    [activeProduct, closestIndexToScroll, copy.position, focusProduct, pauseForInteraction, products],
   );
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
@@ -444,14 +454,41 @@ export function HomeProductSlider({
       onKeyDown={handleKeyDown}
     >
       {!activeProduct && !isReducedMotion && products.length > 1 ? (
-        <button
-          type="button"
-          className={styles.motionButton}
-          aria-label={isManuallyPaused ? copy.resumeMotion : copy.pauseMotion}
-          onClick={() => setIsManuallyPaused((paused) => !paused)}
+        <div
+          className={styles.mobileControls}
+          role="group"
+          aria-label={copy.carouselLabel}
         >
-          {isManuallyPaused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
-        </button>
+          <button
+            type="button"
+            className={`${styles.mobileControl} ${styles.previousControl}`}
+            aria-label={copy.previousProduct}
+            onClick={() => step(-1)}
+          >
+            <ChevronLeft aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`${styles.mobileControl} ${styles.motionButton}`}
+            aria-label={isManuallyPaused ? copy.resumeMotion : copy.pauseMotion}
+            aria-pressed={isManuallyPaused}
+            onClick={() => setIsManuallyPaused((paused) => !paused)}
+          >
+            {isManuallyPaused ? (
+              <Play aria-hidden="true" fill="none" />
+            ) : (
+              <Pause aria-hidden="true" fill="none" />
+            )}
+          </button>
+          <button
+            type="button"
+            className={`${styles.mobileControl} ${styles.nextControl}`}
+            aria-label={copy.nextProduct}
+            onClick={() => step(1)}
+          >
+            <ChevronRight aria-hidden="true" />
+          </button>
+        </div>
       ) : null}
       <div
         ref={viewportRef}

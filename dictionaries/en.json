@@ -218,6 +218,8 @@
     "carouselLabel": "Product carousel",
     "pauseMotion": "Pause the product carousel",
     "resumeMotion": "Start the product carousel",
+    "previousProduct": "Previous product",
+    "nextProduct": "Next product",
     "productPosition": "Product {current} of {total}",
     "fromPrice": "From",
     "favoritesTitle": "Our favourites",
