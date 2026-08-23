@@ -103,8 +103,6 @@ test("mobile branch label navigates while a separate control opens its children"
       category: NavigationCategoryDto;
       locale: "nl";
       submenuLabel: string;
-      subcategoryLabel: string;
-      subcategoriesLabel: string;
       emphasized?: boolean;
       onFollow: () => void;
       onOpen: () => void;
@@ -119,8 +117,6 @@ test("mobile branch label navigates while a separate control opens its children"
       category={category("chocolade", [category("chocolade-amandelen")])}
       locale="nl"
       submenuLabel="Open submenu voor {category}"
-      subcategoryLabel="{count} subcategorie"
-      subcategoriesLabel="{count} subcategorieën"
       onFollow={() => undefined}
       onOpen={() => undefined}
     />
@@ -128,7 +124,7 @@ test("mobile branch label navigates while a separate control opens its children"
 
   assert.match(markup, /<a[^>]+href="\/nl\/categorie\/chocolade"/);
   assert.match(markup, /<button[^>]+aria-label="Open submenu voor chocolade"/);
-  assert.match(markup, />1 subcategorie</);
+  assert.doesNotMatch(markup, /subcategorie/i);
   assert.match(markup, /min-h-12/);
   assert.match(markup, /min-w-12/);
 });
@@ -142,8 +138,7 @@ test("mobile menu provides drilldown, back, overview and 44px touch targets", ()
   assert.match(source, /setLevel\(\[\.\.\.categoryIds, category\.id\]\)/);
   assert.match(source, /categoryIds\.slice\(0, -1\)/);
   assert.match(source, /dictionary\.nav\.viewAllCategory/);
-  assert.match(source, /dictionary\.nav\.chooseSubcategory/);
-  assert.match(source, /dictionary\.nav\.subcategoriesCount/);
+  assert.doesNotMatch(source, /subcategor/i);
   assert.match(source, /previousPathnameRef/);
   assert.match(source, /levelHeadingRef\.current\?\.focus\(\)/);
   assert.match(source, /min-h-11/);

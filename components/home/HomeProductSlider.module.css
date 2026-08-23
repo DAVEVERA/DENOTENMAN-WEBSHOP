@@ -48,7 +48,11 @@
 }
 
 .mobileControls {
-  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: block;
+  pointer-events: none;
 }
 
 .mobileControl {
@@ -56,15 +60,16 @@
   z-index: 3;
   width: 2.75rem;
   height: 2.75rem;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(20, 20, 20, 0.16);
   border-radius: 999px;
-  background: transparent;
-  color: rgba(20, 20, 20, 0.56);
+  background: rgba(246, 243, 238, 0.18);
+  color: rgba(20, 20, 20, 0.72);
   box-shadow: none;
   cursor: pointer;
+  pointer-events: auto;
   touch-action: manipulation;
 }
 
@@ -85,12 +90,14 @@
 }
 
 .previousControl {
+  display: none;
   inset-block-start: 50%;
   inset-inline-start: max(0.25rem, env(safe-area-inset-left));
   transform: translateY(-50%);
 }
 
 .nextControl {
+  display: none;
   inset-block-start: 50%;
   inset-inline-end: max(0.25rem, env(safe-area-inset-right));
   transform: translateY(-50%);
@@ -100,7 +107,7 @@
   inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
   inset-inline-start: 50%;
   transform: translateX(-50%);
-  border-color: rgba(20, 20, 20, 0.12);
+  border-color: rgba(20, 20, 20, 0.2);
 }
 
 .track {
@@ -484,8 +491,8 @@
 }
 
 @media (max-width: 1023px) {
-  .mobileControls,
-  .mobileControl {
+  .previousControl,
+  .nextControl {
     display: flex;
   }
 }

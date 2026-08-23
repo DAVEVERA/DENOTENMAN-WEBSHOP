@@ -89,6 +89,7 @@ test("the client carousel exposes infinite motion, swipe, keyboard and existing 
   assert.match(componentSource, /isManuallyPaused/);
   assert.match(componentSource, /!activeProduct && !isReducedMotion && products\.length > 1/);
   assert.match(componentSource, /aria-pressed=\{isManuallyPaused\}/);
+  assert.doesNotMatch(componentSource, /isPointerInside/);
   assert.match(componentSource, /event\.pointerType === "mouse" && canHoverRef\.current/);
   assert.doesNotMatch(componentSource, /onMouseEnter|onMouseLeave/);
   assert.match(componentSource, /onPointerEnter/);
@@ -101,5 +102,7 @@ test("the client carousel exposes infinite motion, swipe, keyboard and existing 
   assert.match(styles, /width:\s*min\(22rem, calc\(100% - 2rem\)\)/);
   assert.match(styles, /\.mobileControl[\s\S]*?width:\s*2\.75rem[\s\S]*?height:\s*2\.75rem/);
   assert.match(styles, /@media \(max-width:\s*1023px\)/);
-  assert.match(styles, /background:\s*transparent/);
+  assert.match(styles, /\.mobileControls\s*\{[\s\S]*?display:\s*block/);
+  assert.match(styles, /\.previousControl\s*\{[\s\S]*?display:\s*none/);
+  assert.match(styles, /@media \(max-width:\s*1023px\)[\s\S]*?\.previousControl,[\s\S]*?\.nextControl[\s\S]*?display:\s*flex/);
 });

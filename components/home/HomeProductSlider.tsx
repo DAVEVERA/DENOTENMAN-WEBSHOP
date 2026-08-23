@@ -88,7 +88,6 @@ export function HomeProductSlider({
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [openReason, setOpenReason] = useState<OpenReason | null>(null);
   const [addedKey, setAddedKey] = useState<string | null>(null);
-  const [isPointerInside, setIsPointerInside] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isReducedMotion, setIsReducedMotion] = useState(false);
@@ -100,7 +99,6 @@ export function HomeProductSlider({
     products.find((product) => product.key === activeKey) ?? null;
   const isModal = Boolean(activeProduct && openReason === "click");
   const motionPaused =
-    isPointerInside ||
     isInteracting ||
     isManuallyPaused ||
     isReducedMotion ||
@@ -440,14 +438,8 @@ export function HomeProductSlider({
       role="region"
       aria-roledescription="carousel"
       aria-label={copy.carouselLabel}
-      onPointerEnter={(event) => {
-        if (event.pointerType === "mouse" && canHoverRef.current) {
-          setIsPointerInside(true);
-        }
-      }}
       onPointerLeave={(event) => {
         if (event.pointerType === "mouse" && canHoverRef.current) {
-          setIsPointerInside(false);
           if (openReason === "hover") closeProduct(false);
         }
       }}

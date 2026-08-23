@@ -119,7 +119,7 @@ export default async function CategoryPage({
       <h1 className="font-heading text-3xl tracking-heading text-text">{data.name}</h1>
       <p className="mt-3 max-w-3xl text-body-md leading-relaxed text-muted">{intro}</p>
       {data.children.length > 0 ? (
-        <nav aria-label={`${data.name} subcategorieën`} className="mt-6">
+        <nav aria-label={`${copy.categoriesLabel}: ${data.name}`} className="mt-6">
           <ul className="flex flex-wrap gap-2">
             {data.children.map((child) => (
               <li key={child.id}>
