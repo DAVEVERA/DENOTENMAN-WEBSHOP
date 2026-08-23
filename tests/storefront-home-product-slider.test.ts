@@ -81,8 +81,13 @@ test("the client carousel exposes infinite motion, swipe, keyboard and existing 
   assert.match(componentSource, /viewportCenter < setWidth/);
   assert.match(componentSource, /setOffset \* setWidthRef\.current/);
   assert.match(componentSource, /ArrowLeft/);
-  assert.doesNotMatch(componentSource, /styles\.hint|styles\.controls/);
-  assert.doesNotMatch(componentSource, /\b(?:ChevronLeft|ChevronRight|Pause|Play)\b/);
+  assert.doesNotMatch(componentSource, /styles\.hint|styles\.controls|ChevronLeft|ChevronRight/);
+  assert.match(componentSource, /\bPause\b/);
+  assert.match(componentSource, /\bPlay\b/);
+  assert.match(componentSource, /isManuallyPaused/);
+  assert.match(componentSource, /!activeProduct && !isReducedMotion && products\.length > 1/);
+  assert.match(componentSource, /event\.pointerType === "mouse" && canHoverRef\.current/);
+  assert.doesNotMatch(componentSource, /onMouseEnter|onMouseLeave/);
   assert.match(componentSource, /onPointerEnter/);
   assert.match(componentSource, /addCartItem/);
   assert.match(componentSource, /cartPath\(locale\)/);
@@ -91,4 +96,5 @@ test("the client carousel exposes infinite motion, swipe, keyboard and existing 
   assert.match(styles, /min-height:\s*2\.75rem/);
   assert.match(styles, /prefers-reduced-motion:\s*reduce/);
   assert.match(styles, /width:\s*min\(22rem, calc\(100% - 2rem\)\)/);
+  assert.match(styles, /\.motionButton[\s\S]*?width:\s*2\.75rem[\s\S]*?height:\s*2\.75rem/);
 });

@@ -70,6 +70,8 @@ export function MobileCategoryRow({
   category,
   locale,
   submenuLabel,
+  subcategoryLabel,
+  subcategoriesLabel,
   emphasized = false,
   onFollow,
   onOpen,
@@ -77,6 +79,8 @@ export function MobileCategoryRow({
   category: NavigationCategoryDto;
   locale: Locale;
   submenuLabel: string;
+  subcategoryLabel: string;
+  subcategoriesLabel: string;
   emphasized?: boolean;
   onFollow: () => void;
   onOpen: () => void;
@@ -84,24 +88,32 @@ export function MobileCategoryRow({
   const hasChildren = category.children.length > 0;
 
   return (
-    <li>
+    <li className="border-b border-border last:border-b-0">
       <div className="flex min-h-12 items-stretch">
         <NativeCategoryLink
           href={categoryPath(locale, category.slug)}
           onClick={onFollow}
           className={cn(
-            "flex min-h-12 min-w-0 flex-1 touch-manipulation items-center rounded-button px-3 py-3 hover:bg-background",
+            "flex min-h-12 min-w-0 flex-1 touch-manipulation flex-col items-start justify-center px-3 py-2.5 hover:bg-background",
             emphasized ? "font-heading font-bold" : "font-heading font-semibold"
           )}
         >
-          {category.name}
+          <span>{category.name}</span>
+          {hasChildren ? (
+            <span className="mt-0.5 font-body text-[0.72rem] font-medium leading-tight text-muted">
+              {(category.children.length === 1 ? subcategoryLabel : subcategoriesLabel).replace(
+                "{count}",
+                String(category.children.length)
+              )}
+            </span>
+          ) : null}
         </NativeCategoryLink>
         {hasChildren ? (
           <button
             type="button"
             aria-label={submenuLabel.replace("{category}", category.name)}
             onClick={onOpen}
-            className="flex min-h-12 min-w-12 shrink-0 touch-manipulation items-center justify-center rounded-button hover:bg-background"
+            className="flex min-h-12 min-w-12 shrink-0 touch-manipulation items-center justify-center border-l border-border hover:bg-background"
           >
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -335,7 +347,7 @@ export function MobileNav({
             role="dialog"
             aria-modal="true"
             aria-label={dictionary.nav.mainMenu}
-            className="absolute bottom-4 left-4 right-4 top-[calc(4.75rem+env(safe-area-inset-top))] z-10 flex flex-col overflow-hidden rounded-panel border border-border bg-surface shadow-card-hover"
+            className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 top-[calc(4.75rem+env(safe-area-inset-top))] z-10 flex flex-col overflow-hidden rounded-panel border border-border bg-surface shadow-card-hover"
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <p className="font-heading text-heading-sm font-bold">{dictionary.nav.mainMenu}</p>
@@ -379,13 +391,20 @@ export function MobileNav({
                     {dictionary.nav.viewAllCategory.replace("{category}", activeCategory.name)}
                     <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </NativeCategoryLink>
-                  <ul className="mt-2 flex flex-col">
+                  {visibleCategories.length > 0 ? (
+                    <p className="mt-5 px-3 font-heading text-[0.72rem] font-bold uppercase tracking-[0.12em] text-muted">
+                      {dictionary.nav.chooseSubcategory}
+                    </p>
+                  ) : null}
+                  <ul className="mt-2 flex flex-col overflow-hidden rounded-button border border-border">
                     {visibleCategories.map((category) => (
                       <MobileCategoryRow
                         key={category.id}
                         category={category}
                         locale={locale}
                         submenuLabel={dictionary.nav.categoryMenu}
+                        subcategoryLabel={dictionary.nav.subcategoryCount}
+                        subcategoriesLabel={dictionary.nav.subcategoriesCount}
                         onFollow={followLink}
                         onOpen={() => setLevel([...categoryIds, category.id])}
                       />
@@ -422,13 +441,15 @@ export function MobileNav({
                         {dictionary.nav.viewAll}
                       </NativeCategoryLink>
                     </div>
-                    <ul className="mt-1 flex flex-col">
+                    <ul className="mt-1 flex flex-col overflow-hidden rounded-button border border-border">
                       {visibleCategories.map((category) => (
                         <MobileCategoryRow
                           key={category.id}
                           category={category}
                           locale={locale}
                           submenuLabel={dictionary.nav.categoryMenu}
+                          subcategoryLabel={dictionary.nav.subcategoryCount}
+                          subcategoriesLabel={dictionary.nav.subcategoriesCount}
                           emphasized
                           onFollow={followLink}
                           onOpen={() => setLevel([category.id])}

@@ -1,6 +1,10 @@
 import { PrismaClient, type Locale, type Prisma } from "@prisma/client";
 import { collectCategoryAndAncestorIds } from "../lib/category-hierarchy";
 import {
+  storefrontMenuParentSlug,
+  storefrontMenuRootOrder,
+} from "../lib/storefront-menu-taxonomy";
+import {
   getChocolatePlacementForProductSku,
   getNutFamilyForProductSku,
   getSeedPlacementForProductSku,
@@ -195,7 +199,23 @@ const definitions: CategoryDefinition[] = [
     },
   },
   {
-    slug: "pitten", parentSlug: null, sortOrder: 3,
+    slug: "gedroogd-fruit", parentSlug: storefrontMenuParentSlug["gedroogd-fruit"], sortOrder: 1,
+    translations: {
+      nl: { name: "Gedroogd fruit", slug: "gedroogd-fruit", description: "Dadels, vijgen, rozijnen en ander gedroogd fruit." },
+      en: { name: "Dried fruit", slug: "dried-fruit", description: "Dates, figs, raisins and other dried fruit." },
+      fr: { name: "Fruits secs", slug: "fruits-secs", description: "Dattes, figues, raisins et autres fruits secs." },
+    },
+  },
+  {
+    slug: "pitten-zaden", parentSlug: storefrontMenuParentSlug["pitten-zaden"], sortOrder: 4,
+    translations: {
+      nl: { name: "Pitten & zaden", slug: "pitten-zaden", description: "Pitten, zaden en mixen voor ontbijt, salade en bakrecepten." },
+      en: { name: "Kernels & seeds", slug: "seeds-grains", description: "Kernels, seeds and mixes for breakfast, salads and baking." },
+      fr: { name: "Pignons & graines", slug: "graines", description: "Pignons, graines et mélanges pour le petit-déjeuner, les salades et la pâtisserie." },
+    },
+  },
+  {
+    slug: "pitten", parentSlug: storefrontMenuParentSlug.pitten, sortOrder: 1,
     translations: {
       nl: { name: "Pitten", slug: "pitten", description: "Pompoen-, zonnebloem- en pijnboompitten." },
       en: { name: "Kernels", slug: "kernels", description: "Pumpkin, sunflower and pine kernels." },
@@ -227,7 +247,7 @@ const definitions: CategoryDefinition[] = [
     },
   },
   {
-    slug: "zaden", parentSlug: null, sortOrder: 4,
+    slug: "zaden", parentSlug: storefrontMenuParentSlug.zaden, sortOrder: 2,
     translations: {
       nl: { name: "Zaden", slug: "zaden", description: "Lijnzaad, sesam, chia, hennep en maanzaad." },
       en: { name: "Seeds", slug: "seeds", description: "Flax, sesame, chia, hemp and poppy seeds." },
@@ -335,14 +355,11 @@ const definitions: CategoryDefinition[] = [
 const existingParents = [
   ["pinda-s", "noten", 8], ["notenmixen", "noten", 10],
   ["notenpasta-s", "honing-natuurvoeding", 2], ["superfood", "honing-natuurvoeding", 3],
-  ["meel-griesmeel", "bakproducten", 1], ["gedroogd-fruit", "zoet", 1],
+  ["meel-griesmeel", "bakproducten", 1],
   ["gekonfijt-fruit", "zoet", 2],
 ] as const;
 
-const rootOrder = [
-  "noten", "chocolade-zoet", "muesli-granen", "pitten", "zaden",
-  "snacks-zoutjes", "bakproducten", "honing-natuurvoeding",
-] as const;
+const rootOrder = storefrontMenuRootOrder;
 
 const fruitSnackSkus = new Set(["SNK-6001-250-P", "SNK-6020-VAR-P"]);
 const sweetSnackSkus = new Set(["SNK-6004-250-P", "SNK-6008-250-P"]);
@@ -461,14 +478,6 @@ async function applyPlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
       const id = categoryIds.get(slug);
       if (!id) throw new Error(`Hoofdcategorie ontbreekt: ${slug}.`);
       await tx.category.update({ where: { id }, data: { parentId: null, sortOrder, isActive: true } });
-    }
-    const combinedSeedsId = categoryIds.get("pitten-zaden");
-    if (combinedSeedsId) {
-      await tx.productCategory.deleteMany({ where: { categoryId: combinedSeedsId } });
-      await tx.category.update({
-        where: { id: combinedSeedsId },
-        data: { parentId: null, sortOrder: 99, isActive: false },
-      });
     }
     const bakingId = categoryIds.get("bakproducten");
     if (bakingId) {

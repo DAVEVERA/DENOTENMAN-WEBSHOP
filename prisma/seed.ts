@@ -102,14 +102,14 @@ function normalizeWordSet(str: string): string {
 const categoryTranslations: Record<string, Record<(typeof locales)[number], string>> = {
   "bakproducten": { nl: "Bakproducten", en: "Baking Products", fr: "Produits de Pâtisserie" },
   "chocolade-zoet": { nl: "Chocolade & Zoet", en: "Chocolate & Sweets", fr: "Chocolat & Confiseries" },
-  "gedroogd-fruit": { nl: "Gedroogd Fruit", en: "Dried Fruit", fr: "Fruits Secs" },
+  "gedroogd-fruit": { nl: "Gedroogd fruit", en: "Dried fruit", fr: "Fruits secs" },
   "honing-natuurvoeding": { nl: "Honing & Natuurvoeding", en: "Honey & Natural Foods", fr: "Miel & Alimentation Naturelle" },
   "muesli-granen": { nl: "Muesli & Granen", en: "Muesli & Grains", fr: "Muesli & Céréales" },
   "noten": { nl: "Noten", en: "Nuts", fr: "Noix" },
   "notenmixen": { nl: "Notenmixen", en: "Nut Mixes", fr: "Mélanges de Noix" },
   "notenpasta-s": { nl: "Notenpasta's", en: "Nut Butters", fr: "Beurres de Noix" },
   "pinda-s": { nl: "Pinda's", en: "Peanuts", fr: "Cacahuètes" },
-  "pitten-zaden": { nl: "Pitten & Zaden", en: "Seeds & Grains", fr: "Graines" },
+  "pitten-zaden": { nl: "Pitten & zaden", en: "Kernels & seeds", fr: "Pignons & graines" },
   "snacks-zoutjes": { nl: "Snacks & Zoutjes", en: "Snacks", fr: "Snacks" },
   "superfood": { nl: "Superfood", en: "Superfood", fr: "Superaliments" },
 };

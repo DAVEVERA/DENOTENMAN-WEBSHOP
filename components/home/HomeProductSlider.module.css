@@ -47,6 +47,40 @@
   display: none;
 }
 
+.motionButton {
+  position: absolute;
+  inset-block-start: max(0.75rem, env(safe-area-inset-top));
+  inset-inline-end: max(0.75rem, env(safe-area-inset-right));
+  z-index: 3;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(20, 20, 20, 0.28);
+  border-radius: 999px;
+  background: rgba(246, 243, 238, 0.9);
+  color: var(--color-text);
+  box-shadow: 0 0.45rem 1.2rem rgba(20, 20, 20, 0.16);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.motionButton svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.motionButton:hover {
+  background: var(--color-surface);
+}
+
+.motionButton:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+}
+
 .track {
   min-width: max-content;
   height: 100%;
@@ -430,7 +464,8 @@
 @media (prefers-reduced-motion: reduce) {
   .imageShell,
   .favoriteButton,
-  .closeButton {
+  .closeButton,
+  .motionButton {
     transition: none;
   }
 

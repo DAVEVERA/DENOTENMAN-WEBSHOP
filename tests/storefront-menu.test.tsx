@@ -33,17 +33,19 @@ test("desktop category keyboard navigation wraps and supports Home and End", () 
 
 test("mobile drilldown resolves categories at arbitrary tree depth", () => {
   const tree = [
-    category("chocolade-zoet", [
-      category("zoet", [category("gedroogd-fruit", [category("dadels")])]),
+    category("gedroogd-fruit"),
+    category("pitten-zaden", [
+      category("pitten", [category("pompoenpitten")]),
+      category("zaden", [category("lijnzaad")]),
     ]),
   ];
 
-  assert.equal(resolveCategoryPath(tree, ["chocolade-zoet"])?.name, "chocolade-zoet");
+  assert.equal(resolveCategoryPath(tree, ["gedroogd-fruit"])?.name, "gedroogd-fruit");
   assert.equal(
-    resolveCategoryPath(tree, ["chocolade-zoet", "zoet", "gedroogd-fruit"])?.name,
-    "gedroogd-fruit"
+    resolveCategoryPath(tree, ["pitten-zaden", "zaden", "lijnzaad"])?.name,
+    "lijnzaad"
   );
-  assert.equal(resolveCategoryPath(tree, ["chocolade-zoet", "noten"]), null);
+  assert.equal(resolveCategoryPath(tree, ["pitten-zaden", "noten"]), null);
 });
 
 test("desktop menu uses disclosure buttons only for branches and direct links for leaves", () => {
@@ -101,6 +103,8 @@ test("mobile branch label navigates while a separate control opens its children"
       category: NavigationCategoryDto;
       locale: "nl";
       submenuLabel: string;
+      subcategoryLabel: string;
+      subcategoriesLabel: string;
       emphasized?: boolean;
       onFollow: () => void;
       onOpen: () => void;
@@ -115,6 +119,8 @@ test("mobile branch label navigates while a separate control opens its children"
       category={category("chocolade", [category("chocolade-amandelen")])}
       locale="nl"
       submenuLabel="Open submenu voor {category}"
+      subcategoryLabel="{count} subcategorie"
+      subcategoriesLabel="{count} subcategorieën"
       onFollow={() => undefined}
       onOpen={() => undefined}
     />
@@ -122,6 +128,7 @@ test("mobile branch label navigates while a separate control opens its children"
 
   assert.match(markup, /<a[^>]+href="\/nl\/categorie\/chocolade"/);
   assert.match(markup, /<button[^>]+aria-label="Open submenu voor chocolade"/);
+  assert.match(markup, />1 subcategorie</);
   assert.match(markup, /min-h-12/);
   assert.match(markup, /min-w-12/);
 });
@@ -135,6 +142,8 @@ test("mobile menu provides drilldown, back, overview and 44px touch targets", ()
   assert.match(source, /setLevel\(\[\.\.\.categoryIds, category\.id\]\)/);
   assert.match(source, /categoryIds\.slice\(0, -1\)/);
   assert.match(source, /dictionary\.nav\.viewAllCategory/);
+  assert.match(source, /dictionary\.nav\.chooseSubcategory/);
+  assert.match(source, /dictionary\.nav\.subcategoriesCount/);
   assert.match(source, /previousPathnameRef/);
   assert.match(source, /levelHeadingRef\.current\?\.focus\(\)/);
   assert.match(source, /min-h-11/);

@@ -37,6 +37,7 @@ const nutFamilyByProductSku: Readonly<Record<string, NutFamilySlug>> = {
   "NOT-1021-200-P": "macadamias",
   "NOT-1022-200-P": "macadamias",
   "NOT-1023-200-P": "macadamias",
+  "NOT-1024-1000-P": "walnoten",
 };
 
 export function getNutFamilyForProductSku(sku: string): NutFamilySlug | undefined {
@@ -62,7 +63,7 @@ export const chocolateFamilySlugs = [
 ] as const;
 
 export type ChocolateFamilySlug = (typeof chocolateFamilySlugs)[number];
-export type ChocolatePlacementSlug = ChocolateFamilySlug | "snoep-nougat";
+export type ChocolatePlacementSlug = ChocolateFamilySlug | "chocolade" | "snoep-nougat";
 
 const chocolatePlacementByProductSku: Readonly<Record<string, ChocolatePlacementSlug>> = {
   "CHO-5001-250-P": "snoep-nougat",
@@ -94,6 +95,7 @@ const chocolatePlacementByProductSku: Readonly<Record<string, ChocolatePlacement
   "CHO-5027-250-P": "studenten-flikken",
   "CHO-5028-250-P": "studenten-flikken",
   "CHO-5029-250-P": "studenten-flikken",
+  "CHO-5030-350-P": "chocolade",
 };
 
 export function getChocolatePlacementForProductSku(

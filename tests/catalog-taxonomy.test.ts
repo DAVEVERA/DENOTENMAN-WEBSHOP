@@ -33,6 +33,7 @@ test("places every current single-nut SKU in its customer-facing nut family", ()
     "NOT-1021-200-P": "macadamias",
     "NOT-1022-200-P": "macadamias",
     "NOT-1023-200-P": "macadamias",
+    "NOT-1024-1000-P": "walnoten",
   } as const;
 
   for (const [sku, family] of Object.entries(expected)) {
@@ -96,6 +97,7 @@ test("places every chocolate product in a real requested leaf category", () => {
     "CHO-5027-250-P": "studenten-flikken",
     "CHO-5028-250-P": "studenten-flikken",
     "CHO-5029-250-P": "studenten-flikken",
+    "CHO-5030-350-P": "chocolade",
   } as const;
 
   for (const [sku, family] of Object.entries(expected)) {

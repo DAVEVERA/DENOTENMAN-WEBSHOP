@@ -5,6 +5,8 @@ import Link from "next/link";
 import {
   Check,
   Heart,
+  Pause,
+  Play,
   ShoppingCart,
   X,
 } from "lucide-react";
@@ -31,6 +33,8 @@ import styles from "@/components/home/HomeProductSlider.module.css";
 
 type HomeProductSliderCopy = {
   carouselLabel: string;
+  pauseMotion: string;
+  resumeMotion: string;
   openProduct: string;
   position: string;
   fromPrice: string;
@@ -82,6 +86,7 @@ export function HomeProductSlider({
   const [addedKey, setAddedKey] = useState<string | null>(null);
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
+  const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isReducedMotion, setIsReducedMotion] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const storefront = useStorefrontState();
@@ -93,6 +98,7 @@ export function HomeProductSlider({
   const motionPaused =
     isPointerInside ||
     isInteracting ||
+    isManuallyPaused ||
     isReducedMotion ||
     Boolean(activeProduct);
 
@@ -424,13 +430,29 @@ export function HomeProductSlider({
       role="region"
       aria-roledescription="carousel"
       aria-label={copy.carouselLabel}
-      onMouseEnter={() => setIsPointerInside(true)}
-      onMouseLeave={() => {
-        setIsPointerInside(false);
-        if (openReason === "hover") closeProduct(false);
+      onPointerEnter={(event) => {
+        if (event.pointerType === "mouse" && canHoverRef.current) {
+          setIsPointerInside(true);
+        }
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === "mouse" && canHoverRef.current) {
+          setIsPointerInside(false);
+          if (openReason === "hover") closeProduct(false);
+        }
       }}
       onKeyDown={handleKeyDown}
     >
+      {!activeProduct && !isReducedMotion && products.length > 1 ? (
+        <button
+          type="button"
+          className={styles.motionButton}
+          aria-label={isManuallyPaused ? copy.resumeMotion : copy.pauseMotion}
+          onClick={() => setIsManuallyPaused((paused) => !paused)}
+        >
+          {isManuallyPaused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
+        </button>
+      ) : null}
       <div
         ref={viewportRef}
         className={styles.viewport}
