@@ -39,12 +39,14 @@ test("routes known empty content pages and unknown storefront URLs through the s
 });
 
 test("uses a full viewport layout, mobile-readable copy and a desktop image-aligned CTA", async () => {
-  const css = await projectFile("components/layout/SquirrelEmptyState.module.css");
+  const component = await projectFile("components/layout/SquirrelEmptyState.tsx");
 
-  assert.match(css, /min-block-size: 100svh/);
-  assert.match(css, /min-block-size: 3rem/);
-  assert.match(css, /object-position: 72% center/);
-  assert.match(css, /@media \(min-width: 64rem\)/);
-  assert.match(css, /clip-path: inset\(50%\)/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(component, /<style>\{SQUIRREL_EMPTY_STYLES\}<\/style>/);
+  assert.doesNotMatch(component, /SquirrelEmptyState\.module\.css/);
+  assert.match(component, /min-block-size: 100svh/);
+  assert.match(component, /min-block-size: 3rem/);
+  assert.match(component, /object-position: 72% center/);
+  assert.match(component, /@media \(min-width: 64rem\)/);
+  assert.match(component, /clip-path: inset\(50%\)/);
+  assert.match(component, /prefers-reduced-motion: reduce/);
 });

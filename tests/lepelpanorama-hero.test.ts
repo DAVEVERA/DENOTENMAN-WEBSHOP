@@ -31,6 +31,8 @@ test("the production hero keeps the supplied runtime and complete asset set", as
   assert.match(html, /state\.baseScale = viewport\.clientHeight/);
   assert.match(html, /state\.y = 0/);
   assert.match(html, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(html, /navigator\s*\.\s*serviceWorker|serviceWorker\s*\./i);
+  assert.doesNotMatch(html, /window\.(?:top|parent|opener|open)|document\.domain|<form\b/i);
 });
 
 test("the homepage renders the isolated, height-limited panorama and no preview route", async () => {
@@ -43,6 +45,10 @@ test("the homepage renders the isolated, height-limited panorama and no preview 
 
   assert.match(component, /\/lepelpanorama\/interactieve-lepelpanorama\.html/);
   assert.match(component, /sandbox="allow-scripts"/);
+  assert.doesNotMatch(component, /allow-same-origin/);
+  assert.match(config, /default-src 'none'/);
+  assert.match(config, /form-action 'none'/);
+  assert.match(config, /frame-ancestors 'self'/);
   assert.match(homepage, /<LepelPanoramaHero\s*\/>/);
   assert.doesNotMatch(homepage, /<VisualHero|getHomeSliderProducts|heroProducts/);
   assert.match(config, /source:\s*"\/lepelpanorama\/:path\*"/);
