@@ -50,24 +50,25 @@
 .mobileControls {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 6;
   display: block;
   pointer-events: none;
 }
 
 .mobileControl {
   position: absolute;
-  z-index: 3;
+  z-index: 6;
   width: 2.75rem;
   height: 2.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(20, 20, 20, 0.16);
+  border: 1px solid rgba(20, 20, 20, 0.34);
   border-radius: 999px;
-  background: rgba(246, 243, 238, 0.18);
-  color: rgba(20, 20, 20, 0.72);
-  box-shadow: none;
+  background: rgba(246, 243, 238, 0.76);
+  color: rgba(20, 20, 20, 0.88);
+  box-shadow: 0 0.2rem 0.75rem rgba(20, 20, 20, 0.12);
+  backdrop-filter: blur(4px);
   cursor: pointer;
   pointer-events: auto;
   touch-action: manipulation;
@@ -90,14 +91,12 @@
 }
 
 .previousControl {
-  display: none;
   inset-block-start: 50%;
   inset-inline-start: max(0.25rem, env(safe-area-inset-left));
   transform: translateY(-50%);
 }
 
 .nextControl {
-  display: none;
   inset-block-start: 50%;
   inset-inline-end: max(0.25rem, env(safe-area-inset-right));
   transform: translateY(-50%);
@@ -107,7 +106,7 @@
   inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
   inset-inline-start: 50%;
   transform: translateX(-50%);
-  border-color: rgba(20, 20, 20, 0.2);
+  border-color: rgba(20, 20, 20, 0.34);
 }
 
 .track {
@@ -254,11 +253,11 @@
 
 .productCard {
   position: absolute;
-  inset-block-start: 50%;
+  inset-block-start: calc(50% - 1rem);
   inset-inline-start: 50%;
   z-index: 5;
   width: min(22rem, calc(100% - 2rem));
-  max-height: calc(100% - 2rem);
+  max-height: calc(100% - 5.5rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 1rem;
@@ -490,10 +489,10 @@
   }
 }
 
-@media (max-width: 1023px) {
-  .previousControl,
-  .nextControl {
-    display: flex;
+@media (hover: hover) and (pointer: fine) {
+  .mobileControl:hover {
+    background: rgba(246, 243, 238, 0.92);
+    color: var(--color-text);
   }
 }
 

@@ -87,8 +87,11 @@ test("the client carousel exposes infinite motion, swipe, keyboard and existing 
   assert.match(componentSource, /\bPause\b/);
   assert.match(componentSource, /\bPlay\b/);
   assert.match(componentSource, /isManuallyPaused/);
-  assert.match(componentSource, /!activeProduct && !isReducedMotion && products\.length > 1/);
-  assert.match(componentSource, /aria-pressed=\{isManuallyPaused\}/);
+  assert.match(componentSource, /hasMotionOverride/);
+  assert.match(componentSource, /motionControlPaused/);
+  assert.match(componentSource, /\{!isModal && products\.length > 1 \? \(/);
+  assert.match(componentSource, /if \(activeProduct\) closeProduct\(false\)/);
+  assert.match(componentSource, /aria-pressed=\{motionControlPaused\}/);
   assert.doesNotMatch(componentSource, /isPointerInside/);
   assert.match(componentSource, /event\.pointerType === "mouse" && canHoverRef\.current/);
   assert.doesNotMatch(componentSource, /onMouseEnter|onMouseLeave/);
@@ -101,8 +104,7 @@ test("the client carousel exposes infinite motion, swipe, keyboard and existing 
   assert.match(styles, /prefers-reduced-motion:\s*reduce/);
   assert.match(styles, /width:\s*min\(22rem, calc\(100% - 2rem\)\)/);
   assert.match(styles, /\.mobileControl[\s\S]*?width:\s*2\.75rem[\s\S]*?height:\s*2\.75rem/);
-  assert.match(styles, /@media \(max-width:\s*1023px\)/);
   assert.match(styles, /\.mobileControls\s*\{[\s\S]*?display:\s*block/);
-  assert.match(styles, /\.previousControl\s*\{[\s\S]*?display:\s*none/);
-  assert.match(styles, /@media \(max-width:\s*1023px\)[\s\S]*?\.previousControl,[\s\S]*?\.nextControl[\s\S]*?display:\s*flex/);
+  assert.doesNotMatch(styles, /\.previousControl\s*\{[\s\S]*?display:\s*none/);
+  assert.match(styles, /background:\s*rgba\(246, 243, 238, 0\.76\)/);
 });

@@ -91,6 +91,7 @@ export function HomeProductSlider({
   const [isInteracting, setIsInteracting] = useState(false);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isReducedMotion, setIsReducedMotion] = useState(false);
+  const [hasMotionOverride, setHasMotionOverride] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const storefront = useStorefrontState();
   const repeatedSets = products.length > 1 ? ([0, 1, 2] as const) : ([1] as const);
@@ -98,11 +99,11 @@ export function HomeProductSlider({
   const activeProduct =
     products.find((product) => product.key === activeKey) ?? null;
   const isModal = Boolean(activeProduct && openReason === "click");
-  const motionPaused =
-    isInteracting ||
+  const motionControlPaused =
     isManuallyPaused ||
-    isReducedMotion ||
+    (isReducedMotion && !hasMotionOverride) ||
     Boolean(activeProduct);
+  const motionPaused = isInteracting || motionControlPaused;
 
   const normalizeScrollPosition = useCallback(() => {
     const viewport = viewportRef.current;
@@ -182,7 +183,10 @@ export function HomeProductSlider({
     const updateHover = () => {
       canHoverRef.current = hoverQuery.matches;
     };
-    const updateMotion = () => setIsReducedMotion(motionQuery.matches);
+    const updateMotion = () => {
+      setIsReducedMotion(motionQuery.matches);
+      setHasMotionOverride(false);
+    };
 
     updateHover();
     updateMotion();
@@ -286,6 +290,16 @@ export function HomeProductSlider({
     },
     [activeIndex, openReason],
   );
+
+  const toggleMotion = useCallback(() => {
+    if (activeProduct) closeProduct(false);
+    if (motionControlPaused) {
+      setHasMotionOverride(true);
+      setIsManuallyPaused(false);
+      return;
+    }
+    setIsManuallyPaused(true);
+  }, [activeProduct, closeProduct, motionControlPaused]);
 
   useEffect(() => {
     if (!isModal) return;
@@ -445,7 +459,7 @@ export function HomeProductSlider({
       }}
       onKeyDown={handleKeyDown}
     >
-      {!activeProduct && !isReducedMotion && products.length > 1 ? (
+      {!isModal && products.length > 1 ? (
         <div
           className={styles.mobileControls}
           role="group"
@@ -462,11 +476,11 @@ export function HomeProductSlider({
           <button
             type="button"
             className={`${styles.mobileControl} ${styles.motionButton}`}
-            aria-label={isManuallyPaused ? copy.resumeMotion : copy.pauseMotion}
-            aria-pressed={isManuallyPaused}
-            onClick={() => setIsManuallyPaused((paused) => !paused)}
+            aria-label={motionControlPaused ? copy.resumeMotion : copy.pauseMotion}
+            aria-pressed={motionControlPaused}
+            onClick={toggleMotion}
           >
-            {isManuallyPaused ? (
+            {motionControlPaused ? (
               <Play aria-hidden="true" fill="none" />
             ) : (
               <Pause aria-hidden="true" fill="none" />
