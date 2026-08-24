@@ -29,6 +29,9 @@ const testOrder = {
   paidAt: new Date("2026-08-21T13:15:57.797Z"),
   postnlTrackingCode: null,
   postnlLabelBase64: null,
+  postnlLabelClaimToken: null,
+  postnlLabelClaimedAt: null,
+  postnlLabelLastError: null,
   createdAt: new Date("2026-08-21T13:15:57.798Z"),
   updatedAt: new Date("2026-08-21T13:15:57.798Z"),
   items: [

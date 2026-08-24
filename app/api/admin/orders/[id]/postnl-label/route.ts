@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { PostnlError } from "@/lib/postnl";
 import { ensurePostnlLabel, PostnlLabelGuardError } from "@/lib/postnl-labels";
+import { isSameOriginMutation } from "@/lib/admin-request-security";
 
 async function requireAdmin(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
@@ -17,7 +18,6 @@ export async function GET(
   if (!(await requireAdmin(request))) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
-
   const { id } = await context.params;
   const order = await prisma.order.findUnique({
     where: { id },
@@ -44,6 +44,9 @@ export async function POST(
 ) {
   if (!(await requireAdmin(request))) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!isSameOriginMutation(request)) {
+    return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
   }
 
   const { id } = await context.params;

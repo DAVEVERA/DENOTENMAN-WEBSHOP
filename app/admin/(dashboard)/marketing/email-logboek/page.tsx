@@ -12,6 +12,7 @@ const KIND_LABELS: Record<EmailDeliveryKind, string> = {
   ORDER_FULFILLED: "Verzendbevestiging",
   AFTERSALES_TEST: "Testmail",
   BACK_IN_STOCK: "Voorraadmelding",
+  BUSINESS_ORDER_LIST: "Zakelijke bestellijst",
 };
 
 const STATUS_LABELS: Record<EmailDeliveryStatus, string> = {

@@ -5,6 +5,7 @@ import type { QuoteStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
+import { isSameOriginMutation } from "@/lib/admin-request-security";
 
 const quotePatchSchema = z
   .object({
@@ -30,6 +31,8 @@ export async function PATCH(
   if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+  if (admin.role === "STAFF") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
 
   const { id, quoteId } = await context.params;
 

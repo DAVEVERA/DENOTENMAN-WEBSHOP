@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
+import { isSameOriginMutation } from "@/lib/admin-request-security";
 
 const quoteItemSchema = z.object({
   productName: z.string().trim().min(1, "productName required").max(200),
@@ -34,6 +35,8 @@ export async function POST(
   if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+  if (admin.role === "STAFF") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
 
   const { id } = await context.params;
 

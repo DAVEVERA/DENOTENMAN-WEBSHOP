@@ -5,6 +5,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
+import { isSameOriginMutation } from "@/lib/admin-request-security";
+import { recordBusinessEvent } from "@/lib/business-portal";
 
 const businessAccountPatchSchema = z
   .object({
@@ -27,7 +29,6 @@ export async function GET(
   if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
-
   const { id } = await context.params;
 
   const businessAccount = await prisma.businessAccount.findUnique({
@@ -50,6 +51,8 @@ export async function PATCH(
   if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+  if (admin.role === "STAFF") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
 
   const { id } = await context.params;
 
@@ -64,6 +67,7 @@ export async function PATCH(
   }
 
   const input = parsed.data;
+  const emailChanged = input.email !== undefined && input.email.toLowerCase() !== existing.email.toLowerCase();
   const data: {
     companyName?: string;
     contactName?: string;
@@ -91,7 +95,23 @@ export async function PATCH(
   try {
     const updated = await prisma.$transaction(async (tx) => {
       const businessAccount = await tx.businessAccount.update({ where: { id }, data });
+      if ((data.status && data.status !== "APPROVED") || emailChanged) {
+        const revokedAt = new Date();
+        await tx.businessSession.updateMany({ where: { businessAccountId: id, revokedAt: null }, data: { revokedAt } });
+        await tx.businessInvitation.updateMany({ where: { businessAccountId: id, acceptedAt: null, revokedAt: null }, data: { revokedAt } });
+        if (emailChanged) {
+          await tx.businessAccount.update({ where: { id }, data: { loginLinkRequestedAt: null } });
+        }
+      }
       await recordAudit(tx, admin, "BusinessAccount", id, "UPDATE", existing, businessAccount);
+      await recordBusinessEvent(tx, {
+        businessAccountId: id,
+        type: "ACCOUNT_UPDATED",
+        actorType: "ADMIN",
+        actorName: admin.name,
+        summary: `Zakelijk account voor ${businessAccount.companyName} bijgewerkt`,
+        metadata: { fields: Object.keys(data) },
+      });
       return businessAccount;
     });
 

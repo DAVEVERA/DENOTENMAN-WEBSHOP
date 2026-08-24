@@ -1,9 +1,16 @@
+import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { createShipmentLabel, determineLabelAction } from "@/lib/postnl";
+import {
+  createShipmentBarcode,
+  createShipmentLabel,
+  determineLabelAction,
+} from "@/lib/postnl";
+
+const CLAIM_STALE_AFTER_MS = 2 * 60 * 1_000;
 
 export class PostnlLabelGuardError extends Error {
   constructor(
-    public code: "ORDER_NOT_FOUND" | "ORDER_NOT_SHIPPABLE",
+    public code: "ORDER_NOT_FOUND" | "ORDER_NOT_SHIPPABLE" | "LABEL_IN_PROGRESS",
     message: string
   ) {
     super(message);
@@ -45,62 +52,162 @@ export type EnsuredPostnlLabel = {
   reused: boolean;
 };
 
+const orderWithItems = {
+  items: {
+    select: {
+      quantity: true,
+      variant: { select: { weightGrams: true } },
+    },
+  },
+} as const;
+
+function toLastError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "Onbekende fout bij PostNL.";
+  return message.slice(0, 2_000);
+}
+
+/**
+ * Claims label creation with one atomic UPDATE, then performs all PostNL calls
+ * outside a database transaction. A generated barcode is persisted before the
+ * label request, so a retry uses the same barcode instead of creating another
+ * shipment identity.
+ */
 export async function ensurePostnlLabel(orderId: string): Promise<EnsuredPostnlLabel> {
-  return prisma.$transaction(
-    async (transaction) => {
-      const lockedRows = await transaction.$queryRaw<Array<{ id: string }>>`
-        SELECT "id"
-        FROM "Order"
-        WHERE "id" = ${orderId}
-        FOR UPDATE
-      `;
+  const initialOrder = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: orderWithItems,
+  });
 
-      if (lockedRows.length === 0) {
-        throw new PostnlLabelGuardError("ORDER_NOT_FOUND", "Bestelling niet gevonden.");
-      }
+  if (!initialOrder) {
+    throw new PostnlLabelGuardError("ORDER_NOT_FOUND", "Bestelling niet gevonden.");
+  }
 
-      const order = await transaction.order.findUniqueOrThrow({
-        where: { id: orderId },
-        include: {
-          items: {
-            select: {
-              quantity: true,
-              variant: { select: { weightGrams: true } },
-            },
-          },
+  const action = determineLabelAction(
+    initialOrder.status,
+    Boolean(initialOrder.postnlLabelBase64),
+    initialOrder.isTest
+  );
+  if (action === "reject") {
+    throw new PostnlLabelGuardError(
+      "ORDER_NOT_SHIPPABLE",
+      initialOrder.isTest
+        ? "Testbestellingen krijgen nooit een PostNL-label."
+        : "Alleen betaalde of verzonden bestellingen kunnen een PostNL-label krijgen."
+    );
+  }
+  if (action === "reuse" && initialOrder.postnlLabelBase64) {
+    return {
+      barcode: initialOrder.postnlTrackingCode,
+      labelBase64: initialOrder.postnlLabelBase64,
+      reused: true,
+    };
+  }
+
+  assertShippableAddress(initialOrder);
+
+  const claimToken = randomUUID();
+  const claimedAt = new Date();
+  const staleBefore = new Date(claimedAt.getTime() - CLAIM_STALE_AFTER_MS);
+  const claim = await prisma.order.updateMany({
+    where: {
+      id: orderId,
+      isTest: false,
+      status: { in: ["PAID", "FULFILLED"] },
+      postnlLabelBase64: null,
+      OR: [
+        { postnlLabelClaimToken: null },
+        { postnlLabelClaimedAt: { lte: staleBefore } },
+      ],
+    },
+    data: {
+      postnlLabelClaimToken: claimToken,
+      postnlLabelClaimedAt: claimedAt,
+      postnlLabelLastError: null,
+    },
+  });
+
+  if (claim.count !== 1) {
+    const current = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { postnlTrackingCode: true, postnlLabelBase64: true },
+    });
+    if (current?.postnlLabelBase64) {
+      return {
+        barcode: current.postnlTrackingCode,
+        labelBase64: current.postnlLabelBase64,
+        reused: true,
+      };
+    }
+    throw new PostnlLabelGuardError(
+      "LABEL_IN_PROGRESS",
+      "Voor deze bestelling wordt al een PostNL-label aangemaakt. Probeer het over enkele ogenblikken opnieuw."
+    );
+  }
+
+  try {
+    let barcode = initialOrder.postnlTrackingCode;
+    if (!barcode) {
+      barcode = await createShipmentBarcode();
+      const barcodeStored = await prisma.order.updateMany({
+        where: {
+          id: orderId,
+          postnlLabelClaimToken: claimToken,
+          postnlLabelBase64: null,
         },
+        data: { postnlTrackingCode: barcode },
       });
-
-      const action = determineLabelAction(
-        order.status,
-        Boolean(order.postnlLabelBase64),
-        order.isTest
-      );
-      if (action === "reject") {
+      if (barcodeStored.count !== 1) {
         throw new PostnlLabelGuardError(
-          "ORDER_NOT_SHIPPABLE",
-          order.isTest
-            ? "Testbestellingen krijgen nooit een PostNL-label."
-            : "Alleen betaalde of verzonden bestellingen kunnen een PostNL-label krijgen."
+          "LABEL_IN_PROGRESS",
+          "De PostNL-labelaanvraag is door een nieuwere aanvraag overgenomen."
         );
       }
-      if (action === "reuse" && order.postnlLabelBase64) {
+    }
+
+    const { labelBase64 } = await createShipmentLabel(initialOrder, barcode);
+    const labelStored = await prisma.order.updateMany({
+      where: {
+        id: orderId,
+        postnlLabelClaimToken: claimToken,
+        postnlLabelBase64: null,
+      },
+      data: {
+        postnlTrackingCode: barcode,
+        postnlLabelBase64: labelBase64,
+        postnlLabelClaimToken: null,
+        postnlLabelClaimedAt: null,
+        postnlLabelLastError: null,
+      },
+    });
+
+    if (labelStored.count !== 1) {
+      const current = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { postnlTrackingCode: true, postnlLabelBase64: true },
+      });
+      if (current?.postnlLabelBase64) {
         return {
-          barcode: order.postnlTrackingCode,
-          labelBase64: order.postnlLabelBase64,
+          barcode: current.postnlTrackingCode,
+          labelBase64: current.postnlLabelBase64,
           reused: true,
         };
       }
+      throw new PostnlLabelGuardError(
+        "LABEL_IN_PROGRESS",
+        "De PostNL-labelaanvraag is door een nieuwere aanvraag overgenomen."
+      );
+    }
 
-      assertShippableAddress(order);
-      const { barcode, labelBase64 } = await createShipmentLabel(order);
-      await transaction.order.update({
-        where: { id: order.id },
-        data: { postnlTrackingCode: barcode, postnlLabelBase64: labelBase64 },
-      });
-
-      return { barcode, labelBase64, reused: false };
-    },
-    { maxWait: 10_000, timeout: 60_000 }
-  );
+    return { barcode, labelBase64, reused: false };
+  } catch (error) {
+    await prisma.order.updateMany({
+      where: { id: orderId, postnlLabelClaimToken: claimToken },
+      data: {
+        postnlLabelClaimToken: null,
+        postnlLabelClaimedAt: null,
+        postnlLabelLastError: toLastError(error),
+      },
+    });
+    throw error;
+  }
 }

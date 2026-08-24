@@ -5,6 +5,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
+import { isSameOriginMutation } from "@/lib/admin-request-security";
+import { recordBusinessEvent } from "@/lib/business-portal";
 
 const businessAccountInputSchema = z
   .object({
@@ -24,7 +26,6 @@ export async function GET(request: NextRequest) {
   if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
-
   const businessAccounts = await prisma.businessAccount.findMany({
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { quotes: true } } },
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
   if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+  if (admin.role === "STAFF") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
 
   const parsed = businessAccountInputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -62,6 +65,13 @@ export async function POST(request: NextRequest) {
       });
 
       await recordAudit(tx, admin, "BusinessAccount", businessAccount.id, "CREATE", null, businessAccount);
+      await recordBusinessEvent(tx, {
+        businessAccountId: businessAccount.id,
+        type: "ACCOUNT_CREATED",
+        actorType: "ADMIN",
+        actorName: admin.name,
+        summary: `Zakelijk account voor ${businessAccount.companyName} aangemaakt`,
+      });
 
       return businessAccount;
     });

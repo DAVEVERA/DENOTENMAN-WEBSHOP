@@ -72,6 +72,7 @@ enum EmailDeliveryKind {
   ORDER_FULFILLED
   AFTERSALES_TEST
   BACK_IN_STOCK
+  BUSINESS_ORDER_LIST
 }
 
 enum EmailDeliveryStatus {
@@ -300,8 +301,9 @@ model ProductVariant {
   coating        Coating     @default(NONE)
   isActive       Boolean     @default(true)
 
-  translations VariantTranslation[]
-  orderItems   OrderItem[]
+  translations           VariantTranslation[]
+  orderItems             OrderItem[]
+  businessOrderListItems BusinessOrderListItem[]
 
   @@index([productId])
 }
@@ -704,8 +706,11 @@ model Order {
   molliePaymentId String?   @unique
   paidAt          DateTime?
 
-  postnlTrackingCode String?
-  postnlLabelBase64  String? @db.Text
+  postnlTrackingCode    String?
+  postnlLabelBase64     String?   @db.Text
+  postnlLabelClaimToken String?
+  postnlLabelClaimedAt  DateTime?
+  postnlLabelLastError  String?   @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -946,6 +951,9 @@ model AdminUser {
   uploadedCostInvoices CostInvoice[]        @relation("CostInvoiceUploadedBy")
   deletedCostInvoices  CostInvoice[]        @relation("CostInvoiceDeletedBy")
   costMutations        CostMutation[]
+  businessInvitations  BusinessInvitation[] @relation("BusinessInvitationCreatedBy")
+  businessOrderLists   BusinessOrderList[]  @relation("BusinessOrderListCreatedBy")
+  businessEventReads   BusinessEventRead[]
 }
 
 model ManagedCost {
@@ -1195,19 +1203,180 @@ enum BusinessAccountStatus {
 }
 
 model BusinessAccount {
-  id          String                @id @default(cuid())
-  companyName String
-  contactName String
-  email       String                @unique
-  phone       String?
-  vatNumber   String?
-  status      BusinessAccountStatus @default(PENDING)
-  priceTier   String                @default("standard")
-  notes       String?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  id                   String                @id @default(cuid())
+  companyName          String
+  contactName          String
+  email                String                @unique
+  phone                String?
+  vatNumber            String?
+  status               BusinessAccountStatus @default(PENDING)
+  priceTier            String                @default("standard")
+  notes                String?
+  loginLinkRequestedAt DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
-  quotes Quote[]
+  quotes      Quote[]
+  invitations BusinessInvitation[]
+  sessions    BusinessSession[]
+  orderLists  BusinessOrderList[]
+  events      BusinessEvent[]
+}
+
+model BusinessLoginLinkRateLimit {
+  scopeKey        String   @id
+  windowStartedAt DateTime
+  requestCount    Int      @default(1)
+  updatedAt       DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
+enum BusinessOrderListStatus {
+  DRAFT
+  SENT
+  CHANGES_REQUESTED
+  APPROVED
+  CANCELLED
+}
+
+enum BusinessActorType {
+  ADMIN
+  CUSTOMER
+  SYSTEM
+}
+
+enum BusinessEventType {
+  ACCOUNT_CREATED
+  ACCOUNT_UPDATED
+  INVITATION_SENT
+  PORTAL_LOGIN
+  ORDER_LIST_CREATED
+  ORDER_LIST_SENT
+  ORDER_LIST_QUANTITIES_CHANGED
+  ORDER_LIST_NOTE_ADDED
+  ORDER_LIST_APPROVED
+  ORDER_LIST_CHANGES_REQUESTED
+  ORDER_LIST_CANCELLED
+}
+
+model BusinessInvitation {
+  id                String          @id @default(cuid())
+  businessAccountId String
+  businessAccount   BusinessAccount @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  email             String
+  tokenHash         String          @unique
+  expiresAt         DateTime
+  acceptedAt        DateTime?
+  revokedAt         DateTime?
+  deliveryStatus    String          @default("PENDING")
+  providerMessageId String?
+  deliveryError     String?
+  createdByAdminId  String?
+  createdByAdmin    AdminUser?      @relation("BusinessInvitationCreatedBy", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  createdAt         DateTime        @default(now())
+
+  @@index([businessAccountId, createdAt])
+  @@index([email, expiresAt])
+}
+
+model BusinessSession {
+  id                String          @id @default(cuid())
+  businessAccountId String
+  businessAccount   BusinessAccount @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  tokenHash         String          @unique
+  expiresAt         DateTime
+  lastSeenAt        DateTime        @default(now())
+  revokedAt         DateTime?
+  createdAt         DateTime        @default(now())
+
+  @@index([businessAccountId, expiresAt])
+  @@index([expiresAt])
+}
+
+model BusinessOrderList {
+  id                String                  @id @default(cuid())
+  businessAccountId String
+  businessAccount   BusinessAccount         @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  title             String
+  status            BusinessOrderListStatus @default(DRAFT)
+  version           Int                     @default(1)
+  totalCents        Int
+  validUntil        DateTime?
+  sentAt            DateTime?
+  approvedAt        DateTime?
+  deliveryStatus    String                  @default("NONE")
+  providerMessageId String?
+  deliveryError     String?
+  createdByAdminId  String
+  createdByAdmin    AdminUser               @relation("BusinessOrderListCreatedBy", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  items  BusinessOrderListItem[]
+  notes  BusinessOrderListNote[]
+  events BusinessEvent[]
+
+  @@index([businessAccountId, createdAt])
+  @@index([status, updatedAt])
+}
+
+model BusinessOrderListItem {
+  id               String            @id @default(cuid())
+  orderListId      String
+  orderList        BusinessOrderList @relation(fields: [orderListId], references: [id], onDelete: Cascade)
+  productVariantId String?
+  productVariant   ProductVariant?   @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  productName      String
+  variantLabel     String?
+  sku              String?
+  quantity         Int
+  unitPriceCents   Int
+  sortOrder        Int               @default(0)
+
+  @@index([orderListId, sortOrder])
+  @@index([productVariantId])
+}
+
+model BusinessOrderListNote {
+  id          String            @id @default(cuid())
+  orderListId String
+  orderList   BusinessOrderList @relation(fields: [orderListId], references: [id], onDelete: Cascade)
+  actorType   BusinessActorType
+  authorName  String
+  text        String            @db.Text
+  createdAt   DateTime          @default(now())
+
+  @@index([orderListId, createdAt])
+}
+
+model BusinessEvent {
+  id                String              @id @default(cuid())
+  businessAccountId String
+  businessAccount   BusinessAccount     @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  orderListId       String?
+  orderList         BusinessOrderList?  @relation(fields: [orderListId], references: [id], onDelete: Cascade)
+  type              BusinessEventType
+  actorType         BusinessActorType
+  actorName         String
+  summary           String
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  reads             BusinessEventRead[]
+
+  @@index([businessAccountId, createdAt])
+  @@index([orderListId, createdAt])
+}
+
+model BusinessEventRead {
+  businessEventId String
+  businessEvent   BusinessEvent @relation(fields: [businessEventId], references: [id], onDelete: Cascade)
+  adminUserId     String
+  adminUser       AdminUser     @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  readAt          DateTime      @default(now())
+
+  @@id([businessEventId, adminUserId])
+  @@index([adminUserId, readAt])
 }
 
 enum QuoteStatus {

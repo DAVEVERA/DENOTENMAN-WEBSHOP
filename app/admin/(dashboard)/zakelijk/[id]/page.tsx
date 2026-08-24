@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { BusinessAccountStatus, QuoteStatus } from "@prisma/client";
+import type { BusinessAccountStatus, BusinessOrderListStatus, QuoteStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { BusinessAccountEditForm } from "./BusinessAccountEditForm";
 import { QuoteRowActions } from "./QuoteRowActions";
+import { BusinessInvitationButton } from "./BusinessInvitationButton";
+import { BusinessOrderListActions } from "./BusinessOrderListActions";
 
 const STATUS_LABELS: Record<BusinessAccountStatus, string> = {
   PENDING: "In afwachting",
@@ -35,6 +37,22 @@ const QUOTE_STATUS_BADGE_CLASSES: Record<QuoteStatus, string> = {
   DECLINED: "bg-red-50 text-red-700",
 };
 
+const ORDER_LIST_STATUS_LABELS: Record<BusinessOrderListStatus, string> = {
+  DRAFT: "Concept",
+  SENT: "Wacht op klant",
+  CHANGES_REQUESTED: "Klant heeft wijzigingen",
+  APPROVED: "Goedgekeurd",
+  CANCELLED: "Geannuleerd",
+};
+
+const ORDER_LIST_STATUS_CLASSES: Record<BusinessOrderListStatus, string> = {
+  DRAFT: "bg-border text-muted",
+  SENT: "bg-blue-50 text-blue-800",
+  CHANGES_REQUESTED: "bg-amber-100 text-amber-900",
+  APPROVED: "bg-green-50 text-green-800",
+  CANCELLED: "bg-red-50 text-red-700",
+};
+
 function formatDateTime(date: Date) {
   return new Intl.DateTimeFormat("nl-NL", {
     day: "2-digit",
@@ -54,7 +72,12 @@ export default async function ZakelijkDetailPage({
 
   const businessAccount = await prisma.businessAccount.findUnique({
     where: { id },
-    include: { quotes: { orderBy: { createdAt: "desc" } } },
+    include: {
+      quotes: { orderBy: { createdAt: "desc" } },
+      orderLists: { orderBy: { createdAt: "desc" }, include: { items: { orderBy: { sortOrder: "asc" } }, notes: { orderBy: { createdAt: "desc" } } } },
+      invitations: { orderBy: { createdAt: "desc" }, take: 5 },
+      events: { orderBy: { createdAt: "desc" }, take: 20 },
+    },
   });
 
   if (!businessAccount) {
@@ -94,9 +117,51 @@ export default async function ZakelijkDetailPage({
             />
           </div>
 
+          <section className="rounded-panel border border-border bg-surface p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-ink">Klanttoegang</p>
+            <h2 className="mt-1 font-heading text-heading-sm text-text">Persoonlijke uitnodiging</h2>
+            <p className="mt-2 text-body-sm text-muted">De link is eenmalig, 72 uur geldig en opent alleen de omgeving van {businessAccount.companyName}.</p>
+            <div className="mt-4"><BusinessInvitationButton businessAccountId={businessAccount.id} email={businessAccount.email} disabled={businessAccount.status !== "APPROVED"} /></div>
+            {businessAccount.invitations.length > 0 ? (
+              <ul className="mt-4 grid gap-2 text-body-sm">
+                {businessAccount.invitations.map((invitation) => (
+                  <li key={invitation.id} className="flex flex-wrap justify-between gap-2 rounded-card bg-background px-3 py-2">
+                    <span>{invitation.deliveryStatus === "ACCEPTED" ? "E-mail geaccepteerd" : invitation.deliveryStatus === "FAILED" ? "E-mail mislukt" : "Klaargezet"} · {formatDateTime(invitation.createdAt)}</span>
+                    <span className="font-semibold text-muted">{invitation.acceptedAt ? "Geactiveerd" : invitation.revokedAt ? "Ingetrokken" : invitation.expiresAt < new Date() ? "Verlopen" : "Geldig"}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+
+          <section>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-ink">Samen bestellen</p><h2 className="mt-1 font-heading text-heading-sm text-text">Bestellijsten</h2></div>
+              <Link href={`/admin/zakelijk/${businessAccount.id}/bestellijsten/nieuw`} className="inline-flex min-h-11 w-full items-center justify-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button sm:w-auto">Nieuwe bestellijst</Link>
+            </div>
+            {businessAccount.orderLists.length === 0 ? <p className="mt-4 rounded-card border border-dashed border-border p-4 text-body-sm text-muted">Nog geen bestellijst. Maak een voorstel met echte productvarianten en afgesproken prijzen.</p> : (
+              <div className="mt-4 grid gap-4">
+                {businessAccount.orderLists.map((orderList) => (
+                  <article key={orderList.id} className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div><h3 className="font-heading text-heading-sm text-text">{orderList.title}</h3><p className="mt-1 text-body-sm text-muted">{orderList.items.length} {orderList.items.length === 1 ? "regel" : "regels"} · {formatPrice(orderList.totalCents, "nl")}</p></div>
+                      <span className={`rounded-button px-2 py-1 text-xs font-bold ${ORDER_LIST_STATUS_CLASSES[orderList.status]}`}>{ORDER_LIST_STATUS_LABELS[orderList.status]}</span>
+                    </div>
+                    <ul className="mt-4 divide-y divide-border rounded-card border border-border">
+                      {orderList.items.map((item) => <li key={item.id} className="flex items-start justify-between gap-3 px-3 py-2 text-body-sm"><span className="min-w-0"><strong className="block text-text">{item.productName}</strong><span className="text-muted">{item.variantLabel ?? item.sku ?? "Variant"}</span></span><span className="shrink-0 text-right"><strong className="block text-text">{item.quantity} × {formatPrice(item.unitPriceCents, "nl")}</strong><span className="text-muted">{formatPrice(item.quantity * item.unitPriceCents, "nl")}</span></span></li>)}
+                    </ul>
+                    {orderList.notes.length > 0 ? <div className="mt-3 rounded-card bg-[#FFF9DA] p-3 text-body-sm"><strong className="text-text">Laatste notitie van {orderList.notes[0].authorName}</strong><p className="mt-1 whitespace-pre-wrap text-muted">{orderList.notes[0].text}</p></div> : null}
+                    {orderList.deliveryStatus === "FAILED" ? <p className="mt-3 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">De klantmail is niet verzonden. Probeer opnieuw.</p> : null}
+                    <BusinessOrderListActions accountId={businessAccount.id} orderListId={orderList.id} status={orderList.status} deliveryStatus={orderList.deliveryStatus} updatedAt={orderList.updatedAt.toISOString()} />
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
           <div>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-heading text-heading-sm text-text">Offertes</h2>
+              <h2 className="font-heading text-heading-sm text-text">Bestaande offertes</h2>
               <Link
                 href={`/admin/zakelijk/${businessAccount.id}/offertes/nieuw`}
                 className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button"
@@ -172,10 +237,6 @@ export default async function ZakelijkDetailPage({
                 <dd className="text-text">{businessAccount.phone ?? "—"}</dd>
               </div>
               <div>
-                <dt className="text-muted">BTW-nummer</dt>
-                <dd className="text-text">{businessAccount.vatNumber ?? "—"}</dd>
-              </div>
-              <div>
                 <dt className="text-muted">Prijstier</dt>
                 <dd className="text-text">{businessAccount.priceTier}</dd>
               </div>
@@ -184,6 +245,13 @@ export default async function ZakelijkDetailPage({
                 <dd className="text-text">{formatDateTime(businessAccount.createdAt)}</dd>
               </div>
             </dl>
+          </div>
+
+          <div className="rounded-panel border border-border bg-surface p-5">
+            <h2 className="font-heading text-heading-sm text-text">Gebeurtenissen</h2>
+            <ol className="mt-3 grid gap-3 text-body-sm">
+              {businessAccount.events.map((event) => <li key={event.id} className="border-l-2 border-accent pl-3"><p className="font-semibold text-text">{event.summary}</p><p className="mt-0.5 text-xs text-muted">{event.actorName} · {formatDateTime(event.createdAt)}</p></li>)}
+            </ol>
           </div>
         </div>
       </div>
