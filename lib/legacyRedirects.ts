@@ -101,11 +101,19 @@ const discontinuedProducts: [string, string][] = [
   ["lavendelhoning", "honing-natuurvoeding"],
   ["lindehoning-creme", "honing-natuurvoeding"],
   ["pestosticks", "snacks-zoutjes"],
+  ["pistaches-gepeld-gebrand", "pistachenoten"],
   ["sinaasappelhoning-creme", "honing-natuurvoeding"],
   ["stemgember", "gedroogde-vruchten"],
   ["studenten-flikken-caramel-zeezout", "chocolade-zoet"],
   ["walnoten-chili-gepeld", "noten"],
   ["zoete-abrikozen", "gedroogde-vruchten"],
+];
+
+// Product URLs that existed in the current localized storefront but were
+// removed from the catalog. Keep these explicit so a removed product never
+// masks an active product with a coincidentally matching legacy slug.
+const removedStorefrontProducts: [string, string][] = [
+  ["pistaches-gepeld-gebrand", "pistachenoten"],
 ];
 
 export function legacyWordpressRedirects(): Redirect[] {
@@ -130,6 +138,14 @@ export function legacyWordpressRedirects(): Redirect[] {
   for (const [oldSlug, categorySlug] of discontinuedProducts) {
     redirects.push({
       source: `/product/${oldSlug}`,
+      destination: `/nl/categorie/${categorySlug}`,
+      permanent: true,
+    });
+  }
+
+  for (const [oldSlug, categorySlug] of removedStorefrontProducts) {
+    redirects.push({
+      source: `/nl/producten/${oldSlug}`,
       destination: `/nl/categorie/${categorySlug}`,
       permanent: true,
     });

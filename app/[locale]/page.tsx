@@ -12,6 +12,8 @@ import { Container } from "@/components/ui/Container";
 import { ProductBrowser } from "@/components/product/ProductBrowser";
 import { SiteShell } from "@/components/layout/SiteShell";
 import { LepelPanoramaHero } from "@/components/home/LepelPanoramaHero";
+import { AnnouncementTicker } from "@/components/home/AnnouncementTicker";
+import { getAnnouncementTickerCopy } from "@/lib/customer-service-content";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -79,10 +81,12 @@ export default async function HomePage({
   });
 
   return (
-    <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
-      <LepelPanoramaHero />
-      <Container className="py-8 sm:py-10">
-        <ProductBrowser
+    <>
+      <AnnouncementTicker copy={getAnnouncementTickerCopy(locale)} />
+      <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
+        <LepelPanoramaHero />
+        <Container className="py-8 sm:py-10">
+          <ProductBrowser
           initialPage={catalogPage}
           initialQuery={initialQuery}
           initialFilters={initialFilters}
@@ -153,8 +157,9 @@ export default async function HomePage({
               increase: dictionary.cart.increase,
             },
           }}
-        />
-      </Container>
-    </SiteShell>
+          />
+        </Container>
+      </SiteShell>
+    </>
   );
 }

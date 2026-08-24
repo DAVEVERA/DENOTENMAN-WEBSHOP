@@ -167,3 +167,24 @@ html[data-cookie-consent-known="true"] [data-cookie-consent-banner] {
 .product-short-description p {
   margin: 0;
 }
+
+@keyframes announcement-ticker-enter {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.announcement-ticker__item {
+  animation: announcement-ticker-enter 360ms var(--ease-hover) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-ticker__item {
+    animation: none;
+  }
+}

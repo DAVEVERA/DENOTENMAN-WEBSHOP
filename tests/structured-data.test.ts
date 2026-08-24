@@ -65,10 +65,13 @@ test("builds ProductGroup variants, breadcrumb and Organization from storefront 
   assert.equal(group?.hasVariant?.length, 2);
   assert.equal(group?.hasVariant?.[0]?.offers.availability, "https://schema.org/InStock");
   assert.equal(group?.hasVariant?.[1]?.offers.availability, "https://schema.org/OutOfStock");
-  assert.equal(
-    group?.hasVariant?.[0]?.offers.shippingDetails.hasShippingService["@id"],
-    "https://denotenman.com#standard-shipping"
-  );
+  for (const variant of group?.hasVariant ?? []) {
+    assert.equal(variant.offers.shippingDetails["@type"], "OfferShippingDetails");
+    assert.equal(
+      variant.offers.shippingDetails.hasShippingService["@id"],
+      "https://denotenman.com#standard-shipping"
+    );
+  }
   assert.equal(
     group?.hasVariant?.[0]?.offers.hasMerchantReturnPolicy["@id"],
     "https://denotenman.com#return-policy"

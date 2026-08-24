@@ -14,6 +14,8 @@ import { CookiePolicy } from "./_components/CookiePolicy";
 import { Withdrawal } from "./_components/Withdrawal";
 import { MarketRouteMap, type MarketRouteCopy } from "./_components/MarketRouteMap";
 import { SquirrelEmptyState } from "@/components/layout/SquirrelEmptyState";
+import { CustomerServicePage } from "@/components/customer-service/CustomerServicePage";
+import { getCustomerServiceCopy } from "@/lib/customer-service-content";
 
 const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTitle: string; metadataDescription: string }> = {
   nl: {
@@ -111,14 +113,17 @@ export async function generateMetadata({
     return {};
   }
 
-  const page = key === "markets" ? null : await getPageBySlug(slug, locale);
+  const customerServiceCopy = key === "faq" ? getCustomerServiceCopy(locale) : null;
+  const page = key === "markets" || key === "faq" ? null : await getPageBySlug(slug, locale);
   const title = key === "markets"
     ? marketRouteCopy[locale].metadataTitle
-    : page?.title || key.charAt(0).toUpperCase() + key.slice(1);
+    : customerServiceCopy?.metadataTitle ?? page?.title ?? key.charAt(0).toUpperCase() + key.slice(1);
 
   return {
     title,
-    description: key === "markets" ? marketRouteCopy[locale].metadataDescription : undefined,
+    description: key === "markets"
+      ? marketRouteCopy[locale].metadataDescription
+      : customerServiceCopy?.metadataDescription,
     robots: pageRobots(key),
     alternates: {
       canonical: alternates.canonical,
@@ -147,6 +152,10 @@ export default async function ContentPage({
 
   if (key === "markets") {
     return <MarketRouteMap copy={marketRouteCopy[locale]} />;
+  }
+
+  if (key === "faq") {
+    return <CustomerServicePage locale={locale} copy={getCustomerServiceCopy(locale)} />;
   }
 
   // 1. Render custom high-quality statically-styled Dutch components

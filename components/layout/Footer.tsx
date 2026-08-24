@@ -46,6 +46,11 @@ export async function Footer({
           <nav aria-label={dictionary.footer.legalTitle}>
             <ul className="mt-gap-md flex flex-col gap-gap-sm text-body-sm">
               <li>
+                <a href={pagePath("faq", locale)} className="text-background/80 hover:text-background">
+                  {dictionary.nav.customerService}
+                </a>
+              </li>
+              <li>
                 <a href={pagePath("terms", locale)} className="text-background/80 hover:text-background">
                   {dictionary.footer.terms}
                 </a>
@@ -99,7 +104,7 @@ export async function Footer({
         <div>
           <h2 className="font-heading text-heading-sm text-background">{dictionary.footer.contactTitleColumn}</h2>
           <a
-            href={pagePath("contact", locale)}
+            href={pagePath("faq", locale)}
             className="mt-gap-md block text-body-sm text-background/80 hover:text-background"
           >
             {dictionary.footer.contact}
