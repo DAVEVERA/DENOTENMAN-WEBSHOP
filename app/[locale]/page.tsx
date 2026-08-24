@@ -82,7 +82,7 @@ export default async function HomePage({
 
   return (
     <>
-      <AnnouncementTicker copy={getAnnouncementTickerCopy(locale)} />
+      <AnnouncementTicker copy={getAnnouncementTickerCopy(locale, dictionary.usp)} />
       <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
         <LepelPanoramaHero />
         <Container className="py-8 sm:py-10">

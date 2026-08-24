@@ -8,6 +8,9 @@ import {
   getCustomerServiceCopy,
 } from "../lib/customer-service-content";
 import { pagePath } from "../lib/pages";
+import nl from "../dictionaries/nl.json";
+import en from "../dictionaries/en.json";
+import fr from "../dictionaries/fr.json";
 
 test("Dutch customer service content stays grounded in the configured webshop facts", () => {
   const copy = getCustomerServiceCopy("nl");
@@ -68,10 +71,11 @@ test("customer service route and metadata are localized without relying on a dat
   assert.match(routeSource, /languages: alternates\.languages/);
 });
 
-test("announcement content links every localized market slide to the internal market page", () => {
+test("announcement content uses every localized storefront USP", () => {
+  const dictionaries = { nl, en, fr };
   for (const locale of ["nl", "en", "fr"] as const) {
-    const copy = getAnnouncementTickerCopy(locale);
+    const copy = getAnnouncementTickerCopy(locale, dictionaries[locale].usp);
     assert.equal(copy.items.length, 3);
-    assert.ok(copy.items.every((item) => item.href === pagePath("markets", locale)));
+    assert.deepEqual(copy.items.map((item) => item.text), Object.values(dictionaries[locale].usp));
   }
 });

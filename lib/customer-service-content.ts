@@ -71,9 +71,13 @@ export type CustomerServiceCopy = {
 
 export type AnnouncementTickerCopy = {
   ariaLabel: string;
-  pauseLabel: string;
-  resumeLabel: string;
-  items: Array<{ id: string; text: string; href: string }>;
+  items: Array<{ id: string; text: string }>;
+};
+
+type AnnouncementUspCopy = {
+  freshRoasted: string;
+  personalAdvice: string;
+  experience: string;
 };
 
 const weekdayNames: Record<Locale, readonly string[]> = {
@@ -104,23 +108,23 @@ function phoneHours(locale: Locale) {
   }));
 }
 
-export function getAnnouncementTickerCopy(locale: Locale): AnnouncementTickerCopy {
+export function getAnnouncementTickerCopy(
+  locale: Locale,
+  usp: AnnouncementUspCopy
+): AnnouncementTickerCopy {
   const labels = {
-    nl: { ariaLabel: "Marktdagen van De Notenman", pause: "Pauzeer marktticker", resume: "Start marktticker" },
-    en: { ariaLabel: "De Notenman market days", pause: "Pause market ticker", resume: "Start market ticker" },
-    fr: { ariaLabel: "Jours de marché de De Notenman", pause: "Mettre le bandeau en pause", resume: "Démarrer le bandeau" },
+    nl: "Voordelen van De Notenman",
+    en: "Why shop at De Notenman",
+    fr: "Les avantages de De Notenman",
   }[locale];
-  const href = pagePath("markets", locale);
 
   return {
-    ariaLabel: labels.ariaLabel,
-    pauseLabel: labels.pause,
-    resumeLabel: labels.resume,
-    items: marketVisits(locale).map((visit) => ({
-      id: visit.id,
-      text: `${visit.day} · ${visit.location} · ${visit.hours}`,
-      href,
-    })),
+    ariaLabel: labels,
+    items: [
+      { id: "fresh-roasted", text: usp.freshRoasted },
+      { id: "personal-advice", text: usp.personalAdvice },
+      { id: "market-experience", text: usp.experience },
+    ],
   };
 }
 
