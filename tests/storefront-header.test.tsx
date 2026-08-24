@@ -65,3 +65,15 @@ test("mobile header exposes menu, search, account and cart as a top action row",
   assert.match(source, /dictionary\.nav\.customerService/);
   assert.doesNotMatch(markup, /fixed bottom-/);
 });
+
+test("the storefront logo remains present across mobile, tablet and desktop header layouts", () => {
+  const headerSource = readFileSync("components/layout/Header.tsx", "utf8");
+  const logoSource = readFileSync("components/ui/Logo.tsx", "utf8");
+
+  assert.match(headerSource, /-mx-4 sm:-mx-6 lg:-mx-8 xl:hidden/);
+  assert.match(headerSource, /aria-label=\{dictionary\.brand\.logoWordmarkAlt\}/);
+  assert.match(headerSource, /parts="wordmark"\s+size="nav"/);
+  assert.match(headerSource, /hidden w-full[^\"]*xl:grid/);
+  assert.match(headerSource, /parts="wordmark"\s+size="responsive"/);
+  assert.match(logoSource, /nav: "h-8 min-\[400px\]:h-9 sm:h-10 lg:h-11"/);
+});

@@ -27,6 +27,20 @@ export async function Header({
       <div className="border-y-2 border-contrast bg-surface">
         <Container fullWidth>
           <div className="-mx-4 sm:-mx-6 lg:-mx-8 xl:hidden">
+            <div className="flex min-h-14 items-center justify-center border-b border-border bg-surface px-4 py-2">
+              <Link
+                href={home(locale)}
+                aria-label={dictionary.brand.logoWordmarkAlt}
+                className="inline-flex max-w-full touch-manipulation items-center justify-center"
+              >
+                <Logo
+                  alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
+                  variant="light"
+                  parts="wordmark"
+                  size="nav"
+                />
+              </Link>
+            </div>
             <MobileNav
               categories={categories}
               promotional={navigation.promotional}

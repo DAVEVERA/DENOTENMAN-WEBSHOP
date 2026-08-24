@@ -5,10 +5,13 @@ const wordmarkSrc: Record<"light" | "dark", string> = {
   dark: "/brand/logo-wordmark.svg",
 };
 
-const wordmarkSizeClasses: Record<"sm" | "lg" | "responsive", string> = {
+type LogoSize = "sm" | "lg" | "responsive" | "nav";
+
+const wordmarkSizeClasses: Record<LogoSize, string> = {
   sm: "h-8",
   lg: "h-12",
   responsive: "h-10 sm:h-14 lg:h-16",
+  nav: "h-8 min-[400px]:h-9 sm:h-10 lg:h-11",
 };
 
 const wordmarkColorClasses: Record<"light" | "dark", string> = {
@@ -16,10 +19,11 @@ const wordmarkColorClasses: Record<"light" | "dark", string> = {
   dark: "bg-[#e0b200]",
 };
 
-const markSizeClasses: Record<"sm" | "lg" | "responsive", string> = {
+const markSizeClasses: Record<LogoSize, string> = {
   sm: "h-8 w-8",
   lg: "h-12 w-12",
   responsive: "h-9 w-9 sm:h-12 sm:w-12",
+  nav: "h-8 w-8 min-[400px]:h-9 min-[400px]:w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11",
 };
 
 export function Logo({
@@ -32,7 +36,7 @@ export function Logo({
   alt: { mark: string; wordmark: string };
   variant?: "light" | "dark";
   parts?: "mark" | "wordmark" | "full";
-  size?: "sm" | "lg" | "responsive";
+  size?: LogoSize;
   className?: string;
 }) {
   const showMark = parts === "mark" || parts === "full";
