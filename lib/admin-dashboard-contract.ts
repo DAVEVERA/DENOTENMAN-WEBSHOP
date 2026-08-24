@@ -158,3 +158,14 @@ export const EMPTY_DASHBOARD_ANALYTICS: DashboardAnalytics = {
   signals: { critical: 0, high: 0, positive: 0 },
   issues: [],
 };
+
+export function retainAnalyticsAfterRefreshFailure(
+  current: DashboardAnalytics
+): DashboardAnalytics {
+  if (current.status === "unavailable") return current;
+  return {
+    ...current,
+    status: "partial",
+    message: "Live vernieuwen is mislukt; de laatst geladen GA4-gegevens blijven zichtbaar.",
+  };
+}

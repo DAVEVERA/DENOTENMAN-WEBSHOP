@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/format";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
+import { getInitialAdminDashboardAnalytics } from "@/lib/admin-dashboard-analytics";
 import { AdminDashboardWorkspace } from "@/components/admin-panel/AdminDashboardWorkspace";
 
 export default async function AdminDashboardPage() {
@@ -18,7 +19,7 @@ export default async function AdminDashboardPage() {
   });
   if (!admin?.active) redirect("/admin/login");
 
-  const [productCount, categoryCount, orderCount, pendingOrders, recentOrders] =
+  const [productCount, categoryCount, orderCount, pendingOrders, recentOrders, initialAnalytics] =
     await Promise.all([
       prisma.product.count({ where: { isActive: true } }),
       prisma.category.count({ where: { isActive: true } }),
@@ -35,6 +36,7 @@ export default async function AdminDashboardPage() {
           createdAt: true,
         },
       }),
+      getInitialAdminDashboardAnalytics(),
     ]);
 
   return (
@@ -45,6 +47,7 @@ export default async function AdminDashboardPage() {
         totalOrders: orderCount,
         pendingOrders,
       }}
+      initialAnalytics={initialAnalytics}
       recentOrders={recentOrders.map((order) => ({
         id: order.id,
         contactName: order.contactName,

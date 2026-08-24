@@ -1,17 +1,77 @@
 import "server-only";
 
 import { google } from "googleapis";
+import { z } from "zod";
 import type {
   DashboardAnalytics,
   DashboardTrendPoint,
 } from "@/lib/admin-dashboard-contract";
 import { EMPTY_DASHBOARD_ANALYTICS } from "@/lib/admin-dashboard-contract";
 import { buildDashboardForecast, buildDashboardFunnel, buildDashboardIssues } from "@/lib/admin-dashboard-analysis";
+import { getSetting, setSetting } from "@/lib/settings";
 
 const PROPERTY_ID = process.env.GA4_PROPERTY_ID?.trim() ?? "";
 const ANALYTICS_SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
 const REQUEST_TIMEOUT_MS = 8_000;
 const CACHE_TTL_MS = 60_000;
+const TRANSIENT_RETRY_DELAY_MS = 250;
+const GA4_SNAPSHOT_SETTING_KEY = "analytics.ga4.dashboard.snapshot.v1";
+const GA4_SNAPSHOT_VERSION = 1;
+
+const nullableMetricSchema = z.number().finite().nullable();
+const dashboardAnalyticsSchema = z.object({
+  status: z.enum(["live", "partial", "unavailable"]),
+  generatedAt: z.string().datetime(),
+  propertyId: z.string(),
+  message: z.string(),
+  metrics: z.object({
+    activeVisitors: nullableMetricSchema,
+    revenueToday: nullableMetricSchema,
+    sessions: nullableMetricSchema,
+    views: nullableMetricSchema,
+    engagement: nullableMetricSchema,
+    keyEvents: nullableMetricSchema,
+  }),
+  daily: z.array(z.object({
+    date: z.string(),
+    sessions: z.number().finite(),
+    revenue: z.number().finite(),
+    partial: z.boolean().optional(),
+  })).max(100),
+  forecast: z.object({
+    confidence: z.enum(["onvoldoende", "laag", "middel", "hoog"]),
+    trainingDays: z.number().int().nonnegative(),
+    reason: z.string(),
+    points: z.array(z.object({
+      date: z.string(),
+      expected: z.number().finite(),
+      low: z.number().finite(),
+      high: z.number().finite(),
+    })).max(14),
+  }),
+  funnel: z.object({
+    cart: nullableMetricSchema,
+    checkout: nullableMetricSchema,
+    purchase: nullableMetricSchema,
+  }),
+  signals: z.object({
+    critical: z.number().int().nonnegative(),
+    high: z.number().int().nonnegative(),
+    positive: z.number().int().nonnegative(),
+  }),
+  issues: z.array(z.object({
+    id: z.string(),
+    severity: z.enum(["critical", "high", "positive", "info"]),
+    title: z.string(),
+    evidence: z.string(),
+    action: z.string(),
+  })).max(100),
+});
+
+const persistedSnapshotSchema = z.object({
+  version: z.literal(GA4_SNAPSHOT_VERSION),
+  data: dashboardAnalyticsSchema,
+});
 
 type ReportRow = {
   dimensionValues?: Array<{ value?: string | null }>;
@@ -32,6 +92,58 @@ let analyticsCache:
 let analyticsRefresh: Promise<DashboardAnalytics> | undefined;
 let lastSuccessfulAnalytics: DashboardAnalytics | undefined;
 let lastForcedRefreshAt = 0;
+
+function snapshotMoment(generatedAt: string): string {
+  const date = new Date(generatedAt);
+  if (!Number.isFinite(date.getTime())) return "een eerder meetmoment";
+  return new Intl.DateTimeFormat("nl-NL", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Europe/Amsterdam",
+  }).format(date);
+}
+
+function asPersistentFallback(data: DashboardAnalytics, reason: string): DashboardAnalytics {
+  return {
+    ...data,
+    status: "partial",
+    message: `${reason} Laatst geldige GA4-meting: ${snapshotMoment(data.generatedAt)}.`,
+  };
+}
+
+async function loadPersistedAnalytics(): Promise<DashboardAnalytics | undefined> {
+  try {
+    const raw = await getSetting(GA4_SNAPSHOT_SETTING_KEY);
+    if (!raw) return undefined;
+    const parsed = persistedSnapshotSchema.safeParse(JSON.parse(raw));
+    if (
+      !parsed.success ||
+      parsed.data.data.status === "unavailable" ||
+      parsed.data.data.propertyId !== PROPERTY_ID
+    ) {
+      return undefined;
+    }
+    return parsed.data.data;
+  } catch (error) {
+    console.error("Admin dashboard GA4 snapshot read failed", {
+      code: error instanceof Error ? error.message : "UNKNOWN",
+    });
+    return undefined;
+  }
+}
+
+async function persistAnalytics(data: DashboardAnalytics): Promise<void> {
+  try {
+    await setSetting(
+      GA4_SNAPSHOT_SETTING_KEY,
+      JSON.stringify({ version: GA4_SNAPSHOT_VERSION, data })
+    );
+  } catch (error) {
+    console.error("Admin dashboard GA4 snapshot write failed", {
+      code: error instanceof Error ? error.message : "UNKNOWN",
+    });
+  }
+}
 
 function number(value: unknown): number {
   const parsed = Number(value);
@@ -89,6 +201,34 @@ async function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promis
   }
 }
 
+function isRetryableGa4Error(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as {
+    code?: string | number;
+    message?: string;
+    response?: { status?: number };
+  };
+  const status = Number(candidate.response?.status ?? candidate.code);
+  return (
+    status === 408 ||
+    status === 429 ||
+    status >= 500 ||
+    candidate.code === "ETIMEDOUT" ||
+    candidate.code === "ECONNRESET" ||
+    candidate.message === "GA4_TIMEOUT"
+  );
+}
+
+async function requestWithRetry<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isRetryableGa4Error(error)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS));
+    return operation();
+  }
+}
+
 async function fetchFreshAnalytics(): Promise<DashboardAnalytics> {
   try {
     if (!/^\d+$/.test(PROPERTY_ID)) throw new Error("GA4_NOT_CONFIGURED");
@@ -103,12 +243,14 @@ async function fetchFreshAnalytics(): Promise<DashboardAnalytics> {
       }): Promise<{ data: T }>;
     };
     const request = (method: "runReport" | "runRealtimeReport", data: unknown) =>
-      client.request<Report>({
-        url: `https://analyticsdata.googleapis.com/v1beta/properties/${PROPERTY_ID}:${method}`,
-        method: "POST",
-        data,
-        timeout: REQUEST_TIMEOUT_MS,
-      });
+      requestWithRetry(() =>
+        client.request<Report>({
+          url: `https://analyticsdata.googleapis.com/v1beta/properties/${PROPERTY_ID}:${method}`,
+          method: "POST",
+          data,
+          timeout: REQUEST_TIMEOUT_MS,
+        })
+      );
 
     const results = await Promise.allSettled([
       request("runRealtimeReport", { metrics: [{ name: "activeUsers" }] }),
@@ -216,17 +358,19 @@ export function getAdminDashboardAnalytics(options?: { force?: boolean }) {
     return analyticsCache.value;
   }
   if (forceAllowed) lastForcedRefreshAt = now;
-  const value = fetchFreshAnalytics().then((fresh) => {
+  const value = fetchFreshAnalytics().then(async (fresh) => {
     if (fresh.status !== "unavailable") {
       lastSuccessfulAnalytics = fresh;
+      await persistAnalytics(fresh);
       return fresh;
     }
-    if (lastSuccessfulAnalytics) {
-      return {
-        ...lastSuccessfulAnalytics,
-        status: "partial" as const,
-        message: "Vernieuwen mislukt; laatst bekende GA4-gegevens worden getoond.",
-      };
+    const fallback = lastSuccessfulAnalytics ?? await loadPersistedAnalytics();
+    if (fallback) {
+      lastSuccessfulAnalytics = fallback;
+      return asPersistentFallback(
+        fallback,
+        "Live vernieuwen is mislukt; de laatst opgeslagen gegevens worden getoond."
+      );
     }
     return fresh;
   });
@@ -235,4 +379,13 @@ export function getAdminDashboardAnalytics(options?: { force?: boolean }) {
   });
   analyticsCache = { expiresAt: now + CACHE_TTL_MS, value: analyticsRefresh };
   return analyticsRefresh;
+}
+
+export async function getInitialAdminDashboardAnalytics(): Promise<DashboardAnalytics> {
+  const fallback = lastSuccessfulAnalytics ?? await loadPersistedAnalytics();
+  if (fallback) {
+    lastSuccessfulAnalytics = fallback;
+    return asPersistentFallback(fallback, "Opgeslagen GA4-gegevens worden direct getoond.");
+  }
+  return getAdminDashboardAnalytics();
 }

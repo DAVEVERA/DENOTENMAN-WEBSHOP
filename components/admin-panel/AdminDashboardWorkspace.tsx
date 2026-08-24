@@ -18,6 +18,7 @@ import {
   DASHBOARD_WIDGET_SOURCES,
   DEFAULT_DASHBOARD_PREFERENCES,
   EMPTY_DASHBOARD_ANALYTICS,
+  retainAnalyticsAfterRefreshFailure,
   type DashboardAnalytics,
   type DashboardPreferences,
   type DashboardTrendPoint,
@@ -43,6 +44,7 @@ type RecentOrder = {
 
 type Props = {
   commerce: CommerceStats;
+  initialAnalytics: DashboardAnalytics;
   recentOrders: RecentOrder[];
 };
 
@@ -294,10 +296,10 @@ function WidgetTools({
   );
 }
 
-export function AdminDashboardWorkspace({ commerce, recentOrders }: Props) {
+export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrders }: Props) {
   const router = useRouter();
   const [preferences, setPreferencesState] = useState<DashboardPreferences>(copyPreferences);
-  const [analytics, setAnalytics] = useState<DashboardAnalytics>(EMPTY_DASHBOARD_ANALYTICS);
+  const [analytics, setAnalytics] = useState<DashboardAnalytics>(initialAnalytics);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [preferencesReady, setPreferencesReady] = useState(false);
   const [preferencesWritable, setPreferencesWritable] = useState(false);
@@ -327,7 +329,7 @@ export function AdminDashboardWorkspace({ commerce, recentOrders }: Props) {
       if (!response.ok) throw new Error("ANALYTICS_RESPONSE_FAILED");
       setAnalytics(await response.json() as DashboardAnalytics);
     } catch {
-      setAnalytics({ ...EMPTY_DASHBOARD_ANALYTICS, generatedAt: new Date().toISOString() });
+      setAnalytics(retainAnalyticsAfterRefreshFailure);
     } finally {
       setAnalyticsLoading(false);
     }

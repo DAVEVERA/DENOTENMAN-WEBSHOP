@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { buildDashboardForecast, buildDashboardIssues } from "../lib/admin-dashboard-analysis";
-import { DEFAULT_DASHBOARD_PREFERENCES } from "../lib/admin-dashboard-contract";
+import {
+  DEFAULT_DASHBOARD_PREFERENCES,
+  EMPTY_DASHBOARD_ANALYTICS,
+  retainAnalyticsAfterRefreshFailure,
+} from "../lib/admin-dashboard-contract";
 import { CUSTOMER_SERVICE_WHATSAPP_URL } from "../lib/customer-service";
 
 test("default dashboard order matches the requested operational hierarchy", () => {
@@ -76,7 +80,43 @@ test("dashboard is request-time and admin API routes authenticate before returni
   assert.match(provider, /const analysisSummary/);
   assert.match(provider, /summary: analysisSummary/);
   assert.match(provider, /"89daysAgo", "yesterday"/);
+  assert.match(provider, /GA4_SNAPSHOT_SETTING_KEY/);
+  assert.match(provider, /getSetting\(GA4_SNAPSHOT_SETTING_KEY\)/);
+  assert.match(provider, /setSetting\([\s\S]*GA4_SNAPSHOT_SETTING_KEY/);
+  assert.match(provider, /getInitialAdminDashboardAnalytics/);
+  assert.match(provider, /requestWithRetry/);
+  assert.match(provider, /status === 429/);
   assert.doesNotMatch(provider, /GA4_PROPERTY_ID\?\.trim\(\) \|\|/);
+});
+
+test("admin dashboard renders a persisted GA4 snapshot before the client refresh", () => {
+  const page = readFileSync("app/admin/(dashboard)/page.tsx", "utf8");
+  const workspace = readFileSync("components/admin-panel/AdminDashboardWorkspace.tsx", "utf8");
+
+  assert.match(page, /getInitialAdminDashboardAnalytics\(\)/);
+  assert.match(page, /initialAnalytics=\{initialAnalytics\}/);
+  assert.match(workspace, /initialAnalytics: DashboardAnalytics/);
+  assert.match(workspace, /useState<DashboardAnalytics>\(initialAnalytics\)/);
+  assert.match(workspace, /retainAnalyticsAfterRefreshFailure/);
+  assert.doesNotMatch(workspace, /catch \{[\s\S]{0,180}EMPTY_DASHBOARD_ANALYTICS/);
+});
+
+test("a failed client refresh keeps the last valid GA4 values and timestamp", () => {
+  const live = {
+    ...EMPTY_DASHBOARD_ANALYTICS,
+    status: "live" as const,
+    generatedAt: "2026-08-24T12:07:00.000Z",
+    message: "Live GA4-gegevens",
+    metrics: { ...EMPTY_DASHBOARD_ANALYTICS.metrics, sessions: 8, views: 24 },
+  };
+
+  const retained = retainAnalyticsAfterRefreshFailure(live);
+  assert.equal(retained.status, "partial");
+  assert.equal(retained.generatedAt, live.generatedAt);
+  assert.equal(retained.metrics.sessions, 8);
+  assert.equal(retained.metrics.views, 24);
+  assert.match(retained.message, /blijven zichtbaar/);
+  assert.equal(retainAnalyticsAfterRefreshFailure(EMPTY_DASHBOARD_ANALYTICS), EMPTY_DASHBOARD_ANALYTICS);
 });
 
 test("GA4 property configuration survives both Cloud Run deployment paths", () => {
