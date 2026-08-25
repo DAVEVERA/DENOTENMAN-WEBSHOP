@@ -64,6 +64,7 @@ export function HomeHoneyStory({
           </p>
           <Link
             href={ctaHref}
+            prefetch={false}
             className="mt-6 inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-button bg-contrast px-5 py-2.5 font-heading text-sm font-bold text-white transition-colors duration-hover-fast hover:bg-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-contrast"
           >
             {ctaLabel}

@@ -215,6 +215,7 @@ export function HomeHero({
           </p>
           <Link
             href={activeSlide.ctaHref}
+            prefetch={false}
             className="mt-5 inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-button bg-contrast px-4 py-2.5 font-heading text-sm font-bold text-white transition-colors hover:bg-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast lg:hidden"
           >
             {activeSlide.ctaLabel}

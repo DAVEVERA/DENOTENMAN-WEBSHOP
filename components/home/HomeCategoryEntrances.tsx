@@ -43,6 +43,7 @@ export function HomeCategoryEntrances({
             </p>
             <Link
               href={viewAllHref}
+              prefetch={false}
               className="inline-flex min-h-11 shrink-0 touch-manipulation items-center gap-1.5 py-2 font-heading text-[0.72rem] font-bold text-contrast underline decoration-accent decoration-2 underline-offset-4 hover:text-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast sm:text-xs"
             >
               {viewAllLabel}
@@ -63,6 +64,7 @@ export function HomeCategoryEntrances({
               >
                 <Link
                   href={category.href}
+                  prefetch={false}
                   className="group flex min-h-14 touch-manipulation items-center justify-between gap-2 rounded-[0.55rem] border border-border bg-[#f7f4ee] px-3 py-2.5 transition-[border-color,background-color,transform] duration-hover hover:-translate-y-0.5 hover:border-border-hover hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
                 >
                   <span className="min-w-0 font-heading text-sm font-bold leading-tight text-contrast">

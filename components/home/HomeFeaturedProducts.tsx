@@ -113,6 +113,7 @@ export function HomeFeaturedProducts({
         <div className="mt-8 flex justify-center">
           <Link
             href={href}
+            prefetch={false}
             className="inline-flex min-h-11 items-center justify-center rounded-button bg-accent px-6 py-3 font-heading text-body-md font-bold text-contrast shadow-button transition-colors hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
           >
             {copy.viewAll}

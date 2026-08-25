@@ -128,6 +128,7 @@ export async function Footer({
                   <li key={category.id}>
                     <Link
                       href={categoryPath(locale, category.slug)}
+                      prefetch={false}
                       className={footerLinkClass}
                     >
                       {category.name}

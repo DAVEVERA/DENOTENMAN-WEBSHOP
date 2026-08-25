@@ -61,6 +61,7 @@ export function HomeNutButterStory({
             ) : null}
             <Link
               href={ctaHref}
+              prefetch={false}
               className="mt-6 inline-flex min-h-11 w-fit touch-manipulation items-center gap-2 py-2 font-heading text-sm font-bold text-contrast underline decoration-accent decoration-[3px] underline-offset-4 transition-colors duration-hover-fast hover:text-[#705700] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-contrast"
             >
               {ctaLabel}
