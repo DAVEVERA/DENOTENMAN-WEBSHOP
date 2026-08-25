@@ -60,5 +60,7 @@ test("the existing localized header destination renders the custom map page", as
   assert.match(componentSource, /aria-live="polite"/);
   assert.match(componentSource, /tabIndex=\{0\}/);
   assert.match(componentSource, /onLoad=\{centerActiveStop\}/);
+  assert.match(componentSource, /CUSTOMER_SERVICE_MARKET_VISITS\.map/);
+  assert.ok(componentSource.indexOf("styles.schedule") < componentSource.indexOf("styles.mapCard"));
   assert.ok(mapFile.size > 0);
 });

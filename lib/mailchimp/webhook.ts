@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { isLocale } from "@/lib/i18n";
 import { normalizeSubscriberEmail } from "@/lib/mailchimp/subscriberHash";
 
-type MailchimpWebhookEvent =
+export type MailchimpWebhookEvent =
   | {
-      type: "unsubscribe" | "cleaned" | "profile";
+      type: "subscribe" | "unsubscribe" | "cleaned" | "profile";
       email: string;
       firstName?: string;
       lastName?: string;
@@ -88,7 +88,14 @@ export function parseMailchimpWebhook(formData: FormData): MailchimpWebhookEvent
     return oldEmail && newEmail ? { type, oldEmail, newEmail } : null;
   }
 
-  if (type !== "unsubscribe" && type !== "cleaned" && type !== "profile") return null;
+  if (
+    type !== "subscribe" &&
+    type !== "unsubscribe" &&
+    type !== "cleaned" &&
+    type !== "profile"
+  ) {
+    return null;
+  }
   const email = requiredEmail(formData, "data[email]");
   if (!email) return null;
 
@@ -115,6 +122,40 @@ function profileData(event: {
     ...(event.firstName !== undefined ? { firstName: event.firstName } : {}),
     ...(event.lastName !== undefined ? { lastName: event.lastName } : {}),
     ...(event.locale !== undefined ? { locale: event.locale } : {}),
+  };
+}
+
+type ConsentStatusWebhookEvent = {
+  type: "subscribe" | "unsubscribe" | "cleaned";
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  locale?: Locale;
+};
+
+function isConsentStatusWebhookEvent(
+  event: MailchimpWebhookEvent
+): event is ConsentStatusWebhookEvent {
+  return event.type === "subscribe" || event.type === "unsubscribe" || event.type === "cleaned";
+}
+
+export function mailchimpConsentStatusMutation(
+  event: ConsentStatusWebhookEvent,
+  existing: { optInAt: Date | null; optOutAt: Date | null } | null,
+  now: Date
+) {
+  const status: NewsletterConsentStatus =
+    event.type === "subscribe"
+      ? "SUBSCRIBED"
+      : event.type === "cleaned"
+        ? "CLEANED"
+        : "UNSUBSCRIBED";
+
+  return {
+    status,
+    ...(status === "SUBSCRIBED"
+      ? { optInAt: existing?.optInAt ?? now, optOutAt: null }
+      : { optOutAt: existing?.optOutAt ?? now }),
   };
 }
 
@@ -162,22 +203,24 @@ export async function applyMailchimpWebhook(event: MailchimpWebhookEvent): Promi
     return;
   }
 
-  const status: NewsletterConsentStatus =
-    event.type === "cleaned" ? "CLEANED" : "UNSUBSCRIBED";
+  if (!isConsentStatusWebhookEvent(event)) return;
+
+  const existing = await prisma.newsletterConsent.findUnique({ where: { email: event.email } });
+  const now = new Date();
+  const mutation = mailchimpConsentStatusMutation(event, existing, now);
+
   await prisma.newsletterConsent.upsert({
     where: { email: event.email },
     create: {
       email: event.email,
       firstName: event.firstName,
       lastName: event.lastName,
-      status,
-      optOutAt: new Date(),
+      ...mutation,
       source: "MAILCHIMP",
       locale: event.locale ?? "nl",
     },
     update: {
-      status,
-      optOutAt: new Date(),
+      ...mutation,
       ...(event.firstName !== undefined ? { firstName: event.firstName } : {}),
       ...(event.lastName !== undefined ? { lastName: event.lastName } : {}),
       ...(event.locale !== undefined ? { locale: event.locale } : {}),

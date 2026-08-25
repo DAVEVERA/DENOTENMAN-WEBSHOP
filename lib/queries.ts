@@ -26,6 +26,14 @@ import {
   sortCatalogCandidates,
   type CatalogSort,
 } from "@/lib/catalog-sort";
+import {
+  HOME_CATEGORY_ENTRANCES,
+  type HomeCategoryEntranceSlug,
+} from "@/lib/home-category-entrances";
+import {
+  HOME_HONEY_PRODUCT_SKUS,
+  HOME_NUT_PRODUCT_SKUS,
+} from "@/lib/home-featured-products";
 import { Prisma } from "@prisma/client";
 import type {
   Category,
@@ -1009,6 +1017,205 @@ export async function getProductSummaryById(
 
   return product ? toProductSummaryDto(product, locale) ?? null : null;
 }
+
+export type HomeLandingProductsDto = {
+  nuts: ProductSummaryDto[];
+  honey: ProductSummaryDto[];
+  nutButters: ProductSummaryDto[];
+  categoryImages: Partial<Record<HomeCategoryEntranceSlug, string>>;
+};
+
+const HOME_PRODUCT_LIMIT = 6;
+
+export const getHomeLandingProducts = cache(
+  async (locale: Locale): Promise<HomeLandingProductsDto> => {
+    const translationLocales =
+      locale === defaultLocale ? [locale] : [locale, defaultLocale];
+    const categoryGraph = await prisma.category.findMany({
+      where: { isActive: true },
+      select: { id: true, slug: true, parentId: true },
+    });
+
+    function categoryIds(canonicalSlug: string): string[] {
+      const category = categoryGraph.find(
+        (candidate) => candidate.slug === canonicalSlug,
+      );
+
+      return category
+        ? collectDescendantCategoryIds(category.id, categoryGraph)
+        : [];
+    }
+
+    const nutCategoryIds = categoryIds("noten");
+    const honeyCategoryIds = categoryIds("honing");
+    const nutButterCategoryIds = categoryIds("notenpasta-s");
+    const visibleProductWhere = {
+      isActive: true,
+      variants: { some: { isActive: true } },
+      translations: { some: { locale: { in: translationLocales } } },
+    } satisfies Prisma.ProductWhereInput;
+
+    async function findGroupIds(
+      groupCategoryIds: string[],
+      options: {
+        limit?: number;
+        excludedCategoryIds?: string[];
+        preferredSkus?: readonly string[];
+      } = {},
+    ): Promise<string[]> {
+      if (!groupCategoryIds.length) return [];
+
+      const records = await prisma.product.findMany({
+        where: {
+          ...visibleProductWhere,
+          ...(options.preferredSkus?.length
+            ? { sku: { in: [...options.preferredSkus] } }
+            : {}),
+          AND: [
+            {
+              productCategories: {
+                some: { categoryId: { in: groupCategoryIds } },
+              },
+            },
+            ...(options.excludedCategoryIds?.length
+              ? [
+                  {
+                    NOT: {
+                      productCategories: {
+                        some: {
+                          categoryId: { in: options.excludedCategoryIds },
+                        },
+                      },
+                    },
+                  } satisfies Prisma.ProductWhereInput,
+                ]
+              : []),
+          ],
+        },
+        select: { id: true, sku: true },
+        orderBy: [{ slug: "asc" }, { sku: "asc" }],
+        ...(options.limit ? { take: options.limit } : {}),
+      });
+
+      if (!options.preferredSkus?.length) {
+        return records.map(({ id }) => id);
+      }
+
+      const idBySku = new Map(records.map(({ id, sku }) => [sku, id]));
+      return options.preferredSkus.flatMap((sku) => {
+        const id = idBySku.get(sku);
+        return id ? [id] : [];
+      });
+    }
+
+    const [nutIds, honeyIds, nutButterIds, previewProducts] =
+      await Promise.all([
+        findGroupIds(nutCategoryIds, {
+          limit: HOME_PRODUCT_LIMIT,
+          preferredSkus: HOME_NUT_PRODUCT_SKUS,
+        }),
+        findGroupIds(honeyCategoryIds, {
+          limit: HOME_PRODUCT_LIMIT,
+          excludedCategoryIds: nutButterCategoryIds,
+          preferredSkus: HOME_HONEY_PRODUCT_SKUS,
+        }),
+        findGroupIds(nutButterCategoryIds),
+        prisma.product.findMany({
+          where: {
+            ...visibleProductWhere,
+            sku: {
+              in: HOME_CATEGORY_ENTRANCES.map(({ previewSku }) => previewSku),
+            },
+          },
+          select: {
+            sku: true,
+            images: {
+              select: { storageKey: true },
+              orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
+              take: 1,
+            },
+          },
+        }),
+      ]);
+    const selectedIds = [
+      ...new Set([...nutIds, ...honeyIds, ...nutButterIds]),
+    ];
+    const records = selectedIds.length
+      ? await prisma.product.findMany({
+          where: {
+            id: { in: selectedIds },
+            ...visibleProductWhere,
+          },
+          include: {
+            translations: {
+              where: { locale: { in: translationLocales } },
+            },
+            images: {
+              orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
+            },
+            variants: {
+              where: { isActive: true },
+              include: {
+                translations: {
+                  where: { locale: { in: translationLocales } },
+                },
+              },
+            },
+            productCategories: {
+              include: {
+                category: {
+                  include: {
+                    translations: {
+                      where: { locale: { in: translationLocales } },
+                    },
+                  },
+                },
+              },
+              orderBy: [
+                { isPrimary: "desc" },
+                { sortOrder: "asc" },
+                { category: { sortOrder: "asc" } },
+              ],
+            },
+          },
+        })
+      : [];
+    const productsById = new Map(
+      records.flatMap((record) => {
+        const product = toProductSummaryDto(record, locale);
+        return product ? [[record.id, product] as const] : [];
+      }),
+    );
+    const restoreOrder = (ids: string[]) =>
+      ids.flatMap((id) => {
+        const product = productsById.get(id);
+        return product ? [product] : [];
+      });
+    const slugByPreviewSku = new Map<string, HomeCategoryEntranceSlug>(
+      HOME_CATEGORY_ENTRANCES.map(({ canonicalSlug, previewSku }) => [
+        previewSku,
+        canonicalSlug,
+      ]),
+    );
+    const categoryImages = Object.fromEntries(
+      previewProducts.flatMap(({ sku, images }) => {
+        const canonicalSlug = slugByPreviewSku.get(sku);
+        const image = images[0];
+
+        return canonicalSlug && image
+          ? [[canonicalSlug, publicImageUrl(image.storageKey)] as const]
+          : [];
+      }),
+    ) as Partial<Record<HomeCategoryEntranceSlug, string>>;
+
+    return {
+      nuts: restoreOrder(nutIds),
+      honey: restoreOrder(honeyIds),
+      nutButters: restoreOrder(nutButterIds),
+      categoryImages,
+    };
+  },
+);
 
 export async function getFilteredProducts(
   categorySlug: string,

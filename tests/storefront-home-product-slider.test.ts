@@ -56,11 +56,12 @@ test("carousel index wrapping is stable in both directions", () => {
   assert.equal(wrapHomeSliderIndex(0, 0), 0);
 });
 
-test("the homepage uses the spoon panorama without a slider database query", async () => {
+test("the homepage uses curated database products and no legacy hero carousel", async () => {
   const pageSource = await readFile("app/[locale]/page.tsx", "utf8");
 
-  assert.match(pageSource, /<LepelPanoramaHero\s*\/>/);
-  assert.doesNotMatch(pageSource, /getHomeSliderProducts|heroProducts|<VisualHero/);
+  assert.match(pageSource, /getHomeLandingProducts\(locale\)/);
+  assert.match(pageSource, /<HomeFeaturedProducts/);
+  assert.doesNotMatch(pageSource, /getHomeSliderProducts|heroProducts|<VisualHero|LepelPanoramaHero/);
 });
 
 test("the client carousel exposes infinite motion, swipe, keyboard and existing cart actions", async () => {

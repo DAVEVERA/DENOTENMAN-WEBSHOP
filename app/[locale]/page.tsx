@@ -1,24 +1,49 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { locales, isLocale } from "@/lib/i18n";
-import {
-  getCatalogProducts,
-  normalizeCatalogFilterValues,
-} from "@/lib/queries";
-import { normalizeCatalogSort } from "@/lib/catalog-sort";
+import { getCategoryNavigation, getHomeLandingProducts } from "@/lib/queries";
 import { getAlternates } from "@/lib/alternates";
 import { buildStorefrontMetadata } from "@/lib/storefront-seo";
-import { Container } from "@/components/ui/Container";
-import { ProductBrowser } from "@/components/product/ProductBrowser";
+import {
+  categories as categoriesPath,
+  category as categoryPath,
+} from "@/lib/routes";
+import { pagePath } from "@/lib/pages";
+import {
+  getAnnouncementTickerCopy,
+  getCustomerServiceCopy,
+} from "@/lib/customer-service-content";
 import { SiteShell } from "@/components/layout/SiteShell";
-import { LepelPanoramaHero } from "@/components/home/LepelPanoramaHero";
 import { AnnouncementTicker } from "@/components/home/AnnouncementTicker";
-import { getAnnouncementTickerCopy } from "@/lib/customer-service-content";
+import { HomeHero } from "@/components/home/HomeHero";
+import { HomeCategoryEntrances } from "@/components/home/HomeCategoryEntrances";
+import { HomeNutButterStory } from "@/components/home/HomeNutButterStory";
+import { USPBar } from "@/components/ui/USPBar";
+import { HomeFeaturedProducts } from "@/components/home/HomeFeaturedProducts";
+import { HomeCraftStory } from "@/components/home/HomeCraftStory";
+import { HomeHoneyStory } from "@/components/home/HomeHoneyStory";
+import { HomeServiceProof } from "@/components/home/HomeServiceProof";
+import { HomeAssortmentCta } from "@/components/home/HomeAssortmentCta";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
+import type { NavigationCategoryDto } from "@/lib/categoryGroups";
+import { HOME_CATEGORY_ENTRANCES } from "@/lib/home-category-entrances";
 
 const dictionaries = { nl, en, fr };
+
+function findNavigationCategory(
+  categories: NavigationCategoryDto[],
+  canonicalSlug: string,
+): NavigationCategoryDto | undefined {
+  for (const category of categories) {
+    if (category.canonicalSlug === canonicalSlug) return category;
+    const child = findNavigationCategory(category.children, canonicalSlug);
+    if (child) return child;
+  }
+
+  return undefined;
+}
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -31,9 +56,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: rawLocale } = await params;
 
-  if (!isLocale(rawLocale)) {
-    return {};
-  }
+  if (!isLocale(rawLocale)) return {};
 
   const dictionary = dictionaries[rawLocale];
   const alternates = await getAlternates(rawLocale, { type: "home" });
@@ -47,118 +70,215 @@ export async function generateMetadata({
 
 export default async function HomePage({
   params,
-  searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    q?: string | string[];
-    f?: string | string[];
-    sort?: string | string[];
-  }>;
 }) {
-  const [{ locale: rawLocale }, queryParams] = await Promise.all([params, searchParams]);
+  const { locale: rawLocale } = await params;
 
-  if (!isLocale(rawLocale)) {
-    notFound();
-  }
+  if (!isLocale(rawLocale)) notFound();
 
   const locale = rawLocale;
   const dictionary = dictionaries[locale];
-  const initialQuery = (Array.isArray(queryParams.q) ? queryParams.q[0] : queryParams.q ?? "")
-    .trim()
-    .slice(0, 100);
-  const rawFilters = Array.isArray(queryParams.f) ? queryParams.f[0] : queryParams.f ?? "";
-  const initialFilters = normalizeCatalogFilterValues(rawFilters.split(","));
-  const initialSort = normalizeCatalogSort(
-    Array.isArray(queryParams.sort) ? queryParams.sort[0] : queryParams.sort
+  const assortmentHref = categoriesPath(locale);
+  const marketsHref = pagePath("markets", locale);
+  const announcementCopy = getAnnouncementTickerCopy(locale, dictionary.usp);
+  const [alternates, navigation, homeProducts] = await Promise.all([
+    getAlternates(locale, { type: "home" }),
+    getCategoryNavigation(locale),
+    getHomeLandingProducts(locale),
+  ]);
+  const customerService = getCustomerServiceCopy(locale);
+  const homepageCategories = HOME_CATEGORY_ENTRANCES.flatMap(
+    ({ canonicalSlug }) => {
+      const category = findNavigationCategory(
+        navigation.categories,
+        canonicalSlug,
+      );
+
+      return category
+        ? [
+            {
+              id: category.id,
+              name: category.name,
+              href: categoryPath(locale, category.slug),
+              imageSrc: homeProducts.categoryImages[canonicalSlug],
+            },
+          ]
+        : [];
+    },
   );
-  const alternates = await getAlternates(locale, { type: "home" });
-  // Keep the initial RSC payload bounded; subsequent catalog pages are fetched on demand.
-  const catalogPage = await getCatalogProducts(locale, {
-    query: initialQuery,
-    filters: initialFilters,
-    sort: initialSort,
-  });
+  const categoryHref = (canonicalSlug: string) => {
+    const category = findNavigationCategory(
+      navigation.categories,
+      canonicalSlug,
+    );
+
+    return category ? categoryPath(locale, category.slug) : assortmentHref;
+  };
+  const nutsHref = categoryHref("noten");
+  const honeyHref = categoryHref("honing");
+  const nutButterHref = categoryHref("notenpasta-s");
+  const heroSlides = dictionary.home.hero.slides.map(
+    ({ category, cta, ...slide }) => {
+      const navigationCategory = findNavigationCategory(
+        navigation.categories,
+        category,
+      );
+
+      return {
+        ...slide,
+        ctaLabel: cta,
+        ctaHref: navigationCategory
+          ? categoryPath(locale, navigationCategory.slug)
+          : assortmentHref,
+      };
+    },
+  );
+  const shippingUsp = announcementCopy.items.find(
+    (item) => item.id === "free-shipping",
+  )?.text;
+
+  const productCardCopy = {
+    outOfStock: dictionary.product.outOfStock,
+    addToFavorites: dictionary.product.addToFavorites,
+    removeFromFavorites: dictionary.product.removeFromFavorites,
+    openQuickView: dictionary.product.openQuickView,
+    quickOrder: dictionary.product.quickOrder,
+    moreInfo: dictionary.product.moreInfo,
+    stockAlert: dictionary.product.stockAlert,
+    loadingQuickView: dictionary.product.loadingQuickView,
+  };
+  const productQuickViewCopy = {
+    selectQuantity: dictionary.product.selectQuantity,
+    closeQuickView: dictionary.product.closeQuickView,
+    outOfStock: dictionary.product.outOfStock,
+    inStock: dictionary.product.inStock,
+    quantity: dictionary.product.quantity,
+    added: dictionary.product.addedToCart,
+    goToCart: dictionary.product.goToCart,
+    continueShopping: dictionary.product.continueShopping,
+    order: dictionary.product.order,
+    quickOrder: dictionary.product.quickOrder,
+    moreInfo: dictionary.product.moreInfo,
+    decrease: dictionary.cart.decrease,
+    increase: dictionary.cart.increase,
+  };
 
   return (
     <>
-      <AnnouncementTicker copy={getAnnouncementTickerCopy(locale, dictionary.usp)} />
-      <SiteShell locale={locale} dictionary={dictionary} languages={alternates?.languages ?? {}}>
-        <LepelPanoramaHero />
-        <Container className="py-8 sm:py-10">
-          <ProductBrowser
-          initialPage={catalogPage}
-          initialQuery={initialQuery}
-          initialFilters={initialFilters}
-          initialSort={initialSort}
+      <AnnouncementTicker copy={announcementCopy} />
+      <SiteShell
+        locale={locale}
+        dictionary={dictionary}
+        languages={alternates?.languages ?? {}}
+      >
+        <HomeHero
+          carouselLabel={dictionary.home.hero.carouselLabel}
+          slideLabel={dictionary.home.hero.slideLabel}
+          slides={heroSlides}
+        />
+
+        <HomeCategoryEntrances
+          eyebrow={dictionary.home.categories.eyebrow}
+          title={dictionary.home.categories.title}
+          intro={dictionary.home.categories.intro}
+          viewAllLabel={dictionary.home.categories.viewAll}
+          viewAllHref={assortmentHref}
+          categories={homepageCategories}
+        />
+
+        <USPBar dictionary={dictionary} shipping={shippingUsp} />
+
+        <HomeCraftStory
+          eyebrow={dictionary.home.story.eyebrow}
+          title={dictionary.home.story.title}
+          body={dictionary.home.story.body}
+          points={[
+            dictionary.home.story.proofOne,
+            dictionary.home.story.proofTwo,
+            dictionary.home.story.proofThree,
+          ]}
+          imageSrc="/home/de-notenman-marktbak.webp"
+          imageAlt={dictionary.home.story.imageAlt}
+          ctaLabel={dictionary.home.story.cta}
+          ctaHref={pagePath("about", locale)}
+        />
+
+        <HomeFeaturedProducts
+          products={homeProducts.nuts}
           locale={locale}
+          href={nutsHref}
+          sectionId="home-nuts"
+          tone="from-craft"
           copy={{
-            search: dictionary.common.search,
-            loading: dictionary.common.loading,
-            loadError:
-              locale === "nl"
-                ? "Producten laden is niet gelukt. Probeer het opnieuw."
-                : locale === "fr"
-                  ? "Le chargement des produits a \u00e9chou\u00e9. R\u00e9essayez."
-                  : "Products could not be loaded. Please try again.",
-            retry: locale === "nl" ? "Opnieuw proberen" : locale === "fr" ? "R\u00e9essayer" : "Try again",
-            filters: dictionary.category.filters,
-            noResults: dictionary.category.noResults,
-            categoryLabel: dictionary.filters.categoryLabel,
-            preparationLabel: dictionary.filters.preparationLabel,
-            preparationRoasted: dictionary.filters.preparationRoasted,
-            preparationRaw: dictionary.filters.preparationRaw,
-            saltingLabel: dictionary.filters.saltingLabel,
-            saltingSalted: dictionary.filters.saltingSalted,
-            saltingUnsalted: dictionary.filters.saltingUnsalted,
-            coatingLabel: dictionary.filters.coatingLabel,
-            coatingNone: dictionary.filters.coatingNone,
-            coatingChocolate: dictionary.filters.coatingChocolate,
-            coatingYoghurt: dictionary.filters.coatingYoghurt,
-            coatingFlavored: dictionary.filters.coatingFlavored,
-            sortLabel: dictionary.filters.sortLabel,
-            sortPriceLowHigh: dictionary.filters.sortPriceLowHigh,
-            sortPriceHighLow: dictionary.filters.sortPriceHighLow,
-            sortPopular: dictionary.filters.sortPopular,
-            sortBestSelling: dictionary.filters.sortBestSelling,
-            sortMostViewed: dictionary.filters.sortMostViewed,
-            reset: dictionary.filters.reset,
-            clearAll: dictionary.filters.clearAll,
-            closeFilters: dictionary.filters.closeFilters,
-            removeFilter: dictionary.filters.removeFilter,
-            resultsCountSingular: dictionary.filters.resultsCountSingular,
-            resultsCountPlural: dictionary.filters.resultsCountPlural,
-            loadMore: dictionary.filters.loadMore,
-            card: {
-              outOfStock: dictionary.product.outOfStock,
-              addToFavorites: dictionary.product.addToFavorites,
-              removeFromFavorites: dictionary.product.removeFromFavorites,
-              openQuickView: dictionary.product.openQuickView,
-              quickOrder: dictionary.product.quickOrder,
-              moreInfo: dictionary.product.moreInfo,
-              stockAlert:
-                locale === "nl" ? "Geef me een seintje" : locale === "fr" ? "Pr\u00e9venez-moi" : "Notify me",
-              loadingQuickView:
-                locale === "nl" ? "Product laden\u2026" : locale === "fr" ? "Chargement du produit\u2026" : "Loading product\u2026",
-            },
-            quickView: {
-              selectQuantity: dictionary.product.selectQuantity,
-              closeQuickView: dictionary.product.closeQuickView,
-              outOfStock: dictionary.product.outOfStock,
-              inStock: dictionary.product.inStock,
-              quantity: dictionary.product.quantity,
-              added: dictionary.product.addedToCart,
-              goToCart: dictionary.product.goToCart,
-              continueShopping: dictionary.product.continueShopping,
-              order: dictionary.product.order,
-              quickOrder: dictionary.product.quickOrder,
-              moreInfo: dictionary.product.moreInfo,
-              decrease: dictionary.cart.decrease,
-              increase: dictionary.cart.increase,
-            },
+            ...dictionary.home.nutsProducts,
+            card: productCardCopy,
+            quickView: productQuickViewCopy,
           }}
-          />
-        </Container>
+        />
+
+        <HomeHoneyStory
+          eyebrow={dictionary.home.honeyStory.eyebrow}
+          title={dictionary.home.honeyStory.title}
+          body={dictionary.home.honeyStory.body}
+          imageAlt={dictionary.home.honeyStory.imageAlt}
+          ctaLabel={dictionary.home.honeyStory.cta}
+          ctaHref={honeyHref}
+        />
+
+        <HomeFeaturedProducts
+          products={homeProducts.honey}
+          locale={locale}
+          href={honeyHref}
+          sectionId="home-honey"
+          tone="from-honey"
+          copy={{
+            ...dictionary.home.honeyProducts,
+            card: productCardCopy,
+            quickView: productQuickViewCopy,
+          }}
+        />
+
+        <HomeNutButterStory
+          eyebrow={dictionary.home.nutButter.eyebrow}
+          title={dictionary.home.nutButter.title}
+          body={dictionary.home.nutButter.body}
+          detail={dictionary.home.nutButter.detail}
+          highlights={dictionary.home.nutButter.highlights}
+          imageAlt={dictionary.home.nutButter.imageAlt}
+          ctaLabel={dictionary.home.nutButter.cta}
+          ctaHref={nutButterHref}
+        />
+
+        <HomeFeaturedProducts
+          products={homeProducts.nutButters}
+          locale={locale}
+          href={nutButterHref}
+          sectionId="home-nut-butters"
+          layout="grid"
+          tone="from-nut-butter"
+          copy={{
+            ...dictionary.home.nutButterProducts,
+            card: productCardCopy,
+            quickView: productQuickViewCopy,
+          }}
+        />
+
+        <HomeServiceProof
+          eyebrow={dictionary.home.service.eyebrow}
+          title={dictionary.home.service.title}
+          intro={dictionary.home.service.intro}
+          markets={customerService.marketVisits}
+          ctaLabel={dictionary.home.service.viewAll}
+          ctaHref={marketsHref}
+        />
+
+        <HomeAssortmentCta
+          title={dictionary.home.assortment.title}
+          body={dictionary.home.assortment.body}
+          ctaLabel={dictionary.home.assortment.cta}
+          ctaHref={assortmentHref}
+        />
       </SiteShell>
     </>
   );

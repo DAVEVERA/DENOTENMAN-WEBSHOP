@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import {
+  mailchimpConsentStatusMutation,
   parseMailchimpWebhook,
   verifyMailchimpWebhookSignature,
 } from "../lib/mailchimp/webhook";
@@ -60,6 +61,39 @@ assert.deepEqual(parseMailchimpWebhook(unsubscribe), {
   firstName: "Piet",
   locale: "fr",
 });
+
+const subscribe = new FormData();
+subscribe.set("type", "subscribe");
+subscribe.set("data[email]", "New@Example.COM");
+subscribe.set("data[merges][LOCALE]", "nl");
+assert.deepEqual(parseMailchimpWebhook(subscribe), {
+  type: "subscribe",
+  email: "new@example.com",
+  locale: "nl",
+});
+
+const webhookTime = new Date("2026-08-24T10:00:00.000Z");
+assert.deepEqual(mailchimpConsentStatusMutation({ type: "subscribe", email: "new@example.com", locale: "nl" }, null, webhookTime), {
+  status: "SUBSCRIBED",
+  optInAt: webhookTime,
+  optOutAt: null,
+});
+assert.deepEqual(
+  mailchimpConsentStatusMutation(
+    { type: "unsubscribe", email: "new@example.com" },
+    { optInAt: webhookTime, optOutAt: null },
+    webhookTime
+  ),
+  { status: "UNSUBSCRIBED", optOutAt: webhookTime }
+);
+assert.deepEqual(
+  mailchimpConsentStatusMutation(
+    { type: "cleaned", email: "new@example.com" },
+    { optInAt: webhookTime, optOutAt: webhookTime },
+    new Date("2026-08-24T11:00:00.000Z")
+  ),
+  { status: "CLEANED", optOutAt: webhookTime }
+);
 
 const changedEmail = new FormData();
 changedEmail.set("type", "upemail");

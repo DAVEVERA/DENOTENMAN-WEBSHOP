@@ -18,7 +18,7 @@
     "whatsapp": "WhatsApp",
     "business": "Zakelijk",
     "customerService": "Klantenservice",
-    "whereIsNotenman": "Waar is DE NOTENMAN",
+    "whereIsNotenman": "Vind DeNotenman",
     "searchPlaceholder": "Waar ben je naar op zoek?",
     "favorites": "Favorieten",
     "favoritesWithCount": "Favorieten ({count})",
@@ -49,6 +49,12 @@
     "returns": "Verzend- en retourbeleid",
     "withdrawal": "Herroepingsrecht",
     "processingAgreement": "Verwerkersovereenkomst",
+    "shopTitle": "Shoppen",
+    "helpTitle": "Hulp",
+    "marketsTitle": "Op de markt",
+    "newsletterTitle": "Blijf op de hoogte",
+    "newsletterText": "Ontvang nieuws over het assortiment en De Notenman per e-mail.",
+    "fullAssortment": "Volledig assortiment",
     "contact": "Contact",
     "subscribe": "Aanmelden nieuwsbrief",
     "optOut": "Afmelden nieuwsbrief"
@@ -99,7 +105,9 @@
     "weight": "Gewicht",
     "perHundredGrams": "Voedingswaarde per 100 g",
     "perHundredMilliliters": "Voedingswaarde per 100 ml",
-    "faqFallback": "Nog geen vragen beantwoord voor dit product. Neem contact op voor meer informatie."
+    "faqFallback": "Nog geen vragen beantwoord voor dit product. Neem contact op voor meer informatie.",
+    "stockAlert": "Geef me een seintje",
+    "loadingQuickView": "Product laden…"
   },
   "cart": {
     "title": "Winkelwagen",
@@ -249,7 +257,136 @@
   },
   "home": {
     "fedorsFavorite": "Fedor's Favoriet!",
-    "fedorsFavoriteViewAll": "Bekijk alle acties"
+    "fedorsFavoriteViewAll": "Bekijk alle acties",
+    "hero": {
+      "carouselLabel": "Uitgelicht assortiment van DeNotenman",
+      "slideLabel": "Hero {current} van {total}",
+      "slides": [
+        {
+          "id": "noten",
+          "category": "noten",
+          "eyebrow": "Dagelijks vers gebrand",
+          "title": "Noten met de smaak van DeNotenman",
+          "description": "Knapperig, vol van smaak en met zorg geselecteerd. Ontdek noten en mixen voor ieder moment.",
+          "imageAlt": "Kom met amandelen, cashewnoten, pecannoten en andere gemengde noten",
+          "desktopImage": "/hero/hero-nuts-desktop.webp",
+          "mobileImage": "/hero/hero-nuts-mobile.webp",
+          "cta": "Bekijk alle noten"
+        },
+        {
+          "id": "honing",
+          "category": "honing",
+          "eyebrow": "Van bloem tot pot",
+          "title": "Honing met een eigen herkomst",
+          "description": "Van zacht en bloemig tot donker en krachtig: ontdek onze selectie biologische honing van De Traay.",
+          "imageAlt": "Selectie biologische honingpotten van De Traay",
+          "desktopImage": "/hero/hero-honey-desktop.webp",
+          "mobileImage": "/hero/hero-honey-mobile.webp",
+          "cta": "Bekijk alle honing"
+        },
+        {
+          "id": "notenpasta",
+          "category": "notenpasta-s",
+          "eyebrow": "Eigen standaard, eigen stempel",
+          "title": "Notenpasta zonder poespas",
+          "description": "De Notenman kiest zelf wat in de pot gaat en waar de kwaliteit aan moet voldoen. Vol van smaak, zonder onnodige fratsen.",
+          "imageAlt": "De Notenman met een uitgebreide opstelling van pindakaas, notenpasta en tahin",
+          "desktopImage": "/hero/hero-nutbutter-desktop.webp",
+          "mobileImage": "/hero/hero-nutbutter-mobile.webp",
+          "cta": "Bekijk alle notenpasta's"
+        }
+      ]
+    },
+    "categories": {
+      "eyebrow": "Ons assortiment",
+      "title": "Kies je categorie",
+      "intro": "Ga direct naar de productgroep die je zoekt.",
+      "viewAll": "Bekijk het volledige assortiment"
+    },
+    "nutButter": {
+      "eyebrow": "De pot in, zonder omwegen",
+      "title": "Zijn stempel. Zijn standaard.",
+      "body": "Van pindakaas en amandelpasta tot pistachepasta en gemengde notenpasta: De Notenman kiest zelf wat in het schap komt en waar de kwaliteit aan moet voldoen. Vol van smaak, zonder onnodige omwegen.",
+      "detail": "We kijken naar smaak, structuur en wat er op het etiket staat. Wat er niet in hoeft, blijft eruit. Zo simpel is het. Lekker op brood, door je ontbijt, in een saus of rechtstreeks van de lepel — we kijken nog steeds niet.",
+      "highlights": [
+        "Van pinda en amandel tot pistache en gemengde noten",
+        "Geselecteerd op smaak, structuur en ingrediënten",
+        "Voor brood, ontbijt, saus of de lepel"
+      ],
+      "imageAlt": "Close-up van verschillende notenpasta's van De Notenman",
+      "cta": "Bekijk alle notenpasta's"
+    },
+    "nutsProducts": {
+      "eyebrow": "Vers gebrand en geselecteerd",
+      "title": "Noten van De Notenman",
+      "intro": "Van amandel tot notenmix: zes stevige smaakmakers uit het actuele marktassortiment.",
+      "viewAll": "Bekijk alle noten"
+    },
+    "honeyProducts": {
+      "eyebrow": "Van bloem tot pot",
+      "title": "Honing voor elke smaak",
+      "intro": "Zacht, bloemig of juist krachtig. Bekijk zes honingsoorten uit het actuele assortiment.",
+      "viewAll": "Bekijk alle honing"
+    },
+    "honeyStory": {
+      "eyebrow": "Van bloem tot pot",
+      "title": "Honing met een eigen karakter",
+      "body": "De ene honing is zacht en bloemig, de andere donker en krachtig. De Notenman kiest uit het biologische assortiment van De Traay, zodat er voor ontbijt, thee of de lepel altijd een passende pot tussen zit.",
+      "imageAlt": "Selectie biologische honingpotten van De Traay",
+      "cta": "Bekijk alle honing"
+    },
+    "nutButterProducts": {
+      "eyebrow": "Alle potten op een rij",
+      "title": "Kies jouw notenpasta",
+      "intro": "Pinda, amandel, cashew, pistache en meer: hieronder staat de volledige actuele notenpastaselectie.",
+      "viewAll": "Bekijk de categorie notenpasta"
+    },
+    "featured": {
+      "title": "Favorieten van de markt",
+      "intro": "Een selectie uit het actuele assortiment van De Notenman.",
+      "viewAll": "Bekijk alle producten"
+    },
+    "story": {
+      "eyebrow": "Op de markt en online",
+      "title": "De Notenman brengt het marktassortiment naar de webshop",
+      "body": "Je vindt bij De Notenman noten, gedroogd fruit, chocolade, pitten, zaden, snacks en bakproducten. Kies online of kom langs op een van de vaste marktdagen.",
+      "proofOne": "Een breed assortiment in duidelijke categorieën",
+      "proofTwo": "Vaste marktdagen in Hilvarenbeek, Uden en Antwerpen",
+      "proofThree": "Persoonlijk contact via klantenservice",
+      "cta": "Meer over De Notenman",
+      "imageAlt": "De Notenman met een bak vol gemengde noten"
+    },
+    "service": {
+      "eyebrow": "Vaste marktdagen",
+      "title": "Bezoek De Notenman op de markt",
+      "intro": "Bekijk per dag waar en wanneer de kraam staat.",
+      "viewAll": "Bekijk alle marktinformatie"
+    },
+    "assortment": {
+      "eyebrow": "Alles op één plek",
+      "title": "Klaar om het assortiment te ontdekken?",
+      "body": "Zoek, filter en sorteer alle beschikbare producten op de assortimentpagina.",
+      "cta": "Naar alle producten"
+    },
+    "newsletter": {
+      "eyebrow": "Nieuwsbrief",
+      "title": "Blijf op de hoogte van De Notenman",
+      "intro": "Ontvang nieuws over het assortiment en De Notenman per e-mail.",
+      "emailLabel": "E-mailadres",
+      "emailPlaceholder": "jij@voorbeeld.nl",
+      "consent": "Ja, ik wil de nieuwsbrief van De Notenman ontvangen en ga akkoord met het privacybeleid.",
+      "submit": "Aanmelden",
+      "submitting": "Aanmelden…",
+      "success": "Controleer je inbox en bevestig je aanmelding.",
+      "validationError": "Vul een geldig e-mailadres in en geef toestemming.",
+      "error": "Aanmelden is nu niet gelukt. Probeer het later opnieuw.",
+      "rateLimit": "Er zijn te veel pogingen gedaan. Probeer het later opnieuw.",
+      "privacyLinkLabel": "Lees het privacybeleid"
+    }
+  },
+  "catalog": {
+    "loadError": "Producten laden is niet gelukt. Probeer het opnieuw.",
+    "retry": "Opnieuw proberen"
   },
   "seo": {
     "home": {

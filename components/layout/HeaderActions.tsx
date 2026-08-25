@@ -39,7 +39,7 @@ export function HeaderActions({
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="flex shrink-0 items-center gap-3 xl:gap-4">
+    <div className="grid shrink-0 grid-flow-col items-center justify-end gap-2 2xl:gap-3">
       <a
         href={pagePath("contact", locale)}
         className={utilityLinkClass}

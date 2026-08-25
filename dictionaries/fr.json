@@ -18,7 +18,7 @@
     "whatsapp": "WhatsApp",
     "business": "Professionnels",
     "customerService": "Service client",
-    "whereIsNotenman": "Où est DE NOTENMAN",
+    "whereIsNotenman": "Trouver DeNotenman",
     "searchPlaceholder": "Que recherchez-vous ?",
     "favorites": "Favoris",
     "favoritesWithCount": "Favoris ({count})",
@@ -49,6 +49,12 @@
     "returns": "Politique de livraison et de retour",
     "withdrawal": "Droit de rétractation",
     "processingAgreement": "Accord de traitement des données",
+    "shopTitle": "Shopping",
+    "helpTitle": "Aide",
+    "marketsTitle": "Sur les marchés",
+    "newsletterTitle": "Restez informé",
+    "newsletterText": "Recevez par e-mail les nouvelles de l’assortiment et de De Notenman.",
+    "fullAssortment": "Voir tout l’assortiment",
     "contact": "Contact",
     "subscribe": "Inscription newsletter",
     "optOut": "Désinscription newsletter"
@@ -99,7 +105,9 @@
     "weight": "Poids",
     "perHundredGrams": "Valeurs nutritionnelles pour 100 g",
     "perHundredMilliliters": "Valeurs nutritionnelles pour 100 ml",
-    "faqFallback": "Aucune question répondue pour ce produit. Contactez-nous pour plus d'informations."
+    "faqFallback": "Aucune question répondue pour ce produit. Contactez-nous pour plus d'informations.",
+    "stockAlert": "Prévenez-moi",
+    "loadingQuickView": "Chargement du produit…"
   },
   "cart": {
     "title": "Panier",
@@ -249,7 +257,136 @@
   },
   "home": {
     "fedorsFavorite": "Le favori de Fedor !",
-    "fedorsFavoriteViewAll": "Voir toutes les promotions"
+    "fedorsFavoriteViewAll": "Voir toutes les promotions",
+    "hero": {
+      "carouselLabel": "Sélection de produits DeNotenman",
+      "slideLabel": "Visuel {current} sur {total}",
+      "slides": [
+        {
+          "id": "noix",
+          "category": "noten",
+          "eyebrow": "Fraîchement torréfiées chaque jour",
+          "title": "Des noix au goût de DeNotenman",
+          "description": "Croquantes, savoureuses et choisies avec soin. Découvrez nos noix et mélanges pour chaque moment.",
+          "imageAlt": "Bol d’amandes, noix de cajou, noix de pécan et autres noix mélangées",
+          "desktopImage": "/hero/hero-nuts-desktop.webp",
+          "mobileImage": "/hero/hero-nuts-mobile.webp",
+          "cta": "Voir toutes les noix"
+        },
+        {
+          "id": "miel",
+          "category": "honing",
+          "eyebrow": "De la fleur au pot",
+          "title": "Un miel avec sa propre origine",
+          "description": "Doux et floral ou sombre et intense : découvrez notre sélection de miels biologiques De Traay.",
+          "imageAlt": "Sélection de pots de miel biologique De Traay",
+          "desktopImage": "/hero/hero-honey-desktop.webp",
+          "mobileImage": "/hero/hero-honey-mobile.webp",
+          "cta": "Voir tous les miels"
+        },
+        {
+          "id": "purees-oleagineux",
+          "category": "notenpasta-s",
+          "eyebrow": "Son exigence, son sceau",
+          "title": "Des purées de noix sans chichis",
+          "description": "De Notenman choisit ce qui entre dans chaque pot et fixe lui-même le niveau de qualité. Beaucoup de goût, sans artifices inutiles.",
+          "imageAlt": "De Notenman devant une grande sélection de beurre de cacahuète, purées de noix et tahini",
+          "desktopImage": "/hero/hero-nutbutter-desktop.webp",
+          "mobileImage": "/hero/hero-nutbutter-mobile.webp",
+          "cta": "Voir toutes les purées"
+        }
+      ]
+    },
+    "categories": {
+      "eyebrow": "Notre assortiment",
+      "title": "Choisissez une catégorie",
+      "intro": "Accédez directement au groupe de produits que vous recherchez.",
+      "viewAll": "Voir tout l’assortiment"
+    },
+    "nutButter": {
+      "eyebrow": "Directement dans le pot",
+      "title": "Son sceau. Son exigence.",
+      "body": "Du beurre de cacahuète à la purée d’amande, en passant par la pistache et les mélanges de noix : De Notenman choisit ce qui mérite sa place et le niveau de qualité à respecter. Beaucoup de goût, sans détours inutiles.",
+      "detail": "Nous regardons le goût, la texture et ce qui figure sur l’étiquette. Ce qui n’a pas besoin d’entrer dans le pot reste dehors. C’est aussi simple que cela. Sur du pain, dans le petit-déjeuner, dans une sauce ou directement à la cuillère — nous ne dirons toujours rien.",
+      "highlights": [
+        "De la cacahuète et l’amande à la pistache et aux mélanges de noix",
+        "Une sélection selon le goût, la texture et les ingrédients",
+        "Pour le pain, le petit-déjeuner, les sauces ou la cuillère"
+      ],
+      "imageAlt": "Gros plan sur plusieurs purées de noix De Notenman",
+      "cta": "Découvrir toutes les purées de noix"
+    },
+    "nutsProducts": {
+      "eyebrow": "Fraîchement torréfiées et sélectionnées",
+      "title": "Les noix de De Notenman",
+      "intro": "Des amandes aux mélanges de noix : six produits savoureux issus de l’assortiment actuel du marché.",
+      "viewAll": "Voir toutes les noix"
+    },
+    "honeyProducts": {
+      "eyebrow": "De la fleur au pot",
+      "title": "Un miel pour chaque goût",
+      "intro": "Doux, floral ou plus intense. Découvrez six miels de l’assortiment actuel.",
+      "viewAll": "Voir tous les miels"
+    },
+    "honeyStory": {
+      "eyebrow": "De la fleur au pot",
+      "title": "Un miel avec son propre caractère",
+      "body": "Certains miels sont doux et floraux, d’autres plus sombres et intenses. De Notenman choisit dans la gamme biologique de De Traay pour proposer un pot adapté au petit-déjeuner, au thé ou à la cuillère.",
+      "imageAlt": "Sélection de pots de miel biologique De Traay",
+      "cta": "Voir tous les miels"
+    },
+    "nutButterProducts": {
+      "eyebrow": "Tous les pots réunis",
+      "title": "Choisissez votre purée de noix",
+      "intro": "Cacahuète, amande, cajou, pistache et plus encore : voici toute la sélection actuelle de purées de noix.",
+      "viewAll": "Voir la catégorie des purées de noix"
+    },
+    "featured": {
+      "title": "Les favoris du marché",
+      "intro": "Une sélection de l’assortiment actuel de De Notenman.",
+      "viewAll": "Voir tous les produits"
+    },
+    "story": {
+      "eyebrow": "Au marché et en ligne",
+      "title": "De Notenman propose l’assortiment du marché dans sa boutique en ligne",
+      "body": "Chez De Notenman, vous trouverez des noix, des fruits secs, du chocolat, des graines, des snacks et des produits de pâtisserie. Choisissez en ligne ou venez nous voir lors d’un jour de marché fixe.",
+      "proofOne": "Un large assortiment réparti en catégories claires",
+      "proofTwo": "Des jours de marché fixes à Hilvarenbeek, Uden et Anvers",
+      "proofThree": "Un contact personnel via le service client",
+      "cta": "En savoir plus sur De Notenman",
+      "imageAlt": "De Notenman tenant un bac rempli de noix mélangées"
+    },
+    "service": {
+      "eyebrow": "Jours de marché fixes",
+      "title": "Retrouvez De Notenman au marché",
+      "intro": "Découvrez où et quand trouver le stand chaque jour de marché.",
+      "viewAll": "Voir toutes les informations sur les marchés"
+    },
+    "assortment": {
+      "eyebrow": "Tout au même endroit",
+      "title": "Prêt à découvrir l’assortiment ?",
+      "body": "Recherchez, filtrez et triez tous les produits disponibles sur la page de l’assortiment.",
+      "cta": "Voir tous les produits"
+    },
+    "newsletter": {
+      "eyebrow": "Newsletter",
+      "title": "Suivez l’actualité de De Notenman",
+      "intro": "Recevez par e-mail les nouvelles de l’assortiment et de De Notenman.",
+      "emailLabel": "Adresse e-mail",
+      "emailPlaceholder": "vous@exemple.fr",
+      "consent": "Oui, je souhaite recevoir la newsletter de De Notenman et j’accepte la politique de confidentialité.",
+      "submit": "S’inscrire",
+      "submitting": "Inscription…",
+      "success": "Consultez votre boîte de réception et confirmez votre inscription.",
+      "validationError": "Saisissez une adresse e-mail valide et donnez votre consentement.",
+      "error": "L’inscription a échoué. Veuillez réessayer plus tard.",
+      "rateLimit": "Trop de tentatives ont été effectuées. Veuillez réessayer plus tard.",
+      "privacyLinkLabel": "Lire la politique de confidentialité"
+    }
+  },
+  "catalog": {
+    "loadError": "Le chargement des produits a échoué. Réessayez.",
+    "retry": "Réessayer"
   },
   "seo": {
     "home": {

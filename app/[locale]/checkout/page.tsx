@@ -38,12 +38,14 @@ export default async function CheckoutPage({
   const dictionary = dictionaries[locale];
 
   return (
-    <Container className="py-10">
-      <CheckoutBackLink locale={locale} label={dictionary.checkout.backToCart} />
-      <h1 className="mt-4 text-heading-xl">{dictionary.checkout.title}</h1>
-      <div className="mt-8">
-        <CheckoutForm locale={locale} dictionary={dictionary.checkout} />
-      </div>
-    </Container>
+    <main id="main-content">
+      <Container className="py-10">
+        <CheckoutBackLink locale={locale} label={dictionary.checkout.backToCart} />
+        <h1 className="mt-4 text-heading-xl">{dictionary.checkout.title}</h1>
+        <div className="mt-8">
+          <CheckoutForm locale={locale} dictionary={dictionary.checkout} />
+        </div>
+      </Container>
+    </main>
   );
 }

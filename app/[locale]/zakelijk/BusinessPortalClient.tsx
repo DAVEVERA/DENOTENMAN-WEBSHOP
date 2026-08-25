@@ -30,7 +30,7 @@ export function BusinessPortalClient({ locale, account, initialOrderLists }: { l
     }
   }
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+    <main id="main-content" className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">Welkom {account.contactName}</p><h1 className="mt-1 font-heading text-heading-lg text-text">Bestellijsten voor {account.companyName}</h1><p className="mt-2 max-w-2xl text-body-sm text-muted">Controleer de aantallen, laat een notitie voor Fedor achter en keur het voorstel pas goed wanneer alles klopt.</p></div>
         <div><button type="button" onClick={logout} disabled={loggingOut} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text"><LogOut className="h-4 w-4" aria-hidden="true" /> {loggingOut ? "Uitloggen…" : "Uitloggen"}</button>{logoutError ? <p role="alert" className="mt-2 max-w-xs text-body-sm font-semibold text-red-700">{logoutError}</p> : null}</div>

@@ -1,0 +1,123 @@
+.truckLane {
+  position: relative;
+  height: clamp(6rem, 12vw, 9rem);
+  overflow: hidden;
+  background: linear-gradient(180deg, #e0b200 0, #121212 4.5rem, #121212 100%);
+  isolation: isolate;
+}
+
+.truckRig {
+  position: absolute;
+  bottom: clamp(0.75rem, 1.5vw, 1rem);
+  left: 0;
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: clamp(0.5rem, 1.5vw, 1.25rem);
+  will-change: transform;
+  animation: truck-crossing 22s linear infinite;
+}
+
+.truckVisual {
+  position: relative;
+  width: clamp(7rem, 15vw, 12rem);
+  flex: none;
+}
+
+.truckVisual::after {
+  position: absolute;
+  right: 4%;
+  bottom: -0.15rem;
+  left: 5%;
+  height: 0.38rem;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 38%);
+  filter: blur(0.18rem);
+  content: "";
+  transform-origin: center;
+  animation: truck-shadow 0.72s ease-in-out infinite alternate;
+}
+
+.truck {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 52% 88%;
+  animation: truck-suspension 0.72s ease-in-out infinite alternate;
+}
+
+.truckMessage {
+  margin: 0;
+  color: rgb(246 243 238 / 88%);
+  font-family: var(--font-heading), sans-serif;
+  font-size: clamp(0.875rem, 1.25vw, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+@keyframes truck-crossing {
+  from {
+    transform: translate3d(100vw, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
+@keyframes truck-suspension {
+  0% {
+    transform: translateY(0) rotate(-0.08deg);
+  }
+
+  45% {
+    transform: translateY(-1px) rotate(0.06deg);
+  }
+
+  100% {
+    transform: translateY(-2px) rotate(-0.04deg);
+  }
+}
+
+@keyframes truck-shadow {
+  from {
+    opacity: 0.78;
+    transform: scaleX(1);
+  }
+
+  to {
+    opacity: 0.5;
+    transform: scaleX(0.94);
+  }
+}
+
+@media (max-width: 639px) {
+  .truckRig {
+    animation-duration: 16s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .truckRig {
+    left: 50%;
+    animation: none;
+    transform: translateX(-50%);
+    will-change: auto;
+  }
+
+  .truck,
+  .truckVisual::after {
+    animation: none;
+  }
+}
+
+@media (max-width: 639px) and (prefers-reduced-motion: reduce) {
+  .truckRig {
+    width: calc(100% - 2rem);
+    justify-content: center;
+  }
+}

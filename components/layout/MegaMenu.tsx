@@ -227,7 +227,7 @@ export function MegaMenu({
   return (
     <div
       ref={rowRef}
-      className="relative mx-auto flex min-w-0 max-w-[90rem] flex-wrap items-center justify-center gap-x-0 gap-y-1 min-[1320px]:gap-x-2 min-[1440px]:gap-x-5"
+      className="relative mx-auto flex min-w-0 max-w-[90rem] flex-nowrap items-center justify-between gap-x-1 min-[1440px]:gap-x-2"
       onMouseLeave={scheduleClose}
       onMouseEnter={clearCloseTimeout}
       onBlur={() => {

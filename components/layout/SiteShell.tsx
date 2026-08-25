@@ -18,7 +18,7 @@ export function SiteShell({
   return (
     <>
       <Header locale={locale} dictionary={dictionary} languages={languages} />
-      {children}
+      <main id="main-content">{children}</main>
       <Footer locale={locale} dictionary={dictionary} />
     </>
   );

@@ -10,8 +10,8 @@ type LogoSize = "sm" | "lg" | "responsive" | "nav";
 const wordmarkSizeClasses: Record<LogoSize, string> = {
   sm: "h-8",
   lg: "h-12",
-  responsive: "h-10 sm:h-14 lg:h-16",
-  nav: "h-8 min-[400px]:h-9 sm:h-10 lg:h-11",
+  responsive: "h-14 sm:h-16 lg:h-20",
+  nav: "h-12 min-[400px]:h-14 sm:h-16",
 };
 
 const wordmarkColorClasses: Record<"light" | "dark", string> = {
@@ -22,8 +22,8 @@ const wordmarkColorClasses: Record<"light" | "dark", string> = {
 const markSizeClasses: Record<LogoSize, string> = {
   sm: "h-8 w-8",
   lg: "h-12 w-12",
-  responsive: "h-9 w-9 sm:h-12 sm:w-12",
-  nav: "h-8 w-8 min-[400px]:h-9 min-[400px]:w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11",
+  responsive: "h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16",
+  nav: "h-12 w-12 min-[400px]:h-14 min-[400px]:w-14 sm:h-16 sm:w-16",
 };
 
 export function Logo({

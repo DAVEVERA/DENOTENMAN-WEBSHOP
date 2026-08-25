@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
-import { home } from "@/lib/routes";
+import { categories } from "@/lib/routes";
 import {
   CATALOG_SEARCH_EVENT,
   type CatalogSearchEventDetail,
@@ -59,7 +59,7 @@ export function NavbarSearch({
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const destination = home(locale);
+    const destination = categories(locale);
     const normalizedQuery = query.trim();
     const params =
       pathname === destination
@@ -86,7 +86,9 @@ export function NavbarSearch({
       router.push(href, { scroll: false });
       requestAnimationFrame(() => {
         document.getElementById("product-search")?.scrollIntoView({
-          behavior: "smooth",
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto"
+            : "smooth",
           block: "start",
         });
       });

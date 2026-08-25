@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { CalendarDays, Clock3, MapPin } from "lucide-react";
 import {
-  MARKET_ROUTE_GROUPS,
   MARKET_STOPS,
   getAmsterdamWeekdayIndex,
   getMarketStopForWeekday,
   type MarketStopId,
 } from "@/lib/market-schedule";
+import { CUSTOMER_SERVICE_MARKET_VISITS } from "@/lib/customer-service";
 import { Container } from "@/components/ui/Container";
 import styles from "./MarketRouteMap.module.css";
 
@@ -82,6 +83,42 @@ export function MarketRouteMap({ copy }: { copy: MarketRouteCopy }) {
         <p className={styles.lead}>{copy.lead}</p>
       </header>
 
+      <section className={styles.schedule} aria-labelledby="market-schedule-title">
+        <div className={styles.scheduleHeader}>
+          <h2 id="market-schedule-title" className={styles.scheduleTitle}>
+            {copy.scheduleTitle}
+          </h2>
+          <p className={styles.scheduleText}>{copy.scheduleText}</p>
+        </div>
+        <div className={styles.scheduleGrid}>
+          {CUSTOMER_SERVICE_MARKET_VISITS.map((visit) => {
+            const stop = MARKET_STOPS[visit.id];
+            const isActive = activeStop?.id === visit.id;
+
+            return (
+              <article
+                key={visit.id}
+                className={`${styles.scheduleItem}${isActive ? ` ${styles.scheduleItemActive}` : ""}`}
+              >
+                <span className={styles.scheduleDay}>
+                  <CalendarDays aria-hidden="true" />
+                  {copy.weekdayNames[visit.weekday]}
+                </span>
+                <strong className={styles.schedulePlace}>
+                  <MapPin aria-hidden="true" />
+                  {stop.name}
+                </strong>
+                <span className={styles.scheduleHours}>
+                  <Clock3 aria-hidden="true" />
+                  {visit.opensAt}–{visit.closesAt}
+                </span>
+                {isActive ? <span className={styles.todayBadge}>{copy.today}</span> : null}
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
       <section className={styles.mapCard} aria-label={copy.title}>
         <div className={styles.statusBar} aria-live="polite">
           <span className={styles.statusLabel}>
@@ -120,31 +157,6 @@ export function MarketRouteMap({ copy }: { copy: MarketRouteCopy }) {
         <p className={styles.mapHint}>{copy.swipeHint}</p>
       </section>
 
-      <section className={styles.schedule} aria-labelledby="market-schedule-title">
-        <div className={styles.scheduleHeader}>
-          <h2 id="market-schedule-title" className={styles.scheduleTitle}>
-            {copy.scheduleTitle}
-          </h2>
-          <p className={styles.scheduleText}>{copy.scheduleText}</p>
-        </div>
-        <div className={styles.scheduleGrid}>
-          {MARKET_ROUTE_GROUPS.map((route) => {
-            const stop = MARKET_STOPS[route.stopId];
-            const isActive = activeStop?.id === route.stopId;
-
-            return (
-              <article
-                key={route.stopId}
-                className={`${styles.scheduleItem}${isActive ? ` ${styles.scheduleItemActive}` : ""}`}
-              >
-                <span className={styles.scheduleDay}>{copy.scheduleDays[route.stopId]}</span>
-                <strong className={styles.schedulePlace}>{stop.name}</strong>
-                {isActive ? <span className={styles.todayBadge}>{copy.today}</span> : null}
-              </article>
-            );
-          })}
-        </div>
-      </section>
     </Container>
   );
 }

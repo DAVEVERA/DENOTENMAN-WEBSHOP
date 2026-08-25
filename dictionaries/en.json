@@ -18,7 +18,7 @@
     "whatsapp": "WhatsApp",
     "business": "Business",
     "customerService": "Customer service",
-    "whereIsNotenman": "Where is DE NOTENMAN",
+    "whereIsNotenman": "Find DeNotenman",
     "searchPlaceholder": "What are you looking for?",
     "favorites": "Favorites",
     "favoritesWithCount": "Favorites ({count})",
@@ -49,6 +49,12 @@
     "returns": "Shipping and returns policy",
     "withdrawal": "Right of withdrawal",
     "processingAgreement": "Data processing agreement",
+    "shopTitle": "Shop",
+    "helpTitle": "Help",
+    "marketsTitle": "At the market",
+    "newsletterTitle": "Stay up to date",
+    "newsletterText": "Receive news about the range and De Notenman by email.",
+    "fullAssortment": "View full assortment",
     "contact": "Contact",
     "subscribe": "Newsletter signup",
     "optOut": "Newsletter opt-out"
@@ -99,7 +105,9 @@
     "weight": "Weight",
     "perHundredGrams": "Nutritional value per 100 g",
     "perHundredMilliliters": "Nutritional value per 100 ml",
-    "faqFallback": "No questions answered yet for this product. Contact us for more information."
+    "faqFallback": "No questions answered yet for this product. Contact us for more information.",
+    "stockAlert": "Notify me",
+    "loadingQuickView": "Loading product…"
   },
   "cart": {
     "title": "Cart",
@@ -249,7 +257,136 @@
   },
   "home": {
     "fedorsFavorite": "Fedor's Favorite!",
-    "fedorsFavoriteViewAll": "View all deals"
+    "fedorsFavoriteViewAll": "View all deals",
+    "hero": {
+      "carouselLabel": "Featured DeNotenman range",
+      "slideLabel": "Hero {current} of {total}",
+      "slides": [
+        {
+          "id": "nuts",
+          "category": "noten",
+          "eyebrow": "Freshly roasted daily",
+          "title": "Nuts with the taste of DeNotenman",
+          "description": "Crunchy, full of flavour and carefully selected. Discover nuts and mixes for every moment.",
+          "imageAlt": "Bowl with almonds, cashews, pecans and other mixed nuts",
+          "desktopImage": "/hero/hero-nuts-desktop.webp",
+          "mobileImage": "/hero/hero-nuts-mobile.webp",
+          "cta": "View all nuts"
+        },
+        {
+          "id": "honey",
+          "category": "honing",
+          "eyebrow": "From flower to jar",
+          "title": "Honey with its own origin",
+          "description": "From delicate and floral to dark and full-bodied: discover our selection of organic De Traay honey.",
+          "imageAlt": "Selection of organic De Traay honey jars",
+          "desktopImage": "/hero/hero-honey-desktop.webp",
+          "mobileImage": "/hero/hero-honey-mobile.webp",
+          "cta": "View all honey"
+        },
+        {
+          "id": "nut-butter",
+          "category": "notenpasta-s",
+          "eyebrow": "His own standard, his own stamp",
+          "title": "Nut butter without the fuss",
+          "description": "De Notenman decides what goes into each jar and sets the quality standard. Full of flavour, without unnecessary fuss.",
+          "imageAlt": "De Notenman with a wide display of peanut butter, nut butters and tahini",
+          "desktopImage": "/hero/hero-nutbutter-desktop.webp",
+          "mobileImage": "/hero/hero-nutbutter-mobile.webp",
+          "cta": "View all nut butters"
+        }
+      ]
+    },
+    "categories": {
+      "eyebrow": "Our range",
+      "title": "Choose a category",
+      "intro": "Go straight to the product group you are looking for.",
+      "viewAll": "View the complete range"
+    },
+    "nutButter": {
+      "eyebrow": "Straight into the jar",
+      "title": "His stamp. His standard.",
+      "body": "From peanut and almond butter to pistachio and mixed nut butter: De Notenman decides what makes the shelf and what quality it must meet. Full of flavour, without unnecessary detours.",
+      "detail": "We look at flavour, texture and what is on the label. If it does not need to be in the jar, it stays out. Simple as that. Spread it on toast, stir it through breakfast, use it in a sauce or eat it straight from the spoon — we still won't tell.",
+      "highlights": [
+        "From peanut and almond to pistachio and mixed nuts",
+        "Selected for flavour, texture and ingredients",
+        "For toast, breakfast, sauces or the spoon"
+      ],
+      "imageAlt": "Close-up of several De Notenman nut butters",
+      "cta": "Explore all nut butters"
+    },
+    "nutsProducts": {
+      "eyebrow": "Freshly roasted and selected",
+      "title": "Nuts from De Notenman",
+      "intro": "From almonds to nut mixes: six full-flavoured picks from the current market range.",
+      "viewAll": "View all nuts"
+    },
+    "honeyProducts": {
+      "eyebrow": "From flower to jar",
+      "title": "Honey for every taste",
+      "intro": "Delicate, floral or full-bodied. Explore six honeys from the current range.",
+      "viewAll": "View all honey"
+    },
+    "honeyStory": {
+      "eyebrow": "From flower to jar",
+      "title": "Honey with a character of its own",
+      "body": "Some honeys are delicate and floral, while others are dark and full-bodied. De Notenman selects from De Traay's organic range, so there is always a fitting jar for breakfast, tea or the spoon.",
+      "imageAlt": "Selection of De Traay organic honey jars",
+      "cta": "View all honey"
+    },
+    "nutButterProducts": {
+      "eyebrow": "Every jar in one place",
+      "title": "Choose your nut butter",
+      "intro": "Peanut, almond, cashew, pistachio and more: this is the complete current nut-butter selection.",
+      "viewAll": "View the nut-butter category"
+    },
+    "featured": {
+      "title": "Market favourites",
+      "intro": "A selection from the current De Notenman range.",
+      "viewAll": "View all products"
+    },
+    "story": {
+      "eyebrow": "At the market and online",
+      "title": "De Notenman brings the market range to the webshop",
+      "body": "At De Notenman you will find nuts, dried fruit, chocolate, seeds, snacks and baking products. Choose online or visit us on one of the fixed market days.",
+      "proofOne": "A broad range in clear categories",
+      "proofTwo": "Fixed market days in Hilvarenbeek, Uden and Antwerp",
+      "proofThree": "Personal contact through customer service",
+      "cta": "More about De Notenman",
+      "imageAlt": "De Notenman holding a tray full of mixed nuts"
+    },
+    "service": {
+      "eyebrow": "Fixed market days",
+      "title": "Visit De Notenman at the market",
+      "intro": "See where and when to find the stall on each market day.",
+      "viewAll": "View all market information"
+    },
+    "assortment": {
+      "eyebrow": "Everything in one place",
+      "title": "Ready to explore the range?",
+      "body": "Search, filter and sort all available products on the range page.",
+      "cta": "View all products"
+    },
+    "newsletter": {
+      "eyebrow": "Newsletter",
+      "title": "Keep up with De Notenman",
+      "intro": "Receive news about the range and De Notenman by email.",
+      "emailLabel": "Email address",
+      "emailPlaceholder": "you@example.com",
+      "consent": "Yes, I want to receive the De Notenman newsletter and agree to the privacy policy.",
+      "submit": "Sign up",
+      "submitting": "Signing up…",
+      "success": "Check your inbox and confirm your subscription.",
+      "validationError": "Enter a valid email address and give your consent.",
+      "error": "We could not sign you up right now. Please try again later.",
+      "rateLimit": "Too many attempts were made. Please try again later.",
+      "privacyLinkLabel": "Read the privacy policy"
+    }
+  },
+  "catalog": {
+    "loadError": "Products could not be loaded. Please try again.",
+    "retry": "Try again"
   },
   "seo": {
     "home": {

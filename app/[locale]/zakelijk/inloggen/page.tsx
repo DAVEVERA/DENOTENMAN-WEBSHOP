@@ -17,7 +17,7 @@ export default async function ZakelijkInloggenPage({ params, searchParams }: { p
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#fff9da,transparent_38%),linear-gradient(180deg,#fff,#f7f2e6)] px-4 py-8 sm:py-14">
       <div className="mx-auto max-w-lg">
         <div className="flex justify-center"><Logo alt={{ mark: "De Notenman beeldmerk", wordmark: "De Notenman" }} parts="wordmark" size="responsive" /></div>
-        <main className="mt-8 rounded-panel border border-border bg-surface p-5 shadow-card sm:p-8">
+        <main id="main-content" className="mt-8 rounded-panel border border-border bg-surface p-5 shadow-card sm:p-8">
           <p className="text-center text-xs font-bold uppercase tracking-[0.16em] text-accent-ink">Zakelijke omgeving</p>
           <h1 className="mt-2 text-center font-heading text-heading-lg text-text">Persoonlijke toegang</h1>
           <p className="mx-auto mt-3 max-w-sm text-center text-body-sm leading-relaxed text-muted">Bekijk de bestellijsten die Fedor voor jouw bedrijf heeft klaargezet, pas aantallen aan en keur ze goed.</p>

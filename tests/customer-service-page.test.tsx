@@ -71,11 +71,16 @@ test("customer service route and metadata are localized without relying on a dat
   assert.match(routeSource, /languages: alternates\.languages/);
 });
 
-test("announcement content uses every localized storefront USP", () => {
+test("announcement content uses every localized storefront USP and the shipping rule", () => {
   const dictionaries = { nl, en, fr };
   for (const locale of ["nl", "en", "fr"] as const) {
     const copy = getAnnouncementTickerCopy(locale, dictionaries[locale].usp);
-    assert.equal(copy.items.length, 3);
-    assert.deepEqual(copy.items.map((item) => item.text), Object.values(dictionaries[locale].usp));
+    assert.equal(copy.items.length, 4);
+    assert.deepEqual(
+      copy.items.slice(0, 3).map((item) => item.text),
+      Object.values(dictionaries[locale].usp)
+    );
+    assert.equal(copy.items[3]?.id, "free-shipping");
+    assert.match(copy.items[3]?.text ?? "", /50/);
   }
 });

@@ -54,7 +54,11 @@ export default async function LocaleLayout({
   const organizationStructuredData = buildOrganizationStructuredData(BASE_URL);
 
   return (
-    <html lang={locale} className={`${dosis.variable} ${montserrat.variable}`}>
+    <html
+      lang={locale}
+      className={`${dosis.variable} ${montserrat.variable}`}
+      suppressHydrationWarning
+    >
       <body className="bg-background font-body text-text">
         <script dangerouslySetInnerHTML={{ __html: COOKIE_CONSENT_BOOTSTRAP_SCRIPT }} />
         <script
@@ -70,10 +74,8 @@ export default async function LocaleLayout({
         >
           {dictionary.nav.skipToContent}
         </a>
-        <main id="main-content">
-          {children}
-          {modal}
-        </main>
+        {children}
+        {modal}
       </body>
     </html>
   );

@@ -15,7 +15,7 @@ test("desktop customer service opens the internal knowledge base", () => {
 
   assert.match(markup, />Zakelijk<\/a>/);
   assert.match(markup, />Klantenservice<\/a>/);
-  assert.match(markup, />Waar is DE NOTENMAN<\/a>/);
+  assert.match(markup, />Vind DeNotenman<\/a>/);
   assert.match(markup, /href="\/nl\/paginas\/veelgestelde-vragen"[^>]*>Klantenservice<\/a>/);
   assert.match(markup, /href="\/nl\/paginas\/markten"/);
   assert.doesNotMatch(markup, /href="https:\/\/wa\.me\/31411700232"[^>]*>Klantenservice<\/a>/);
@@ -76,5 +76,5 @@ test("the storefront logo remains present across mobile, tablet and desktop head
   assert.match(headerSource, /parts="wordmark"\s+size="nav"/);
   assert.match(headerSource, /hidden w-full[^\"]*xl:grid/);
   assert.match(headerSource, /parts="wordmark"\s+size="responsive"/);
-  assert.match(logoSource, /nav: "h-8 min-\[400px\]:h-9 sm:h-10 lg:h-11"/);
+  assert.match(logoSource, /nav: "h-12 min-\[400px\]:h-14 sm:h-16"/);
 });

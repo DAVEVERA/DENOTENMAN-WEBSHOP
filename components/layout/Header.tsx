@@ -27,7 +27,7 @@ export async function Header({
       <div className="border-y-2 border-contrast bg-surface">
         <Container fullWidth>
           <div className="-mx-4 sm:-mx-6 lg:-mx-8 xl:hidden">
-            <div className="flex min-h-14 items-center justify-center border-b border-border bg-surface px-4 py-2">
+            <div className="flex min-h-16 items-center justify-start border-b border-border bg-surface px-4 py-2 sm:min-h-20 sm:px-6">
               <Link
                 href={home(locale)}
                 aria-label={dictionary.brand.logoWordmarkAlt}
@@ -49,7 +49,7 @@ export async function Header({
               languages={languages}
             />
           </div>
-          <div className="hidden w-full grid-cols-[minmax(12.5rem,15.25rem)_minmax(17.5rem,1fr)_auto] items-center gap-6 py-4 xl:grid">
+          <div className="hidden w-full grid-cols-[minmax(18rem,21rem)_minmax(18rem,27rem)_minmax(0,1fr)] items-center gap-7 py-4 xl:grid">
             <div className="min-w-0">
               <Link href={home(locale)} className="shrink-0">
                 <Logo
@@ -60,16 +60,20 @@ export async function Header({
                 />
               </Link>
             </div>
-            <NavbarSearch
-              locale={locale}
-              label={dictionary.common.search}
-              placeholder={dictionary.nav.searchPlaceholder}
-            />
-            <HeaderActions
-              locale={locale}
-              dictionary={dictionary}
-              languages={languages}
-            />
+            <div className="w-full max-w-[27rem] justify-self-center">
+              <NavbarSearch
+                locale={locale}
+                label={dictionary.common.search}
+                placeholder={dictionary.nav.searchPlaceholder}
+              />
+            </div>
+            <div className="min-w-0 justify-self-end">
+              <HeaderActions
+                locale={locale}
+                dictionary={dictionary}
+                languages={languages}
+              />
+            </div>
           </div>
         </Container>
       </div>

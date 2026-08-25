@@ -102,9 +102,10 @@ export default async function OrderConfirmationPage({
       };
 
   return (
-    <Container className="py-10">
-      <OrderStatusEffects status={view} measurement={analyticsMeasurement} />
-      <div className="mx-auto max-w-xl text-center">
+    <main id="main-content">
+      <Container className="py-10">
+        <OrderStatusEffects status={view} measurement={analyticsMeasurement} />
+        <div className="mx-auto max-w-xl text-center">
         <h1 className="text-heading-xl">{copy.title}</h1>
         <p className="mt-3 text-body-lg text-muted">{copy.body}</p>
 
@@ -149,7 +150,8 @@ export default async function OrderConfirmationPage({
             </Link>
           )}
         </div>
-      </div>
-    </Container>
+        </div>
+      </Container>
+    </main>
   );
 }
