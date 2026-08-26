@@ -255,7 +255,6 @@ export default async function HomePage({
           locale={locale}
           href={nutButterHref}
           sectionId="home-nut-butters"
-          layout="grid"
           tone="from-nut-butter"
           copy={{
             ...dictionary.home.nutButterProducts,

@@ -47,8 +47,10 @@ test("the homepage renders three content-aware hero slides without navigation co
   assert.doesNotMatch(component, /<button|ChevronLeft|ChevronRight|aria-current/);
 
   assert.match(categories, /-mt-\[5\.25rem\]/);
-  assert.match(categories, /snap-x snap-mandatory/);
+  assert.match(categories, /grid-cols-2/);
+  assert.match(categories, /sm:grid-cols-3/);
   assert.match(categories, /lg:grid-cols-6/);
+  assert.doesNotMatch(categories, /snap-x|overflow-x-auto/);
   assert.doesNotMatch(categories, /border-t-2 border-t-contrast/);
   assert.match(categories, /sizes="40px"/);
   assert.match(categories, /alt=""/);

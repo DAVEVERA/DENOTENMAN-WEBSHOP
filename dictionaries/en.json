@@ -320,13 +320,17 @@
       "eyebrow": "Freshly roasted and selected",
       "title": "Nuts from De Notenman",
       "intro": "From almonds to nut mixes: six full-flavoured picks from the current market range.",
-      "viewAll": "View all nuts"
+      "viewAll": "View all nuts",
+      "loadMore": "Load more nuts",
+      "showLess": "Show fewer nuts"
     },
     "honeyProducts": {
       "eyebrow": "From flower to jar",
       "title": "Honey for every taste",
       "intro": "Delicate, floral or full-bodied. Explore six honeys from the current range.",
-      "viewAll": "View all honey"
+      "viewAll": "View all honey",
+      "loadMore": "Load more honey",
+      "showLess": "Show less honey"
     },
     "honeyStory": {
       "eyebrow": "From flower to jar",
@@ -339,7 +343,9 @@
       "eyebrow": "Every jar in one place",
       "title": "Choose your nut butter",
       "intro": "Peanut, almond, cashew, pistachio and more: this is the complete current nut-butter selection.",
-      "viewAll": "View the nut-butter category"
+      "viewAll": "View all nut butters",
+      "loadMore": "Load more nut butters",
+      "showLess": "Show fewer nut butters"
     },
     "featured": {
       "title": "Market favourites",

@@ -16,6 +16,13 @@ import { MarketRouteMap, type MarketRouteCopy } from "./_components/MarketRouteM
 import { SquirrelEmptyState } from "@/components/layout/SquirrelEmptyState";
 import { CustomerServicePage } from "@/components/customer-service/CustomerServicePage";
 import { getCustomerServiceCopy } from "@/lib/customer-service-content";
+import { AboutNotenmanPage } from "@/components/content/AboutNotenmanPage";
+
+const dutchAboutMetadata = {
+  title: "Over De Notenman | Vers gebrande noten van de markt",
+  description:
+    "Maak kennis met Fedor en De Notenman. Vers gebrande noten, gedroogd fruit en meer, op de markt en online vanuit Haaren.",
+};
 
 const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTitle: string; metadataDescription: string }> = {
   nl: {
@@ -114,16 +121,23 @@ export async function generateMetadata({
   }
 
   const customerServiceCopy = key === "faq" ? getCustomerServiceCopy(locale) : null;
-  const page = key === "markets" || key === "faq" ? null : await getPageBySlug(slug, locale);
-  const title = key === "markets"
-    ? marketRouteCopy[locale].metadataTitle
-    : customerServiceCopy?.metadataTitle ?? page?.title ?? key.charAt(0).toUpperCase() + key.slice(1);
+  const isDutchAbout = locale === "nl" && key === "about";
+  const page = key === "markets" || key === "faq" || isDutchAbout
+    ? null
+    : await getPageBySlug(slug, locale);
+  const title = isDutchAbout
+    ? dutchAboutMetadata.title
+    : key === "markets"
+      ? marketRouteCopy[locale].metadataTitle
+      : customerServiceCopy?.metadataTitle ?? page?.title ?? key.charAt(0).toUpperCase() + key.slice(1);
 
   return {
     title,
-    description: key === "markets"
-      ? marketRouteCopy[locale].metadataDescription
-      : customerServiceCopy?.metadataDescription,
+    description: isDutchAbout
+      ? dutchAboutMetadata.description
+      : key === "markets"
+        ? marketRouteCopy[locale].metadataDescription
+        : customerServiceCopy?.metadataDescription,
     robots: pageRobots(key),
     alternates: {
       canonical: alternates.canonical,
@@ -156,6 +170,10 @@ export default async function ContentPage({
 
   if (key === "faq") {
     return <CustomerServicePage locale={locale} copy={getCustomerServiceCopy(locale)} />;
+  }
+
+  if (locale === "nl" && key === "about") {
+    return <AboutNotenmanPage />;
   }
 
   // 1. Render custom high-quality statically-styled Dutch components

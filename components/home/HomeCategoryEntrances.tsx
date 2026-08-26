@@ -56,11 +56,11 @@ export function HomeCategoryEntrances({
           </h2>
           <p className="sr-only">{intro}</p>
 
-          <ul className="flex snap-x snap-mandatory gap-2 overflow-x-auto px-3 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-4 lg:grid lg:grid-cols-6 lg:overflow-visible">
+          <ul className="grid grid-cols-2 gap-2 px-3 pb-3 sm:grid-cols-3 sm:px-4 lg:grid-cols-6">
             {categories.map((category) => (
               <li
                 key={category.id}
-                className="min-w-[8.5rem] snap-start sm:min-w-[10rem] lg:min-w-0"
+                className="min-w-0"
               >
                 <Link
                   href={category.href}

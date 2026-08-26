@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
@@ -14,6 +15,8 @@ export type HomeFeaturedProductsCopy = {
   title: string;
   intro: string;
   viewAll: string;
+  loadMore?: string;
+  showLess?: string;
   card: ProductCardCopy;
   quickView: ProductQuickViewCopy;
 };
@@ -24,7 +27,6 @@ export function HomeFeaturedProducts({
   href,
   copy,
   sectionId,
-  layout = "rail",
   tone = "surface",
 }: {
   products: ProductSummaryDto[];
@@ -32,7 +34,6 @@ export function HomeFeaturedProducts({
   href: string;
   copy: HomeFeaturedProductsCopy;
   sectionId: string;
-  layout?: "rail" | "grid";
   tone?:
     | "surface"
     | "warm"
@@ -41,7 +42,12 @@ export function HomeFeaturedProducts({
     | "from-honey"
     | "from-nut-butter";
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   if (products.length === 0) return null;
+
+  const canExpand = products.length > 4 && copy.loadMore && copy.showLess;
+  const listId = `${sectionId}-products`;
 
   return (
     <section
@@ -82,35 +88,29 @@ export function HomeFeaturedProducts({
         </div>
 
         <ul
-          className={cn(
-            "mt-8 gap-4 sm:gap-6",
-            layout === "rail" &&
-              "-mx-4 flex snap-x snap-mandatory scroll-px-4 overscroll-x-contain overflow-x-auto px-4 pb-4 [scrollbar-width:thin] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3",
-            layout === "grid" &&
-              "grid grid-cols-1 min-[390px]:grid-cols-2 lg:grid-cols-3",
-          )}
+          id={listId}
+          className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:gap-6 xl:grid-cols-6"
         >
-          {products.map((product) => (
+          {products.map((product, index) => (
             <li
               key={product.id}
               className={cn(
                 "min-w-0",
-                layout === "rail" &&
-                  "w-[min(82vw,19rem)] shrink-0 snap-start sm:w-auto",
+                index >= 4 && !expanded && "hidden md:block",
               )}
             >
               <ProductCard
                 product={product}
-                categoryName={product.category?.name}
                 locale={locale}
                 copy={copy.card}
                 quickViewCopy={copy.quickView}
+                compact
               />
             </li>
           ))}
         </ul>
 
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex flex-col items-stretch justify-center gap-3 min-[480px]:flex-row min-[480px]:items-center">
           <Link
             href={href}
             prefetch={false}
@@ -118,6 +118,17 @@ export function HomeFeaturedProducts({
           >
             {copy.viewAll}
           </Link>
+          {canExpand ? (
+            <button
+              type="button"
+              aria-controls={listId}
+              aria-expanded={expanded}
+              onClick={() => setExpanded((current) => !current)}
+              className="inline-flex min-h-11 items-center justify-center rounded-button border border-border-hover bg-white px-6 py-3 font-heading text-body-md font-bold text-contrast transition-colors hover:bg-[#f1ece3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast md:hidden"
+            >
+              {expanded ? copy.showLess : copy.loadMore}
+            </button>
+          ) : null}
         </div>
       </Container>
     </section>

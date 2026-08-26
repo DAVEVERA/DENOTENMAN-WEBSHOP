@@ -68,7 +68,7 @@ test("home hero cycles three art-directed slides without navigation controls", (
   assert.doesNotMatch(markup, /aria-current|Vorige|Volgende/);
 });
 
-test("category entrances are compact, horizontally scrollable on mobile and six-wide on desktop", () => {
+test("category entrances use a two-column mobile grid and six columns on desktop", () => {
   const categories = Array.from({ length: 6 }, (_, index) => ({
     id: String(index + 1),
     name: `Categorie ${index + 1}`,
@@ -86,9 +86,10 @@ test("category entrances are compact, horizontally scrollable on mobile and six-
     />,
   );
 
-  assert.match(markup, /snap-x snap-mandatory/);
-  assert.match(markup, /overflow-x-auto/);
+  assert.match(markup, /grid-cols-2/);
+  assert.match(markup, /sm:grid-cols-3/);
   assert.match(markup, /lg:grid-cols-6/);
+  assert.doesNotMatch(markup, /snap-x|overflow-x-auto|min-w-\[8\.5rem\]/);
   assert.equal((markup.match(/<li/g) ?? []).length, 6);
   assert.match(markup, /min-h-14 touch-manipulation/);
   assert.equal((markup.match(/sizes="40px"/g) ?? []).length, 6);

@@ -320,13 +320,17 @@
       "eyebrow": "Fraîchement torréfiées et sélectionnées",
       "title": "Les noix de De Notenman",
       "intro": "Des amandes aux mélanges de noix : six produits savoureux issus de l’assortiment actuel du marché.",
-      "viewAll": "Voir toutes les noix"
+      "viewAll": "Voir toutes les noix",
+      "loadMore": "Afficher plus de noix",
+      "showLess": "Afficher moins de noix"
     },
     "honeyProducts": {
       "eyebrow": "De la fleur au pot",
       "title": "Un miel pour chaque goût",
       "intro": "Doux, floral ou plus intense. Découvrez six miels de l’assortiment actuel.",
-      "viewAll": "Voir tous les miels"
+      "viewAll": "Voir tous les miels",
+      "loadMore": "Afficher plus de miels",
+      "showLess": "Afficher moins de miels"
     },
     "honeyStory": {
       "eyebrow": "De la fleur au pot",
@@ -339,7 +343,9 @@
       "eyebrow": "Tous les pots réunis",
       "title": "Choisissez votre purée de noix",
       "intro": "Cacahuète, amande, cajou, pistache et plus encore : voici toute la sélection actuelle de purées de noix.",
-      "viewAll": "Voir la catégorie des purées de noix"
+      "viewAll": "Voir toutes les purées de noix",
+      "loadMore": "Afficher plus de purées de noix",
+      "showLess": "Afficher moins de purées de noix"
     },
     "featured": {
       "title": "Les favoris du marché",

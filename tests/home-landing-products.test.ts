@@ -63,7 +63,7 @@ test("homepage product query is bounded, taxonomy-aware and keeps every nut butt
   assert.doesNotMatch(source, /getHomeFeaturedProducts/);
 });
 
-test("homepage renders the requested alternating sequence and full nut-butter grid", async () => {
+test("homepage renders the alternating sequence in one compact responsive product grid", async () => {
   const [page, section] = await Promise.all([
     readFile("app/[locale]/page.tsx", "utf8"),
     readFile("components/home/HomeFeaturedProducts.tsx", "utf8"),
@@ -81,12 +81,18 @@ test("homepage renders the requested alternating sequence and full nut-butter gr
   assert.ok(positions.every((position) => position >= 0));
   assert.deepEqual([...positions].sort((left, right) => left - right), positions);
   assert.match(page, /sectionId="home-nut-butters"/);
-  assert.match(page, /layout="grid"/);
-  assert.match(section, /min-\[390px\]:grid-cols-2/);
-  assert.match(section, /lg:grid-cols-3/);
+  assert.doesNotMatch(page, /layout="grid"/);
+  assert.match(section, /grid-cols-2/);
+  assert.match(section, /sm:grid-cols-3/);
+  assert.match(section, /md:grid-cols-4/);
+  assert.match(section, /xl:grid-cols-6/);
+  assert.match(section, /index >= 4 && !expanded && "hidden md:block"/);
+  assert.match(section, /aria-expanded=\{expanded\}/);
+  assert.match(section, /md:hidden/);
+  assert.match(section, /compact/);
   assert.match(section, /fullWidth/);
   assert.match(section, /from-craft/);
   assert.match(section, /from-honey/);
   assert.match(section, /from-nut-butter/);
-  assert.match(section, /scroll-px-4 overscroll-x-contain/);
+  assert.doesNotMatch(section, /overflow-x-auto|snap-x|scroll-px-4|overscroll-x-contain/);
 });

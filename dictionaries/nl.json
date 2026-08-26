@@ -320,13 +320,17 @@
       "eyebrow": "Vers gebrand en geselecteerd",
       "title": "Noten van De Notenman",
       "intro": "Van amandel tot notenmix: zes stevige smaakmakers uit het actuele marktassortiment.",
-      "viewAll": "Bekijk alle noten"
+      "viewAll": "Bekijk alle noten",
+      "loadMore": "Laad meer noten",
+      "showLess": "Toon minder noten"
     },
     "honeyProducts": {
       "eyebrow": "Van bloem tot pot",
       "title": "Honing voor elke smaak",
       "intro": "Zacht, bloemig of juist krachtig. Bekijk zes honingsoorten uit het actuele assortiment.",
-      "viewAll": "Bekijk alle honing"
+      "viewAll": "Bekijk alle honing",
+      "loadMore": "Laad meer honing",
+      "showLess": "Toon minder honing"
     },
     "honeyStory": {
       "eyebrow": "Van bloem tot pot",
@@ -339,7 +343,9 @@
       "eyebrow": "Alle potten op een rij",
       "title": "Kies jouw notenpasta",
       "intro": "Pinda, amandel, cashew, pistache en meer: hieronder staat de volledige actuele notenpastaselectie.",
-      "viewAll": "Bekijk de categorie notenpasta"
+      "viewAll": "Bekijk alle notenpasta's",
+      "loadMore": "Laad meer notenpasta's",
+      "showLess": "Toon minder notenpasta's"
     },
     "featured": {
       "title": "Favorieten van de markt",

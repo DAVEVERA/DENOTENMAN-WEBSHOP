@@ -77,6 +77,7 @@ export function ProductCard({
   quickViewCopy,
   quickViewLoading = false,
   onQuickView,
+  compact = false,
 }: {
   product: ProductCardProduct;
   categoryName?: string;
@@ -85,6 +86,7 @@ export function ProductCard({
   quickViewCopy?: ProductQuickViewCopy;
   quickViewLoading?: boolean;
   onQuickView?: (product: ProductCardProduct) => void;
+  compact?: boolean;
 }) {
   const [localQuickViewOpen, setLocalQuickViewOpen] = useState(false);
   const storefront = useStorefrontState();
@@ -112,7 +114,10 @@ export function ProductCard({
   return (
     <>
       <Card
-        className="group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden p-3 sm:p-card"
+        className={cn(
+          "group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden",
+          compact ? "p-2.5 sm:p-3" : "p-3 sm:p-card",
+        )}
         onClick={(event) => {
           if ((event.target as HTMLElement).closest("button, a")) return;
           openQuickView();
@@ -139,13 +144,20 @@ export function ProductCard({
               <span className="block h-full w-full rounded-full bg-background" aria-hidden="true" />
             )}
           </span>
-          {categoryName ? (
+          {categoryName && !compact ? (
             <span className="mt-3 text-xs text-muted sm:text-body-sm">{categoryName}</span>
           ) : null}
-          <span className="mt-3 line-clamp-3 min-w-0 font-heading text-[clamp(0.82rem,3.8vw,1.125rem)] font-semibold leading-[1.15] tracking-heading text-text [hyphens:auto] [overflow-wrap:break-word] sm:text-heading-sm">
+          <span
+            className={cn(
+              "min-w-0 font-heading font-semibold leading-[1.15] tracking-heading text-text [hyphens:auto] [overflow-wrap:break-word] sm:text-heading-sm",
+              compact
+                ? "mt-2 line-clamp-2 text-[clamp(0.78rem,3.5vw,1rem)]"
+                : "mt-3 line-clamp-3 text-[clamp(0.82rem,3.8vw,1.125rem)]",
+            )}
+          >
             {product.name}
           </span>
-          {product.shortDescription ? (
+          {product.shortDescription && !compact ? (
             <span className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted sm:text-body-sm">
               {product.shortDescription}
             </span>
@@ -208,7 +220,11 @@ export function ProductCard({
         )}
         <Link
           href={productPath(locale, product.slug)}
-          className={`${productActionButtonClass} mt-3 min-h-11 w-full text-center text-sm max-[420px]:px-2 max-[420px]:text-xs`}
+          className={cn(
+            compact
+              ? "mt-1 inline-flex min-h-11 w-full items-center justify-center rounded-button px-2 text-center font-heading text-xs font-bold text-contrast underline decoration-accent decoration-2 underline-offset-4 transition-colors hover:text-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
+              : `${productActionButtonClass} mt-3 min-h-11 w-full text-center text-sm max-[420px]:px-2 max-[420px]:text-xs`,
+          )}
         >
           <span>{labels.moreInfo}</span>
           <span className="sr-only"> — {product.name}</span>
