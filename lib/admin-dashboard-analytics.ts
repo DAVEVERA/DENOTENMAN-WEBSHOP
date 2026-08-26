@@ -7,7 +7,17 @@ import type {
   DashboardTrendPoint,
 } from "@/lib/admin-dashboard-contract";
 import { EMPTY_DASHBOARD_ANALYTICS } from "@/lib/admin-dashboard-contract";
-import { buildDashboardForecast, buildDashboardFunnel, buildDashboardIssues } from "@/lib/admin-dashboard-analysis";
+import {
+  buildDashboardForecast,
+  buildDashboardFunnel,
+  buildDashboardIssues,
+  combineDashboardSources,
+} from "@/lib/admin-dashboard-analysis";
+import {
+  buildMollieRevenue,
+  type MollieRevenuePayment,
+} from "@/lib/admin-dashboard-revenue";
+import { getMollieClient } from "@/lib/mollie";
 import { getSetting, setSetting } from "@/lib/settings";
 
 const PROPERTY_ID = process.env.GA4_PROPERTY_ID?.trim() ?? "";
@@ -15,8 +25,13 @@ const ANALYTICS_SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
 const REQUEST_TIMEOUT_MS = 8_000;
 const CACHE_TTL_MS = 60_000;
 const TRANSIENT_RETRY_DELAY_MS = 250;
-const GA4_SNAPSHOT_SETTING_KEY = "analytics.ga4.dashboard.snapshot.v1";
-const GA4_SNAPSHOT_VERSION = 1;
+const GA4_SNAPSHOT_SETTING_KEY = "analytics.ga4.dashboard.snapshot.v2";
+const GA4_SNAPSHOT_VERSION = 2;
+const MOLLIE_REVENUE_SNAPSHOT_SETTING_KEY = "analytics.mollie.revenue.snapshot.v1";
+const MOLLIE_REVENUE_SNAPSHOT_VERSION = 1;
+const MOLLIE_PAGE_SIZE = 250;
+const MOLLIE_MAX_PAGES = 40;
+const MOLLIE_CREATION_LOOKBACK_DAYS = 191;
 
 const nullableMetricSchema = z.number().finite().nullable();
 const dashboardAnalyticsSchema = z.object({
@@ -33,6 +48,12 @@ const dashboardAnalyticsSchema = z.object({
     keyEvents: nullableMetricSchema,
   }),
   daily: z.array(z.object({
+    date: z.string(),
+    sessions: z.number().finite(),
+    revenue: z.number().finite(),
+    partial: z.boolean().optional(),
+  })).max(100),
+  revenueDaily: z.array(z.object({
     date: z.string(),
     sessions: z.number().finite(),
     revenue: z.number().finite(),
@@ -73,6 +94,28 @@ const persistedSnapshotSchema = z.object({
   data: dashboardAnalyticsSchema,
 });
 
+const mollieRevenueSchema = z.object({
+  status: z.enum(["live", "partial", "unavailable"]),
+  generatedAt: z.string().datetime(),
+  message: z.string(),
+  revenueToday: nullableMetricSchema,
+  daily: z.array(z.object({
+    date: z.string(),
+    sessions: z.number().finite(),
+    revenue: z.number().finite(),
+    partial: z.boolean().optional(),
+  })).max(100),
+  paidPayments: z.number().int().nonnegative(),
+  unsupportedCurrencies: z.number().int().nonnegative(),
+});
+
+const persistedMollieRevenueSchema = z.object({
+  version: z.literal(MOLLIE_REVENUE_SNAPSHOT_VERSION),
+  data: mollieRevenueSchema,
+});
+
+type MollieDashboardRevenue = z.infer<typeof mollieRevenueSchema>;
+
 type ReportRow = {
   dimensionValues?: Array<{ value?: string | null }>;
   metricValues?: Array<{ value?: string | null }>;
@@ -86,12 +129,27 @@ type Report = {
 
 type ParsedRow = Record<string, string | number>;
 
-let analyticsCache:
+let ga4Cache:
   | { expiresAt: number; value: Promise<DashboardAnalytics> }
   | undefined;
-let analyticsRefresh: Promise<DashboardAnalytics> | undefined;
-let lastSuccessfulAnalytics: DashboardAnalytics | undefined;
+let ga4Refresh: Promise<DashboardAnalytics> | undefined;
+let lastSuccessfulGa4: DashboardAnalytics | undefined;
+let mollieCache:
+  | { expiresAt: number; value: Promise<MollieDashboardRevenue> }
+  | undefined;
+let mollieRefresh: Promise<MollieDashboardRevenue> | undefined;
+let lastSuccessfulMollieRevenue: MollieDashboardRevenue | undefined;
 let lastForcedRefreshAt = 0;
+
+const EMPTY_MOLLIE_REVENUE: MollieDashboardRevenue = {
+  status: "unavailable",
+  generatedAt: new Date(0).toISOString(),
+  message: "Mollie-omzet is momenteel niet beschikbaar.",
+  revenueToday: null,
+  daily: [],
+  paidPayments: 0,
+  unsupportedCurrencies: 0,
+};
 
 function snapshotMoment(generatedAt: string): string {
   const date = new Date(generatedAt);
@@ -107,7 +165,18 @@ function asPersistentFallback(data: DashboardAnalytics, reason: string): Dashboa
   return {
     ...data,
     status: "partial",
-    message: `${reason} Laatst geldige GA4-meting: ${snapshotMoment(data.generatedAt)}.`,
+    message: `${reason} Laatst geldige GA4-verkeersmeting: ${snapshotMoment(data.generatedAt)}.`,
+  };
+}
+
+function asMolliePersistentFallback(
+  data: MollieDashboardRevenue,
+  reason: string
+): MollieDashboardRevenue {
+  return {
+    ...data,
+    status: "partial",
+    message: `${reason} Laatst geldige Mollie-meting: ${snapshotMoment(data.generatedAt)}.`,
   };
 }
 
@@ -140,6 +209,34 @@ async function persistAnalytics(data: DashboardAnalytics): Promise<void> {
     );
   } catch (error) {
     console.error("Admin dashboard GA4 snapshot write failed", {
+      code: error instanceof Error ? error.message : "UNKNOWN",
+    });
+  }
+}
+
+async function loadPersistedMollieRevenue(): Promise<MollieDashboardRevenue | undefined> {
+  try {
+    const raw = await getSetting(MOLLIE_REVENUE_SNAPSHOT_SETTING_KEY);
+    if (!raw) return undefined;
+    const parsed = persistedMollieRevenueSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success || parsed.data.data.status === "unavailable") return undefined;
+    return parsed.data.data;
+  } catch (error) {
+    console.error("Admin dashboard Mollie snapshot read failed", {
+      code: error instanceof Error ? error.message : "UNKNOWN",
+    });
+    return undefined;
+  }
+}
+
+async function persistMollieRevenue(data: MollieDashboardRevenue): Promise<void> {
+  try {
+    await setSetting(
+      MOLLIE_REVENUE_SNAPSHOT_SETTING_KEY,
+      JSON.stringify({ version: MOLLIE_REVENUE_SNAPSHOT_VERSION, data })
+    );
+  } catch (error) {
+    console.error("Admin dashboard Mollie snapshot write failed", {
       code: error instanceof Error ? error.message : "UNKNOWN",
     });
   }
@@ -189,10 +286,14 @@ function reportBody(
   };
 }
 
-async function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
+async function withTimeout<T>(
+  promise: Promise<T>,
+  milliseconds: number,
+  timeoutCode: "GA4_TIMEOUT" | "MOLLIE_TIMEOUT"
+): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("GA4_TIMEOUT")), milliseconds);
+    timer = setTimeout(() => reject(new Error(timeoutCode)), milliseconds);
   });
   try {
     return await Promise.race([promise, timeout]);
@@ -201,21 +302,23 @@ async function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promis
   }
 }
 
-function isRetryableGa4Error(error: unknown): boolean {
+function isRetryableDependencyError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const candidate = error as {
     code?: string | number;
+    statusCode?: number;
     message?: string;
     response?: { status?: number };
   };
-  const status = Number(candidate.response?.status ?? candidate.code);
+  const status = Number(candidate.response?.status ?? candidate.statusCode ?? candidate.code);
   return (
     status === 408 ||
     status === 429 ||
     status >= 500 ||
     candidate.code === "ETIMEDOUT" ||
     candidate.code === "ECONNRESET" ||
-    candidate.message === "GA4_TIMEOUT"
+    candidate.message === "GA4_TIMEOUT" ||
+    candidate.message === "MOLLIE_TIMEOUT"
   );
 }
 
@@ -223,7 +326,7 @@ async function requestWithRetry<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
   } catch (error) {
-    if (!isRetryableGa4Error(error)) throw error;
+    if (!isRetryableDependencyError(error)) throw error;
     await new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS));
     return operation();
   }
@@ -233,7 +336,7 @@ async function fetchFreshAnalytics(): Promise<DashboardAnalytics> {
   try {
     if (!/^\d+$/.test(PROPERTY_ID)) throw new Error("GA4_NOT_CONFIGURED");
     const auth = new google.auth.GoogleAuth({ scopes: [ANALYTICS_SCOPE] });
-    const authClient = await withTimeout(auth.getClient(), REQUEST_TIMEOUT_MS);
+    const authClient = await withTimeout(auth.getClient(), REQUEST_TIMEOUT_MS, "GA4_TIMEOUT");
     const client = authClient as unknown as {
       request<T>(options: {
         url: string;
@@ -261,11 +364,9 @@ async function fetchFreshAnalytics(): Promise<DashboardAnalytics> {
           "screenPageViews",
           "engagementRate",
           "keyEvents",
-          "purchaseRevenue",
-          "transactions",
         ], 1)
       ),
-      request("runReport", reportBody("89daysAgo", "yesterday", ["date"], ["sessions", "purchaseRevenue"], 100)),
+      request("runReport", reportBody("89daysAgo", "yesterday", ["date"], ["sessions"], 100)),
       request("runReport", reportBody("29daysAgo", "today", [], ["sessions", "screenPageViews", "engagementRate", "purchaseRevenue", "transactions"], 1)),
       request("runReport", reportBody("29daysAgo", "today", ["eventName"], ["eventCount"], 100)),
       request("runReport", reportBody("29daysAgo", "today", ["pageTitle"], ["screenPageViews"], 100)),
@@ -283,7 +384,7 @@ async function fetchFreshAnalytics(): Promise<DashboardAnalytics> {
       .map((row): DashboardTrendPoint => ({
         date: isoDate(row.date),
         sessions: number(row.sessions),
-        revenue: number(row.purchaseRevenue),
+        revenue: 0,
         partial: false,
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -315,17 +416,18 @@ async function fetchFreshAnalytics(): Promise<DashboardAnalytics> {
       propertyId: PROPERTY_ID,
       message:
         status === "live"
-          ? "Live GA4-gegevens"
-          : "Een deel van de GA4-gegevens kon niet worden vernieuwd.",
+          ? "Live GA4-verkeersgegevens"
+          : "Een deel van de GA4-verkeersgegevens kon niet worden vernieuwd.",
       metrics: {
         activeVisitors: results[0]?.status === "fulfilled" ? number(realtime?.activeUsers) : null,
-        revenueToday: results[1]?.status === "fulfilled" ? number(today.purchaseRevenue) : null,
+        revenueToday: null,
         sessions: results[1]?.status === "fulfilled" ? number(today.sessions) : null,
         views: results[1]?.status === "fulfilled" ? number(today.screenPageViews) : null,
         engagement: results[1]?.status === "fulfilled" ? number(today.engagementRate) : null,
         keyEvents: results[1]?.status === "fulfilled" ? number(today.keyEvents) : null,
       },
       daily,
+      revenueDaily: [],
       forecast: buildDashboardForecast(daily),
       funnel:
         results[4]?.status === "fulfilled"
@@ -350,23 +452,92 @@ async function fetchFreshAnalytics(): Promise<DashboardAnalytics> {
   }
 }
 
-export function getAdminDashboardAnalytics(options?: { force?: boolean }) {
-  const now = Date.now();
-  if (analyticsRefresh) return analyticsRefresh;
-  const forceAllowed = options?.force && now - lastForcedRefreshAt >= 15_000;
-  if (!forceAllowed && analyticsCache && analyticsCache.expiresAt > now) {
-    return analyticsCache.value;
+async function fetchFreshMollieRevenue(): Promise<MollieDashboardRevenue> {
+  try {
+    if (!process.env.MOLLIE_API_KEY?.startsWith("live_")) {
+      throw new Error("MOLLIE_LIVE_KEY_REQUIRED");
+    }
+    const now = new Date();
+    const creationCutoff = new Date(
+      now.getTime() - MOLLIE_CREATION_LOOKBACK_DAYS * 24 * 60 * 60 * 1000
+    );
+    const payments: MollieRevenuePayment[] = [];
+    let page = await requestWithRetry(() =>
+      withTimeout(
+        getMollieClient().payments.page({ limit: MOLLIE_PAGE_SIZE, sort: "desc" }),
+        REQUEST_TIMEOUT_MS,
+        "MOLLIE_TIMEOUT"
+      )
+    );
+    let pagesRead = 0;
+    let reachedCutoff = false;
+
+    while (true) {
+      pagesRead += 1;
+      payments.push(...page);
+      const oldestCreatedAt = page.at(-1)?.createdAt;
+      if (oldestCreatedAt) {
+        const oldest = new Date(oldestCreatedAt);
+        if (Number.isFinite(oldest.getTime()) && oldest < creationCutoff) {
+          reachedCutoff = true;
+          break;
+        }
+      }
+      const nextPage = page.nextPage;
+      if (!nextPage || pagesRead >= MOLLIE_MAX_PAGES) break;
+      page = await requestWithRetry(() =>
+        withTimeout(nextPage(), REQUEST_TIMEOUT_MS, "MOLLIE_TIMEOUT")
+      );
+    }
+
+    const revenue = buildMollieRevenue(payments, now);
+    const truncated = Boolean(page.nextPage) && !reachedCutoff && pagesRead >= MOLLIE_MAX_PAGES;
+    const status = truncated || revenue.unsupportedCurrencies > 0 ? "partial" : "live";
+    const details = [
+      truncated ? "De paginalimiet is bereikt; oudere betalingen ontbreken mogelijk." : "",
+      revenue.unsupportedCurrencies > 0
+        ? `${revenue.unsupportedCurrencies} betaling(en) met een andere valuta zijn niet opgeteld.`
+        : "",
+    ].filter(Boolean).join(" ");
+
+    return {
+      status,
+      generatedAt: now.toISOString(),
+      message:
+        status === "live"
+          ? "Live Mollie-omzet na refunds en chargebacks."
+          : `Mollie-omzet is gedeeltelijk geladen. ${details}`.trim(),
+      revenueToday: revenue.revenueToday,
+      daily: revenue.daily,
+      paidPayments: revenue.paidPayments,
+      unsupportedCurrencies: revenue.unsupportedCurrencies,
+    };
+  } catch (error) {
+    console.error("Admin dashboard Mollie revenue refresh failed", {
+      code: error instanceof Error ? error.message : "UNKNOWN",
+    });
+    return {
+      ...EMPTY_MOLLIE_REVENUE,
+      generatedAt: new Date().toISOString(),
+    };
   }
-  if (forceAllowed) lastForcedRefreshAt = now;
+}
+
+function getGa4DashboardAnalytics(options?: { force?: boolean }) {
+  const now = Date.now();
+  if (ga4Refresh) return ga4Refresh;
+  if (!options?.force && ga4Cache && ga4Cache.expiresAt > now) {
+    return ga4Cache.value;
+  }
   const value = fetchFreshAnalytics().then(async (fresh) => {
     if (fresh.status !== "unavailable") {
-      lastSuccessfulAnalytics = fresh;
+      lastSuccessfulGa4 = fresh;
       await persistAnalytics(fresh);
       return fresh;
     }
-    const fallback = lastSuccessfulAnalytics ?? await loadPersistedAnalytics();
+    const fallback = lastSuccessfulGa4 ?? await loadPersistedAnalytics();
     if (fallback) {
-      lastSuccessfulAnalytics = fallback;
+      lastSuccessfulGa4 = fallback;
       return asPersistentFallback(
         fallback,
         "Live vernieuwen is mislukt; de laatst opgeslagen gegevens worden getoond."
@@ -374,18 +545,70 @@ export function getAdminDashboardAnalytics(options?: { force?: boolean }) {
     }
     return fresh;
   });
-  analyticsRefresh = value.finally(() => {
-    analyticsRefresh = undefined;
+  ga4Refresh = value.finally(() => {
+    ga4Refresh = undefined;
   });
-  analyticsCache = { expiresAt: now + CACHE_TTL_MS, value: analyticsRefresh };
-  return analyticsRefresh;
+  ga4Cache = { expiresAt: now + CACHE_TTL_MS, value: ga4Refresh };
+  return ga4Refresh;
+}
+
+function getMollieDashboardRevenue(options?: { force?: boolean }) {
+  const now = Date.now();
+  if (mollieRefresh) return mollieRefresh;
+  if (!options?.force && mollieCache && mollieCache.expiresAt > now) {
+    return mollieCache.value;
+  }
+  const value = fetchFreshMollieRevenue().then(async (fresh) => {
+    if (fresh.status !== "unavailable") {
+      lastSuccessfulMollieRevenue = fresh;
+      await persistMollieRevenue(fresh);
+      return fresh;
+    }
+    const fallback = lastSuccessfulMollieRevenue ?? await loadPersistedMollieRevenue();
+    if (fallback) {
+      lastSuccessfulMollieRevenue = fallback;
+      return asMolliePersistentFallback(
+        fallback,
+        "Live vernieuwen is mislukt; de laatst opgeslagen omzet wordt getoond."
+      );
+    }
+    return fresh;
+  });
+  mollieRefresh = value.finally(() => {
+    mollieRefresh = undefined;
+  });
+  mollieCache = { expiresAt: now + CACHE_TTL_MS, value: mollieRefresh };
+  return mollieRefresh;
+}
+
+export async function getAdminDashboardAnalytics(
+  options?: { force?: boolean }
+): Promise<DashboardAnalytics> {
+  const now = Date.now();
+  const forceAllowed = Boolean(options?.force && now - lastForcedRefreshAt >= 15_000);
+  if (forceAllowed) lastForcedRefreshAt = now;
+  const [ga4, mollie] = await Promise.all([
+    getGa4DashboardAnalytics({ force: forceAllowed }),
+    getMollieDashboardRevenue({ force: forceAllowed }),
+  ]);
+  return combineDashboardSources(ga4, mollie);
 }
 
 export async function getInitialAdminDashboardAnalytics(): Promise<DashboardAnalytics> {
-  const fallback = lastSuccessfulAnalytics ?? await loadPersistedAnalytics();
-  if (fallback) {
-    lastSuccessfulAnalytics = fallback;
-    return asPersistentFallback(fallback, "Opgeslagen GA4-gegevens worden direct getoond.");
+  const [storedGa4, storedMollie] = await Promise.all([
+    lastSuccessfulGa4 ?? loadPersistedAnalytics(),
+    lastSuccessfulMollieRevenue ?? loadPersistedMollieRevenue(),
+  ]);
+  if (storedGa4 || storedMollie) {
+    const ga4 = storedGa4
+      ? asPersistentFallback(storedGa4, "Opgeslagen GA4-verkeersgegevens worden direct getoond.")
+      : EMPTY_DASHBOARD_ANALYTICS;
+    const mollie = storedMollie
+      ? asMolliePersistentFallback(storedMollie, "Opgeslagen Mollie-omzet wordt direct getoond.")
+      : EMPTY_MOLLIE_REVENUE;
+    if (storedGa4) lastSuccessfulGa4 = storedGa4;
+    if (storedMollie) lastSuccessfulMollieRevenue = storedMollie;
+    return combineDashboardSources(ga4, mollie);
   }
   return getAdminDashboardAnalytics();
 }

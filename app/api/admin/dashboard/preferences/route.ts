@@ -81,7 +81,19 @@ function mergePreferences(saved: DashboardPreferences): DashboardPreferences {
   for (const widget of saved.widgets) {
     if (seen.has(widget.id)) continue;
     if (!widget.custom && !defaults.has(widget.id)) continue;
-    merged.push(widget);
+    const defaultWidget = defaults.get(widget.id);
+    const migratedWidget = !widget.custom && defaultWidget
+      ? {
+          ...widget,
+          text:
+            widget.id === "revenue-today" && widget.text === "Standaard GA4-transacties"
+              ? defaultWidget.text
+              : widget.id === "daily-revenue" && widget.text === "Afgelopen 30 dagen"
+                ? defaultWidget.text
+                : widget.text,
+        }
+      : widget;
+    merged.push(migratedWidget);
     seen.add(widget.id);
   }
   for (const widget of DEFAULT_DASHBOARD_PREFERENCES.widgets) {

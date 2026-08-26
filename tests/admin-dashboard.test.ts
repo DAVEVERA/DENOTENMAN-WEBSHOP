@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { buildDashboardForecast, buildDashboardIssues } from "../lib/admin-dashboard-analysis";
+import { buildMollieRevenue } from "../lib/admin-dashboard-revenue";
 import {
   DEFAULT_DASHBOARD_PREFERENCES,
   EMPTY_DASHBOARD_ANALYTICS,
@@ -40,6 +41,99 @@ test("forecast variability uses a normalized deviation instead of an inflated su
   })));
   assert.ok(forecast.points[0].low >= 1);
   assert.ok(forecast.points[0].high <= 8);
+});
+
+test("Mollie revenue uses live paid payments, Amsterdam dates and net amounts", () => {
+  const revenue = buildMollieRevenue([
+    {
+      mode: "live",
+      status: "paid",
+      paidAt: "2026-08-25T22:30:00.000Z",
+      amount: { currency: "EUR", value: "20.00" },
+      amountRefunded: { currency: "EUR", value: "3.00" },
+      amountChargedBack: { currency: "EUR", value: "2.00" },
+    },
+    {
+      mode: "live",
+      status: "paid",
+      paidAt: "2026-08-25T21:59:00.000Z",
+      amount: { currency: "EUR", value: "8.50" },
+    },
+    {
+      mode: "test",
+      status: "paid",
+      paidAt: "2026-08-25T22:45:00.000Z",
+      amount: { currency: "EUR", value: "99.00" },
+    },
+    {
+      mode: "live",
+      status: "failed",
+      paidAt: "2026-08-25T22:50:00.000Z",
+      amount: { currency: "EUR", value: "45.00" },
+    },
+    {
+      mode: "live",
+      status: "paid",
+      paidAt: "2026-08-25T22:55:00.000Z",
+      amount: { currency: "USD", value: "12.00" },
+    },
+  ], new Date("2026-08-26T10:00:00.000Z"));
+
+  assert.equal(revenue.revenueToday, 15);
+  assert.equal(revenue.paidPayments, 2);
+  assert.equal(revenue.unsupportedCurrencies, 1);
+  assert.equal(revenue.daily.length, 90);
+  assert.equal(revenue.daily.at(-1)?.date, "2026-08-26");
+  assert.equal(revenue.daily.at(-1)?.partial, true);
+  assert.equal(revenue.daily.find((point) => point.date === "2026-08-25")?.revenue, 8.5);
+});
+
+test("combined dashboard keeps GA4 traffic and Mollie revenue at the same time", async () => {
+  const analysis = await import("../lib/admin-dashboard-analysis");
+  const combine = (analysis as unknown as {
+    combineDashboardSources?: (
+      ga4: typeof EMPTY_DASHBOARD_ANALYTICS,
+      mollie: {
+        status: "live";
+        generatedAt: string;
+        message: string;
+        revenueToday: number;
+        daily: typeof EMPTY_DASHBOARD_ANALYTICS.revenueDaily;
+      }
+    ) => typeof EMPTY_DASHBOARD_ANALYTICS;
+  }).combineDashboardSources;
+  assert.equal(typeof combine, "function");
+
+  const ga4 = {
+    ...EMPTY_DASHBOARD_ANALYTICS,
+    status: "live" as const,
+    generatedAt: "2026-08-26T08:00:00.000Z",
+    message: "Live GA4-verkeersgegevens",
+    metrics: {
+      ...EMPTY_DASHBOARD_ANALYTICS.metrics,
+      sessions: 17,
+      activeVisitors: 3,
+    },
+  };
+  const revenueDaily = [{
+    date: "2026-08-26",
+    sessions: 0,
+    revenue: 42.45,
+    partial: true,
+  }];
+  const combined = combine!(ga4, {
+    status: "live",
+    generatedAt: "2026-08-26T08:01:00.000Z",
+    message: "Live Mollie-omzet",
+    revenueToday: 42.45,
+    daily: revenueDaily,
+  });
+
+  assert.equal(combined.status, "live");
+  assert.equal(combined.metrics.sessions, 17);
+  assert.equal(combined.metrics.activeVisitors, 3);
+  assert.equal(combined.metrics.revenueToday, 42.45);
+  assert.deepEqual(combined.revenueDaily, revenueDaily);
 });
 
 test("measurement analysis classifies critical, high and positive signals and keeps event counts", () => {
@@ -86,6 +180,9 @@ test("dashboard is request-time and admin API routes authenticate before returni
   assert.match(provider, /getInitialAdminDashboardAnalytics/);
   assert.match(provider, /requestWithRetry/);
   assert.match(provider, /status === 429/);
+  assert.match(provider, /getMollieClient/);
+  assert.match(provider, /MOLLIE_REVENUE_SNAPSHOT_SETTING_KEY/);
+  assert.doesNotMatch(provider, /revenueToday:[\s\S]{0,100}purchaseRevenue/);
   assert.doesNotMatch(provider, /GA4_PROPERTY_ID\?\.trim\(\) \|\|/);
 });
 

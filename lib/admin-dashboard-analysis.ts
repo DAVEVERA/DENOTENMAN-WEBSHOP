@@ -7,6 +7,14 @@ import type {
 
 export type DashboardReportRow = Record<string, string | number>;
 
+export type DashboardRevenueSource = {
+  status: DashboardAnalytics["status"];
+  generatedAt: string;
+  message: string;
+  revenueToday: number | null;
+  daily: DashboardTrendPoint[];
+};
+
 function number(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -24,6 +32,37 @@ function standardDeviation(values: number[]): number {
   return Math.sqrt(
     values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length
   );
+}
+
+export function combineDashboardSources(
+  ga4: DashboardAnalytics,
+  mollie: DashboardRevenueSource
+): DashboardAnalytics {
+  const status =
+    ga4.status === "live" && mollie.status === "live"
+      ? "live"
+      : ga4.status === "unavailable" && mollie.status === "unavailable"
+        ? "unavailable"
+        : "partial";
+  const generatedAt = [ga4.generatedAt, mollie.generatedAt]
+    .filter((value) => Number.isFinite(new Date(value).getTime()))
+    .sort()
+    .at(-1) ?? new Date().toISOString();
+
+  return {
+    ...ga4,
+    status,
+    generatedAt,
+    message:
+      status === "live"
+        ? "Mollie-omzet en GA4-verkeer zijn live."
+        : `${mollie.message} ${ga4.message}`,
+    metrics: {
+      ...ga4.metrics,
+      revenueToday: mollie.revenueToday,
+    },
+    revenueDaily: mollie.daily,
+  };
 }
 
 export function buildDashboardForecast(

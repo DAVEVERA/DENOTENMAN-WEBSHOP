@@ -71,6 +71,7 @@ export type DashboardAnalytics = {
     keyEvents: number | null;
   };
   daily: DashboardTrendPoint[];
+  revenueDaily: DashboardTrendPoint[];
   forecast: {
     confidence: "onvoldoende" | "laag" | "middel" | "hoog";
     trainingDays: number;
@@ -116,7 +117,7 @@ export const DEFAULT_DASHBOARD_PREFERENCES: DashboardPreferences = {
   version: 1,
   widgets: [
     { id: "active-visitors", source: "activeVisitors", title: "Actieve bezoekers", text: "Afgelopen 30 minuten", display: "number", hidden: false, custom: false },
-    { id: "revenue-today", source: "revenueToday", title: "Omzet vandaag", text: "Standaard GA4-transacties", display: "number", hidden: false, custom: false },
+    { id: "revenue-today", source: "revenueToday", title: "Omzet vandaag", text: "Netto betaalde Mollie-omzet", display: "number", hidden: false, custom: false },
     { id: "sessions", source: "sessions", title: "Sessies", text: "Vandaag", display: "number", hidden: false, custom: false },
     { id: "views", source: "views", title: "Weergaven", text: "Vandaag", display: "number", hidden: false, custom: false },
     { id: "engagement", source: "engagement", title: "Betrokkenheid", text: "Betrokken sessies / sessies", display: "number", hidden: false, custom: false },
@@ -127,7 +128,7 @@ export const DEFAULT_DASHBOARD_PREFERENCES: DashboardPreferences = {
     { id: "pending-orders", source: "pendingOrders", title: "Openstaand", text: "", display: "number", hidden: false, custom: false },
     { id: "recent-orders", source: "recentOrders", title: "Recente bestellingen", text: "De acht nieuwste bestellingen", display: "number", hidden: false, custom: false },
     { id: "forecast", source: "forecast", title: "Forecast", text: "Verwachte sessies voor de komende zeven dagen", display: "chart", hidden: false, custom: false },
-    { id: "daily-revenue", source: "dailyRevenue", title: "Omzet per dag", text: "Afgelopen 30 dagen", display: "chart", hidden: false, custom: false },
+    { id: "daily-revenue", source: "dailyRevenue", title: "Omzet per dag", text: "Mollie, netto na refunds en chargebacks · afgelopen 30 dagen", display: "chart", hidden: false, custom: false },
     { id: "funnel", source: "funnel", title: "Van winkelwagen naar aankoopsignaal", text: "Eventaantallen kunnen herhaalde acties van dezelfde bezoeker bevatten.", display: "chart", hidden: false, custom: false },
     { id: "improvement-signals", source: "improvementSignals", title: "Verbetersignalen", text: "Eerst oplossen, deze sprint en verder uitbouwen", display: "number", hidden: false, custom: false },
     { id: "improvements", source: "improvements", title: "Verbeterpunten", text: "Acties op basis van de actuele meetgegevens", display: "number", hidden: false, custom: false },
@@ -148,6 +149,7 @@ export const EMPTY_DASHBOARD_ANALYTICS: DashboardAnalytics = {
     keyEvents: null,
   },
   daily: [],
+  revenueDaily: [],
   forecast: {
     confidence: "onvoldoende",
     trainingDays: 0,

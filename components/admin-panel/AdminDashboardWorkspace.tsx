@@ -521,7 +521,7 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
   };
 
   const metricSeries = (source: DashboardWidgetSource) => {
-    if (source === "revenueToday") return analytics.daily.map((point) => point.revenue);
+    if (source === "revenueToday") return analytics.revenueDaily.map((point) => point.revenue);
     if (source === "sessions") return analytics.daily.map((point) => point.sessions);
     return [];
   };
@@ -579,7 +579,7 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
       return widget.display === "chart" ? <ForecastChart analytics={analytics} /> : <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{analytics.forecast.points.map((point) => <div key={point.date} className="rounded-card bg-background p-3"><p className="text-xs text-muted">{shortDate(point.date)}</p><p className="mt-1 font-heading text-2xl font-bold">{point.expected}</p><p className="text-xs text-muted">{point.low}–{point.high}</p></div>)}</div>;
     }
     if (widget.source === "dailyRevenue") {
-      const shown = analytics.daily.slice(-30);
+      const shown = analytics.revenueDaily.slice(-30);
       return widget.display === "chart" ? <DailyRevenueChart points={shown} /> : <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{shown.slice(-8).map((point) => <div key={point.date} className="rounded-card bg-background p-3"><p className="text-xs text-muted">{shortDate(point.date)}</p><p className="mt-1 font-heading text-xl font-bold">{euro(point.revenue)}</p></div>)}</div>;
     }
     if (widget.source === "funnel") return <FunnelChart analytics={analytics} display={widget.display} />;
@@ -623,7 +623,7 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
       </div>
 
       <div className={cn("mt-5 flex items-center justify-between gap-3 rounded-card border px-4 py-3 text-body-sm", analytics.status === "unavailable" ? "border-[#D9B7AF] bg-[#FFF5F2]" : "border-border bg-surface")} role="status">
-        <span>{analyticsLoading ? "GA4-gegevens vernieuwen…" : analytics.message}</span>
+        <span>{analyticsLoading ? "GA4-verkeer en Mollie-omzet vernieuwen…" : analytics.message}</span>
         {!analyticsLoading && analytics.generatedAt !== EMPTY_DASHBOARD_ANALYTICS.generatedAt ? <time className="shrink-0 text-xs text-muted" dateTime={analytics.generatedAt}>{new Intl.DateTimeFormat("nl-NL", { hour: "2-digit", minute: "2-digit" }).format(new Date(analytics.generatedAt))}</time> : null}
       </div>
 
