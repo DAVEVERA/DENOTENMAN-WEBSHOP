@@ -61,6 +61,7 @@ steps:
           --build-arg CDN_BASE_URL="${_CDN_BASE_URL}" \
           --build-arg SITE_URL="${_SITE_URL}" \
           --build-arg UNLIMITED_STOCK="${_UNLIMITED_STOCK}" \
+          --build-arg DEPLOYMENT_VERSION="${_COMMIT_SHA}" \
           -t "${_IMAGE_BASE}:${_COMMIT_SHA}" \
           .
     secretEnv: ["DATABASE_URL"]

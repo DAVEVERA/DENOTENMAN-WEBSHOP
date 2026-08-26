@@ -106,10 +106,8 @@ export function NavbarSearch({
       aria-label={label}
       onSubmit={submitSearch}
       className={cn(
-        "flex w-full items-center bg-surface transition-colors focus-within:border-accent",
-        mobile
-          ? "h-13 rounded-button border-2 border-contrast"
-          : "h-12 border-[3px] border-contrast"
+        "flex w-full items-center rounded-full border border-border bg-surface transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/25",
+        mobile ? "h-13" : "h-12"
       )}
     >
       <label htmlFor={fieldId} className="sr-only">

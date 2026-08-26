@@ -1,14 +1,7 @@
 import type nl from "@/dictionaries/nl.json";
-import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
-import { home } from "@/lib/routes";
 import { getCategoryNavigation } from "@/lib/queries";
-import { Container } from "@/components/ui/Container";
-import { Logo } from "@/components/ui/Logo";
-import { MegaMenu } from "@/components/layout/MegaMenu";
-import { MobileNav } from "@/components/layout/MobileNav";
-import { HeaderActions } from "@/components/layout/HeaderActions";
-import { NavbarSearch } from "@/components/layout/NavbarSearch";
+import { CompactHeader } from "@/components/layout/CompactHeader";
 
 export async function Header({
   locale,
@@ -20,78 +13,14 @@ export async function Header({
   languages: Partial<Record<Locale, string>>;
 }) {
   const navigation = await getCategoryNavigation(locale);
-  const categories = navigation.categories;
 
   return (
-    <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
-      <div className="border-y-2 border-contrast bg-surface">
-        <Container fullWidth>
-          <div className="-mx-4 sm:-mx-6 lg:-mx-8 xl:hidden">
-            <div className="flex min-h-16 items-center justify-start border-b border-border bg-surface px-4 py-2 sm:min-h-20 sm:px-6">
-              <Link
-                href={home(locale)}
-                aria-label={dictionary.brand.logoWordmarkAlt}
-                className="inline-flex max-w-full touch-manipulation items-center justify-center"
-              >
-                <Logo
-                  alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
-                  variant="light"
-                  parts="wordmark"
-                  size="nav"
-                />
-              </Link>
-            </div>
-            <MobileNav
-              categories={categories}
-              promotional={navigation.promotional}
-              locale={locale}
-              dictionary={dictionary}
-              languages={languages}
-            />
-          </div>
-          <div className="hidden w-full grid-cols-[minmax(18rem,21rem)_minmax(18rem,27rem)_minmax(0,1fr)] items-center gap-7 py-4 xl:grid">
-            <div className="min-w-0">
-              <Link href={home(locale)} className="shrink-0">
-                <Logo
-                  alt={{ mark: dictionary.brand.logoMarkAlt, wordmark: dictionary.brand.logoWordmarkAlt }}
-                  variant="light"
-                  parts="wordmark"
-                  size="responsive"
-                />
-              </Link>
-            </div>
-            <div className="w-full max-w-[27rem] justify-self-center">
-              <NavbarSearch
-                locale={locale}
-                label={dictionary.common.search}
-                placeholder={dictionary.nav.searchPlaceholder}
-              />
-            </div>
-            <div className="min-w-0 justify-self-end">
-              <HeaderActions
-                locale={locale}
-                dictionary={dictionary}
-                languages={languages}
-              />
-            </div>
-          </div>
-        </Container>
-      </div>
-      <div className="hidden border-b-2 border-contrast bg-surface xl:block">
-        <Container fullWidth className="py-3">
-          <nav aria-label={dictionary.nav.categories} className="min-w-0">
-            <MegaMenu
-              categories={categories}
-              promotional={navigation.promotional}
-              locale={locale}
-              labels={{
-                submenu: dictionary.nav.categoryMenu,
-                viewAll: dictionary.nav.viewAllCategory,
-              }}
-            />
-          </nav>
-        </Container>
-      </div>
-    </header>
+    <CompactHeader
+      categories={navigation.categories}
+      promotional={navigation.promotional}
+      locale={locale}
+      dictionary={dictionary}
+      languages={languages}
+    />
   );
 }

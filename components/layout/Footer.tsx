@@ -178,6 +178,14 @@ export async function Footer({
                     {dictionary.footer.aboutTitle}
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    href={pagePath("contact", locale)}
+                    className={footerLinkClass}
+                  >
+                    {dictionary.nav.business}
+                  </Link>
+                </li>
               </ul>
             </nav>
 

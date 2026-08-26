@@ -80,6 +80,7 @@ function localizedIndexRedirects(segment: Record<string, string>, physicalSegmen
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  deploymentId: process.env.DEPLOYMENT_VERSION?.trim() || undefined,
   turbopack: {
     root: path.resolve(import.meta.dirname),
   },
@@ -90,6 +91,29 @@ const nextConfig: NextConfig = {
       protocol: "https",
       hostname,
     })),
+  },
+  async headers() {
+    return [
+      {
+        source: "/:locale(nl|en|fr)/:path*",
+        missing: [{ type: "header", key: "rsc" }],
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate, s-maxage=60",
+          },
+        ],
+      },
+      ...["/admin/:path*", "/api/admin/:path*"].map((source) => ({
+        source,
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "private, no-store, max-age=0, must-revalidate",
+          },
+        ],
+      })),
+    ];
   },
   async rewrites() {
     return [

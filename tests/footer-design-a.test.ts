@@ -30,6 +30,17 @@ test("footer uses canonical localized routes and central market content", () => 
   assert.doesNotMatch(footerSource, /Hilvarenbeek|Uden|Antwerpen/);
 });
 
+test("business CTA appears only in the footer directly after About us", () => {
+  const compactHeaderSource = readFileSync("components/layout/CompactHeader.tsx", "utf8");
+  const aboutLink = footerSource.indexOf('pagePath("about", locale)');
+  const businessLink = footerSource.indexOf("dictionary.nav.business");
+
+  assert.doesNotMatch(compactHeaderSource, /dictionary\.nav\.business/);
+  assert.ok(aboutLink >= 0);
+  assert.ok(businessLink > aboutLink);
+  assert.match(footerSource.slice(aboutLink, businessLink), /<\/li>\s*<li>/);
+});
+
 test("footer keeps legal links in the lower bar and touch targets usable", () => {
   const contentGroupsEnd = footerSource.indexOf(
     "border-t border-background/15",

@@ -13,7 +13,7 @@ test("desktop customer service opens the internal knowledge base", () => {
     <HeaderActions locale="nl" dictionary={nl} />
   );
 
-  assert.match(markup, />Zakelijk<\/a>/);
+  assert.doesNotMatch(markup, />Zakelijk<\/a>/);
   assert.match(markup, />Klantenservice<\/a>/);
   assert.match(markup, />Vind DeNotenman<\/a>/);
   assert.match(markup, /href="\/nl\/paginas\/veelgestelde-vragen"[^>]*>Klantenservice<\/a>/);
@@ -67,14 +67,23 @@ test("mobile header exposes menu, search, account and cart as a top action row",
   assert.doesNotMatch(markup, /fixed bottom-/);
 });
 
+test("header search uses one subtle pill-shaped field on mobile and desktop", () => {
+  const source = readFileSync("components/layout/NavbarSearch.tsx", "utf8");
+
+  assert.match(source, /rounded-full border border-border/);
+  assert.doesNotMatch(source, /border-2 border-contrast/);
+  assert.doesNotMatch(source, /border-\[3px\] border-contrast/);
+});
+
 test("the storefront logo remains present across mobile, tablet and desktop header layouts", () => {
   const headerSource = readFileSync("components/layout/Header.tsx", "utf8");
+  const compactHeaderSource = readFileSync("components/layout/CompactHeader.tsx", "utf8");
   const logoSource = readFileSync("components/ui/Logo.tsx", "utf8");
 
-  assert.match(headerSource, /-mx-4 sm:-mx-6 lg:-mx-8 xl:hidden/);
-  assert.match(headerSource, /aria-label=\{dictionary\.brand\.logoWordmarkAlt\}/);
-  assert.match(headerSource, /parts="wordmark"\s+size="nav"/);
-  assert.match(headerSource, /hidden w-full[^\"]*xl:grid/);
-  assert.match(headerSource, /parts="wordmark"\s+size="responsive"/);
+  assert.match(headerSource, /<CompactHeader/);
+  assert.match(compactHeaderSource, /aria-label=\{dictionary\.brand\.logoWordmarkAlt\}/);
+  assert.match(compactHeaderSource, /parts="wordmark"\s+size="sm"/);
+  assert.match(compactHeaderSource, /parts="wordmark"\s+size="lg"/);
+  assert.match(compactHeaderSource, /xl:grid/);
   assert.match(logoSource, /nav: "h-12 min-\[400px\]:h-14 sm:h-16"/);
 });

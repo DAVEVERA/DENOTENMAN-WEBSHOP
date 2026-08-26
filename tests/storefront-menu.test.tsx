@@ -154,16 +154,20 @@ test("mobile menu provides drilldown, back, overview and 44px touch targets", ()
 test("header exposes every standard root returned by the navigation query", () => {
   const source = readFileSync("components/layout/Header.tsx", "utf8");
 
-  assert.match(source, /const categories = navigation\.categories;/);
+  assert.match(source, /categories=\{navigation\.categories\}/);
   assert.doesNotMatch(source, /hiddenNavCategorySlugs/);
 });
 
 test("header switches mobile and desktop navigation at one coherent breakpoint", () => {
   const headerSource = readFileSync("components/layout/Header.tsx", "utf8");
-  const mobileSource = readFileSync("components/layout/MobileNav.tsx", "utf8");
+  const compactHeaderSource = readFileSync("components/layout/CompactHeader.tsx", "utf8");
+  const compactHeaderStyles = readFileSync("components/layout/CompactHeader.module.css", "utf8");
 
-  assert.match(headerSource, /border-b-2 border-contrast bg-surface xl:block/);
-  assert.match(mobileSource, /grid w-full grid-cols-4[^"]*xl:hidden/);
+  assert.match(headerSource, /<CompactHeader/);
+  assert.match(compactHeaderSource, /className="hidden min-w-0 xl:block"/);
+  assert.match(compactHeaderSource, /styles\.sheet, "xl:hidden"/);
+  assert.match(compactHeaderStyles, /border-bottom: 1px solid var\(--color-border\)/);
+  assert.doesNotMatch(compactHeaderStyles, /border-bottom: 2px/);
 });
 
 test("mobile search dialog traps keyboard focus inside its own panel", () => {

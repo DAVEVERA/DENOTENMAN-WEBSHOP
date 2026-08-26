@@ -40,12 +40,6 @@ export function HeaderActions({
 
   return (
     <div className="grid shrink-0 grid-flow-col items-center justify-end gap-2 2xl:gap-3">
-      <a
-        href={pagePath("contact", locale)}
-        className={utilityLinkClass}
-      >
-        {dictionary.nav.business}
-      </a>
       <Link
         href={pagePath("faq", locale)}
         className={utilityLinkClass}
