@@ -4,7 +4,7 @@ export type DesignStudioModule = {
   description: string;
   href: string;
   status: "ACTIVE" | "PLANNED";
-  provider?: "PhotoRoom";
+  provider?: "PhotoRoom" | "VModel";
 };
 
 export const designStudioModules: readonly DesignStudioModule[] = [
@@ -19,9 +19,10 @@ export const designStudioModules: readonly DesignStudioModule[] = [
   {
     id: "campaign-assets",
     title: "Campagnebeelden",
-    description: "Herbruikbare composities voor banners en acties.",
+    description: "Maak productgetrouwe scenes voor banners, socials en seizoensacties.",
     href: "/admin/design-studio/campagnebeelden",
-    status: "PLANNED",
+    status: "ACTIVE",
+    provider: "VModel",
   },
   {
     id: "labels",

@@ -36,6 +36,8 @@ test("PhotoRoom workspace keeps creation and publication explicitly separate", (
   assert.match(html, /Na · concept/);
   assert.match(html, /Concept maken/);
   assert.match(html, /Als nieuwe productfoto toevoegen/);
+  assert.match(html, /Maak campagnebeeld/);
+  assert.match(html, /campagnebeelden\?productId=product_1&amp;imageId=image_1/);
   assert.match(html, /maximaal 25 providerpogingen/i);
   assert.doesNotMatch(html, /<form\b/i);
   assert.match(html, /min-h-11/);

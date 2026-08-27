@@ -29,5 +29,9 @@ test("the Design Studio registry is extensible and product photos are active", (
   const productPhotos = designStudioModules.find((module) => module.id === "product-photos");
   assert.equal(productPhotos?.status, "ACTIVE");
   assert.equal(productPhotos?.href, "/admin/design-studio/productfotos");
+  const campaignImages = designStudioModules.find((module) => module.id === "campaign-assets");
+  assert.equal(campaignImages?.status, "ACTIVE");
+  assert.equal(campaignImages?.provider, "VModel");
+  assert.equal(campaignImages?.href, "/admin/design-studio/campagnebeelden");
   assert.ok(designStudioModules.some((module) => module.status === "PLANNED"));
 });

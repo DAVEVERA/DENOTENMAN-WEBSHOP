@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, ImageIcon, Layers3, LockKeyhole } from "lucide-react";
+import { ArrowRight, ImageIcon, LockKeyhole, WandSparkles } from "lucide-react";
 import { designStudioModules } from "@/lib/design-studio/modules";
 
-const moduleIcons = { "product-photos": ImageIcon, "campaign-assets": Layers3, labels: LockKeyhole } as const;
+const moduleIcons = { "product-photos": ImageIcon, "campaign-assets": WandSparkles, labels: LockKeyhole } as const;
 
 export default function DesignStudioPage() {
   return (
@@ -15,7 +15,7 @@ export default function DesignStudioPage() {
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {designStudioModules.map((module) => {
-          const Icon = moduleIcons[module.id as keyof typeof moduleIcons] || Layers3;
+          const Icon = moduleIcons[module.id as keyof typeof moduleIcons] || WandSparkles;
           const content = (
             <>
               <div className="flex items-start justify-between gap-4">

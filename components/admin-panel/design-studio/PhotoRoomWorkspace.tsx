@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ArrowLeft, Check, ImagePlus, ShieldCheck, Sparkles } from "lucide-react";
-import type { DesignAssetDto, DesignStudioProduct, PhotoRoomJobInput } from "@/lib/design-studio/photoroom-schema";
+import type { PhotoRoomJobInput } from "@/lib/design-studio/photoroom-schema";
+import type { DesignAssetDto, DesignStudioProduct } from "@/lib/design-studio/types";
 
 const inputClass = "mt-1 min-h-11 w-full rounded-button border border-border bg-surface px-3 text-body-sm text-text";
 const buttonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-button px-4 font-heading text-body-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
@@ -150,7 +151,10 @@ export function PhotoRoomWorkspace({
 
   return (
     <div>
-      <Link href="/admin/design-studio" className="inline-flex min-h-11 items-center gap-2 rounded-button font-heading text-body-sm font-bold text-accent-ink underline-offset-4 hover:underline"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Design Studio</Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href="/admin/design-studio" className="inline-flex min-h-11 items-center gap-2 rounded-button font-heading text-body-sm font-bold text-accent-ink underline-offset-4 hover:underline"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Design Studio</Link>
+        {selectedProduct && selectedImage ? <Link href={`/admin/design-studio/campagnebeelden?productId=${encodeURIComponent(selectedProduct.id)}&imageId=${encodeURIComponent(selectedImage.id)}`} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text hover:border-border-hover"><Sparkles className="h-4 w-4" aria-hidden="true" />Maak campagnebeeld</Link> : null}
+      </div>
       <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-3xl">
           <p className="font-heading text-body-sm font-bold uppercase tracking-[0.12em] text-accent-ink">Productfoto’s · PhotoRoom</p>

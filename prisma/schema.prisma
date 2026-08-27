@@ -150,6 +150,7 @@ enum ProductFaqMediaType {
 
 enum DesignProvider {
   PHOTOROOM
+  VMODEL
 }
 
 enum CostProvider {
