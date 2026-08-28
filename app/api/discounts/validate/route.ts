@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { evaluateCheckoutDiscount } from "@/lib/discounts";
-import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
+import { calculateShippingCents, isShippingCountryCode } from "@/lib/shipping";
 import { prisma } from "@/lib/prisma";
 
 type DiscountValidationBody = {
   code?: unknown;
   subtotalCents?: unknown;
+  country?: unknown;
+  totalWeightGrams?: unknown;
+  deliveryMethod?: unknown;
 };
 
 export async function POST(request: Request) {
@@ -51,10 +54,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "INVALID_DISCOUNT_CODE" }, { status: 422 });
   }
 
-  const regularShippingCents =
-    body.subtotalCents === 0 || body.subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
-      ? 0
-      : FLAT_SHIPPING_CENTS;
+  const country =
+    typeof body.country === "string" && isShippingCountryCode(body.country)
+      ? body.country
+      : "NL";
+  const totalWeightGrams =
+    typeof body.totalWeightGrams === "number" &&
+    Number.isSafeInteger(body.totalWeightGrams) &&
+    body.totalWeightGrams > 0
+      ? body.totalWeightGrams
+      : null;
+  const deliveryMethod = body.deliveryMethod === "PICKUP" ? "PICKUP" : "SHIPPING";
+  const regularShippingCents = calculateShippingCents({
+    country,
+    subtotalCents: body.subtotalCents,
+    totalWeightGrams,
+    deliveryMethod,
+  });
   const shippingCents = evaluation.isTest ? 0 : regularShippingCents;
 
   return NextResponse.json({

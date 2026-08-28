@@ -1,6 +1,6 @@
 import { IdentityDetails, LegalList, LegalPage, LegalSection } from "@/components/legal/LegalPage";
 import { LEGAL_IDENTITY } from "@/lib/legal";
-import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
+import { SHIPPING_POLICIES } from "@/lib/shipping";
 
 function euro(cents: number): string {
   return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -74,9 +74,13 @@ export function Terms({ locale: _locale }: { locale: string }) {
       <LegalSection title="Artikel 6 – Prijzen, kortingen en verzendkosten">
         <p>
           Consumentenprijzen zijn in euro en inclusief btw. De checkout toont vóór bestelling de volledige
-          prijs. Standaardverzending naar Nederland en België kost momenteel {euro(FLAT_SHIPPING_CENTS)} en
-          is gratis vanaf {euro(FREE_SHIPPING_THRESHOLD_CENTS)}. De checkout is leidend als tarieven of
-          drempels later wijzigen.
+          prijs. Naar Nederland kost verzending momenteel {euro(SHIPPING_POLICIES.NL.rateTiers[0].rateCents)}
+          tot en met 3 kg en {euro(SHIPPING_POLICIES.NL.rateTiers[1].rateCents)} daarboven; verzending is
+          gratis vanaf {euro(SHIPPING_POLICIES.NL.freeShippingThresholdCents)}. Naar België kost verzending
+          {" "}{euro(SHIPPING_POLICIES.BE.rateTiers[0].rateCents)} tot en met 2 kg en
+          {" "}{euro(SHIPPING_POLICIES.BE.rateTiers[1].rateCents)} daarboven; verzending is gratis vanaf
+          {" "}{euro(SHIPPING_POLICIES.BE.freeShippingThresholdCents)}. De checkout is leidend als tarieven
+          of drempels later wijzigen.
         </p>
         <p>
           Kortingscodes zijn niet inwisselbaar voor geld, gelden eenmaal per bestelling en kunnen niet worden

@@ -433,6 +433,7 @@ export function HomeProductSlider({
         slug: activeProduct.slug,
         name: activeProduct.name,
         variantLabel: variant.label ?? `${variant.weightGrams} g`,
+        weightGrams: variant.weightGrams,
         priceCents: variant.priceCents,
         imageUrl: activeProduct.imageSrc,
         locale,

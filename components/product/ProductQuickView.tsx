@@ -226,6 +226,7 @@ export function ProductQuickView({
         slug: product.slug,
         name: product.name,
         variantLabel: selected.label ?? `${selected.weightGrams} ${product.unit === "VOLUME" ? "ml" : "g"}`,
+        weightGrams: selected.weightGrams,
         priceCents: selected.priceCents,
         imageUrl: primaryImage?.url ?? null,
         locale,

@@ -73,6 +73,7 @@ export function VariantSelector({
         slug: product.slug,
         name: product.name,
         variantLabel: selected.label ?? `${selected.weightGrams} ${unit === "VOLUME" ? "ml" : "g"}`,
+        weightGrams: selected.weightGrams,
         priceCents: selected.priceCents,
         imageUrl: product.imageUrl,
         locale,

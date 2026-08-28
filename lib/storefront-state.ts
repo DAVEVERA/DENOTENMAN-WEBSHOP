@@ -21,6 +21,8 @@ export type CartItem = {
   slug: string;
   name: string;
   variantLabel: string;
+  /** Optional only for carts saved before weight-aware shipping was released. */
+  weightGrams?: number;
   priceCents: number;
   quantity: number;
   imageUrl: string | null;

@@ -10,9 +10,8 @@ import {
   CUSTOMER_SERVICE_WHATSAPP_URL,
 } from "@/lib/customer-service";
 import {
-  FLAT_SHIPPING_CENTS,
-  FREE_SHIPPING_THRESHOLD_CENTS,
   RETURN_WINDOW_DAYS,
+  SHIPPING_POLICIES,
   STANDARD_HANDLING_DAYS,
   STANDARD_TRANSIT_DAYS,
 } from "@/lib/shipping";
@@ -118,9 +117,9 @@ export function getAnnouncementTickerCopy(
     fr: "Les avantages de De Notenman",
   }[locale];
   const shippingLabel = {
-    nl: `Gratis verzending vanaf ${euro(locale, FREE_SHIPPING_THRESHOLD_CENTS)}`,
-    en: `Free shipping from ${euro(locale, FREE_SHIPPING_THRESHOLD_CENTS)}`,
-    fr: `Livraison gratuite dès ${euro(locale, FREE_SHIPPING_THRESHOLD_CENTS)}`,
+    nl: `Gratis verzending: NL vanaf ${euro(locale, SHIPPING_POLICIES.NL.freeShippingThresholdCents)} · BE vanaf ${euro(locale, SHIPPING_POLICIES.BE.freeShippingThresholdCents)}`,
+    en: `Free shipping: NL from ${euro(locale, SHIPPING_POLICIES.NL.freeShippingThresholdCents)} · BE from ${euro(locale, SHIPPING_POLICIES.BE.freeShippingThresholdCents)}`,
+    fr: `Livraison gratuite : NL dès ${euro(locale, SHIPPING_POLICIES.NL.freeShippingThresholdCents)} · BE dès ${euro(locale, SHIPPING_POLICIES.BE.freeShippingThresholdCents)}`,
   }[locale];
 
   return {
@@ -171,7 +170,7 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
       noResultsText: "Try another search term or contact us using the details below.",
       entries: [
         { id: "order-status", category: "Orders", question: "How can I find my order status?", answer: "You do not need a login account. Open My account and enter the email address used for the order and your order number. A PostNL tracking link appears there when available.", links: [{ label: "Look up my order", href: accountHref }] },
-        { id: "shipping", category: "Delivery", question: "Where do you deliver and what does it cost?", answer: `Delivery is available in the Netherlands and Belgium. Standard shipping costs ${euro(locale, FLAT_SHIPPING_CENTS)} and is free from ${euro(locale, FREE_SHIPPING_THRESHOLD_CENTS)}. Processing and delivery usually take about ${shippingMinimum}–${shippingMaximum} business days.`, links: [{ label: "Shipping and returns policy", href: shippingHref }] },
+        { id: "shipping", category: "Delivery", question: "Where do you deliver and what does it cost?", answer: `Delivery is available in the Netherlands and Belgium. Netherlands: ${euro(locale, SHIPPING_POLICIES.NL.rateTiers[0].rateCents)} up to 3 kg and ${euro(locale, SHIPPING_POLICIES.NL.rateTiers[1].rateCents)} above 3 kg, free from ${euro(locale, SHIPPING_POLICIES.NL.freeShippingThresholdCents)}. Belgium: ${euro(locale, SHIPPING_POLICIES.BE.rateTiers[0].rateCents)} up to 2 kg and ${euro(locale, SHIPPING_POLICIES.BE.rateTiers[1].rateCents)} above 2 kg, free from ${euro(locale, SHIPPING_POLICIES.BE.freeShippingThresholdCents)}. Processing and delivery usually take about ${shippingMinimum}–${shippingMaximum} business days.`, links: [{ label: "Shipping and returns policy", href: shippingHref }] },
         { id: "collection", category: "Market collection", question: "Can I collect my order at the market?", answer: "Yes. During checkout, choose one of the available market locations and market days. Your order confirmation shows the selected collection option.", links: [{ label: "View the weekly market route", href: marketsHref }] },
         { id: "returns", category: "Returns", question: "How do returns work?", answer: `For eligible products, consumers have a ${RETURN_WINDOW_DAYS}-day withdrawal period after receipt. Notify De Notenman first by email and follow the current return instructions. Food safety and hygiene exceptions may apply.`, links: [{ label: "Read the complete returns policy", href: shippingHref }] },
         { id: "change-order", category: "Orders", question: "Can I change or cancel an order?", answer: "Contact De Notenman immediately before dispatch if you want to cancel or correct an address. We will try to make the change, but cannot guarantee this after processing or carrier handover." },
@@ -218,7 +217,7 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
       noResultsText: "Essayez un autre terme ou contactez-nous avec les coordonnées ci-dessous.",
       entries: [
         { id: "order-status", category: "Commandes", question: "Comment consulter le statut de ma commande ?", answer: "Vous n’avez pas besoin d’un compte de connexion. Ouvrez Mon compte et saisissez l’adresse e-mail de la commande ainsi que votre numéro de commande. Un lien de suivi PostNL y apparaît lorsqu’il est disponible.", links: [{ label: "Retrouver ma commande", href: accountHref }] },
-        { id: "shipping", category: "Livraison", question: "Où livrez-vous et quel est le tarif ?", answer: `La livraison est disponible aux Pays-Bas et en Belgique. La livraison standard coûte ${euro(locale, FLAT_SHIPPING_CENTS)} et est gratuite à partir de ${euro(locale, FREE_SHIPPING_THRESHOLD_CENTS)}. Le traitement et la livraison prennent généralement environ ${shippingMinimum}–${shippingMaximum} jours ouvrés.`, links: [{ label: "Politique de livraison et de retour", href: shippingHref }] },
+        { id: "shipping", category: "Livraison", question: "Où livrez-vous et quel est le tarif ?", answer: `La livraison est disponible aux Pays-Bas et en Belgique. Pays-Bas : ${euro(locale, SHIPPING_POLICIES.NL.rateTiers[0].rateCents)} jusqu’à 3 kg et ${euro(locale, SHIPPING_POLICIES.NL.rateTiers[1].rateCents)} au-delà, gratuite dès ${euro(locale, SHIPPING_POLICIES.NL.freeShippingThresholdCents)}. Belgique : ${euro(locale, SHIPPING_POLICIES.BE.rateTiers[0].rateCents)} jusqu’à 2 kg et ${euro(locale, SHIPPING_POLICIES.BE.rateTiers[1].rateCents)} au-delà, gratuite dès ${euro(locale, SHIPPING_POLICIES.BE.freeShippingThresholdCents)}. Le traitement et la livraison prennent généralement environ ${shippingMinimum}–${shippingMaximum} jours ouvrés.`, links: [{ label: "Politique de livraison et de retour", href: shippingHref }] },
         { id: "collection", category: "Retrait au marché", question: "Puis-je retirer ma commande au marché ?", answer: "Oui. Pendant le paiement, choisissez l’un des lieux et jours de marché proposés. La confirmation de commande indique l’option de retrait choisie.", links: [{ label: "Voir l’itinéraire hebdomadaire", href: marketsHref }] },
         { id: "returns", category: "Retours", question: "Comment fonctionnent les retours ?", answer: `Pour les produits éligibles, le consommateur dispose d’un délai de rétractation de ${RETURN_WINDOW_DAYS} jours après réception. Prévenez d’abord De Notenman par e-mail et suivez les instructions de retour actuelles. Des exceptions liées à l’hygiène et à la sécurité alimentaire peuvent s’appliquer.`, links: [{ label: "Lire la politique complète", href: shippingHref }] },
         { id: "change-order", category: "Commandes", question: "Puis-je modifier ou annuler une commande ?", answer: "Contactez immédiatement De Notenman avant l’expédition pour annuler ou corriger une adresse. Nous essaierons d’effectuer la modification, sans pouvoir la garantir après le traitement ou la remise au transporteur." },
@@ -264,7 +263,7 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
     noResultsText: "Probeer een andere zoekterm of neem contact op via de gegevens onderaan deze pagina.",
     entries: [
       { id: "order-status", category: "Bestellingen", question: "Waar vind ik de status van mijn bestelling?", answer: "Je hebt geen inlogaccount nodig. Open Mijn account en vul het e-mailadres van de bestelling en je bestelnummer in. Als er een PostNL-code beschikbaar is, staat daar de track-en-tracelink.", links: [{ label: "Mijn bestelling opzoeken", href: accountHref }] },
-      { id: "shipping", category: "Bezorgen", question: "Waar bezorgen jullie en wat kost het?", answer: `Bezorging is beschikbaar in Nederland en België. Standaardverzending kost ${euro(locale, FLAT_SHIPPING_CENTS)} en is gratis vanaf ${euro(locale, FREE_SHIPPING_THRESHOLD_CENTS)}. Verwerking en bezorging duren gewoonlijk samen ongeveer ${shippingMinimum}–${shippingMaximum} werkdagen.`, links: [{ label: "Bekijk het verzend- en retourbeleid", href: shippingHref }] },
+      { id: "shipping", category: "Bezorgen", question: "Waar bezorgen jullie en wat kost het?", answer: `Bezorging is beschikbaar in Nederland en België. Nederland: ${euro(locale, SHIPPING_POLICIES.NL.rateTiers[0].rateCents)} t/m 3 kg en ${euro(locale, SHIPPING_POLICIES.NL.rateTiers[1].rateCents)} daarboven, gratis vanaf ${euro(locale, SHIPPING_POLICIES.NL.freeShippingThresholdCents)}. België: ${euro(locale, SHIPPING_POLICIES.BE.rateTiers[0].rateCents)} t/m 2 kg en ${euro(locale, SHIPPING_POLICIES.BE.rateTiers[1].rateCents)} daarboven, gratis vanaf ${euro(locale, SHIPPING_POLICIES.BE.freeShippingThresholdCents)}. Verwerking en bezorging duren gewoonlijk samen ongeveer ${shippingMinimum}–${shippingMaximum} werkdagen.`, links: [{ label: "Bekijk het verzend- en retourbeleid", href: shippingHref }] },
       { id: "collection", category: "Afhalen", question: "Kan ik mijn bestelling op de markt afhalen?", answer: "Ja. Kies tijdens het afrekenen een aangeboden marktlocatie en marktdag. In je bestelbevestiging staat welke afhaalmogelijkheid je hebt gekozen.", links: [{ label: "Bekijk de vaste weekroute", href: marketsHref }] },
       { id: "returns", category: "Retourneren", question: "Hoe werkt retourneren?", answer: `Voor producten waarop geen uitzondering geldt, heeft een consument na ontvangst ${RETURN_WINDOW_DAYS} dagen bedenktijd. Meld je retour eerst per e-mail aan en volg de actuele retourinstructies. Voor voedselveiligheid en hygiëne kunnen uitzonderingen gelden.`, links: [{ label: "Lees het volledige retourbeleid", href: shippingHref }] },
       { id: "change-order", category: "Bestellingen", question: "Kan ik mijn bestelling wijzigen of annuleren?", answer: "Neem vóór verzending direct contact op als je wilt annuleren of een adres wilt corrigeren. De Notenman probeert de wijziging uit te voeren, maar kan dit na verwerking of overdracht aan de vervoerder niet garanderen." },

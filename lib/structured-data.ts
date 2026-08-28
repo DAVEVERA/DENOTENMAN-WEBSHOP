@@ -11,13 +11,12 @@ import {
 } from "@/lib/product-description";
 import { pagePath } from "@/lib/pages";
 import {
-  FLAT_SHIPPING_CENTS,
-  FREE_SHIPPING_THRESHOLD_CENTS,
   RETURN_COUNTRY_CODES,
   RETURN_POLICY_COUNTRY,
   RETURN_WINDOW_DAYS,
   SHIPPING_BUSINESS_DAYS,
   SHIPPING_COUNTRY_CODES,
+  SHIPPING_POLICIES,
   STANDARD_HANDLING_DAYS,
   STANDARD_TRANSIT_DAYS,
 } from "@/lib/shipping";
@@ -40,8 +39,6 @@ function organizationEntity(baseUrl: string) {
   const origin = baseUrl.replace(/\/$/, "");
   const shippingServiceId = `${origin}#standard-shipping`;
   const returnPolicyId = `${origin}#return-policy`;
-  const paidShippingMax = FREE_SHIPPING_THRESHOLD_CENTS / 100 - 0.01;
-
   const transitTime = {
     "@type": "ServicePeriod",
     duration: {
@@ -53,10 +50,22 @@ function organizationEntity(baseUrl: string) {
     businessDays: [...SHIPPING_BUSINESS_DAYS],
   };
 
-  const shippingConditions = SHIPPING_COUNTRY_CODES.flatMap((country) => [
-    {
+  const shippingConditions = SHIPPING_COUNTRY_CODES.flatMap((country) => {
+    const policy = SHIPPING_POLICIES[country];
+    const paidShippingMax = policy.freeShippingThresholdCents / 100 - 0.01;
+    const paidConditions = policy.rateTiers.map((tier, index) => ({
       "@type": "ShippingConditions",
       shippingDestination: { "@type": "DefinedRegion", addressCountry: country },
+      weight: {
+        "@type": "QuantitativeValue",
+        ...(index > 0 && policy.rateTiers[index - 1].maxWeightGrams !== null
+          ? { minValue: (policy.rateTiers[index - 1].maxWeightGrams! + 1) / 1_000 }
+          : {}),
+        ...(tier.maxWeightGrams !== null
+          ? { maxValue: tier.maxWeightGrams / 1_000 }
+          : {}),
+        unitCode: "KGM",
+      },
       orderValue: {
         "@type": "MonetaryAmount",
         minValue: 0,
@@ -65,23 +74,27 @@ function organizationEntity(baseUrl: string) {
       },
       shippingRate: {
         "@type": "MonetaryAmount",
-        value: FLAT_SHIPPING_CENTS / 100,
+        value: tier.rateCents / 100,
         currency: "EUR",
       },
       transitTime,
-    },
-    {
-      "@type": "ShippingConditions",
-      shippingDestination: { "@type": "DefinedRegion", addressCountry: country },
-      orderValue: {
-        "@type": "MonetaryAmount",
-        minValue: FREE_SHIPPING_THRESHOLD_CENTS / 100,
-        currency: "EUR",
+    }));
+
+    return [
+      ...paidConditions,
+      {
+        "@type": "ShippingConditions",
+        shippingDestination: { "@type": "DefinedRegion", addressCountry: country },
+        orderValue: {
+          "@type": "MonetaryAmount",
+          minValue: policy.freeShippingThresholdCents / 100,
+          currency: "EUR",
+        },
+        shippingRate: { "@type": "MonetaryAmount", value: 0, currency: "EUR" },
+        transitTime,
       },
-      shippingRate: { "@type": "MonetaryAmount", value: 0, currency: "EUR" },
-      transitTime,
-    },
-  ]);
+    ];
+  });
 
   return {
     "@type": "Organization",

@@ -5,7 +5,12 @@ import { BASE_URL } from "@/lib/routes";
 import { resolveTranslation } from "@/lib/queries";
 import type { Locale } from "@/lib/i18n";
 import type { Order, OrderStatus } from "@prisma/client";
-import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
+import {
+  calculateShippingCents,
+  calculateTotalWeightGrams,
+  isShippingCountryCode,
+  type ShippingCountryCode,
+} from "@/lib/shipping";
 import { sendOrderConfirmationEmail } from "@/lib/mail";
 import { sendCompletedTestOrderConfirmation } from "@/lib/test-order-confirmation";
 import {
@@ -121,7 +126,7 @@ export function validateContact(contact: CheckoutContactInput) {
     return;
   }
 
-  if (contact.country !== "NL" && contact.country !== "BE") {
+  if (!isShippingCountryCode(contact.country)) {
     throw new CheckoutError("INVALID_CONTACT", "Shipping is only available in NL and BE");
   }
 
@@ -141,7 +146,8 @@ export async function priceCartLines(
   locale: Locale,
   discountCode?: string,
   hasPreviousPaidOrder = false,
-  deliveryMethod: "SHIPPING" | "PICKUP" = "SHIPPING"
+  deliveryMethod: "SHIPPING" | "PICKUP" = "SHIPPING",
+  shippingCountry: ShippingCountryCode = "NL"
 ) {
   if (lines.length === 0) {
     throw new CheckoutError("EMPTY_CART", "Cart is empty");
@@ -207,6 +213,7 @@ export async function priceCartLines(
       // Action prices are resolved exclusively from the database; the cart's
       // client-side amount is never trusted during checkout.
       unitPriceCents: variant.salePriceCents ?? variant.priceCents,
+      weightGrams: variant.weightGrams,
     };
   });
 
@@ -214,10 +221,13 @@ export async function priceCartLines(
     (sum, line) => sum + line.unitPriceCents * line.quantity,
     0
   );
-  const regularShippingCents =
-    deliveryMethod === "PICKUP" || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
-      ? 0
-      : FLAT_SHIPPING_CENTS;
+  const totalWeightGrams = calculateTotalWeightGrams(priced);
+  const regularShippingCents = calculateShippingCents({
+    country: shippingCountry,
+    subtotalCents,
+    totalWeightGrams,
+    deliveryMethod,
+  });
   const configuredDiscount = hasDiscountCode(discountCode)
     ? await prisma.discount.findUnique({
         where: { code: discountCode!.trim().toUpperCase() },
@@ -260,6 +270,7 @@ export async function priceCartLines(
     discountCode: discount?.code ?? null,
     discountCents,
     shippingCents,
+    totalWeightGrams,
     totalCents: subtotalCents - discountCents + shippingCents,
     isTest,
   };
@@ -304,7 +315,8 @@ export async function createOrderWithPayment(
     locale,
     discountCode,
     Boolean(previousPaidOrder),
-    contact.deliveryMethod
+    contact.deliveryMethod,
+    isShippingCountryCode(contact.country) ? contact.country : "NL"
   );
 
   const user = existingUser
