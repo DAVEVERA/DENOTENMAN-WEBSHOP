@@ -42,10 +42,10 @@ const dashboard: PriceMonitorDashboard = {
       key: "bas-boer",
       name: "Bas Boer Noten",
       baseUrl: "https://www.basboernoten.nl",
-      status: "NEEDS_SETUP",
-      statusLabel: "Script nog koppelen",
-      statusNote: "Het script ontbreekt nog.",
-      canRun: false,
+      status: "READY",
+      statusLabel: "Klaar voor proefrun",
+      statusNote: "De begrensde Bas Boer-koppeling staat klaar.",
+      canRun: true,
       lastRunAt: null,
       lastRunStatus: null,
       productsSeen: 0,
@@ -67,7 +67,7 @@ const dashboard: PriceMonitorDashboard = {
   },
 };
 
-test("non-technical onboarding and both scraper states render on first visit", () => {
+test("non-technical onboarding and both connected scrapers render on first visit", () => {
   const html = renderToStaticMarkup(<PriceMonitorWorkspace initialDashboard={dashboard} canWrite />);
   assert.match(html, /Prijsmonitor/);
   assert.match(html, /Zo werkt de prijsmonitor/);
@@ -83,7 +83,8 @@ test("non-technical onboarding and both scraper states render on first visit", (
   ]) assert.match(html, new RegExp(step));
   assert.match(html, /Noten\.nl/);
   assert.match(html, /Bas Boer Noten/);
-  assert.match(html, /Script nog koppelen/);
+  assert.match(html, /De begrensde Bas Boer-koppeling staat klaar/);
+  assert.doesNotMatch(html, /Script nog koppelen/);
 });
 
 test("workspace keeps mobile cards, desktop tables, large controls and export choices", () => {

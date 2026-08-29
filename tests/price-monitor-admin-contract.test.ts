@@ -13,8 +13,10 @@ const cronRoute = read("app/api/internal/price-monitor/reports/route.ts");
 const page = read("app/admin/(dashboard)/prijsmonitor/page.tsx");
 const service = read("lib/price-monitor/service.ts");
 const scraper = read("lib/price-monitor/scrapers/noten-nl.ts");
+const basBoerScraper = read("lib/price-monitor/scrapers/bas-boer.ts");
 const sources = read("lib/price-monitor/sources.ts");
 const registry = read("lib/price-monitor/scrapers/registry.ts");
+const basBoerReference = read("app/admin/(dashboard)/prijsmonitor/apexpredator_BB.py");
 const schema = read("prisma/schema.prisma");
 const migration = read("prisma/migrations/20260829153000_add_price_monitor/migration.sql");
 
@@ -48,17 +50,28 @@ test("automatic price actions fail closed on stale, unsafe or promotional data",
   assert.doesNotMatch(service, /take: 150/);
 });
 
-test("scrapers use separate adapters and Noten.nl cannot redirect outside its host", () => {
+test("scrapers use separate adapters and cannot redirect outside approved hosts", () => {
   assert.match(sources, /key: "noten-nl"/);
   assert.match(sources, /key: "bas-boer"/);
-  assert.match(sources, /adapterKey: "bas-boer-pending"/);
-  assert.match(registry, /\[\["noten-nl", notenNlAdapter\]\]/);
+  assert.match(sources, /adapterKey: "bas-boer-v1"/);
+  assert.match(sources, /key: "bas-boer"[\s\S]*?status: "READY"[\s\S]*?canRun: true/);
+  assert.match(registry, /\["noten-nl", notenNlAdapter\]/);
+  assert.match(registry, /\["bas-boer", basBoerAdapter\]/);
   assert.match(scraper, /redirect: "manual"/);
   assert.match(scraper, /\(\^\|\\\.\)noten\\\.nl\$/);
   assert.match(scraper, /Math\.min\(50/);
   assert.match(scraper, /SCRAPE_CONCURRENCY = 3/);
   assert.match(scraper, /readBoundedText/);
   assert.match(scraper, /AbortSignal\.timeout/);
+  assert.match(basBoerScraper, /redirect: "manual"/);
+  assert.match(basBoerScraper, /ALLOWED_HOSTS/);
+  assert.match(basBoerScraper, /Math\.min\(50/);
+  assert.match(basBoerScraper, /SCRAPE_CONCURRENCY = 2/);
+  assert.match(basBoerScraper, /readBoundedText/);
+  assert.match(basBoerScraper, /AbortSignal\.timeout/);
+  assert.match(basBoerScraper, /HTTP 429/);
+  assert.match(basBoerReference, /MAX_PRODUCTS = 25/);
+  assert.doesNotMatch(runRoute, /child_process|spawn\(|exec\(/);
   assert.match(runRoute, /after\(/);
   assert.match(runRoute, /status: 202/);
   assert.match(applyRoute, /frontendSynced/);

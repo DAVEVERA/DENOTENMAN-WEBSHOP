@@ -25,12 +25,12 @@ export const PRICE_MONITOR_SOURCES: readonly PriceMonitorSourceDefinition[] = [
     key: "bas-boer",
     name: "Bas Boer Noten",
     baseUrl: "https://www.basboernoten.nl",
-    adapterKey: "bas-boer-pending",
-    status: "NEEDS_SETUP",
-    statusLabel: "Script nog koppelen",
+    adapterKey: "bas-boer-v1",
+    status: "READY",
+    statusLabel: "Klaar voor proefrun",
     statusNote:
-      "De webshop is bekend, maar het genoemde Bas Boer-script staat niet in deze checkout. Voeg het script toe voordat je een proefrun start.",
-    canRun: false,
+      "Bas Boer Noten heeft een begrensde koppeling met rustige verzoeken. Start met maximaal 25 producten en probeer later opnieuw als de bron tijdelijk afremt.",
+    canRun: true,
   },
 ] as const;
 

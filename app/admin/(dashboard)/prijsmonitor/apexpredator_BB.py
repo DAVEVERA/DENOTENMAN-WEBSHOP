@@ -1,3 +1,9 @@
+"""Lokale referentie-CLI voor Bas Boer Noten.
+
+De adminprijsmonitor voert dit bestand niet als subprocess uit. De begrensde,
+server-only TypeScript-adapter staat in lib/price-monitor/scrapers/bas-boer.ts.
+"""
+
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -11,6 +17,8 @@ from urllib.parse import urljoin
 BASE_URL = "https://www.basboernoten.nl"
 OUTPUT_FILE = "basboer_producten.json"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+MAX_CATEGORIES = 8
+MAX_PRODUCTS = 25
 
 # =============================================================================
 # FUNCTIES
@@ -117,7 +125,7 @@ def main():
     
     # 3. Verzamel alle product-URL's
     all_product_urls = set()
-    for cat_url in category_urls:
+    for cat_url in sorted(category_urls)[:MAX_CATEGORIES]:
         print(f"📂 Categorie doorzoeken: {cat_url}")
         cat_html = fetch_html(cat_url)
         if cat_html:
@@ -126,12 +134,14 @@ def main():
             print(f"   → {len(product_links)} producten gevonden in deze categorie.")
         time.sleep(0.5)  # Wees vriendelijk voor de server
     
+    selected_product_urls = sorted(all_product_urls)[:MAX_PRODUCTS]
     print(f"\n🔍 Totaal {len(all_product_urls)} unieke product-URL's gevonden.")
+    print(f"   → Deze proefronde leest maximaal {len(selected_product_urls)} producten.")
     
     # 4. scrape alle producten
     products = []
-    for i, url in enumerate(all_product_urls, 1):
-        print(f"📦 [{i}/{len(all_product_urls)}] {url}")
+    for i, url in enumerate(selected_product_urls, 1):
+        print(f"📦 [{i}/{len(selected_product_urls)}] {url}")
         html = fetch_html(url)
         if html:
             product_data = parse_product_page(html, url)
