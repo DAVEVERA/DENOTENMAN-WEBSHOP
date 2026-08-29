@@ -94,8 +94,9 @@ export function NewsletterSignup({
   return (
     <section
       id="newsletter-signup"
+      data-home-section="newsletter"
       aria-labelledby="newsletter-signup-title"
-      className="bg-[linear-gradient(180deg,#121212_0%,#e0b200_5rem,#e0b200_100%)] px-4 pb-12 pt-20 sm:px-6 sm:pb-14 sm:pt-24 lg:px-8 lg:pb-16"
+      className="bg-transparent px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14"
     >
       <div className="mx-auto grid max-w-[58rem] gap-7 rounded-[0.7rem] bg-[#121212] p-5 text-surface shadow-card sm:p-7 lg:grid-cols-[minmax(17rem,0.92fr)_minmax(0,1.08fr)] lg:items-center lg:gap-8 lg:px-8 lg:py-7">
         <div className="border-b-4 border-black pb-4 lg:border-b-0 lg:pb-0">

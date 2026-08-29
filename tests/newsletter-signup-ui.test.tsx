@@ -29,6 +29,9 @@ test("newsletter form is accessible, mobile-first and contains consent plus hone
   );
 
   assert.match(html, /id="newsletter-signup"/);
+  assert.match(html, /data-home-section="newsletter"/);
+  assert.match(html, /bg-transparent/);
+  assert.match(html, /bg-\[#121212\]/);
   assert.match(html, /type="email"/);
   assert.match(html, /autoComplete="email"/);
   assert.match(html, /type="checkbox"/);

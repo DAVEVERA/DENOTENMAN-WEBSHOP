@@ -21,7 +21,10 @@ export function USPBar({
   }
 
   return (
-    <ul className="flex flex-wrap justify-center gap-gap-lg bg-[linear-gradient(180deg,#f8f5ef_0%,#f3eee5_100%)] py-gap-md text-body-sm text-text">
+    <ul
+      data-home-section="usp"
+      className="flex flex-wrap justify-center gap-gap-lg bg-transparent py-gap-md text-body-sm text-text"
+    >
       {items.map((item) => (
         <li key={item.label} className="flex items-center gap-gap-sm">
           <item.icon className="h-5 w-5 text-accent-hover" aria-hidden="true" />

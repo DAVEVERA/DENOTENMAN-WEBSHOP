@@ -24,7 +24,8 @@ export function HomeNutButterStory({
 }: HomeNutButterStoryProps) {
   return (
     <section
-      className="overflow-hidden bg-[linear-gradient(180deg,#f8f5ef_0%,#efe8dc_7rem,#efe8dc_100%)]"
+      data-home-section="nut-butter-story"
+      className="overflow-hidden bg-transparent"
       aria-labelledby="home-nut-butter-title"
     >
         <div className="grid min-w-0 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:items-stretch">
@@ -69,7 +70,7 @@ export function HomeNutButterStory({
             </Link>
           </div>
 
-          <div className="relative order-2 aspect-[2/3] min-h-0 overflow-hidden bg-[#e8dccb] md:aspect-[3/2] lg:aspect-auto lg:min-h-[38rem]">
+          <div className="relative order-2 aspect-[2/3] min-h-0 overflow-hidden bg-transparent md:aspect-[3/2] lg:aspect-auto lg:min-h-[38rem]">
             <picture className="absolute inset-0 block">
               <source
                 media="(min-width: 768px)"
@@ -86,7 +87,7 @@ export function HomeNutButterStory({
               />
             </picture>
             <div
-              className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-[#efe8dc] to-transparent lg:inset-y-0 lg:left-0 lg:h-auto lg:w-20 lg:bg-gradient-to-r"
+              className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-home-canvas to-transparent lg:inset-y-0 lg:left-0 lg:h-auto lg:w-20 lg:bg-gradient-to-r"
               aria-hidden="true"
             />
           </div>

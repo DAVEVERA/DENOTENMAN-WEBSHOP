@@ -21,7 +21,8 @@ export function HomeHoneyStory({
 }: HomeHoneyStoryProps) {
   return (
     <section
-      className="relative overflow-hidden bg-[linear-gradient(180deg,#f8f5ef_0%,#f4efe6_7rem,#f4efe6_100%)]"
+      data-home-section="honey-story"
+      className="relative overflow-hidden bg-transparent"
       aria-labelledby="home-honey-story-title"
     >
       <picture className="absolute inset-0 hidden lg:block">
@@ -41,7 +42,7 @@ export function HomeHoneyStory({
       </picture>
 
       <div
-        className="pointer-events-none absolute inset-0 hidden bg-[linear-gradient(90deg,rgba(244,239,230,0.98)_0%,rgba(244,239,230,0.91)_35%,rgba(244,239,230,0.28)_58%,rgba(244,239,230,0)_72%)] lg:block"
+        className="pointer-events-none absolute inset-0 hidden bg-gradient-to-r from-home-canvas via-home-canvas/90 to-transparent lg:block"
         aria-hidden="true"
       />
 

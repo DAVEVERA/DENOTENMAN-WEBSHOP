@@ -168,6 +168,7 @@ export default async function HomePage({
     <>
       <AnnouncementTicker copy={announcementCopy} />
       <SiteShell
+        className="bg-home-canvas"
         locale={locale}
         dictionary={dictionary}
         languages={alternates?.languages ?? {}}
@@ -209,7 +210,6 @@ export default async function HomePage({
           locale={locale}
           href={nutsHref}
           sectionId="home-nuts"
-          tone="from-craft"
           copy={{
             ...dictionary.home.nutsProducts,
             card: productCardCopy,
@@ -231,7 +231,6 @@ export default async function HomePage({
           locale={locale}
           href={honeyHref}
           sectionId="home-honey"
-          tone="from-honey"
           copy={{
             ...dictionary.home.honeyProducts,
             card: productCardCopy,
@@ -255,7 +254,6 @@ export default async function HomePage({
           locale={locale}
           href={nutButterHref}
           sectionId="home-nut-butters"
-          tone="from-nut-butter"
           copy={{
             ...dictionary.home.nutButterProducts,
             card: productCardCopy,

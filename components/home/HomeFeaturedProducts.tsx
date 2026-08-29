@@ -27,20 +27,12 @@ export function HomeFeaturedProducts({
   href,
   copy,
   sectionId,
-  tone = "surface",
 }: {
   products: ProductSummaryDto[];
   locale: Locale;
   href: string;
   copy: HomeFeaturedProductsCopy;
   sectionId: string;
-  tone?:
-    | "surface"
-    | "warm"
-    | "plain"
-    | "from-craft"
-    | "from-honey"
-    | "from-nut-butter";
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -51,18 +43,8 @@ export function HomeFeaturedProducts({
 
   return (
     <section
-      className={cn(
-        "py-12 sm:py-16 lg:py-20",
-        tone === "surface" && "bg-surface",
-        tone === "warm" && "bg-[#f3eee5]",
-        tone === "plain" && "bg-background",
-        tone === "from-craft" &&
-          "bg-[linear-gradient(180deg,#f3eee5_0%,#f8f5ef_7rem,#f8f5ef_100%)]",
-        tone === "from-honey" &&
-          "bg-[linear-gradient(180deg,#f4efe6_0%,#f8f5ef_7rem,#f8f5ef_100%)]",
-        tone === "from-nut-butter" &&
-          "bg-[linear-gradient(180deg,#efe8dc_0%,#faf8f4_7rem,#faf8f4_100%)]",
-      )}
+      data-home-section={sectionId}
+      className="bg-transparent py-12 sm:py-16 lg:py-20"
       aria-labelledby={`${sectionId}-title`}
     >
       <Container

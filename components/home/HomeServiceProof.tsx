@@ -29,7 +29,11 @@ export function HomeServiceProof({
   if (!markets.length) return null;
 
   return (
-    <section className="bg-[linear-gradient(180deg,#faf8f4_0%,#f6f3ee_7rem,#f6f3ee_100%)] py-10 sm:py-14 lg:py-16" aria-labelledby="home-markets-title">
+    <section
+      data-home-section="service-proof"
+      className="bg-transparent py-10 sm:py-14 lg:py-16"
+      aria-labelledby="home-markets-title"
+    >
       <Container fullWidth className="px-4 sm:px-6 lg:px-10 xl:px-14 2xl:px-16">
         <div className="max-w-2xl">
           <p className="font-heading text-xs font-bold uppercase tracking-[0.16em] text-accent-ink">
@@ -43,7 +47,7 @@ export function HomeServiceProof({
 
         <ul className="mt-7 grid gap-3 sm:grid-cols-3 sm:gap-4">
           {markets.map((market) => (
-            <li key={market.id} className="rounded-card border border-white/60 bg-background/75 p-5 shadow-[0_14px_35px_rgba(47,36,22,0.06)] backdrop-blur-sm">
+            <li key={market.id} className="rounded-card border border-white/60 bg-[#f6f3ee]/75 p-5 shadow-[0_14px_35px_rgba(47,36,22,0.06)] backdrop-blur-sm">
               <div className="flex items-center gap-2 font-heading text-sm font-bold text-accent-ink">
                 <CalendarDays className="h-5 w-5" aria-hidden="true" />
                 <span>{market.day}</span>

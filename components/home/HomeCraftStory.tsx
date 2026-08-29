@@ -25,11 +25,12 @@ export function HomeCraftStory({
 }: HomeCraftStoryProps) {
   return (
     <section
-      className="overflow-hidden bg-[#f3eee5]"
+      data-home-section="craft-story"
+      className="overflow-hidden bg-transparent"
       aria-labelledby="home-craft-title"
     >
       <div className="grid min-w-0 lg:grid-cols-2 lg:items-stretch">
-          <div className="relative order-2 min-h-[20rem] min-w-0 bg-[#faf7f1] sm:min-h-[27rem] lg:order-1 lg:min-h-[36rem]">
+          <div className="relative order-2 min-h-[20rem] min-w-0 bg-transparent sm:min-h-[27rem] lg:order-1 lg:min-h-[36rem]">
             <Image
               src={imageSrc}
               alt={imageAlt}
@@ -39,12 +40,12 @@ export function HomeCraftStory({
               loading="lazy"
             />
             <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-b from-transparent to-[#f3eee5] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-auto lg:w-20 lg:bg-gradient-to-r"
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-b from-transparent to-home-canvas lg:inset-y-0 lg:left-auto lg:right-0 lg:h-auto lg:w-20 lg:bg-gradient-to-r"
               aria-hidden="true"
             />
           </div>
 
-          <div className="order-1 flex min-w-0 flex-col justify-center bg-[linear-gradient(135deg,#f3eee5_0%,#eee4d5_100%)] px-5 py-10 sm:px-8 sm:py-12 lg:order-2 lg:px-12 lg:py-16 xl:px-16">
+          <div className="order-1 flex min-w-0 flex-col justify-center bg-transparent px-5 py-10 sm:px-8 sm:py-12 lg:order-2 lg:px-12 lg:py-16 xl:px-16">
             <p className="w-fit rounded-full bg-[#eadbaf] px-3 py-1.5 font-heading text-xs font-bold uppercase tracking-[0.14em] text-[#705700]">
               {eyebrow}
             </p>

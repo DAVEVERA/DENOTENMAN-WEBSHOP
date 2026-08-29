@@ -146,7 +146,8 @@ export function HomeHero({
 
   return (
     <section
-      className="relative isolate min-h-[54rem] overflow-hidden bg-[#f6f3ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-contrast sm:min-h-[52rem] lg:min-h-[38rem] xl:min-h-[clamp(39rem,42vw,44rem)]"
+      data-home-section="hero"
+      className="relative isolate min-h-[54rem] overflow-hidden bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-contrast sm:min-h-[52rem] lg:min-h-[38rem] xl:min-h-[clamp(39rem,42vw,44rem)]"
       role="region"
       aria-roledescription="carousel"
       aria-label={carouselLabel}
@@ -194,7 +195,7 @@ export function HomeHero({
       </div>
 
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-36 bg-gradient-to-b from-transparent via-[#f6f3ee]/70 to-[#f6f3ee]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-36 bg-gradient-to-b from-transparent via-home-canvas/70 to-home-canvas"
         aria-hidden="true"
       />
 

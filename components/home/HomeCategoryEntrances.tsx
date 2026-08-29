@@ -32,7 +32,8 @@ export function HomeCategoryEntrances({
 
   return (
     <section
-      className="relative z-20 -mt-[5.25rem] pb-4 sm:-mt-[5.5rem] lg:-mt-[5.25rem]"
+      data-home-section="categories"
+      className="relative z-20 -mt-[5.25rem] bg-transparent pb-4 sm:-mt-[5.5rem] lg:-mt-[5.25rem]"
       aria-labelledby="home-categories-title"
     >
       <Container fullWidth className="px-3 sm:px-5 lg:px-8 xl:px-12">

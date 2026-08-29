@@ -11,8 +11,12 @@ export type HomeAssortmentCtaProps = {
 
 export function HomeAssortmentCta({ title, body, ctaLabel, ctaHref }: HomeAssortmentCtaProps) {
   return (
-    <section className="bg-[linear-gradient(180deg,#f6f3ee_0%,#121212_5rem,#121212_100%)] pb-9 pt-20 text-surface sm:pb-11 sm:pt-24" aria-labelledby="home-assortment-title">
-      <Container fullWidth className="flex flex-col gap-6 px-4 sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:px-6 lg:px-10 xl:px-14 2xl:px-16">
+    <section
+      data-home-section="assortment-cta"
+      className="bg-transparent px-4 py-10 text-surface sm:px-6 sm:py-12 lg:px-10 lg:py-14 xl:px-14 2xl:px-16"
+      aria-labelledby="home-assortment-title"
+    >
+      <Container fullWidth className="flex flex-col gap-6 rounded-[0.85rem] bg-[#121212] px-5 py-7 sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:px-8 sm:py-9 lg:px-10 xl:px-12">
         <div className="max-w-2xl">
           <h2 id="home-assortment-title" className="text-[clamp(1.625rem,7vw,2.5rem)] leading-tight text-surface">
             {title}

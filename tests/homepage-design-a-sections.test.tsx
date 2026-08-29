@@ -62,6 +62,9 @@ test("home hero cycles three art-directed slides without navigation controls", (
   assert.match(markup, /srcSet="\/hero\/hero-nutbutter-desktop\.webp"/);
   assert.match(markup, /src="\/hero\/hero-nutbutter-mobile\.webp"/);
   assert.match(markup, /bg-white\/\[0\.84\]/);
+  assert.match(markup, /data-home-section="hero"/);
+  assert.match(markup, /bg-transparent/);
+  assert.match(markup, /via-home-canvas\/70 to-home-canvas/);
   assert.equal((markup.match(/<a /g) ?? []).length, 1);
   assert.match(markup, /href="\/nl\/categorie\/noten"/);
   assert.equal((markup.match(/<button/g) ?? []).length, 0);
@@ -87,6 +90,8 @@ test("category entrances use a two-column mobile grid and six columns on desktop
   );
 
   assert.match(markup, /grid-cols-2/);
+  assert.match(markup, /data-home-section="categories"/);
+  assert.match(markup, /bg-transparent/);
   assert.match(markup, /sm:grid-cols-3/);
   assert.match(markup, /lg:grid-cols-6/);
   assert.doesNotMatch(markup, /snap-x|overflow-x-auto|min-w-\[8\.5rem\]/);
@@ -115,7 +120,10 @@ test("nut-butter story art-directs the selected desktop and mobile images withou
   assert.match(markup, /src="\/home\/notenpasta-story-mobile\.webp"/);
   assert.match(markup, /media="\(min-width: 768px\)"/);
   assert.match(markup, /object-contain/);
-  assert.match(markup, /linear-gradient\(180deg,#f8f5ef_0%,#efe8dc_7rem/);
+  assert.match(markup, /data-home-section="nut-butter-story"/);
+  assert.match(markup, /bg-transparent/);
+  assert.match(markup, /from-home-canvas to-transparent/);
+  assert.doesNotMatch(markup, /#efe8dc_7rem|bg-\[#e8dccb\]/);
   assert.doesNotMatch(markup, /rounded-\[1\.5rem\]|shadow-\[0_18px/);
   assert.match(markup, /pindakaas en amandelpasta/);
   assert.match(markup, /Geselecteerd op smaak/);
@@ -143,7 +151,10 @@ test("honey story keeps copy and art-directed product imagery in separate mobile
   assert.match(markup, /href="\/nl\/categorie\/honing"/);
   assert.match(markup, /min-h-11 touch-manipulation/);
   assert.match(markup, /loading="lazy"/);
-  assert.match(markup, /linear-gradient\(180deg,#f8f5ef_0%,#f4efe6_7rem/);
+  assert.match(markup, /data-home-section="honey-story"/);
+  assert.match(markup, /bg-transparent/);
+  assert.match(markup, /from-home-canvas via-home-canvas\/90 to-transparent/);
+  assert.doesNotMatch(markup, /#f4efe6_7rem/);
 });
 
 test("story, market proof and assortment CTA render only supplied copy and usable links", () => {
@@ -186,6 +197,9 @@ test("story, market proof and assortment CTA render only supplied copy and usabl
   );
 
   assert.match(story, /loading="lazy"/);
+  assert.match(story, /data-home-section="craft-story"/);
+  assert.match(story, /bg-transparent/);
+  assert.match(story, /to-home-canvas/);
   assert.match(story, /%2Fhome%2Fde-notenman-marktbak\.webp/);
   assert.match(story, /object-contain/);
   assert.match(story, /lg:grid-cols-2/);
@@ -193,9 +207,13 @@ test("story, market proof and assortment CTA render only supplied copy and usabl
   assert.match(story, /Punt een/);
   assert.match(service, /Hilvarenbeek/);
   assert.match(service, /08:00–12:00/);
-  assert.match(service, /linear-gradient\(180deg,#faf8f4_0%,#f6f3ee_7rem/);
+  assert.match(service, /data-home-section="service-proof"/);
+  assert.match(service, /bg-transparent/);
+  assert.match(service, /bg-\[#f6f3ee\]\/75/);
   assert.match(assortment, /min-h-12/);
-  assert.match(assortment, /linear-gradient\(180deg,#f6f3ee_0%,#121212_5rem/);
+  assert.match(assortment, /data-home-section="assortment-cta"/);
+  assert.match(assortment, /bg-transparent/);
+  assert.match(assortment, /bg-\[#121212\]/);
   assert.doesNotMatch(
     `${story}${service}${assortment}`,
     /vandaag besteld|gratis verzending|review/i,
