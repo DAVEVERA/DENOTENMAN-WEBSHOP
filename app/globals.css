@@ -47,6 +47,20 @@
   --transition-duration-hover-fast: 240ms;
 }
 
+@media print {
+  body {
+    background: #fff !important;
+  }
+
+  .price-monitor-workspace > :not(.price-monitor-print) {
+    display: none !important;
+  }
+
+  .price-monitor-workspace .price-monitor-print {
+    display: block !important;
+  }
+}
+
 *:focus-visible {
   outline: 2px solid var(--color-accent-ink);
   outline-offset: 2px;

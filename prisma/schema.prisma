@@ -305,6 +305,8 @@ model ProductVariant {
   translations           VariantTranslation[]
   orderItems             OrderItem[]
   businessOrderListItems BusinessOrderListItem[]
+  priceMonitorMatches    PriceMonitorMatch[]
+  pricingRecommendations PricingRecommendation[]
 
   @@index([productId])
 }
@@ -946,15 +948,239 @@ model AdminUser {
   requestedRefunds     OrderRefund[]
   faqRevisions         ProductFaqRevision[]
   designJobs           DesignJob[]
-  createdManagedCosts  ManagedCost[]        @relation("ManagedCostCreatedBy")
-  updatedManagedCosts  ManagedCost[]        @relation("ManagedCostUpdatedBy")
-  deletedManagedCosts  ManagedCost[]        @relation("ManagedCostDeletedBy")
-  uploadedCostInvoices CostInvoice[]        @relation("CostInvoiceUploadedBy")
-  deletedCostInvoices  CostInvoice[]        @relation("CostInvoiceDeletedBy")
+  createdManagedCosts  ManagedCost[]                @relation("ManagedCostCreatedBy")
+  updatedManagedCosts  ManagedCost[]                @relation("ManagedCostUpdatedBy")
+  deletedManagedCosts  ManagedCost[]                @relation("ManagedCostDeletedBy")
+  uploadedCostInvoices CostInvoice[]                @relation("CostInvoiceUploadedBy")
+  deletedCostInvoices  CostInvoice[]                @relation("CostInvoiceDeletedBy")
   costMutations        CostMutation[]
-  businessInvitations  BusinessInvitation[] @relation("BusinessInvitationCreatedBy")
-  businessOrderLists   BusinessOrderList[]  @relation("BusinessOrderListCreatedBy")
+  businessInvitations  BusinessInvitation[]         @relation("BusinessInvitationCreatedBy")
+  businessOrderLists   BusinessOrderList[]          @relation("BusinessOrderListCreatedBy")
   businessEventReads   BusinessEventRead[]
+  priceMonitorRuns     PriceMonitorCrawlRun[]       @relation("PriceMonitorRunRequestedBy")
+  reviewedPriceAdvice  PricingRecommendation[]      @relation("PricingRecommendationReviewedBy")
+  appliedPriceAdvice   PricingRecommendation[]      @relation("PricingRecommendationAppliedBy")
+  priceReportSchedules PriceMonitorReportSchedule[] @relation("PriceMonitorReportScheduleCreatedBy")
+}
+
+enum PriceMonitorSourceStatus {
+  READY
+  NEEDS_SETUP
+  PAUSED
+}
+
+enum PriceMonitorRunStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+enum PriceMonitorMatchStatus {
+  SUGGESTED
+  APPROVED
+  REJECTED
+}
+
+enum PriceMonitorRecommendationType {
+  LOWER
+  RAISE
+  KEEP
+  REVIEW
+}
+
+enum PriceMonitorRecommendationStatus {
+  OPEN
+  APPROVED
+  APPLIED
+  DISMISSED
+  FAILED
+}
+
+enum PriceMonitorReportFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model PriceMonitorSource {
+  id         String                   @id @default(cuid())
+  key        String                   @unique
+  name       String
+  baseUrl    String
+  adapterKey String
+  status     PriceMonitorSourceStatus @default(NEEDS_SETUP)
+  statusNote String?
+  lastRunAt  DateTime?
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+
+  crawlRuns       PriceMonitorCrawlRun[]
+  products        PriceMonitorCompetitorProduct[]
+  reportSchedules PriceMonitorReportSchedule[]
+
+  @@index([status, name])
+}
+
+model PriceMonitorCrawlRun {
+  id                     String                @id @default(cuid())
+  sourceId               String
+  source                 PriceMonitorSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  requestedByAdminUserId String
+  requestedBy            AdminUser             @relation("PriceMonitorRunRequestedBy", fields: [requestedByAdminUserId], references: [id], onDelete: Restrict)
+  status                 PriceMonitorRunStatus @default(RUNNING)
+  trigger                String                @default("MANUAL")
+  requestedLimit         Int                   @default(25)
+  discoveredCount        Int                   @default(0)
+  processedCount         Int                   @default(0)
+  successCount           Int                   @default(0)
+  errorCount             Int                   @default(0)
+  dataQualityScore       Int?
+  errorMessage           String?
+  startedAt              DateTime              @default(now())
+  finishedAt             DateTime?
+
+  observations PriceMonitorObservation[]
+
+  @@index([sourceId, startedAt])
+  @@index([status, startedAt])
+  @@index([requestedByAdminUserId, startedAt])
+}
+
+model PriceMonitorCompetitorProduct {
+  id              String             @id @default(cuid())
+  sourceId        String
+  source          PriceMonitorSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceUrl       String
+  externalKey     String?
+  canonicalName   String
+  description     String?            @db.Text
+  sku             String?
+  ean             String?
+  packageQuantity Int?
+  packageUnit     String?
+  currency        String             @default("EUR")
+  inStock         Boolean?
+  raw             Json?
+  firstSeenAt     DateTime           @default(now())
+  lastSeenAt      DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  observations PriceMonitorObservation[]
+  matches      PriceMonitorMatch[]
+
+  @@unique([sourceId, sourceUrl])
+  @@index([sourceId, lastSeenAt])
+  @@index([ean])
+  @@index([sku])
+}
+
+model PriceMonitorObservation {
+  id                   String                        @id @default(cuid())
+  crawlRunId           String
+  crawlRun             PriceMonitorCrawlRun          @relation(fields: [crawlRunId], references: [id], onDelete: Cascade)
+  competitorProductId  String
+  competitorProduct    PriceMonitorCompetitorProduct @relation(fields: [competitorProductId], references: [id], onDelete: Cascade)
+  priceCents           Int
+  currency             String                        @default("EUR")
+  normalizedPriceCents Int?
+  normalizedUnit       String?
+  dataQualityScore     Int
+  qualityFlags         String[]                      @default([])
+  inStock              Boolean?
+  observedAt           DateTime                      @default(now())
+
+  recommendations PricingRecommendation[]
+
+  @@index([competitorProductId, observedAt])
+  @@index([crawlRunId])
+  @@index([dataQualityScore, observedAt])
+}
+
+model PriceMonitorMatch {
+  id                  String                        @id @default(cuid())
+  productVariantId    String
+  productVariant      ProductVariant                @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  competitorProductId String
+  competitorProduct   PriceMonitorCompetitorProduct @relation(fields: [competitorProductId], references: [id], onDelete: Cascade)
+  status              PriceMonitorMatchStatus       @default(SUGGESTED)
+  confidenceScore     Int
+  reason              String
+  approvedAt          DateTime?
+  rejectedAt          DateTime?
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+
+  recommendations PricingRecommendation[]
+
+  @@unique([productVariantId, competitorProductId])
+  @@index([status, confidenceScore])
+  @@index([competitorProductId])
+}
+
+model PricingRecommendation {
+  id                        String                           @id @default(cuid())
+  productVariantId          String
+  productVariant            ProductVariant                   @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  matchId                   String
+  match                     PriceMonitorMatch                @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  observationId             String
+  observation               PriceMonitorObservation          @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  type                      PriceMonitorRecommendationType
+  status                    PriceMonitorRecommendationStatus @default(OPEN)
+  currentPriceCents         Int
+  competitorPriceCents      Int
+  suggestedPriceCents       Int
+  differenceBps             Int
+  scenarioImpactPer100Cents Int
+  confidenceScore           Int
+  rationale                 String
+  caveat                    String?
+  rulesVersion              String                           @default("price-coach-v1")
+  reviewedByAdminUserId     String?
+  reviewedBy                AdminUser?                       @relation("PricingRecommendationReviewedBy", fields: [reviewedByAdminUserId], references: [id], onDelete: SetNull)
+  reviewedAt                DateTime?
+  appliedByAdminUserId      String?
+  appliedBy                 AdminUser?                       @relation("PricingRecommendationAppliedBy", fields: [appliedByAdminUserId], references: [id], onDelete: SetNull)
+  appliedAt                 DateTime?
+  appliedPriceCents         Int?
+  failureReason             String?
+  createdAt                 DateTime                         @default(now())
+  updatedAt                 DateTime                         @updatedAt
+
+  @@unique([productVariantId, observationId])
+  @@index([status, createdAt])
+  @@index([type, differenceBps])
+  @@index([matchId, createdAt])
+}
+
+model PriceMonitorReportSchedule {
+  id                   String                      @id @default(cuid())
+  name                 String
+  sourceId             String?
+  source               PriceMonitorSource?         @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  enabled              Boolean                     @default(false)
+  frequency            PriceMonitorReportFrequency @default(WEEKLY)
+  hourLocal            Int                         @default(7)
+  dayOfWeek            Int?
+  dayOfMonth           Int?
+  timezone             String                      @default("Europe/Amsterdam")
+  recipientEmail       String?
+  formats              String[]                    @default(["CSV"])
+  minDifferenceBps     Int                         @default(1000)
+  includeOpenActions   Boolean                     @default(true)
+  nextRunAt            DateTime?
+  lastRunAt            DateTime?
+  lastSentAt           DateTime?
+  lastStatus           String                      @default("NEVER")
+  lastError            String?
+  createdByAdminUserId String
+  createdBy            AdminUser                   @relation("PriceMonitorReportScheduleCreatedBy", fields: [createdByAdminUserId], references: [id], onDelete: Restrict)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+
+  @@index([enabled, nextRunAt])
+  @@index([sourceId, enabled])
 }
 
 model ManagedCost {

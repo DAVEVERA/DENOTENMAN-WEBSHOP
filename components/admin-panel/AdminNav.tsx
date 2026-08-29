@@ -21,7 +21,7 @@ export const primaryAdminLinks: NavItem[] = [
 export const secondaryAdminGroups: NavGroup[] = [
   { label: "Verkoop", items: [{ href: "/admin/zakelijk", label: "Zakelijk" }, { href: "/admin/kortingen", label: "Kortingen" }] },
   { label: "Catalogus", items: [{ href: "/admin/categorieen", label: "Categorieën" }, { href: "/admin/notenplan", label: "Notenplan" }] },
-  { label: "Groei", items: [{ href: "/admin/advertenties", label: "Google Ads" }] },
+  { label: "Groei", items: [{ href: "/admin/advertenties", label: "Google Ads" }, { href: "/admin/prijsmonitor", label: "Prijsmonitor" }] },
   { label: "Creatie", items: [{ href: "/admin/qrcodes", label: "QR-codes" }] },
   { label: "Beheer", items: [{ href: "/admin/cloud-kosten", label: "Kostenoverzicht" }, { href: "/admin/logboek", label: "Logboek" }, { href: "/admin/instellingen", label: "Instellingen" }] },
 ];
@@ -118,7 +118,7 @@ export function AdminNav() {
   const secondaryActive = secondaryAdminGroups.some((group) => group.items.some((item) => isActivePath(pathname, item.href)));
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-surface/95 shadow-card backdrop-blur supports-[backdrop-filter]:bg-surface/90">
+    <header className="sticky top-0 z-40 border-b border-border bg-surface/95 shadow-card backdrop-blur supports-[backdrop-filter]:bg-surface/90 print:hidden">
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
         <Link href="/admin" className="shrink-0 rounded-button py-2" aria-label="De Notenman admin dashboard">
           <span className="block font-heading text-body-sm font-bold uppercase tracking-heading text-accent-ink">De Notenman</span>
