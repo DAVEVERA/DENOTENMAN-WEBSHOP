@@ -6,8 +6,8 @@ import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
 import { formatPrice } from "@/lib/format";
 import { cart as cartPath } from "@/lib/routes";
-import { useStorefrontState } from "@/lib/storefront-state";
-import { FREE_SHIPPING_THRESHOLD_CENTS, FLAT_SHIPPING_CENTS } from "@/lib/shipping";
+import { useStorefrontState, type CartItem } from "@/lib/storefront-state";
+import { calculateShippingCents, type ShippingCountryCode } from "@/lib/shipping";
 import { getPickupLocationsForCountry, closestPickupLocationId } from "@/lib/pickup-locations";
 import { pagePath } from "@/lib/pages";
 import {
@@ -19,16 +19,46 @@ import {
 import { Button } from "@/components/ui/Button";
 
 type DeliveryMethod = "SHIPPING" | "PICKUP";
-type CountryCode = "NL" | "BE";
+type CountryCode = ShippingCountryCode;
 
 type CheckoutDictionary = (typeof nl)["checkout"];
 type AppliedDiscountPreview = {
   code: string;
   discountCents: number;
-  shippingCents: number;
-  totalCents: number;
   isTest: boolean;
 };
+
+function legacyCartWeightGrams(item: CartItem): number | null {
+  if (
+    typeof item.weightGrams === "number" &&
+    Number.isSafeInteger(item.weightGrams) &&
+    item.weightGrams > 0
+  ) {
+    return item.weightGrams;
+  }
+
+  const normalized = item.variantLabel.toLocaleLowerCase("nl-NL").replace(",", ".");
+  const match = /(\d+(?:\.\d+)?)\s*(kg|kilogram|g|gram|ml)\b/u.exec(normalized);
+  if (!match) return null;
+
+  const amount = Number(match[1]);
+  const weightGrams = match[2] === "kg" || match[2] === "kilogram" ? amount * 1_000 : amount;
+  return Number.isSafeInteger(weightGrams) && weightGrams > 0 ? weightGrams : null;
+}
+
+function checkoutCartWeightGrams(cart: CartItem[]): number | null {
+  let totalWeightGrams = 0;
+
+  for (const item of cart) {
+    const itemWeightGrams = legacyCartWeightGrams(item);
+    if (itemWeightGrams === null) return null;
+    totalWeightGrams += itemWeightGrams * item.quantity;
+  }
+
+  return Number.isSafeInteger(totalWeightGrams) && totalWeightGrams > 0
+    ? totalWeightGrams
+    : null;
+}
 
 export function CheckoutForm({
   locale,
@@ -54,13 +84,16 @@ export function CheckoutForm({
   const isPickup = deliveryMethod === "PICKUP";
 
   const subtotalCents = cart.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
-  const regularShippingCents =
-    isPickup || subtotalCents === 0 || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
-      ? 0
-      : FLAT_SHIPPING_CENTS;
+  const totalWeightGrams = checkoutCartWeightGrams(cart);
+  const regularShippingCents = calculateShippingCents({
+    country,
+    subtotalCents,
+    totalWeightGrams,
+    deliveryMethod,
+  });
   const discountCents = appliedDiscount?.discountCents ?? 0;
-  const shippingCents = isPickup ? 0 : appliedDiscount?.shippingCents ?? regularShippingCents;
-  const totalCents = appliedDiscount?.totalCents ?? subtotalCents + regularShippingCents;
+  const shippingCents = appliedDiscount?.isTest ? 0 : regularShippingCents;
+  const totalCents = subtotalCents - discountCents + shippingCents;
   const merchandiseValue = Math.max(0, subtotalCents - discountCents) / 100;
 
   useEffect(() => {
@@ -118,7 +151,13 @@ export function CheckoutForm({
       const response = await fetch("/api/discounts/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: discountInput, subtotalCents }),
+        body: JSON.stringify({
+          code: discountInput,
+          subtotalCents,
+          country,
+          totalWeightGrams,
+          deliveryMethod,
+        }),
       });
       const result = (await response.json().catch(() => null)) as AppliedDiscountPreview | null;
 
@@ -269,7 +308,7 @@ export function CheckoutForm({
               type="text"
               required
               autoComplete="name"
-              className="mt-1 w-full rounded-button border border-border px-3 py-2"
+              className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
             />
           </div>
           <div>
@@ -282,7 +321,7 @@ export function CheckoutForm({
               type="email"
               required
               autoComplete="email"
-              className="mt-1 w-full rounded-button border border-border px-3 py-2"
+              className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
             />
           </div>
           <div>
@@ -294,7 +333,7 @@ export function CheckoutForm({
               name="phone"
               type="tel"
               autoComplete="tel"
-              className="mt-1 w-full rounded-button border border-border px-3 py-2"
+              className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
             />
           </div>
         </fieldset>
@@ -308,7 +347,7 @@ export function CheckoutForm({
               type="button"
               onClick={() => handleDeliveryMethodChange("SHIPPING")}
               aria-pressed={!isPickup}
-              className={`flex-1 rounded-button border px-4 py-2 text-body-sm font-semibold transition-colors ${
+              className={`flex-1 rounded-button border px-4 py-2 text-body-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast ${
                 !isPickup
                   ? "border-text bg-text text-surface"
                   : "border-border bg-surface text-text hover:border-text"
@@ -320,7 +359,7 @@ export function CheckoutForm({
               type="button"
               onClick={() => handleDeliveryMethodChange("PICKUP")}
               aria-pressed={isPickup}
-              className={`flex-1 rounded-button border px-4 py-2 text-body-sm font-semibold transition-colors ${
+              className={`flex-1 rounded-button border px-4 py-2 text-body-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast ${
                 isPickup
                   ? "border-text bg-text text-surface"
                   : "border-border bg-surface text-text hover:border-text"
@@ -338,7 +377,7 @@ export function CheckoutForm({
               id="country"
               value={country}
               onChange={(event) => handleCountryChange(event.target.value as CountryCode)}
-              className="mt-1 w-full rounded-button border border-border px-3 py-2"
+              className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
             >
               <option value="NL">{dictionary.countryNL}</option>
               <option value="BE">{dictionary.countryBE}</option>
@@ -363,7 +402,7 @@ export function CheckoutForm({
                 }}
                 placeholder={dictionary.postalCode}
                 autoComplete="postal-code"
-                className="w-full rounded-button border border-border px-3 py-2"
+                className="min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
               />
             ) : null}
             <div className="space-y-2">
@@ -402,7 +441,7 @@ export function CheckoutForm({
                   type="text"
                   required
                   autoComplete="address-line1"
-                  className="mt-1 w-full rounded-button border border-border px-3 py-2"
+                  className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
                 />
               </div>
               <div>
@@ -414,7 +453,7 @@ export function CheckoutForm({
                   name="houseNumber"
                   type="text"
                   required
-                  className="mt-1 w-full rounded-button border border-border px-3 py-2"
+                  className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
                 />
               </div>
             </div>
@@ -429,7 +468,7 @@ export function CheckoutForm({
                   type="text"
                   required
                   autoComplete="postal-code"
-                  className="mt-1 w-full rounded-button border border-border px-3 py-2"
+                  className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
                 />
               </div>
               <div>
@@ -442,7 +481,7 @@ export function CheckoutForm({
                   type="text"
                   required
                   autoComplete="address-level2"
-                  className="mt-1 w-full rounded-button border border-border px-3 py-2"
+                  className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
                 />
               </div>
             </div>
@@ -488,13 +527,13 @@ export function CheckoutForm({
                 }}
                 placeholder={dictionary.discountPlaceholder}
                 autoComplete="off"
-                className="min-w-0 flex-1 rounded-button border border-border px-3 py-2 text-body-sm"
+                className="min-h-11 min-w-0 flex-1 rounded-button border border-border px-3 py-2 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast sm:text-body-sm"
               />
               <button
                 type="button"
                 onClick={applyDiscountCode}
                 disabled={checkingDiscount}
-                className="shrink-0 rounded-button border border-text bg-text px-4 py-2 font-heading text-body-sm font-semibold text-surface transition-colors hover:bg-accent-hover hover:text-contrast"
+                className="min-h-11 shrink-0 rounded-button border border-text bg-text px-4 py-2 font-heading text-body-sm font-semibold text-surface transition-colors hover:bg-accent-hover hover:text-contrast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
               >
                 {checkingDiscount ? "Controleren…" : dictionary.applyDiscount}
               </button>
@@ -539,7 +578,7 @@ export function CheckoutForm({
             type="checkbox"
             name="legalAgreement"
             required
-            className="mt-1 h-5 w-5 shrink-0 accent-[#333333]"
+            className="mt-1 h-5 w-5 shrink-0 accent-[#333333] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
           />
           <span className="leading-relaxed">
             {dictionary.legalAgreement}{" "}

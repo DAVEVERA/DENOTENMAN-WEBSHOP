@@ -16,7 +16,8 @@ test("announcement bar keeps every USP visible in a fixed responsive grid", () =
   assert.equal((markup.match(/Dagelijks vers gebrand/g) ?? []).length, 1);
   assert.equal((markup.match(/Persoonlijk advies van De Notenman/g) ?? []).length, 1);
   assert.equal((markup.match(/Jarenlange ervaring op de markt/g) ?? []).length, 1);
-  assert.equal((markup.match(/Gratis verzending vanaf/g) ?? []).length, 1);
+  assert.equal((markup.match(/Gratis verzending: NL vanaf/g) ?? []).length, 1);
+  assert.match(markup, /BE vanaf[\s\S]*70,00/);
   assert.equal((markup.match(/width="14" height="14"/g) ?? []).length, 4);
   assert.match(markup, /%2Fbrand%2Ffavicon\.png/);
   assert.match(markup, /grid-cols-2 lg:grid-cols-4/);

@@ -1,9 +1,8 @@
 import { IdentityDetails, LegalList, LegalPage, LegalSection } from "@/components/legal/LegalPage";
 import { LEGAL_IDENTITY } from "@/lib/legal";
 import {
-  FLAT_SHIPPING_CENTS,
-  FREE_SHIPPING_THRESHOLD_CENTS,
   RETURN_WINDOW_DAYS,
+  SHIPPING_POLICIES,
   STANDARD_HANDLING_DAYS,
   STANDARD_TRANSIT_DAYS,
 } from "@/lib/shipping";
@@ -23,7 +22,8 @@ export function ShippingReturns({ locale: _locale }: { locale: string }) {
       <LegalSection title="1. Verzending en afhalen">
         <LegalList>
           <li>Levering is beschikbaar in Nederland en België.</li>
-          <li>Standaardverzending kost {euro(FLAT_SHIPPING_CENTS)} en is gratis vanaf {euro(FREE_SHIPPING_THRESHOLD_CENTS)}.</li>
+          <li>Nederland: {euro(SHIPPING_POLICIES.NL.rateTiers[0].rateCents)} t/m 3 kg en {euro(SHIPPING_POLICIES.NL.rateTiers[1].rateCents)} boven 3 t/m 10 kg; gratis vanaf {euro(SHIPPING_POLICIES.NL.freeShippingThresholdCents)}.</li>
+          <li>België: {euro(SHIPPING_POLICIES.BE.rateTiers[0].rateCents)} t/m 2 kg en {euro(SHIPPING_POLICIES.BE.rateTiers[1].rateCents)} daarboven; gratis vanaf {euro(SHIPPING_POLICIES.BE.freeShippingThresholdCents)}.</li>
           <li>De gebruikelijke verwerking en bezorging samen duren ongeveer {minimum}–{maximum} werkdagen.</li>
           <li>Afhalen kan op de in de checkout aangeboden marktlocatie en marktdag.</li>
           <li>De bestelbevestiging en track & trace bevatten de meest actuele informatie.</li>
