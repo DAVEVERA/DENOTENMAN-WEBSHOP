@@ -5,6 +5,7 @@ import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PriceMonitorWorkspace } from "../components/admin-panel/price-monitor/PriceMonitorWorkspace";
 import type { PriceMonitorDashboard } from "../lib/price-monitor/types";
+import type { PriceMonitorApexScanSummary } from "../lib/price-monitor/types";
 
 const source = readFileSync(
   join(process.cwd(), "components/admin-panel/price-monitor/PriceMonitorWorkspace.tsx"),
@@ -67,8 +68,28 @@ const dashboard: PriceMonitorDashboard = {
   },
 };
 
+const apexScan: PriceMonitorApexScanSummary = {
+  id: "apex-20260830-210808",
+  scraperFile: "app/admin/(dashboard)/prijsmonitor/apex.py",
+  resultFile: "app/admin/(dashboard)/prijsmonitor/apex_scan_20260830_210808.json",
+  capturedAt: "2026-08-30T21:08:08+02:00",
+  listedSources: 19,
+  sourcesWithResults: 9,
+  productCount: 900,
+  priceRowCount: 1419,
+  rowsWithSku: 922,
+  rowsWithPackage: 0,
+  readyForComparisonRows: 0,
+  invalidPriceRows: 3,
+  suspectHighPriceRows: 75,
+  sources: [
+    { domain: "noototheek.nl", productCount: 405, priceRowCount: 924 },
+    { domain: "basboernoten.nl", productCount: 15, priceRowCount: 15 },
+  ],
+};
+
 test("non-technical onboarding and both connected scrapers render on first visit", () => {
-  const html = renderToStaticMarkup(<PriceMonitorWorkspace initialDashboard={dashboard} canWrite />);
+  const html = renderToStaticMarkup(<PriceMonitorWorkspace initialDashboard={dashboard} initialApexScan={apexScan} canWrite />);
   assert.match(html, /Prijsmonitor/);
   assert.match(html, /Zo werkt de prijsmonitor/);
   for (const step of [
@@ -84,6 +105,9 @@ test("non-technical onboarding and both connected scrapers render on first visit
   assert.match(html, /Noten\.nl/);
   assert.match(html, /Bas Boer Noten/);
   assert.match(html, /De begrensde Bas Boer-koppeling staat klaar/);
+  assert.match(html, /Eerste APEX-scan ingelezen/);
+  assert.match(html, /900 producten en 1\.419 prijsregels/);
+  assert.match(html, /Er is geen live prijs aangepast/);
   assert.doesNotMatch(html, /Script nog koppelen/);
 });
 
@@ -101,4 +125,8 @@ test("workspace keeps mobile cards, desktop tables, large controls and export ch
   assert.match(source, /previousFocus\?\.focus/);
   assert.match(source, /const openSources/);
   assert.match(source, /setTab\("overview"\)/);
+  assert.match(source, /Scraperresultaat/);
+  assert.match(source, /\/api\/admin\/price-monitor\/apex-scan/);
+  assert.match(source, /Nog niet gebruiken voor een prijsactie/);
+  assert.match(source, /een volgende automatische APEX-run is nog niet aan de adminactie gekoppeld/);
 });

@@ -9,6 +9,7 @@ const matchRoute = read("app/api/admin/price-monitor/matches/[id]/route.ts");
 const applyRoute = read("app/api/admin/price-monitor/recommendations/[id]/apply/route.ts");
 const scheduleRoute = read("app/api/admin/price-monitor/reports/schedule/route.ts");
 const exportRoute = read("app/api/admin/price-monitor/reports/export/route.ts");
+const apexScanRoute = read("app/api/admin/price-monitor/apex-scan/route.ts");
 const cronRoute = read("app/api/internal/price-monitor/reports/route.ts");
 const page = read("app/admin/(dashboard)/prijsmonitor/page.tsx");
 const service = read("lib/price-monitor/service.ts");
@@ -17,6 +18,8 @@ const basBoerScraper = read("lib/price-monitor/scrapers/bas-boer.ts");
 const sources = read("lib/price-monitor/sources.ts");
 const registry = read("lib/price-monitor/scrapers/registry.ts");
 const basBoerReference = read("app/admin/(dashboard)/prijsmonitor/apexpredator_BB.py");
+const apexReference = read("app/admin/(dashboard)/prijsmonitor/apex.py");
+const apexLoader = read("lib/price-monitor/apex-scan.ts");
 const schema = read("prisma/schema.prisma");
 const migration = read("prisma/migrations/20260829153000_add_price_monitor/migration.sql");
 
@@ -30,6 +33,8 @@ test("price monitor page and APIs stay behind the admin boundary", () => {
   }
   assert.match(exportRoute, /getAdminSession/);
   assert.match(exportRoute, /private, no-store/);
+  assert.match(apexScanRoute, /getAdminSession/);
+  assert.match(apexScanRoute, /private, no-store/);
   assert.match(cronRoute, /PRICE_MONITOR_CRON_SECRET/);
   assert.match(cronRoute, /crypto\.subtle\.digest/);
 });
@@ -71,7 +76,14 @@ test("scrapers use separate adapters and cannot redirect outside approved hosts"
   assert.match(basBoerScraper, /AbortSignal\.timeout/);
   assert.match(basBoerScraper, /HTTP 429/);
   assert.match(basBoerReference, /MAX_PRODUCTS = 25/);
+  assert.match(apexReference, /APEX PREDATOR ULTIMATE v9\.1/);
+  assert.match(apexReference, /basboernoten\.nl/);
+  assert.match(apexReference, /nootje\.eu/);
+  assert.match(apexReference, /noototheek\.nl/);
+  assert.match(apexLoader, /apex_scan_20260830_210808\.json/);
+  assert.match(apexLoader, /app\/admin\/\(dashboard\)\/prijsmonitor\/apex\.py/);
   assert.doesNotMatch(runRoute, /child_process|spawn\(|exec\(/);
+  assert.doesNotMatch(apexScanRoute, /child_process|spawn\(|exec\(/);
   assert.match(runRoute, /after\(/);
   assert.match(runRoute, /status: 202/);
   assert.match(applyRoute, /frontendSynced/);

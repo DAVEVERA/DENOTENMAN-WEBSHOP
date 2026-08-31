@@ -9,7 +9,11 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Database,
   Download,
+  ExternalLink,
   FileJson,
   HelpCircle,
   Info,
@@ -29,14 +33,17 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import type {
+  PriceMonitorApexScanPage,
+  PriceMonitorApexScanSummary,
   PriceMonitorComparisonView,
   PriceMonitorDashboard,
 } from "@/lib/price-monitor/types";
 
-type Tab = "overview" | "compare" | "actions" | "reports" | "help";
+type Tab = "overview" | "scan" | "compare" | "actions" | "reports" | "help";
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overzicht" },
+  { id: "scan", label: "Scraperresultaat" },
   { id: "compare", label: "Vergelijken" },
   { id: "actions", label: "Acties" },
   { id: "reports", label: "Rapporten" },
@@ -56,9 +63,11 @@ const onboarding = [
 
 export function PriceMonitorWorkspace({
   initialDashboard,
+  initialApexScan,
   canWrite,
 }: {
   initialDashboard: PriceMonitorDashboard;
+  initialApexScan: PriceMonitorApexScanSummary;
   canWrite: boolean;
 }) {
   const [dashboard, setDashboard] = useState(initialDashboard);
@@ -238,7 +247,7 @@ export function PriceMonitorWorkspace({
         </div>
       ) : null}
 
-      <nav aria-label="Onderdelen prijsmonitor" className="grid grid-cols-2 gap-2 rounded-panel border border-border bg-surface p-2 shadow-card sm:grid-cols-5">
+      <nav aria-label="Onderdelen prijsmonitor" className="grid grid-cols-2 gap-2 rounded-panel border border-border bg-surface p-2 shadow-card sm:grid-cols-3 xl:grid-cols-6">
         {tabs.map((item) => (
           <button
             key={item.id}
@@ -247,7 +256,6 @@ export function PriceMonitorWorkspace({
             onClick={() => setTab(item.id)}
             className={cn(
               "min-h-12 rounded-button px-3 py-2 font-heading text-body-sm font-bold transition focus-visible:outline-none",
-              item.id === "help" && "col-span-2 sm:col-span-1",
               tab === item.id ? "bg-contrast text-white" : "text-text hover:bg-background"
             )}
           >
@@ -263,12 +271,18 @@ export function PriceMonitorWorkspace({
       {tab === "overview" ? (
         <Overview
           dashboard={dashboard}
+          apexScan={initialApexScan}
           busy={busy}
           canWrite={canWrite}
           onRun={runSource}
           onOpenComparisons={() => setTab("compare")}
           onOpenActions={() => setTab("actions")}
+          onOpenApexScan={() => setTab("scan")}
         />
+      ) : null}
+
+      {tab === "scan" ? (
+        <ApexScanSection summary={initialApexScan} />
       ) : null}
 
       {tab === "compare" ? (
@@ -360,18 +374,22 @@ function Onboarding({ open, onToggle }: { open: boolean; onToggle: () => void })
 
 function Overview({
   dashboard,
+  apexScan,
   busy,
   canWrite,
   onRun,
   onOpenComparisons,
   onOpenActions,
+  onOpenApexScan,
 }: {
   dashboard: PriceMonitorDashboard;
+  apexScan: PriceMonitorApexScanSummary;
   busy: string | null;
   canWrite: boolean;
   onRun: (key: string) => void;
   onOpenComparisons: () => void;
   onOpenActions: () => void;
+  onOpenApexScan: () => void;
 }) {
   const cards = [
     ["Producten gezien", dashboard.summary.productsObserved, Store],
@@ -385,6 +403,24 @@ function Overview({
     .slice(0, 5);
   return (
     <div className="space-y-6">
+      <section className="rounded-panel border border-accent bg-amber-50 p-5 text-amber-950 shadow-card sm:p-6" aria-labelledby="apex-import-title">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <Database className="mt-0.5 h-6 w-6 shrink-0 text-accent-ink" aria-hidden="true" />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-amber-800">Alleen-lezen import</p>
+              <h2 id="apex-import-title" className="mt-1 font-heading text-xl font-bold">Eerste APEX-scan ingelezen</h2>
+              <p className="mt-1 text-body-sm leading-relaxed">
+                {apexScan.productCount.toLocaleString("nl-NL")} producten en {apexScan.priceRowCount.toLocaleString("nl-NL")} prijsregels uit {apexScan.sourcesWithResults} webshops staan klaar om te bekijken. Er is geen live prijs aangepast.
+              </p>
+            </div>
+          </div>
+          <button type="button" onClick={onOpenApexScan} className="min-h-12 shrink-0 rounded-button bg-contrast px-5 font-heading font-bold text-white">
+            Bekijk scraperresultaat
+          </button>
+        </div>
+      </section>
+
       <section aria-label="Samenvatting" className="grid grid-cols-12 gap-3 sm:gap-4">
         {cards.map(([label, value, Icon]) => (
           <article key={label} className="col-span-6 min-w-0 rounded-panel border border-border bg-surface p-4 shadow-card lg:col-span-3 sm:p-5">
@@ -483,6 +519,233 @@ function Overview({
         </div>
       </section>
     </div>
+  );
+}
+
+const APEX_SCAN_PAGE_SIZE = 50;
+
+function ApexScanSection({ summary }: { summary: PriceMonitorApexScanSummary }) {
+  const [query, setQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
+  const [source, setSource] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [result, setResult] = useState<PriceMonitorApexScanPage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [requestVersion, setRequestVersion] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      limit: String(APEX_SCAN_PAGE_SIZE),
+      offset: String(offset),
+    });
+    if (appliedQuery) params.set("q", appliedQuery);
+    if (source) params.set("source", source);
+
+    void fetch(`/api/admin/price-monitor/apex-scan?${params.toString()}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await responseError(response));
+        return (await response.json()) as PriceMonitorApexScanPage;
+      })
+      .then((page) => setResult(page))
+      .catch((cause: unknown) => {
+        if (cause instanceof DOMException && cause.name === "AbortError") return;
+        setLoadError(messageForError(cause));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [appliedQuery, offset, requestVersion, source]);
+
+  const queueReload = () => {
+    setLoading(true);
+    setLoadError(null);
+    setRequestVersion((version) => version + 1);
+  };
+
+  const sortedSources = [...summary.sources].sort(
+    (left, right) => right.productCount - left.productCount
+  );
+  const pageNumber = Math.floor(offset / APEX_SCAN_PAGE_SIZE) + 1;
+  const pageCount = Math.max(
+    1,
+    Math.ceil((result?.total ?? 0) / APEX_SCAN_PAGE_SIZE)
+  );
+  const hasPrevious = offset > 0;
+  const hasNext = Boolean(
+    result && result.offset + result.items.length < result.total
+  );
+
+  return (
+    <section aria-labelledby="apex-scan-title" className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-accent-ink">APEX v9.1 · eerste import</p>
+          <h2 id="apex-scan-title" className="mt-1 font-heading text-2xl font-bold text-text">Scraperresultaat</h2>
+          <p className="mt-1 max-w-3xl text-body-sm leading-relaxed text-muted">
+            Dit is het aangeleverde resultaat van {shortDate(summary.capturedAt)}. Je kunt alle gevonden prijzen bekijken; ze tellen nog niet mee als goedgekeurde productvergelijking.
+          </p>
+        </div>
+        <span className="inline-flex min-h-9 w-fit items-center rounded-full bg-slate-200 px-3 text-xs font-bold text-slate-800">
+          Alleen bekijken
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {[
+          ["Webshops opgegeven", summary.listedSources],
+          ["Met resultaat", summary.sourcesWithResults],
+          ["Producten", summary.productCount],
+          ["Prijsregels", summary.priceRowCount],
+        ].map(([label, value]) => (
+          <article key={label} className="min-w-0 rounded-panel border border-border bg-surface p-4 shadow-card sm:p-5">
+            <p className="font-heading text-3xl font-bold tabular-nums text-text">{Number(value).toLocaleString("nl-NL")}</p>
+            <p className="mt-1 text-xs font-semibold text-muted">{label}</p>
+          </article>
+        ))}
+      </div>
+
+      <div role="note" className="rounded-panel border border-amber-300 bg-amber-50 p-4 text-amber-950 sm:p-5">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <div>
+            <h3 className="font-heading font-bold">Nog niet gebruiken voor een prijsactie</h3>
+            <p className="mt-1 text-body-sm leading-relaxed">
+              In deze scan ontbreekt bij {(summary.priceRowCount - summary.rowsWithPackage).toLocaleString("nl-NL")} van de {summary.priceRowCount.toLocaleString("nl-NL")} prijsregels het gewicht of de verpakking. Daardoor zijn nu {summary.readyForComparisonRows.toLocaleString("nl-NL")} regels veilig naar prijs per kilo om te rekenen. {summary.invalidPriceRows} regels hebben daarnaast een nulprijs en {summary.suspectHighPriceRows} prijzen vragen controle omdat ze hoger zijn dan € 100.
+            </p>
+            <p className="mt-2 text-xs font-semibold">
+              Niet automatisch: niets uit dit bestand maakt of publiceert een live prijsvoorstel.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <details className="rounded-panel border border-border bg-surface shadow-card">
+        <summary className="flex min-h-14 cursor-pointer items-center justify-between gap-3 px-4 py-3 font-heading font-bold sm:px-5">
+          Webshops in deze scan
+          <span className="text-xs font-semibold text-muted">{summary.sourcesWithResults} met resultaat · {summary.listedSources - summary.sourcesWithResults} zonder resultaat</span>
+        </summary>
+        <div className="grid gap-2 border-t border-border p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {sortedSources.map((item) => (
+            <div key={item.domain} className="flex min-w-0 items-center justify-between gap-3 rounded-card bg-background p-3">
+              <span className="min-w-0 truncate text-body-sm font-bold text-text">{item.domain}</span>
+              <span className={cn("shrink-0 rounded-full px-2 py-1 text-[11px] font-bold", item.productCount ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700")}>
+                {item.productCount ? `${item.productCount} producten` : "Geen resultaat"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </details>
+
+      <div className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-5">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            queueReload();
+            setOffset(0);
+            setAppliedQuery(query.trim());
+          }}
+          className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.35fr)_auto]"
+        >
+          <label className="block">
+            <span className="mb-1.5 block text-body-sm font-bold text-text">Zoek product of SKU</span>
+            <span className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" aria-hidden="true" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Bijvoorbeeld amandelen" className="min-h-12 w-full rounded-button border border-border bg-background pl-10 pr-3 text-base text-text outline-none focus:border-border-hover" />
+            </span>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-body-sm font-bold text-text">Webshop</span>
+            <select value={source} onChange={(event) => { queueReload(); setSource(event.target.value); setOffset(0); }} className="min-h-12 w-full rounded-button border border-border bg-background px-3 text-base text-text outline-none focus:border-border-hover">
+              <option value="">Alle webshops</option>
+              {sortedSources.map((item) => <option key={item.domain} value={item.domain}>{item.domain} ({item.priceRowCount})</option>)}
+            </select>
+          </label>
+          <button type="submit" className="min-h-12 self-end rounded-button bg-contrast px-5 font-heading font-bold text-white">Zoeken</button>
+        </form>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 className="font-heading text-xl font-bold text-text">Gevonden prijzen</h3>
+          <p aria-live="polite" className="text-body-sm text-muted">
+            {loading && !result ? "Resultaten laden…" : `${(result?.total ?? 0).toLocaleString("nl-NL")} prijsregels gevonden`}
+          </p>
+        </div>
+        <p className="text-xs font-semibold text-muted">Bestand: {summary.resultFile.split("/").at(-1)}</p>
+      </div>
+
+      {loadError ? (
+        <div role="alert" className="rounded-panel border border-red-200 bg-red-50 p-4 text-body-sm font-semibold text-red-950">Het scraperresultaat kon niet worden geladen ({loadError}).</div>
+      ) : null}
+
+      {result?.items.length ? (
+        <>
+          <div className="grid gap-3 lg:hidden">
+            {result.items.map((item) => (
+              <article key={item.id} className="rounded-panel border border-border bg-surface p-4 shadow-card">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.08em] text-accent-ink">{item.domain}</p>
+                    <h4 className="mt-1 font-heading text-lg font-bold leading-tight text-text">{item.productName}</h4>
+                    <p className="mt-1 text-xs text-muted">{item.variantName}</p>
+                  </div>
+                  <p className="shrink-0 font-heading text-xl font-bold tabular-nums text-text">{item.priceCents === null ? "—" : euro(item.priceCents)}</p>
+                </div>
+                <dl className="mt-4 grid grid-cols-2 gap-3 rounded-card bg-background p-3 text-body-sm">
+                  <div><dt className="text-xs text-muted">Verpakking</dt><dd className="font-bold">{item.packageLabel ?? "Niet gevonden"}</dd></div>
+                  <div><dt className="text-xs text-muted">SKU</dt><dd className="break-all font-bold">{item.sku ?? "Niet gevonden"}</dd></div>
+                </dl>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex min-h-7 items-center rounded-full bg-amber-100 px-2.5 text-[11px] font-bold text-amber-900">Even controleren</span>
+                  {item.qualityIssues.slice(0, 3).map((issue) => <span key={issue} className="text-xs font-semibold text-muted">{issue}</span>)}
+                </div>
+                {item.productUrl ? <a href={item.productUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-1 font-heading text-sm font-bold text-text underline underline-offset-4">Open bron <ExternalLink className="h-4 w-4" aria-hidden="true" /></a> : null}
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-panel border border-border bg-surface shadow-card lg:block">
+            <table className="w-full min-w-[64rem] border-collapse text-left text-body-sm">
+              <thead className="bg-background text-xs uppercase tracking-[0.06em] text-muted">
+                <tr><th className="p-3">Webshop</th><th className="p-3">Product</th><th className="p-3">Prijs</th><th className="p-3">Verpakking</th><th className="p-3">SKU</th><th className="p-3">Controle</th><th className="p-3"><span className="sr-only">Bron</span></th></tr>
+              </thead>
+              <tbody>
+                {result.items.map((item) => (
+                  <tr key={item.id} className="border-t border-border align-top">
+                    <td className="p-3 font-bold text-text">{item.domain}</td>
+                    <td className="max-w-sm p-3"><span className="block font-bold text-text">{item.productName}</span><span className="mt-0.5 block text-xs text-muted">{item.variantName}</span></td>
+                    <td className="p-3 font-bold tabular-nums text-text">{item.priceCents === null ? "—" : euro(item.priceCents)}</td>
+                    <td className="p-3 text-muted">{item.packageLabel ?? "Niet gevonden"}</td>
+                    <td className="max-w-44 break-all p-3 text-xs font-semibold text-muted">{item.sku ?? "Niet gevonden"}</td>
+                    <td className="p-3"><span className="inline-flex min-h-7 items-center rounded-full bg-amber-100 px-2.5 text-[11px] font-bold text-amber-900">Even controleren</span><span className="mt-1 block max-w-56 text-xs text-muted">{item.qualityIssues.join(" · ")}</span></td>
+                    <td className="p-3">{item.productUrl ? <a href={item.productUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-button border border-border" aria-label={`Open bron voor ${item.productName}`}><ExternalLink className="h-4 w-4" aria-hidden="true" /></a> : null}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : !loading && !loadError ? (
+        <EmptyState icon={Search} title="Geen prijsregels gevonden" text="Pas je zoekopdracht of webshopfilter aan." />
+      ) : null}
+
+      <div className="flex flex-col gap-3 rounded-panel border border-border bg-surface p-3 shadow-card sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-center text-body-sm font-semibold text-muted sm:text-left">Pagina {pageNumber} van {pageCount}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" disabled={!hasPrevious || loading} onClick={() => { queueReload(); setOffset(Math.max(0, offset - APEX_SCAN_PAGE_SIZE)); }} className="inline-flex min-h-12 items-center justify-center gap-1 rounded-button border border-border px-4 font-heading text-sm font-bold disabled:opacity-40"><ChevronLeft className="h-4 w-4" aria-hidden="true" /> Vorige</button>
+          <button type="button" disabled={!hasNext || loading} onClick={() => { queueReload(); setOffset(offset + APEX_SCAN_PAGE_SIZE); }} className="inline-flex min-h-12 items-center justify-center gap-1 rounded-button bg-contrast px-4 font-heading text-sm font-bold text-white disabled:opacity-40">Volgende <ChevronRight className="h-4 w-4" aria-hidden="true" /></button>
+        </div>
+      </div>
+
+      <p className="text-xs leading-relaxed text-muted">Juiste scraperbestand: {summary.scraperFile}. Deze import is alleen-lezen; een volgende automatische APEX-run is nog niet aan de adminactie gekoppeld.</p>
+    </section>
   );
 }
 
@@ -722,7 +985,7 @@ function HelpSection() {
     <section aria-labelledby="help-title" className="grid gap-4 lg:grid-cols-2">
       <article className="rounded-panel border border-border bg-surface p-5 shadow-card sm:p-6"><h2 id="help-title" className="font-heading text-2xl font-bold">Wat kijkt de tool na?</h2><ul className="mt-4 space-y-3 text-body-sm leading-relaxed text-muted"><HelpItem>Of productnaam, variant en gewicht echt bij elkaar horen.</HelpItem><HelpItem>Of de prijs geldig is en naar prijs per kilo kan worden omgerekend.</HelpItem><HelpItem>Of een prijs onwaarschijnlijk laag of hoog is.</HelpItem><HelpItem>Of de gegevens vers genoeg zijn voor een besluit.</HelpItem><HelpItem>Of wij minimaal 8% hoger of lager zitten voordat een voorstel relevant wordt.</HelpItem></ul></article>
       <article className="rounded-panel border border-border bg-surface p-5 shadow-card sm:p-6"><h2 className="font-heading text-2xl font-bold">Wat doet de tool nooit vanzelf?</h2><ul className="mt-4 space-y-3 text-body-sm leading-relaxed text-muted"><HelpItem>Een onzekere productkoppeling als waarheid behandelen.</HelpItem><HelpItem>Een actieve aanbiedingsprijs overschrijven.</HelpItem><HelpItem>Een wijziging groter dan 15% uitvoeren.</HelpItem><HelpItem>Doen alsof omzet hetzelfde is als winst.</HelpItem><HelpItem>Een prijs wijzigen zonder jouw expliciete margecontrole en bevestiging.</HelpItem></ul></article>
-      <article className="rounded-panel border border-accent bg-amber-50 p-5 lg:col-span-2 sm:p-6"><div className="flex items-start gap-3"><Info className="mt-0.5 h-6 w-6 shrink-0 text-accent-ink" aria-hidden="true" /><div><h2 className="font-heading text-xl font-bold">Waarom Bas Boer nog niet gestart kan worden</h2><p className="mt-1 text-body-sm leading-relaxed text-muted">De webshop is als aparte bron ingericht, maar het genoemde Bas Boer-script stond niet in deze checkout. Zodra dat bestand wordt aangeleverd, kan het als eigen adapter worden gekoppeld zonder deze pagina opnieuw te ontwerpen.</p></div></div></article>
+      <article className="rounded-panel border border-accent bg-amber-50 p-5 lg:col-span-2 sm:p-6"><div className="flex items-start gap-3"><Info className="mt-0.5 h-6 w-6 shrink-0 text-accent-ink" aria-hidden="true" /><div><h2 className="font-heading text-xl font-bold">Waarom de APEX-scan nog geen prijsadvies is</h2><p className="mt-1 text-body-sm leading-relaxed text-muted">Het eerste APEX-resultaat staat nu als alleen-lezen bron in dit scherm. De gevonden prijzen missen nog een betrouwbaar gewicht of verpakking. Daarom kun je ze wel bekijken, maar gebruikt de Prijscoach ze nog niet voor een voorstel of live prijswijziging.</p></div></div></article>
     </section>
   );
 }

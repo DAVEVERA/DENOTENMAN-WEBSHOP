@@ -154,3 +154,48 @@ export type PriceMonitorDashboard = {
     lastError: string | null;
   };
 };
+
+export type PriceMonitorApexScanSource = {
+  domain: string;
+  productCount: number;
+  priceRowCount: number;
+};
+
+export type PriceMonitorApexScanSummary = {
+  id: string;
+  scraperFile: string;
+  resultFile: string;
+  capturedAt: string;
+  listedSources: number;
+  sourcesWithResults: number;
+  productCount: number;
+  priceRowCount: number;
+  rowsWithSku: number;
+  rowsWithPackage: number;
+  readyForComparisonRows: number;
+  invalidPriceRows: number;
+  suspectHighPriceRows: number;
+  sources: PriceMonitorApexScanSource[];
+};
+
+export type PriceMonitorApexScanItem = {
+  id: string;
+  domain: string;
+  productName: string;
+  variantName: string;
+  productUrl: string | null;
+  priceCents: number | null;
+  comparePriceCents: number | null;
+  sku: string | null;
+  packageLabel: string | null;
+  unitPriceCents: number | null;
+  safeForComparison: boolean;
+  qualityIssues: string[];
+};
+
+export type PriceMonitorApexScanPage = {
+  total: number;
+  offset: number;
+  limit: number;
+  items: PriceMonitorApexScanItem[];
+};

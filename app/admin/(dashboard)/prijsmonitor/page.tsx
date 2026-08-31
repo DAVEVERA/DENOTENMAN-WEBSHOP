@@ -6,6 +6,7 @@ import { PriceMonitorWorkspace } from "@/components/admin-panel/price-monitor/Pr
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { hasProductWritePermission } from "@/lib/admin-request-security";
+import { getApexScanSummary } from "@/lib/price-monitor/apex-scan";
 import {
   emptyPriceMonitorDashboard,
   getPriceMonitorDashboard,
@@ -45,6 +46,7 @@ export default async function PriceMonitorPage() {
   return (
     <PriceMonitorWorkspace
       initialDashboard={dashboard}
+      initialApexScan={getApexScanSummary()}
       canWrite={hasProductWritePermission(admin.role)}
     />
   );
