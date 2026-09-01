@@ -58,6 +58,7 @@ test("normalizes recipients and enforces the current order recipient for order m
   assert.equal(normalizeRecipientEmail("  Klant@Example.COM "), "klant@example.com");
   assert.equal(requiresCurrentOrderRecipient(EmailDeliveryKind.ORDER_CONFIRMATION), true);
   assert.equal(requiresCurrentOrderRecipient(EmailDeliveryKind.ORDER_FULFILLED), true);
+  assert.equal(requiresCurrentOrderRecipient(EmailDeliveryKind.NEW_ORDER_NOTIFICATION), false);
   assert.equal(requiresCurrentOrderRecipient(EmailDeliveryKind.AFTERSALES_TEST), false);
 });
 

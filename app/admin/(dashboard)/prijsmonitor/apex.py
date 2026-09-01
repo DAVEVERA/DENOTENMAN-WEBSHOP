@@ -1,28 +1,19 @@
 #!/usr/bin/env python3
 """
-🦈 APEX PREDATOR ULTIMATE v9.1 – SYNC EDITION (FIXED)
-Robuust, agressief en gegarandeerd werkend op Windows.
-Geen asyncio, geen aiohttp. Alleen requests en BeautifulSoup.
+🦈 ULTIMATE SCRAPER v2 – FIXED PRICE NORMALIZATION
+Vindt ALTIJD producten, ongeacht het prijsformaat.
 """
 
-import requests
-from bs4 import BeautifulSoup
+import os
+import sys
 import json
 import re
 import time
-import os
 import csv
+import requests
 from urllib.parse import urljoin, urlparse
+from bs4 import BeautifulSoup
 from datetime import datetime
-from typing import List, Dict, Set, Optional
-
-# ─── Excel export ────────────────────────────────────────────────────────────
-try:
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill
-    HAS_OPENPYXL = True
-except ImportError:
-    HAS_OPENPYXL = False
 
 # =============================================================================
 # CONFIGURATIE
@@ -50,360 +41,486 @@ SITES = [
     "notenshop",
 ]
 
-OUTPUT_DIR = "apex_output"
+OUTPUT_DIR = "ultimate_output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-REQUEST_DELAY = 0.5
-MAX_DEPTH = 3               # Hoe diep we crawlen voor productlinks
-MAX_PAGES_PER_SITE = 200    # Max aantal pagina's om te crawlen
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36"
+REQUEST_DELAY = 0.3
+MAX_RETRIES = 3
 
 # =============================================================================
-# FUNCTIES
+# PRIJSNORMALISATIE – ROBUUST
 # =============================================================================
 
-def fetch_html(url: str) -> Optional[str]:
+
+def normalize_price(price_text: str) -> Optional[float]:
+    """
+    Converteer een prijsstring naar een float, ongeacht het formaat.
+    Ondersteunt: '€ 1.234,56', '€ 1234.56', '3.252.99', '1,234.56', etc.
+    """
+    if not price_text:
+        return None
+
+    # 1. Verwijder alle niet-getal tekens (behalve punt en komma)
+    cleaned = re.sub(r"[^\d.,]", "", price_text.strip())
+
+    if not cleaned:
+        return None
+
+    # 2. Bepaal de scheidingstekens
+    has_comma = "," in cleaned
+    has_dot = "." in cleaned
+
+    # 3. Geen scheidingstekens -> gewoon getal
+    if not has_comma and not has_dot:
+        try:
+            return float(cleaned)
+        except:
+            return None
+
+    # 4. Alleen komma -> vervang door punt (decimaal)
+    if has_comma and not has_dot:
+        try:
+            return float(cleaned.replace(",", "."))
+        except:
+            return None
+
+    # 5. Alleen punt -> complex
+    if has_dot and not has_comma:
+        parts = cleaned.split(".")
+        # Als er meer dan 2 delen zijn, is de punt een duizendtal-scheiding
+        if len(parts) > 2:
+            # Laatste deel is decimaal, de rest is duizendtal
+            decimal = parts[-1]
+            thousands = "".join(parts[:-1])
+            combined = f"{thousands}.{decimal}"
+            try:
+                return float(combined)
+            except:
+                # Fallback: probeer alle punten te vervangen
+                try:
+                    return float(cleaned.replace(".", ""))
+                except:
+                    return None
+        else:
+            # Eén punt -> waarschijnlijk decimaal
+            try:
+                return float(cleaned)
+            except:
+                return None
+
+    # 6. Zowel komma als punt
+    if has_comma and has_dot:
+        # Bepaal welke de decimaal is: als de komma de laatste separator is
+        last_comma = cleaned.rfind(",")
+        last_dot = cleaned.rfind(".")
+        if last_comma > last_dot:
+            # Komma is de decimaal (Europees formaat: 1.234,56)
+            thousands = cleaned[:last_comma].replace(".", "")
+            decimal = cleaned[last_comma + 1 :]
+            combined = f"{thousands}.{decimal}"
+        else:
+            # Punt is de decimaal (VS-formaat: 1,234.56)
+            thousands = cleaned[:last_dot].replace(",", "")
+            decimal = cleaned[last_dot + 1 :]
+            combined = f"{thousands}.{decimal}"
+        try:
+            return float(combined)
+        except:
+            return None
+
+    return None
+
+
+# =============================================================================
+# FETCH FUNCTIES
+# =============================================================================
+
+
+def fetch(url):
     """Haal HTML op met retry."""
     headers = {"User-Agent": USER_AGENT}
-    for attempt in range(3):
+    for attempt in range(MAX_RETRIES):
         try:
-            resp = requests.get(url, headers=headers, timeout=20)
+            resp = requests.get(url, headers=headers, timeout=15)
             if resp.status_code == 200:
                 return resp.text
             elif resp.status_code == 429:
-                time.sleep(2 ** attempt)
+                time.sleep(2**attempt)
             else:
                 return None
-        except Exception:
+        except:
             time.sleep(1)
     return None
 
-def is_product_url(url: str) -> bool:
-    """Uitgebreide product-URL detectie."""
+
+def fetch_json(url):
+    """Haal JSON op met retry."""
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = requests.get(url, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                return resp.json()
+            elif resp.status_code == 429:
+                time.sleep(2**attempt)
+            else:
+                return None
+        except:
+            time.sleep(1)
+    return None
+
+
+# =============================================================================
+# PRODUCT-URL DETECTIE
+# =============================================================================
+
+
+def is_product_url(url):
+    """Check of een URL een productpagina is."""
     url_lower = url.lower()
-    # Directe productpatronen
-    if any(x in url_lower for x in ['/product/', '/p/', '/item/', '/artikel/', '/products/']):
+    if any(
+        x in url_lower
+        for x in ["/product/", "/p/", "/item/", "/products/", "/artikel/"]
+    ):
         return True
-    # Categorie-specifieke productpagina's (bv. /noten/amandelen)
+    if "route=product/product" in url_lower:
+        return True
+    if "product_id=" in url_lower:
+        return True
+    if "sku=" in url_lower:
+        return True
     patterns = [
-        r'/noten/[a-zA-Z0-9\-]+$',
-        r'/gedroogd-fruit/[a-zA-Z0-9\-]+$',
-        r'/pindas/[a-zA-Z0-9\-]+$',
-        r'/chocolade/[a-zA-Z0-9\-]+$',
-        r'/snoep/[a-zA-Z0-9\-]+$',
-        r'/cadeaus/[a-zA-Z0-9\-]+$',
-        r'/muesli/[a-zA-Z0-9\-]+$',
-        r'/pitten/[a-zA-Z0-9\-]+$',
-        r'/zaden/[a-zA-Z0-9\-]+$',
-        r'/amandelen',
-        r'/cashewnoten',
-        r'/walnoten',
-        r'/hazelnoten',
-        r'/pecannoten',
-        r'/macadamianoten',
-        r'/pistachenoten',
-        r'/rozijnen',
-        r'/abrikozen',
+        r"/noten/[a-z0-9\-]+",
+        r"/gedroogd-fruit/[a-z0-9\-]+",
+        r"/pindas/[a-z0-9\-]+",
+        r"/chocolade/[a-z0-9\-]+",
+        r"/snoep/[a-z0-9\-]+",
+        r"/cadeaus/[a-z0-9\-]+",
+        r"/amandelen",
+        r"/cashewnoten",
+        r"/walnoten",
+        r"/hazelnoten",
+        r"/pecannoten",
+        r"/macadamianoten",
+        r"/pistachenoten",
+        r"/rozijnen",
+        r"/abrikozen",
+        r"/pasta",
+        r"/muesli",
+        r"/granen",
+        r"/pitten",
+        r"/zaden",
     ]
     for pattern in patterns:
         if re.search(pattern, url_lower):
             return True
     return False
 
-def is_category_url(url: str) -> bool:
-    """Bepaal of een URL een categorie- of overzichtspagina is."""
-    path = urlparse(url).path
-    if not path or path == '/':
-        return False
-    category_patterns = [
-        r'/c/',
-        r'/category/',
-        r'/categorie/',
-        r'/catalog/',
-        r'/shop/',
-        r'/webshop/',
-        r'/assortiment/',
-        r'/collectie/',
-        r'/noten$',
-        r'/gedroogd-fruit$',
-        r'/pindas$',
-    ]
-    for pattern in category_patterns:
-        if re.search(pattern, path):
-            return True
-    if path.count('/') >= 2 and not is_product_url(url):
-        return True
-    return False
 
-def crawl_for_product_urls(start_url: str) -> Set[str]:
-    """Crawl de website en verzamel alle product-URL's."""
+# =============================================================================
+# PRODUCT-URL VERZAMELEN
+# =============================================================================
+
+
+def get_products_from_sitemap(base_url):
+    """Haal product-URL's uit sitemap.xml."""
+    urls = set()
+    sitemap_paths = [
+        "/sitemap.xml",
+        "/sitemap_index.xml",
+        "/sitemap-products.xml",
+        "/sitemap_product_1.xml",
+        "/sitemap_products.xml",
+        "/sitemap/sitemap.xml",
+    ]
+    for path in sitemap_paths:
+        full_url = urljoin(base_url, path)
+        print(f"   📄 Sitemap test: {full_url}")
+        content = fetch(full_url)
+        if content and ("<urlset" in content or "<sitemapindex" in content):
+            print(f"      ✅ Sitemap gevonden!")
+            try:
+                soup = BeautifulSoup(content, "lxml-xml")
+                for loc in soup.find_all("loc"):
+                    url = loc.get_text(strip=True)
+                    if is_product_url(url):
+                        urls.add(url)
+            except:
+                # Fallback: regex
+                matches = re.findall(r"<loc>(.*?)</loc>", content, re.IGNORECASE)
+                for url in matches:
+                    if is_product_url(url):
+                        urls.add(url)
+            break
+    return urls
+
+
+def get_products_from_shopify_api(base_url):
+    """Haal product-URL's via Shopify JSON API."""
+    urls = set()
+    json_url = urljoin(base_url, "/products.json?limit=250")
+    print(f"   📄 Shopify API test: {json_url}")
+    data = fetch_json(json_url)
+    if data and "products" in data:
+        print(f"      ✅ Shopify API werkt! {len(data['products'])} producten")
+        for p in data["products"]:
+            handle = p.get("handle")
+            if handle:
+                urls.add(urljoin(base_url, f"/products/{handle}"))
+    return urls
+
+
+def get_products_from_woocommerce_api(base_url):
+    """Haal product-URL's via WooCommerce REST API."""
+    urls = set()
+    endpoints = [
+        "/wp-json/wc/v3/products",
+        "/wp-json/wc/v2/products",
+    ]
+    for endpoint in endpoints:
+        json_url = urljoin(base_url, f"{endpoint}?per_page=100")
+        print(f"   📄 WooCommerce API test: {json_url}")
+        data = fetch_json(json_url)
+        if data and isinstance(data, list):
+            print(f"      ✅ WooCommerce API werkt! {len(data)} producten")
+            for p in data:
+                permalink = p.get("permalink")
+                if permalink:
+                    urls.add(permalink)
+            break
+    return urls
+
+
+def get_products_by_crawling(base_url):
+    """Agressieve BFS-crawl om product-URL's te vinden."""
+    print(f"   🔍 Start agressieve BFS-crawl...")
     product_urls = set()
     visited = set()
-    to_visit = [start_url]
-    # Voeg ook bekende categorie-paden toe
-    for path in ["/noten", "/producten", "/categorie", "/shop", "/webshop", "/assortiment"]:
-        to_visit.append(urljoin(start_url, path))
+    to_visit = [base_url]
+    for path in [
+        "/noten",
+        "/producten",
+        "/categorie",
+        "/shop",
+        "/webshop",
+        "/assortiment",
+        "/catalog",
+    ]:
+        to_visit.append(urljoin(base_url, path))
 
-    while to_visit and len(visited) < MAX_PAGES_PER_SITE:
+    max_pages = 500
+    while to_visit and len(visited) < max_pages:
         url = to_visit.pop()
         if url in visited:
             continue
         visited.add(url)
 
-        html = fetch_html(url)
+        html = fetch(url)
         if not html:
             continue
 
         soup = BeautifulSoup(html, "html.parser")
         for a in soup.find_all("a", href=True):
-            href = a['href']
-            if href.startswith('#') or href.startswith('javascript:') or href.startswith('mailto:'):
+            href = a["href"]
+            if (
+                href.startswith("#")
+                or href.startswith("javascript:")
+                or href.startswith("mailto:")
+            ):
                 continue
-            full_url = urljoin(start_url, href)
-            if not full_url.startswith(start_url):
+            full_url = urljoin(base_url, href)
+            if not full_url.startswith(base_url):
                 continue
             if full_url in visited:
                 continue
 
             if is_product_url(full_url):
                 product_urls.add(full_url)
-            elif is_category_url(full_url) and len(visited) < MAX_PAGES_PER_SITE:
-                to_visit.append(full_url)
+            else:
+                if len(to_visit) < max_pages:
+                    to_visit.append(full_url)
 
         time.sleep(REQUEST_DELAY)
 
+    print(
+        f"      ✅ Crawl voltooid: {len(visited)} pagina's bezocht, {len(product_urls)} producten gevonden"
+    )
     return product_urls
 
-def extract_price_from_soup(soup: BeautifulSoup) -> Optional[float]:
-    # JSON-LD
-    scripts = soup.find_all("script", type="application/ld+json")
-    for script in scripts:
-        try:
-            data = json.loads(script.string)
-            if isinstance(data, dict) and data.get('@type') == 'Product':
-                price = data.get('offers', {}).get('price')
-                if price:
-                    return float(price)
-            elif '@graph' in data:
-                for item in data['@graph']:
-                    if item.get('@type') == 'Product':
-                        price = item.get('offers', {}).get('price')
-                        if price:
-                            return float(price)
-        except:
-            continue
-    # CSS selectors
-    selectors = ['.price', '.product-price', '.woocommerce-Price-amount', '.current-price', '.sale-price']
-    for sel in selectors:
-        elem = soup.select_one(sel)
-        if elem:
-            text = elem.get_text(strip=True)
-            match = re.search(r'[\d.,]+', text)
-            if match:
-                return float(match.group().replace(',', '.'))
-    return None
 
-def extract_name(soup: BeautifulSoup) -> str:
-    for sel in ['h1', '.product-title', '.product-name', '.product_title']:
-        elem = soup.select_one(sel)
-        if elem:
-            return elem.get_text(strip=True)
-    title = soup.find("title")
-    return title.get_text(strip=True) if title else "Onbekend"
+# =============================================================================
+# PRODUCT SCRAPEN
+# =============================================================================
 
-def extract_variants(soup: BeautifulSoup, base_price: float) -> List[Dict]:
-    variants = []
-    # JSON-LD varianten
-    scripts = soup.find_all("script", type="application/ld+json")
-    for script in scripts:
-        try:
-            data = json.loads(script.string)
-            if isinstance(data, dict) and data.get('@type') == 'Product':
-                offers = data.get('offers', [])
-                if isinstance(offers, dict):
-                    offers = [offers]
-                for off in offers:
-                    var = {
-                        "title": off.get('name', 'Standaard'),
-                        "price": float(off.get('price', base_price)),
-                        "compare_price": float(off.get('price_high', 0)) if off.get('price_high') else None,
-                        "sku": off.get('sku'),
-                        "unit": extract_unit(off.get('description', '')),
-                    }
-                    var["unit_price"] = calc_unit_price(var["price"], var["unit"])
-                    variants.append(var)
-        except:
-            continue
-    if not variants:
-        variants.append({"title": "Standaard", "price": base_price, "compare_price": None, "sku": None, "unit": None, "unit_price": None})
-    return variants
 
-def extract_unit(text: str) -> Optional[str]:
-    match = re.search(r'(\d+)\s*(gram|g|kg|liter|l|ml)', text, re.IGNORECASE)
-    return match.group(0) if match else None
-
-def calc_unit_price(price: float, unit: Optional[str]) -> Optional[float]:
-    if not unit:
-        return None
-    match = re.search(r'(\d+)\s*(gram|g|kg)', unit, re.IGNORECASE)
-    if match:
-        amount = float(match.group(1))
-        unit_type = match.group(2).lower()
-        kg = amount / 1000 if unit_type in ['gram', 'g'] else amount
-        if kg > 0:
-            return round(price / kg, 2)
-    return None
-
-def scrape_product_page(url: str) -> Optional[Dict]:
-    html = fetch_html(url)
+def scrape_product(url):
+    """Scrape productinformatie met robuuste prijsnormalisatie."""
+    html = fetch(url)
     if not html:
         return None
     soup = BeautifulSoup(html, "html.parser")
-    name = extract_name(soup)
-    price = extract_price_from_soup(soup)
+
+    # 1. Naam
+    name = "Onbekend"
+    for sel in ["h1", ".product-title", ".product-name", ".product_title"]:
+        elem = soup.select_one(sel)
+        if elem:
+            name = elem.get_text(strip=True)
+            break
+    if name == "Onbekend":
+        title = soup.find("title")
+        if title:
+            name = title.get_text(strip=True)
+
+    # 2. Prijs – eerst JSON-LD
+    price = None
+    scripts = soup.find_all("script", type="application/ld+json")
+    for script in scripts:
+        try:
+            data = json.loads(script.string)
+            if isinstance(data, dict):
+                if data.get("@type") == "Product":
+                    price_data = data.get("offers", {}).get("price")
+                    if price_data:
+                        price = normalize_price(str(price_data))
+                        if price is not None:
+                            break
+                elif "@graph" in data:
+                    for item in data["@graph"]:
+                        if item.get("@type") == "Product":
+                            price_data = item.get("offers", {}).get("price")
+                            if price_data:
+                                price = normalize_price(str(price_data))
+                                if price is not None:
+                                    break
+        except:
+            continue
+        if price is not None:
+            break
+
+    # 3. Prijs – HTML fallback
+    if price is None:
+        for sel in [
+            ".price",
+            ".product-price",
+            ".woocommerce-Price-amount",
+            ".current-price",
+            ".sale-price",
+        ]:
+            elem = soup.select_one(sel)
+            if elem:
+                text = elem.get_text(strip=True)
+                price = normalize_price(text)
+                if price is not None:
+                    break
+
     if price is None:
         return None
-    variants = extract_variants(soup, price)
 
-    # Extract description safely
-    desc_elem = soup.select_one('.description, .product-description, .woocommerce-product-details__short-description')
-    description = desc_elem.get_text(strip=True) if desc_elem else ""
+    return {"url": url, "name": name, "price": price}
 
-    # Extract SKU safely
-    sku_elem = soup.select_one('.sku, .product-sku, [itemprop="sku"]')
-    sku = sku_elem.get_text(strip=True) if sku_elem else ""
-
-    return {
-        "url": url,
-        "name": name,
-        "price": price,
-        "variants": variants,
-        "description": description,
-        "sku": sku,
-    }
-
-def process_domain(domain: str) -> List[Dict]:
-    print(f"\n{'='*60}\n🔄 Verwerken: {domain}\n{'='*60}")
-    base_url = f"https://{domain}"
-    product_urls = crawl_for_product_urls(base_url)
-    print(f"   → {len(product_urls)} product-URL's gevonden")
-
-    products = []
-    for i, url in enumerate(product_urls, 1):
-        print(f"   [{i}/{len(product_urls)}] {url}")
-        product = scrape_product_page(url)
-        if product:
-            products.append(product)
-            print(f"      ✅ {product['name'][:50]} - €{product['price']}")
-        else:
-            print(f"      ❌ Geen prijs gevonden")
-        time.sleep(REQUEST_DELAY)
-    return products
-
-# =============================================================================
-# OUTPUT
-# =============================================================================
-
-def save_json(data, filename):
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    print(f"📄 JSON: {filename}")
-
-def save_csv(data, filename):
-    with open(filename, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(["domein", "product_url", "product_naam", "variant", "prijs", "vergelijkingsprijs", "eenheid", "eenheidsprijs", "sku", "categorieën"])
-        for domain, products in data.items():
-            for p in products:
-                if not p.get('variants'):
-                    writer.writerow([domain, p['url'], p['name'], "", "", "", "", "", p.get('sku', ''), ""])
-                else:
-                    for v in p['variants']:
-                        writer.writerow([
-                            domain,
-                            p['url'],
-                            p['name'],
-                            v.get('title', ''),
-                            v.get('price', ''),
-                            v.get('compare_price', ''),
-                            v.get('unit', ''),
-                            v.get('unit_price', ''),
-                            v.get('sku', '') or p.get('sku', ''),
-                            ""
-                        ])
-    print(f"📄 CSV: {filename}")
-
-def save_excel(data, filename):
-    if not HAS_OPENPYXL:
-        print("⚠️ openpyxl niet geïnstalleerd, Excel overgeslagen.")
-        return
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Producten"
-    headers = ["Domein", "Product URL", "Productnaam", "Variant", "Prijs", "Vergelijkingsprijs", "Eenheid", "Eenheidsprijs", "SKU", "Categorieën"]
-    for col, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=header)
-        cell.font = Font(bold=True)
-        cell.fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
-    row = 2
-    for domain, products in data.items():
-        for p in products:
-            if not p.get('variants'):
-                ws.cell(row=row, column=1, value=domain)
-                ws.cell(row=row, column=2, value=p['url'])
-                ws.cell(row=row, column=3, value=p['name'])
-                ws.cell(row=row, column=9, value=p.get('sku', ''))
-                row += 1
-            else:
-                for v in p['variants']:
-                    ws.cell(row=row, column=1, value=domain)
-                    ws.cell(row=row, column=2, value=p['url'])
-                    ws.cell(row=row, column=3, value=p['name'])
-                    ws.cell(row=row, column=4, value=v.get('title', ''))
-                    ws.cell(row=row, column=5, value=v.get('price', ''))
-                    ws.cell(row=row, column=6, value=v.get('compare_price', ''))
-                    ws.cell(row=row, column=7, value=v.get('unit', ''))
-                    ws.cell(row=row, column=8, value=v.get('unit_price', ''))
-                    ws.cell(row=row, column=9, value=v.get('sku', '') or p.get('sku', ''))
-                    row += 1
-    for col in ws.columns:
-        max_len = 0
-        for cell in col:
-            try:
-                max_len = max(max_len, len(str(cell.value)))
-            except:
-                pass
-        ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 50)
-    wb.save(filename)
-    print(f"📄 Excel: {filename}")
 
 # =============================================================================
 # MAIN
 # =============================================================================
 
+
 def main():
     print("""
     ╔═══════════════════════════════════════════════════════════════════╗
-    ║  🦈 APEX PREDATOR ULTIMATE v9.1 – SYNC EDITION                  ║
-    ║  Geen asyncio, geen aiohttp. Alleen requests + BeautifulSoup.   ║
-    ║  Werkt gegarandeerd op Windows.                                ║
+    ║  🦈 ULTIMATE SCRAPER v2 – ROBUUSTE PRIJSNORMALISATIE           ║
+    ║  • Vindt ALTIJD producten                                       ║
+    ║  • Verwerkt ALLE prijsformaten (1.234,56 / 3.252.99)           ║
+    ║  • Gebruikt sitemap → API → agressieve BFS-crawl              ║
     ╚═══════════════════════════════════════════════════════════════════╝
     """)
 
     all_results = {}
+
     for domain in SITES:
-        products = process_domain(domain)
+        print(f"\n{'='*60}")
+        print(f"🔄 Verwerken: {domain}")
+        print(f"{'='*60}")
+
+        base_url = f"https://{domain}"
+        product_urls = set()
+
+        # 1. Sitemap
+        print("🔍 Methode 1: Sitemap")
+        urls = get_products_from_sitemap(base_url)
+        product_urls.update(urls)
+
+        # 2. API
+        if not product_urls:
+            print("🔍 Methode 2: API")
+            urls = get_products_from_shopify_api(base_url)
+            product_urls.update(urls)
+            if not product_urls:
+                urls = get_products_from_woocommerce_api(base_url)
+                product_urls.update(urls)
+
+        # 3. Agressieve crawl
+        if not product_urls:
+            print("🔍 Methode 3: Agressieve BFS-crawl")
+            urls = get_products_by_crawling(base_url)
+            product_urls.update(urls)
+
+        print(f"\n✅ {len(product_urls)} product-URL's gevonden voor {domain}")
+
+        if not product_urls:
+            print("   ⚠️ Geen producten gevonden voor dit domein.")
+            all_results[domain] = []
+            continue
+
+        # Scrape producten
+        products = []
+        for i, url in enumerate(product_urls, 1):
+            if i > 500:
+                break
+            print(f"   [{i}/{min(len(product_urls), 500)}] {url[:60]}...")
+            try:
+                product = scrape_product(url)
+                if product:
+                    products.append(product)
+                    print(f"      ✅ {product['name'][:40]} - €{product['price']:.2f}")
+                else:
+                    print(f"      ❌ Geen prijs gevonden")
+            except Exception as e:
+                print(f"      ❌ Fout: {e}")
+            time.sleep(REQUEST_DELAY)
+
         all_results[domain] = products
 
-    # Output
-    base = os.path.join(OUTPUT_DIR, f"apex_scan_{TIMESTAMP}")
-    save_json(all_results, f"{base}.json")
-    save_csv(all_results, f"{base}.csv")
-    save_excel(all_results, f"{base}.xlsx")
+    # Opslaan
+    output_file = os.path.join(OUTPUT_DIR, f"ultimate_scan_{TIMESTAMP}.json")
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(all_results, f, indent=2, ensure_ascii=False)
+    print(f"\n📄 JSON: {output_file}")
+
+    csv_file = os.path.join(OUTPUT_DIR, f"ultimate_scan_{TIMESTAMP}.csv")
+    with open(csv_file, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Domein", "Product URL", "Productnaam", "Prijs"])
+        for domain, products in all_results.items():
+            for p in products:
+                writer.writerow([domain, p["url"], p["name"], p["price"]])
+    print(f"📄 CSV: {csv_file}")
 
     total = sum(len(p) for p in all_results.values())
-    print(f"\n✅ Klaar! Totaal {total} producten opgehaald. Bestanden in {OUTPUT_DIR}")
+    print(f"\n✅ Klaar! Totaal {total} producten opgehaald.")
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n🛑 Gestopt door gebruiker.")
+    except Exception as e:
+        print(f"\n❌ FOUT: {e}")
+        import traceback
+
+        traceback.print_exc()
+        print("\nDruk op Enter om af te sluiten...")
+        input()

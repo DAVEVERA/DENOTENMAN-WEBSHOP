@@ -161,6 +161,45 @@ export type PriceMonitorApexScanSource = {
   priceRowCount: number;
 };
 
+export type PriceMonitorApexScriptInfo = {
+  filename: string;
+  content: string;
+  sha256: string;
+};
+
+export type PriceMonitorApexRunPreviewItem = {
+  domain: string;
+  productName: string;
+  variantName: string;
+  productUrl: string | null;
+  priceCents: number | null;
+  sku: string | null;
+};
+
+export type PriceMonitorApexRunResult = {
+  execution: string;
+  domain: string;
+  capturedAt: string;
+  productCount: number;
+  priceRowCount: number;
+  resultObject: string;
+  preview: PriceMonitorApexRunPreviewItem[];
+};
+
+export type PriceMonitorApexLocalSession = {
+  runId: string;
+  uploadToken: string;
+  expiresAt: string;
+};
+
+export type PriceMonitorApexLocalRunView = {
+  runId: string;
+  domain: string;
+  status: "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
+  message: string;
+  result: PriceMonitorApexRunResult | null;
+};
+
 export type PriceMonitorApexScanSummary = {
   id: string;
   scraperFile: string;

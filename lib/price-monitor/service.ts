@@ -372,6 +372,85 @@ export async function processPriceMonitorSourceRun(input: {
   }
 }
 
+export async function completeLocalApexRun(input: {
+  runId: string;
+  products: ScrapedCompetitorProduct[];
+}): Promise<{ runId: string; status: string; successCount: number; errorCount: number }> {
+  const run = await prisma.priceMonitorCrawlRun.findUnique({
+    where: { id: input.runId },
+    include: { source: { select: { id: true, status: true } } },
+  });
+  if (!run || run.trigger !== "LOCAL_APEX") {
+    throw new PriceMonitorServiceError("RUN_NOT_FOUND", 404);
+  }
+  if (run.status !== "RUNNING") {
+    throw new PriceMonitorServiceError("RUN_ALREADY_HANDLED", 409);
+  }
+  if (run.source.status !== "READY") {
+    throw new PriceMonitorServiceError("SOURCE_PAUSED", 409);
+  }
+
+  const variants = await activeVariantsForMatching();
+  const qualityRows = input.products.map((scraped) => ({
+    scraped,
+    quality: assessDataQuality(scraped),
+  }));
+  const successCount = input.products.length;
+  const status = successCount > 0 ? "SUCCEEDED" : "FAILED";
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.priceMonitorCrawlRun.updateMany({
+        where: { id: run.id, status: "RUNNING" },
+        data: { status: "PARTIAL" },
+      });
+      if (claimed.count !== 1) {
+        throw new PriceMonitorServiceError("RUN_ALREADY_HANDLED", 409);
+      }
+      for (const row of qualityRows) {
+        await persistScrapedProductWithTx(tx, {
+          sourceId: run.source.id,
+          runId: run.id,
+          scraped: row.scraped,
+          quality: row.quality,
+          variants,
+        });
+      }
+      await tx.priceMonitorCrawlRun.update({
+        where: { id: run.id },
+        data: {
+          status,
+          discoveredCount: successCount,
+          processedCount: successCount,
+          successCount,
+          errorCount: successCount > 0 ? 0 : 1,
+          dataQualityScore: qualityRows.length
+            ? Math.round(qualityRows.reduce((total, row) => total + row.quality.score, 0) / qualityRows.length)
+            : null,
+          errorMessage: successCount > 0 ? null : "De lokale APEX-run bevatte geen geldige prijsregels",
+          finishedAt: new Date(),
+        },
+      });
+      await tx.priceMonitorSource.update({
+        where: { id: run.source.id },
+        data: { lastRunAt: new Date() },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    return { runId: run.id, status, successCount, errorCount: successCount > 0 ? 0 : 1 };
+  } catch (error) {
+    await prisma.priceMonitorCrawlRun.updateMany({
+      where: { id: run.id, status: "RUNNING" },
+      data: {
+        status: "FAILED",
+        errorCount: 1,
+        errorMessage: safeErrorMessage(error),
+        finishedAt: new Date(),
+      },
+    });
+    throw error;
+  }
+}
+
 export async function reviewPriceMonitorMatch(input: {
   matchId: string;
   decision: "APPROVE" | "REJECT";
@@ -618,69 +697,98 @@ async function persistScrapedProduct(input: {
   quality: ReturnType<typeof assessDataQuality>;
   variants: Awaited<ReturnType<typeof activeVariantsForMatching>>;
 }): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const product = await tx.priceMonitorCompetitorProduct.upsert({
-      where: { sourceId_sourceUrl: { sourceId: input.sourceId, sourceUrl: input.scraped.sourceUrl } },
-      update: competitorProductData(input.scraped),
-      create: {
-        sourceId: input.sourceId,
-        sourceUrl: input.scraped.sourceUrl,
-        ...competitorProductData(input.scraped),
-      },
-    });
-    const normalized = normalizePrice(
-      input.scraped.priceCents,
-      input.scraped.packageQuantity,
-      input.scraped.packageUnit
-    );
-    if (!input.scraped.priceCents) return;
-    const observation = await tx.priceMonitorObservation.create({
-      data: {
-        crawlRunId: input.runId,
-        competitorProductId: product.id,
-        priceCents: input.scraped.priceCents,
-        currency: input.scraped.currency,
-        normalizedPriceCents: normalized.normalizedPriceCents,
-        normalizedUnit: normalized.normalizedUnit,
-        dataQualityScore: input.quality.score,
-        qualityFlags: input.quality.flags,
-        inStock: input.scraped.inStock,
-      },
-    });
-    const best = input.variants
-      .map((variant) => ({
-        variant,
-        match: scoreProductMatch({
-          variantId: variant.id,
-          ownSku: variant.sku,
-          ownName: `${variant.product.translations[0]?.name || variant.product.slug} ${variant.weightGrams} gram`,
-          ownWeightGrams: variant.weightGrams,
-          competitorSku: input.scraped.sku,
-          competitorEan: input.scraped.ean,
-          competitorName: input.scraped.name,
-          competitorQuantity: input.scraped.packageQuantity,
-          competitorUnit: input.scraped.packageUnit,
-        }),
-      }))
-      .sort((a, b) => b.match.score - a.match.score)[0];
-    if (!best || best.match.score < 55) return;
-    const match = await tx.priceMonitorMatch.upsert({
-      where: {
-        productVariantId_competitorProductId: {
-          productVariantId: best.variant.id,
-          competitorProductId: product.id,
+  await prisma.$transaction(async (tx) => persistScrapedProductWithTx(tx, input));
+}
+
+async function persistScrapedProductWithTx(
+  tx: Prisma.TransactionClient,
+  input: {
+    sourceId: string;
+    runId: string;
+    scraped: ScrapedCompetitorProduct;
+    quality: ReturnType<typeof assessDataQuality>;
+    variants: Awaited<ReturnType<typeof activeVariantsForMatching>>;
+  }
+): Promise<void> {
+  const currentByUrl = await tx.priceMonitorCompetitorProduct.findUnique({
+    where: { sourceId_sourceUrl: { sourceId: input.sourceId, sourceUrl: input.scraped.sourceUrl } },
+  });
+  const currentByStableKey = !currentByUrl && input.scraped.sourceKey.startsWith("apex-local-") && input.scraped.externalKey
+    ? await tx.priceMonitorCompetitorProduct.findFirst({
+        where: { sourceId: input.sourceId, externalKey: input.scraped.externalKey },
+        orderBy: { lastSeenAt: "desc" },
+      })
+    : null;
+  const currentProduct = currentByUrl || currentByStableKey;
+  const product = currentProduct
+    ? await tx.priceMonitorCompetitorProduct.update({
+        where: { id: currentProduct.id },
+        data: {
+          sourceUrl: input.scraped.sourceUrl,
+          ...competitorProductData(input.scraped),
         },
-      },
-      update: { confidenceScore: best.match.score, reason: best.match.reason },
-      create: {
+      })
+    : await tx.priceMonitorCompetitorProduct.create({
+        data: {
+          sourceId: input.sourceId,
+          sourceUrl: input.scraped.sourceUrl,
+          ...competitorProductData(input.scraped),
+        },
+      });
+  const normalized = normalizePrice(
+    input.scraped.priceCents,
+    input.scraped.packageQuantity,
+    input.scraped.packageUnit
+  );
+  if (!input.scraped.priceCents) return;
+  const observation = await tx.priceMonitorObservation.create({
+    data: {
+      crawlRunId: input.runId,
+      competitorProductId: product.id,
+      priceCents: input.scraped.priceCents,
+      currency: input.scraped.currency,
+      normalizedPriceCents: normalized.normalizedPriceCents,
+      normalizedUnit: normalized.normalizedUnit,
+      dataQualityScore: input.quality.score,
+      qualityFlags: input.quality.flags,
+      inStock: input.scraped.inStock,
+    },
+  });
+  const best = input.variants
+    .map((variant) => ({
+      variant,
+      match: scoreProductMatch({
+        variantId: variant.id,
+        ownSku: variant.sku,
+        ownName: `${variant.product.translations[0]?.name || variant.product.slug} ${variant.weightGrams} gram`,
+        ownWeightGrams: variant.weightGrams,
+        competitorSku: input.scraped.sku,
+        competitorEan: input.scraped.ean,
+        competitorName: input.scraped.name,
+        competitorQuantity: input.scraped.packageQuantity,
+        competitorUnit: input.scraped.packageUnit,
+      }),
+    }))
+    .sort((a, b) => b.match.score - a.match.score)[0];
+  if (!best || best.match.score < 55) return;
+  const match = await tx.priceMonitorMatch.upsert({
+    where: {
+      productVariantId_competitorProductId: {
         productVariantId: best.variant.id,
         competitorProductId: product.id,
-        confidenceScore: best.match.score,
-        reason: best.match.reason,
       },
-    });
-    if (match.status === "APPROVED") await upsertRecommendation(tx, { ...match, productVariant: best.variant }, observation);
+    },
+    update: { confidenceScore: best.match.score, reason: best.match.reason },
+    create: {
+      productVariantId: best.variant.id,
+      competitorProductId: product.id,
+      confidenceScore: best.match.score,
+      reason: best.match.reason,
+    },
   });
+  if (match.status === "APPROVED") {
+    await upsertRecommendation(tx, { ...match, productVariant: best.variant }, observation);
+  }
 }
 
 function activeVariantsForMatching() {
@@ -720,7 +828,7 @@ async function upsertRecommendation(
     dataQualityScore: observation.dataQualityScore,
     qualityFlags: observation.qualityFlags as PriceMonitorQualityFlag[],
   });
-  await tx.pricingRecommendation.upsert({
+  const latest = await tx.pricingRecommendation.upsert({
     where: {
       productVariantId_observationId: {
         productVariantId: match.productVariant.id,
@@ -733,6 +841,17 @@ async function upsertRecommendation(
       matchId: match.id,
       observationId: observation.id,
       ...recommendationData(result),
+    },
+  });
+  await tx.pricingRecommendation.updateMany({
+    where: {
+      productVariantId: match.productVariant.id,
+      id: { not: latest.id },
+      status: { in: ["OPEN", "APPROVED"] },
+    },
+    data: {
+      status: "DISMISSED",
+      failureReason: "VERVANGEN_DOOR_NIEUWSTE_METING",
     },
   });
 }

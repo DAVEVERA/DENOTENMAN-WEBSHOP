@@ -56,51 +56,47 @@ test("footer keeps legal links in the lower bar and touch targets usable", () =>
   assert.match(footerSource, /min-h-11/);
 });
 
-test("footer includes the functional newsletter band and the left-facing truck artwork", () => {
+test("footer includes the functional newsletter band", () => {
   assert.match(footerSource, /<NewsletterSignup/);
   assert.match(footerSource, /privacyHref=\{pagePath\("privacy", locale\)\}/);
-  assert.match(footerSource, /src="\/footer\/notenman-pindatruck-alpha\.png"/);
-  assert.match(footerSource, /width=\{1398\}/);
-  assert.match(footerSource, /height=\{656\}/);
-  assert.match(footerSource, /size="responsive"/);
   assert.match(footerSource, /<Container fullWidth/);
-  assert.match(footerStyles, /linear-gradient\(180deg, #e0b200 0, #121212 4\.5rem/);
 });
 
-test("truck and exact 24-hour shipping copy form one moving rig", () => {
-  assert.match(footerSource, />Verzending binnen 24 uur<\/p>/);
-  assert.doesNotMatch(footerSource, /Gratis verzending vanaf/);
-  assert.match(footerSource, /className=\{styles\.truckRig\}/);
-  assert.match(footerSource, /className=\{styles\.truckVisual\}/);
-  assert.match(footerSource, /className=\{styles\.truckMessage\}/);
-  assert.match(footerStyles, /\.truckRig\s*\{[\s\S]*display: flex/);
-  assert.match(footerStyles, /\.truckRig\s*\{[\s\S]*width: max-content/);
-  assert.match(footerStyles, /\.truckVisual\s*\{[\s\S]*width: clamp\(7rem, 15vw, 12rem\)/);
+test("footer omits the truck strip and its yellow-to-anthracite gradient", () => {
+  assert.doesNotMatch(footerSource, /notenman-pindatruck-alpha|truckLane|truckRig|truckVisual|truckMessage/);
+  assert.doesNotMatch(footerSource, /Verzending binnen 24 uur/);
+  assert.doesNotMatch(footerStyles, /\.truck|@keyframes truck-/);
+  assert.doesNotMatch(footerStyles, /linear-gradient\(180deg, #e0b200 0, #121212 4\.5rem/);
 });
 
-test("complete rig crosses right to left with suspension and a matching road shadow", () => {
-  assert.match(footerStyles, /translate3d\(100vw, 0, 0\)/);
-  assert.match(footerStyles, /translate3d\(-100%, 0, 0\)/);
-  assert.match(footerStyles, /animation: truck-crossing 22s linear infinite/);
-  assert.match(
-    footerStyles,
-    /animation: truck-suspension 0\.72s ease-in-out infinite alternate/,
-  );
-  assert.match(
-    footerStyles,
-    /animation: truck-shadow 0\.72s ease-in-out infinite alternate/,
-  );
-  assert.match(footerStyles, /@keyframes truck-shadow/);
+test("footer shows the four supplied Mollie payment icons in a static dark card", () => {
+  for (const iconPath of [
+    "/icons/Mollie - Payment Methods/Apple-pay/Apple-pay-squircle.svg",
+    "/icons/Mollie - Payment Methods/Maestro/Maestro-squircle.svg",
+    "/icons/Mollie - Payment Methods/iDEAL-Wero/iDEAL-Wero-squircle.svg",
+    "/icons/Mollie - Payment Methods/PayPal/PayPal-squircle.svg",
+  ]) {
+    assert.match(footerSource, new RegExp(iconPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+
+  assert.match(footerSource, /aria-labelledby="footer-payment-methods-title"/);
+  assert.match(footerSource, /<ul className=\{styles\.paymentMethodsCard\}>/);
+  assert.match(footerStyles, /\.paymentMethodsCard\s*\{[\s\S]*max-width: 100%/);
+  assert.match(footerStyles, /width: clamp\(3rem, 12vw, 3\.25rem\)/);
+  assert.match(footerStyles, /\.paymentMethodsCard\s*\{[\s\S]*background: rgb\(0 0 0 \/ 42%\)/);
+  assert.doesNotMatch(footerStyles, /paymentMethod:hover|payment-method-slide-in/);
 });
 
-test("truck rig remains fully static and centered for reduced motion", () => {
-  assert.match(footerStyles, /prefers-reduced-motion: reduce/);
-  assert.match(
-    footerStyles,
-    /\.truckRig\s*\{[\s\S]*left: 50%;[\s\S]*animation: none;[\s\S]*translateX\(-50%\)/,
-  );
-  assert.match(
-    footerStyles,
-    /\.truck,[\s\S]*\.truckVisual::after\s*\{[\s\S]*animation: none/,
-  );
+test("footer reuses the animated light card for verified social channels", () => {
+  assert.match(footerSource, /https:\/\/www\.facebook\.com\/denotenman/);
+  assert.match(footerSource, /https:\/\/instagram\.com\/de_notenman/);
+  assert.match(footerSource, /CUSTOMER_SERVICE_WHATSAPP_URL/);
+  assert.match(footerSource, /aria-labelledby="footer-social-media-title"/);
+  assert.match(footerSource, /target="_blank"/);
+  assert.match(footerSource, /rel="noopener noreferrer"/);
+  assert.match(footerStyles, /\.socialMediaCard\s*\{[\s\S]*background: #e8e8e8/);
+  assert.match(footerStyles, /@keyframes social-media-icon-slide-in/);
+  assert.match(footerStyles, /\.socialMediaFacebook:hover\s*\{[\s\S]*#1877f2/);
+  assert.match(footerStyles, /\.socialMediaInstagram:hover\s*\{[\s\S]*#d62976/);
+  assert.match(footerStyles, /\.socialMediaWhatsapp:hover\s*\{[\s\S]*#25d366/);
 });

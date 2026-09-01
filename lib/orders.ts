@@ -13,6 +13,7 @@ import {
 } from "@/lib/shipping";
 import { sendOrderConfirmationEmail } from "@/lib/mail";
 import { sendCompletedTestOrderConfirmation } from "@/lib/test-order-confirmation";
+import { sendMerchantNewOrderNotification } from "@/lib/merchant-order-notification";
 import {
   prepareAftersalesEvent,
   processAftersalesDelivery,
@@ -476,13 +477,21 @@ export async function syncOrderPaymentStatus(
   } = {}
 ): Promise<Order> {
   if (order.status === "PAID" || order.status === "FULFILLED") {
+    let emailFailure: Error | null = null;
     if (!order.isTest) {
       const results = await processPendingAftersalesForOrder(order.id);
       const failure = results.find((result) => result.status === "failed");
-      if (failure?.status === "failed" && options.failOnAftersalesError) {
-        throw new Error(`AFTERSALES_DELIVERY_FAILED: ${failure.error}`);
+      if (failure?.status === "failed") {
+        emailFailure = new Error(`AFTERSALES_DELIVERY_FAILED: ${failure.error}`);
+      }
+      try {
+        await sendMerchantNewOrderNotification(order.id);
+      } catch (error) {
+        console.error(`Failed to send merchant new-order notification for order ${order.id}`, error);
+        emailFailure ??= error instanceof Error ? error : new Error(String(error));
       }
     }
+    if (emailFailure && options.failOnAftersalesError) throw emailFailure;
 
     // The order status remains the source of truth. Provider detail is only
     // supplementary funnel context and must never break an already confirmed
@@ -547,6 +556,7 @@ export async function syncOrderPaymentStatus(
   });
 
   if (transition.count === 1 && nextStatus === "PAID") {
+    let emailFailure: Error | null = null;
     try {
       if (transition.queued) {
         const result = await processAftersalesDelivery(transition.queued.deliveryId);
@@ -561,8 +571,20 @@ export async function syncOrderPaymentStatus(
       }
     } catch (error) {
       console.error(`Failed to send order confirmation email for order ${order.id}`, error);
-      if (options.failOnAftersalesError) throw error;
+      emailFailure = error instanceof Error ? error : new Error(String(error));
     }
+    if (!transition.updated.isTest) {
+      try {
+        await sendMerchantNewOrderNotification(transition.updated.id);
+      } catch (error) {
+        console.error(
+          `Failed to send merchant new-order notification for order ${order.id}`,
+          error
+        );
+        emailFailure ??= error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    if (emailFailure && options.failOnAftersalesError) throw emailFailure;
   }
 
   return transition.updated;

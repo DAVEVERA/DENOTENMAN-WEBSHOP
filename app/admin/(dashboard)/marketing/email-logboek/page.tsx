@@ -10,6 +10,7 @@ import { RetryEmailButton } from "./RetryEmailButton";
 const KIND_LABELS: Record<EmailDeliveryKind, string> = {
   ORDER_CONFIRMATION: "Bestelbevestiging",
   ORDER_FULFILLED: "Verzendbevestiging",
+  NEW_ORDER_NOTIFICATION: "Nieuwe bestelling · Fedor",
   AFTERSALES_TEST: "Testmail",
   BACK_IN_STOCK: "Voorraadmelding",
   BUSINESS_ORDER_LIST: "Zakelijke bestellijst",

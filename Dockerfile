@@ -47,6 +47,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/app/admin/(dashboard)/prijsmonitor/apex.py ./app/admin/(dashboard)/prijsmonitor/apex.py
 
 USER nextjs
 

@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Code2,
   Database,
   Download,
   ExternalLink,
@@ -20,7 +21,6 @@ import {
   Mail,
   Play,
   Printer,
-  RefreshCw,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -30,11 +30,15 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import type {
+  PriceMonitorApexLocalRunView,
+  PriceMonitorApexLocalSession,
   PriceMonitorApexScanPage,
   PriceMonitorApexScanSummary,
+  PriceMonitorApexScriptInfo,
+  PriceMonitorApexRunResult,
   PriceMonitorComparisonView,
   PriceMonitorDashboard,
 } from "@/lib/price-monitor/types";
@@ -51,23 +55,26 @@ const tabs: Array<{ id: Tab; label: string }> = [
 ];
 
 const onboarding = [
-  ["Kies de winkels", "Kies welke webshops je wilt bekijken. Iedere winkel heeft zijn eigen veilige koppeling."],
-  ["Start de prijsronde", "Klik op Start proefronde. We beginnen bewust met maximaal 25 producten."],
+  ["Kies de webshop", "Kies welke notenwebshop APEX in deze proefronde moet bekijken."],
+  ["Download de scraper", "Download het gecontroleerde apex.py-bestand. Hier zijn geen abonnementen of API-sleutels voor nodig."],
+  ["Voer hem lokaal uit", "Plak de getoonde opdracht in PowerShell. We beginnen bewust met maximaal 25 producten."],
+  ["Laat het resultaat inladen", "APEX stuurt het resultaat na afloop automatisch en beveiligd terug naar deze prijsmonitor."],
   ["Wij maken prijzen vergelijkbaar", "Een zak van 250 gram en een zak van 1 kilo rekenen we om naar dezelfde prijs per kilo."],
   ["Controleer wat niet duidelijk is", "Zijn product of gewicht niet zeker? Dan vragen we jou eerst om de koppeling goed te keuren."],
   ["Bekijk opvallende verschillen", "Je ziet waar wij duidelijk duurder of goedkoper zijn, inclusief bron en meetmoment."],
   ["Bekijk het prijsvoorstel", "De Prijscoach maakt een voorzichtige conceptsuggestie. Er verandert nog niets."],
   ["Pas aan en bevestig", "Je mag het bedrag aanpassen. Alleen na jouw margecontrole en bevestiging wordt de prijs gewijzigd."],
-  ["Download of ontvang een rapport", "Download Excel/CSV of JSON, print als PDF of ontvang automatisch een samenvatting per e-mail."],
 ] as const;
 
 export function PriceMonitorWorkspace({
   initialDashboard,
   initialApexScan,
+  initialApexScript,
   canWrite,
 }: {
   initialDashboard: PriceMonitorDashboard;
   initialApexScan: PriceMonitorApexScanSummary;
+  initialApexScript: PriceMonitorApexScriptInfo;
   canWrite: boolean;
 }) {
   const [dashboard, setDashboard] = useState(initialDashboard);
@@ -83,49 +90,13 @@ export function PriceMonitorWorkspace({
   const [onlyReview, setOnlyReview] = useState(false);
   const [actionItem, setActionItem] = useState<PriceMonitorComparisonView | null>(null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const response = await fetch("/api/admin/price-monitor", { cache: "no-store" });
     if (!response.ok) throw new Error(await responseError(response));
     const nextDashboard = (await response.json()) as PriceMonitorDashboard;
     setDashboard(nextDashboard);
     return nextDashboard;
-  };
-
-  const runSource = async (sourceKey: string) => {
-    setBusy(`run:${sourceKey}`);
-    setError(null);
-    setNotice("De prijsronde draait op de achtergrond. Je mag intussen andere onderdelen bekijken.");
-    try {
-      const response = await fetch("/api/admin/price-monitor/runs", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sourceKey, limit: 25 }),
-      });
-      if (!response.ok) throw new Error(await responseError(response));
-      await response.json();
-      for (let attempt = 0; attempt < 120; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1_500));
-        const nextDashboard = await refresh();
-        const source = nextDashboard.sources.find((item) => item.key === sourceKey);
-        if (source?.lastRunStatus === "FAILED") throw new Error("SCRAPE_FAILED");
-        if (source?.lastRunStatus === "SUCCEEDED" || source?.lastRunStatus === "PARTIAL") {
-          setNotice(
-            source.lastRunStatus === "PARTIAL"
-              ? "De prijsronde is klaar. Een paar pagina's vragen aandacht; betrouwbare gegevens staan klaar om te controleren."
-              : "De prijsronde is klaar. Controleer nu de voorgestelde productkoppelingen."
-          );
-          setTab("compare");
-          return;
-        }
-      }
-      setNotice("De prijsronde loopt nog op de achtergrond. Vernieuw later het overzicht om de uitkomst te zien.");
-    } catch (cause) {
-      setError(messageForError(cause));
-      setNotice(null);
-    } finally {
-      setBusy(null);
-    }
-  };
+  }, []);
 
   const reviewMatch = async (matchId: string, decision: "APPROVE" | "REJECT") => {
     setBusy(`match:${matchId}`);
@@ -272,9 +243,11 @@ export function PriceMonitorWorkspace({
         <Overview
           dashboard={dashboard}
           apexScan={initialApexScan}
-          busy={busy}
+          apexScript={initialApexScript}
           canWrite={canWrite}
-          onRun={runSource}
+          onNotice={setNotice}
+          onError={setError}
+          onImported={refresh}
           onOpenComparisons={() => setTab("compare")}
           onOpenActions={() => setTab("actions")}
           onOpenApexScan={() => setTab("scan")}
@@ -322,6 +295,8 @@ export function PriceMonitorWorkspace({
 
       {tab === "help" ? <HelpSection /> : null}
 
+      <PriceMonitorSafetyFooter summary={initialApexScan} />
+
       {actionItem ? (
         <PriceActionDialog
           item={actionItem}
@@ -353,7 +328,7 @@ function Onboarding({ open, onToggle }: { open: boolean; onToggle: () => void })
       >
         <span>
           <span id="onboarding-title" className="block font-heading text-lg font-bold text-text">Zo werkt de prijsmonitor</span>
-          <span className="block text-xs text-muted">Acht eenvoudige stappen van bron tot gecontroleerde actie</span>
+          <span className="block text-xs text-muted">Negen eenvoudige stappen van bron tot gecontroleerde actie</span>
         </span>
         <ChevronDown className={cn("h-5 w-5 shrink-0 transition-transform", open && "rotate-180")} aria-hidden="true" />
       </button>
@@ -375,18 +350,22 @@ function Onboarding({ open, onToggle }: { open: boolean; onToggle: () => void })
 function Overview({
   dashboard,
   apexScan,
-  busy,
+  apexScript,
   canWrite,
-  onRun,
+  onNotice,
+  onError,
+  onImported,
   onOpenComparisons,
   onOpenActions,
   onOpenApexScan,
 }: {
   dashboard: PriceMonitorDashboard;
   apexScan: PriceMonitorApexScanSummary;
-  busy: string | null;
+  apexScript: PriceMonitorApexScriptInfo;
   canWrite: boolean;
-  onRun: (key: string) => void;
+  onNotice: (message: string | null) => void;
+  onError: (message: string | null) => void;
+  onImported: () => Promise<PriceMonitorDashboard>;
   onOpenComparisons: () => void;
   onOpenActions: () => void;
   onOpenApexScan: () => void;
@@ -472,42 +451,14 @@ function Overview({
         </article>
       </section>
 
-      <section id="bronnen" aria-labelledby="sources-title" className="scroll-mt-24">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 id="sources-title" className="font-heading text-2xl font-bold text-text">Webshops</h2>
-            <p className="text-body-sm text-muted">Iedere webshop heeft een eigen koppeling, maar verschijnt in hetzelfde overzicht.</p>
-          </div>
-          <p className="text-xs font-semibold text-muted">Begin met maximaal 25 producten per proefronde</p>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {dashboard.sources.map((source) => (
-            <article key={source.key} className="rounded-panel border border-border bg-surface p-5 shadow-card">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-heading text-lg font-bold text-text">{source.name}</p>
-                  <a href={source.baseUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-xs font-semibold text-accent-ink underline-offset-2 hover:underline">Bekijk webshop</a>
-                </div>
-                <StatusPill status={source.status} label={source.statusLabel} />
-              </div>
-              <p className="mt-4 min-h-16 text-body-sm leading-relaxed text-muted">{source.statusNote}</p>
-              <dl className="mt-4 grid grid-cols-2 gap-3 rounded-card bg-background p-3 text-body-sm">
-                <div><dt className="text-xs text-muted">Producten gezien</dt><dd className="font-bold tabular-nums text-text">{source.productsSeen}</dd></div>
-                <div><dt className="text-xs text-muted">Laatste ronde</dt><dd className="font-bold text-text">{source.lastRunAt ? shortDate(source.lastRunAt) : "Nog niet"}</dd></div>
-              </dl>
-              <button
-                type="button"
-                disabled={!canWrite || !source.canRun || dashboard.setupRequired || busy !== null}
-                onClick={() => onRun(source.key)}
-                className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-button bg-accent px-4 font-heading font-bold text-contrast transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {busy === `run:${source.key}` ? <RefreshCw className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Play className="h-5 w-5" aria-hidden="true" />}
-                {source.canRun ? "Start proefronde" : "Script nog koppelen"}
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
+      <ApexRunnerPanel
+        summary={apexScan}
+        script={apexScript}
+        canRun={canWrite && !dashboard.setupRequired}
+        onNotice={onNotice}
+        onError={onError}
+        onImported={onImported}
+      />
 
       <section className="rounded-panel border border-border bg-surface p-5 shadow-card sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -520,6 +471,388 @@ function Overview({
       </section>
     </div>
   );
+}
+
+function ApexRunnerPanel({
+  summary,
+  script,
+  canRun,
+  onNotice,
+  onError,
+  onImported,
+}: {
+  summary: PriceMonitorApexScanSummary;
+  script: PriceMonitorApexScriptInfo;
+  canRun: boolean;
+  onNotice: (message: string | null) => void;
+  onError: (message: string | null) => void;
+  onImported: () => Promise<PriceMonitorDashboard>;
+}) {
+  const domains = useMemo(
+    () => [...summary.sources]
+      .filter((source) => source.domain.includes("."))
+      .sort((a, b) => b.productCount - a.productCount || a.domain.localeCompare(b.domain)),
+    [summary.sources]
+  );
+  const [domain, setDomain] = useState(domains[0]?.domain || "");
+  const [limit, setLimit] = useState(25);
+  const [result, setResult] = useState<PriceMonitorApexRunResult | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [runCommand, setRunCommand] = useState(
+    `py -3 apex.py --domain ${domain} --limit ${limit} --max-pages 40`
+  );
+
+  useEffect(() => {
+    if (!activeRunId) return;
+    let stopped = false;
+    let timer: number | null = null;
+
+    const poll = async () => {
+      try {
+        const response = await fetch(
+          `/api/admin/price-monitor/apex-local?runId=${encodeURIComponent(activeRunId)}`,
+          { cache: "no-store" }
+        );
+        if (!response.ok) throw new Error(await responseError(response));
+        const view = (await response.json()) as PriceMonitorApexLocalRunView;
+        if (stopped) return;
+        if (view.status === "RUNNING") {
+          timer = window.setTimeout(() => void poll(), 4_000);
+          return;
+        }
+        setActiveRunId(null);
+        if (view.result) {
+          setResult(view.result);
+          await onImported();
+          onError(null);
+          onNotice(view.message);
+          return;
+        }
+        onError(view.message);
+      } catch (cause) {
+        if (!stopped) {
+          setActiveRunId(null);
+          onError(messageForError(cause));
+        }
+      }
+    };
+
+    timer = window.setTimeout(() => void poll(), 1_500);
+    return () => {
+      stopped = true;
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [activeRunId, onError, onImported, onNotice]);
+
+  const resetRun = (nextDomain: string, nextLimit: number) => {
+    setActiveRunId(null);
+    setResult(null);
+    setRunCommand(`py -3 apex.py --domain ${nextDomain} --limit ${nextLimit} --max-pages 40`);
+  };
+
+  const downloadScript = () => {
+    const url = URL.createObjectURL(new Blob([script.content], { type: "text/x-python;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "apex.py";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    onError(null);
+    onNotice("apex.py is gedownload. Bewaar het bestand in een eigen map op deze computer.");
+  };
+
+  const copyRunCommand = async () => {
+    setPreparing(true);
+    onError(null);
+    try {
+      const response = await fetch("/api/admin/price-monitor/apex-local", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ domain, limit }),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      const session = (await response.json()) as PriceMonitorApexLocalSession;
+      const command = `py -3 apex.py --domain ${domain} --limit ${limit} --max-pages 40 --upload-url "${window.location.origin}/api/price-monitor/apex-local/${session.runId}" --upload-token "${session.uploadToken}"`;
+      setRunCommand(command);
+      setActiveRunId(session.runId);
+      try {
+        await navigator.clipboard.writeText(command);
+        onNotice("De gratis APEX-opdracht staat op je klembord. Voer hem binnen 30 minuten uit; het resultaat wordt daarna automatisch ingeladen.");
+      } catch {
+        onError("Kopiëren lukte niet. Selecteer de aangemaakte opdracht hieronder en kopieer hem handmatig; hij blijft 30 minuten geldig.");
+      }
+    } catch (cause) {
+      setActiveRunId(null);
+      onError(messageForError(cause));
+    } finally {
+      setPreparing(false);
+    }
+  };
+
+  const importResult = async (file: File) => {
+    setImporting(true);
+    onError(null);
+    try {
+      const nextResult = await readLocalApexResult(file, domain);
+      setResult(nextResult);
+      onNotice(`${file.name} is lokaal gecontroleerd. Er is geen bestand verstuurd en geen live prijs aangepast.`);
+    } catch (cause) {
+      setResult(null);
+      onError(messageForError(cause));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <section id="bronnen" aria-labelledby="sources-title" className="min-w-0 scroll-mt-24">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-accent-ink">APEX v9.1</p>
+          <h2 id="sources-title" className="font-heading text-2xl font-bold text-text">APEX scraper</h2>
+          <p className="text-body-sm text-muted">Alle webshops zitten al in APEX. Kies alleen welke webshop APEX in deze ronde lokaal moet scannen.</p>
+        </div>
+        <p className="text-xs font-semibold text-muted">€ 0 scrapingkosten · maximaal 25 producten</p>
+      </div>
+
+      <div className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-12">
+        <article className="min-w-0 rounded-panel border border-border bg-surface p-5 shadow-card sm:p-6 xl:col-span-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-heading text-xl font-bold text-text">Gratis lokaal uitvoeren</h3>
+              <p className="mt-1 text-body-sm text-muted">Geen abonnement, API-sleutel of betaalde scraperdienst. Alles draait op je eigen Windows-computer.</p>
+            </div>
+            <span className="inline-flex min-h-8 items-center rounded-full bg-emerald-100 px-3 text-xs font-bold text-emerald-800">Altijd gratis</span>
+          </div>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <Field label="Welke webshop?">
+              <select
+                value={domain}
+                onChange={(event) => {
+                  const nextDomain = event.target.value;
+                  setDomain(nextDomain);
+                  resetRun(nextDomain, limit);
+                }}
+                className="min-h-12 w-full rounded-button border border-border bg-background px-3 text-base font-semibold text-text outline-none focus:border-border-hover"
+              >
+                {domains.map((source) => (
+                  <option key={source.domain} value={source.domain}>
+                    {source.domain} · {source.productCount} eerder gevonden
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Maximaal aantal producten">
+              <select
+                value={limit}
+                onChange={(event) => {
+                  const nextLimit = Number(event.target.value);
+                  setLimit(nextLimit);
+                  resetRun(domain, nextLimit);
+                }}
+                className="min-h-12 w-full rounded-button border border-border bg-background px-3 text-base font-semibold text-text outline-none focus:border-border-hover"
+              >
+                {[5, 10, 25].map((value) => <option key={value} value={value}>{value} producten</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <ol className="mt-5 space-y-3 text-body-sm text-text">
+            <li className="rounded-card bg-background p-3"><strong>1. Download</strong> het gecontroleerde bestand hieronder.</li>
+            <li className="rounded-card bg-background p-3"><strong>2. Open PowerShell</strong> in dezelfde map en plak de uitvoeropdracht.</li>
+            <li className="rounded-card bg-background p-3"><strong>3. Klaar</strong>: APEX laadt het resultaat automatisch en beveiligd in deze prijsmonitor.</li>
+          </ol>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <button type="button" onClick={downloadScript} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-button bg-accent px-4 font-heading font-bold text-contrast transition hover:bg-accent-hover">
+              <Download className="h-5 w-5" aria-hidden="true" /> Download apex.py
+            </button>
+            <button type="button" onClick={() => void copyRunCommand()} disabled={!domain || !canRun || preparing || Boolean(activeRunId)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-button border border-border bg-surface px-4 font-heading font-bold text-text transition hover:border-border-hover disabled:opacity-50">
+              <Code2 className="h-5 w-5" aria-hidden="true" /> {preparing ? "Opdracht maken…" : activeRunId ? "Wacht op APEX…" : "Maak automatische opdracht"}
+            </button>
+          </div>
+
+          <div className="mt-4 min-w-0 max-w-full overflow-hidden rounded-card border border-border bg-contrast p-4 text-white">
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-white/65">Eenmalig gratis installeren</p>
+            <code className="mt-2 block max-w-full overflow-x-auto whitespace-nowrap text-xs">py -3 -m pip install requests beautifulsoup4 openpyxl</code>
+            <p className="mt-4 text-xs font-bold uppercase tracking-[0.1em] text-white/65">Daarna deze ronde</p>
+            <code className="mt-2 block max-w-full overflow-x-auto whitespace-nowrap text-xs">{runCommand}</code>
+          </div>
+
+          <div className="mt-4">
+            <Field label="Handmatige reserve: lokaal JSON-resultaat">
+              <input
+                type="file"
+                accept=".json,application/json"
+                disabled={importing || !domain}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (file) void importResult(file);
+                }}
+                className="min-h-12 min-w-0 max-w-full cursor-pointer rounded-button border border-border bg-background px-3 py-2 text-base text-text file:mr-3 file:rounded-button file:border-0 file:bg-contrast file:px-3 file:py-2 file:font-bold file:text-white disabled:opacity-50"
+              />
+            </Field>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-muted">
+            De browser mag uit veiligheid geen programma vanzelf starten. Daarom plak je de opdracht in PowerShell. APEX stuurt alleen het begrensde resultaat terug; daarvoor betaal je niets. Er ontstaat nooit automatisch een prijsactie.
+          </p>
+
+          {result ? (
+            <div className="mt-5 rounded-panel border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+              <p className="text-xs font-bold uppercase tracking-[0.1em]">Lokaal ingelezen resultaat</p>
+              <dl className="mt-3 grid grid-cols-2 gap-3 text-body-sm">
+                <div><dt className="text-xs opacity-75">Producten</dt><dd className="font-heading text-2xl font-bold tabular-nums">{result.productCount}</dd></div>
+                <div><dt className="text-xs opacity-75">Prijsregels</dt><dd className="font-heading text-2xl font-bold tabular-nums">{result.priceRowCount}</dd></div>
+                <div className="col-span-2"><dt className="text-xs opacity-75">Meetmoment</dt><dd className="font-bold">{shortDate(result.capturedAt)}</dd></div>
+              </dl>
+            </div>
+          ) : null}
+        </article>
+
+        <article className="min-w-0 rounded-panel border border-border bg-contrast p-5 text-white shadow-card sm:p-6 xl:col-span-7">
+          <div className="flex items-start gap-3">
+            <Code2 className="mt-0.5 h-6 w-6 shrink-0 text-accent" aria-hidden="true" />
+            <div className="min-w-0">
+              <h3 className="font-heading text-xl font-bold text-white">Het scraperbestand dat wordt uitgevoerd</h3>
+              <p className="mt-1 break-all text-xs text-white/65">{script.filename}</p>
+              <p className="mt-1 text-xs text-white/65">Controlecode: {script.sha256.slice(0, 12)}</p>
+            </div>
+          </div>
+          <details className="mt-5 overflow-hidden rounded-card border border-white/15 bg-black/20">
+            <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 px-4 py-3 font-heading font-bold">
+              Toon scraperbestand
+              <ChevronDown className="h-5 w-5 shrink-0" aria-hidden="true" />
+            </summary>
+            <pre className="max-h-[34rem] overflow-auto border-t border-white/10 p-4 text-xs leading-relaxed text-white/85"><code>{script.content}</code></pre>
+          </details>
+          <p className="mt-4 text-xs leading-relaxed text-white/65">
+            De controlecode hoort bij precies deze inhoud. Download en gebruik alleen dit bestand; vrije opdrachten of andere scripts worden niet aangeboden.
+          </p>
+        </article>
+      </div>
+
+      {result?.preview.length ? (
+        <div className="mt-4 rounded-panel border border-border bg-surface p-5 shadow-card sm:p-6">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div><h3 className="font-heading text-xl font-bold">Voorbeeld uit het lokale resultaat</h3><p className="text-body-sm text-muted">De eerste tien gevonden regels. Controleer gewicht en verpakking voordat je vergelijkt.</p></div>
+            <span className="text-xs font-bold text-emerald-800">Nieuwste meetstand</span>
+          </div>
+          <div className="mt-4 grid gap-3 lg:hidden">
+            {result.preview.map((item, index) => (
+              <article key={`${item.productUrl || item.productName}:${index}`} className="rounded-card border border-border bg-background p-4">
+                <p className="font-heading font-bold">{item.productName}</p>
+                <p className="mt-1 text-xs text-muted">{item.variantName}{item.sku ? ` · SKU ${item.sku}` : ""}</p>
+                <p className="mt-3 font-heading text-xl font-bold">{item.priceCents === null ? "Prijs controleren" : euro(item.priceCents)}</p>
+              </article>
+            ))}
+          </div>
+          <div className="mt-4 hidden overflow-x-auto lg:block">
+            <table className="w-full min-w-[760px] border-collapse text-left text-body-sm">
+              <thead><tr className="border-b border-border text-xs text-muted"><th className="px-3 py-3">Product</th><th className="px-3 py-3">Variant</th><th className="px-3 py-3">SKU</th><th className="px-3 py-3 text-right">Prijs</th><th className="px-3 py-3">Bron</th></tr></thead>
+              <tbody>{result.preview.map((item, index) => (
+                <tr key={`${item.productUrl || item.productName}:${index}`} className="border-b border-border last:border-0">
+                  <td className="px-3 py-3 font-semibold">{item.productName}</td>
+                  <td className="px-3 py-3 text-muted">{item.variantName}</td>
+                  <td className="px-3 py-3 text-muted">{item.sku || "Ontbreekt"}</td>
+                  <td className="px-3 py-3 text-right font-bold">{item.priceCents === null ? "Controleren" : euro(item.priceCents)}</td>
+                  <td className="px-3 py-3">{item.productUrl ? <a href={item.productUrl} target="_blank" rel="noreferrer" className="font-semibold text-accent-ink hover:underline">Open <ExternalLink className="inline h-3.5 w-3.5" aria-hidden="true" /></a> : "Geen link"}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+const MAX_LOCAL_APEX_FILE_BYTES = 20_000_000;
+
+async function readLocalApexResult(
+  file: File,
+  expectedDomain: string
+): Promise<PriceMonitorApexRunResult> {
+  if (file.size <= 0 || file.size > MAX_LOCAL_APEX_FILE_BYTES) {
+    throw new Error("APEX_LOCAL_FILE_SIZE");
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    throw new Error("APEX_LOCAL_FILE_JSON");
+  }
+  if (!isLocalRecord(parsed) || !Object.prototype.hasOwnProperty.call(parsed, expectedDomain)) {
+    throw new Error("APEX_LOCAL_FILE_DOMAIN");
+  }
+  const rawProducts = parsed[expectedDomain];
+  if (!Array.isArray(rawProducts) || rawProducts.length > 100_000) {
+    throw new Error("APEX_LOCAL_FILE_FORMAT");
+  }
+
+  const preview: PriceMonitorApexRunResult["preview"] = [];
+  let priceRowCount = 0;
+  for (const rawProduct of rawProducts) {
+    if (!isLocalRecord(rawProduct)) continue;
+    const variants = Array.isArray(rawProduct.variants) && rawProduct.variants.length
+      ? rawProduct.variants.slice(0, 100)
+      : [{ title: "Standaard", price: rawProduct.price }];
+    priceRowCount += variants.length;
+    for (const rawVariant of variants) {
+      if (preview.length >= 10 || !isLocalRecord(rawVariant)) continue;
+      preview.push({
+        domain: expectedDomain,
+        productName: localText(rawProduct.name) || "Naam ontbreekt",
+        variantName: localText(rawVariant.title) || "Standaard",
+        productUrl: localProductUrl(rawProduct.url, expectedDomain),
+        priceCents: localCents(rawVariant.price ?? rawProduct.price),
+        sku: localText(rawVariant.sku) || localText(rawProduct.sku),
+      });
+    }
+  }
+
+  return {
+    execution: `local-${file.name.replace(/[^a-z0-9.-]/gi, "-").slice(0, 60)}`,
+    domain: expectedDomain,
+    capturedAt: new Date(file.lastModified || Date.now()).toISOString(),
+    productCount: rawProducts.length,
+    priceRowCount,
+    resultObject: file.name,
+    preview,
+  };
+}
+
+function isLocalRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function localText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function localCents(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = typeof value === "number" ? value : Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) : null;
+}
+
+function localProductUrl(value: unknown, domain: string): string | null {
+  const candidate = localText(value);
+  if (!candidate) return null;
+  try {
+    const url = new URL(candidate);
+    const hostname = url.hostname.toLocaleLowerCase("en-US");
+    if (
+      !["https:", "http:"].includes(url.protocol) ||
+      (hostname !== domain && !hostname.endsWith(`.${domain}`))
+    ) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
 
 const APEX_SCAN_PAGE_SIZE = 50;
@@ -609,21 +942,6 @@ function ApexScanSection({ summary }: { summary: PriceMonitorApexScanSummary }) 
             <p className="mt-1 text-xs font-semibold text-muted">{label}</p>
           </article>
         ))}
-      </div>
-
-      <div role="note" className="rounded-panel border border-amber-300 bg-amber-50 p-4 text-amber-950 sm:p-5">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-          <div>
-            <h3 className="font-heading font-bold">Nog niet gebruiken voor een prijsactie</h3>
-            <p className="mt-1 text-body-sm leading-relaxed">
-              In deze scan ontbreekt bij {(summary.priceRowCount - summary.rowsWithPackage).toLocaleString("nl-NL")} van de {summary.priceRowCount.toLocaleString("nl-NL")} prijsregels het gewicht of de verpakking. Daardoor zijn nu {summary.readyForComparisonRows.toLocaleString("nl-NL")} regels veilig naar prijs per kilo om te rekenen. {summary.invalidPriceRows} regels hebben daarnaast een nulprijs en {summary.suspectHighPriceRows} prijzen vragen controle omdat ze hoger zijn dan € 100.
-            </p>
-            <p className="mt-2 text-xs font-semibold">
-              Niet automatisch: niets uit dit bestand maakt of publiceert een live prijsvoorstel.
-            </p>
-          </div>
-        </div>
       </div>
 
       <details className="rounded-panel border border-border bg-surface shadow-card">
@@ -744,7 +1062,40 @@ function ApexScanSection({ summary }: { summary: PriceMonitorApexScanSummary }) 
         </div>
       </div>
 
-      <p className="text-xs leading-relaxed text-muted">Juiste scraperbestand: {summary.scraperFile}. Deze import is alleen-lezen; een volgende automatische APEX-run is nog niet aan de adminactie gekoppeld.</p>
+      <p className="text-xs leading-relaxed text-muted">Juiste scraperbestand: {summary.scraperFile}. Deze import is alleen-lezen; een nieuwe begrensde ronde start je met de APEX scraper.</p>
+    </section>
+  );
+}
+
+function PriceMonitorSafetyFooter({ summary }: { summary: PriceMonitorApexScanSummary }) {
+  const missingPackageRows = Math.max(0, summary.priceRowCount - summary.rowsWithPackage);
+  return (
+    <section aria-labelledby="apex-improvements-title" className="rounded-panel border border-amber-300 bg-amber-50 p-5 text-amber-950 shadow-card sm:p-6">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-amber-800">Controle onderaan de prijsmonitor</p>
+          <h2 id="apex-improvements-title" className="mt-1 font-heading text-xl font-bold">Nog niet gebruiken voor een prijsactie</h2>
+          <p className="mt-2 text-body-sm leading-relaxed">
+            In deze scan ontbreekt bij {missingPackageRows.toLocaleString("nl-NL")} van de {summary.priceRowCount.toLocaleString("nl-NL")} prijsregels het gewicht of de verpakking. Daardoor zijn nu {summary.readyForComparisonRows.toLocaleString("nl-NL")} regels veilig naar prijs per kilo om te rekenen. {summary.invalidPriceRows} regels hebben daarnaast een nulprijs en {summary.suspectHighPriceRows} prijzen vragen controle omdat ze hoger zijn dan € 100.
+          </p>
+
+          <h3 className="mt-5 font-heading font-bold">Welke verbeteringen APEX nog nodig heeft</h3>
+          <ul className="mt-2 grid gap-2 text-body-sm leading-relaxed sm:grid-cols-2">
+            <li className="rounded-card bg-white/60 p-3">Gewicht en inhoud herkennen uit productnaam, variantnaam, keuzelijsten en gestructureerde productgegevens.</li>
+            <li className="rounded-card bg-white/60 p-3">De gewone prijs en actieprijs apart opslaan, zodat een tijdelijke korting nooit als vaste prijs wordt gezien.</li>
+            <li className="rounded-card bg-white/60 p-3">SKU en EAN consequenter ophalen voor een betrouwbare productkoppeling.</li>
+            <li className="rounded-card bg-white/60 p-3">Voorraadstatus vastleggen en nulprijzen of onwaarschijnlijke prijzen apart laten controleren.</li>
+          </ul>
+
+          <p className="mt-4 text-body-sm leading-relaxed">
+            Een prijsvoorstel wordt niet op de verpakking gebaseerd. De monitor vergelijkt onze prijs en de prijs van de concurrent omgerekend naar dezelfde eenheid, meestal euro per kilo. Gewicht of inhoud is alleen nodig om die eerlijke eenheidsprijs te berekenen; ontbrekende gegevens worden nooit gegokt.
+          </p>
+          <p className="mt-3 text-body-sm font-bold">
+            Niet automatisch: niets uit een scrape maakt of publiceert een live prijsvoorstel. Een prijswijziging blijft een aparte, handmatig bevestigde actie.
+          </p>
+        </div>
+      </div>
     </section>
   );
 }
@@ -1075,11 +1426,10 @@ function PriceActionDialog({ item, onClose, onApplied, onError }: { item: PriceM
 }
 
 function FilterCheck({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) { return <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-button border border-border px-3"><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-5 w-5 accent-[#806600]" /><span className="text-body-sm font-semibold">{label}</span></label>; }
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-1.5 block text-body-sm font-bold text-text">{label}</span>{children}</label>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block min-w-0"><span className="mb-1.5 block text-body-sm font-bold text-text">{label}</span>{children}</label>; }
 function HelpItem({ children }: { children: React.ReactNode }) { return <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent-ink" aria-hidden="true" /><span>{children}</span></li>; }
 function EmptySmall({ text }: { text: string }) { return <p className="mt-5 rounded-card bg-background p-4 text-body-sm text-muted">{text}</p>; }
 function EmptyState({ icon: Icon, title, text }: { icon: typeof Store; title: string; text: string }) { return <div className="rounded-panel border border-dashed border-border bg-surface p-8 text-center shadow-card"><Icon className="mx-auto h-8 w-8 text-accent-ink" aria-hidden="true" /><h3 className="mt-3 font-heading text-xl font-bold">{title}</h3><p className="mx-auto mt-2 max-w-xl text-body-sm leading-relaxed text-muted">{text}</p></div>; }
-function StatusPill({ status, label }: { status: string; label: string }) { return <span className={cn("inline-flex min-h-7 shrink-0 items-center rounded-full px-2.5 text-[11px] font-bold", status === "READY" ? "bg-emerald-100 text-emerald-800" : status === "PAUSED" ? "bg-slate-200 text-slate-800" : "bg-amber-100 text-amber-900")}>{label}</span>; }
 function QualityPill({ score, flags }: { score: number; flags: string[] }) {
   const blocked = flags.some((flag) => ["STALE", "OUT_OF_STOCK", "COMPETITOR_PROMOTION", "UNVERIFIED_PRICE_SOURCE", "SUSPECT_OUTLIER", "MISSING_PACKAGE", "UNSUPPORTED_CURRENCY"].includes(flag));
   const label = flags.includes("STALE")
@@ -1113,4 +1463,37 @@ function isActionableRecommendation(item: PriceMonitorComparisonView): boolean {
 }
 function freshnessLabel(dashboard: PriceMonitorDashboard): string { const dates = dashboard.sources.flatMap((source) => source.lastRunAt ? [source.lastRunAt] : []).sort(); return dates.length ? `Laatste prijsronde: ${shortDate(dates[dates.length - 1])}` : "Nog geen volledige prijsronde uitgevoerd"; }
 async function responseError(response: Response): Promise<string> { const body = await response.json().catch(() => null) as { error?: string } | null; return body?.error || `HTTP_${response.status}`; }
-function messageForError(cause: unknown): string { const code = cause instanceof Error ? cause.message : "INTERNAL_ERROR"; const messages: Record<string, string> = { SOURCE_NEEDS_SETUP: "Deze webshopkoppeling is nog niet klaar. Voeg eerst het bijbehorende script toe.", SOURCE_PAUSED: "Deze webshopkoppeling staat gepauzeerd. Zet haar eerst weer aan.", SOURCE_RUN_ALREADY_ACTIVE: "Voor deze webshop loopt al een prijsronde. Wacht tot die klaar is.", SCRAPE_FAILED: "De webshop kon nu niet betrouwbaar worden gelezen. Er is niets aan productprijzen veranderd.", MATCH_NOT_APPROVED: "Controleer en keur de productkoppeling eerst goed.", RECOMMENDATION_NOT_ACTIONABLE: "Dit is uitleg of een behoudadvies en daarom geen uitvoerbare prijsactie.", RECOMMENDATION_STALE_BASELINE: "Dit voorstel hoort nog bij een oudere eigen prijs. Laat de Prijscoach het opnieuw berekenen.", STALE_OBSERVATION: "Deze concurrentieprijs is ouder dan 48 uur. Start eerst een nieuwe prijsronde.", UNSAFE_SOURCE_DATA: "De brongegevens zijn niet betrouwbaar genoeg voor een prijsactie.", STALE_PRICE: "De huidige productprijs is intussen gewijzigd. Open het voorstel opnieuw.", MARGIN_CHECK_REQUIRED: "Bevestig eerst dat je marge en gevolgen hebt gecontroleerd.", PRICE_UNCHANGED: "Kies een ander bedrag dan de huidige prijs.", CHANGE_TOO_LARGE: "Deze wijziging is groter dan 15%. Pas het bedrag aan of wijzig het product handmatig.", ACTIVE_SALE_PRICE: "Dit product heeft een actieve aanbiedingsprijs. De Prijscoach overschrijft die niet.", INVALID_ORIGIN: "De beveiligingscontrole van deze aanvraag is mislukt. Vernieuw de pagina en probeer opnieuw.", UNAUTHORIZED: "Je adminsessie is verlopen. Log opnieuw in.", VALIDATION_ERROR: "Controleer de ingevulde gegevens.", INTERNAL_ERROR: "Er ging iets mis. Je gegevens en productprijzen zijn niet stil aangepast." }; return messages[code] || `De actie kon niet worden afgerond (${code}).`; }
+function messageForError(cause: unknown): string {
+  const code = cause instanceof Error ? cause.message : "INTERNAL_ERROR";
+  const messages: Record<string, string> = {
+    SOURCE_NEEDS_SETUP: "Deze webshopkoppeling is nog niet klaar. Voeg eerst het bijbehorende script toe.",
+    SOURCE_PAUSED: "Deze webshopkoppeling staat gepauzeerd. Zet haar eerst weer aan.",
+    SOURCE_RUN_ALREADY_ACTIVE: "Voor deze webshop loopt al een prijsronde. Wacht tot die klaar is.",
+    SCRAPE_FAILED: "De webshop kon nu niet betrouwbaar worden gelezen. Er is niets aan productprijzen veranderd.",
+    APEX_LOCAL_FILE_SIZE: "Kies een JSON-bestand dat niet leeg en niet groter dan 20 MB is.",
+    APEX_LOCAL_FILE_JSON: "Dit bestand bevat geen geldige APEX-JSON.",
+    APEX_LOCAL_FILE_DOMAIN: "Dit resultaat hoort niet bij de webshop die je hierboven hebt gekozen.",
+    APEX_LOCAL_FILE_FORMAT: "Het lokale APEX-resultaat heeft niet het verwachte veilige formaat.",
+    APEX_DOMAIN_NOT_ALLOWED: "Kies een webshop die in de vaste APEX-lijst staat.",
+    APEX_RUN_ALREADY_ACTIVE: "Voor deze webshop wacht de prijsmonitor al op een lokale APEX-run. Rond die eerst af of wacht maximaal 30 minuten.",
+    APEX_UPLOAD_TOKEN_INVALID: "De tijdelijke APEX-opdracht is ongeldig of verlopen. Maak een nieuwe automatische opdracht.",
+    APEX_UPLOAD_MISMATCH: "Dit resultaat hoort niet bij de aangemaakte APEX-opdracht.",
+    RUN_NOT_FOUND: "Deze lokale APEX-opdracht bestaat niet meer. Maak een nieuwe opdracht.",
+    RUN_ALREADY_HANDLED: "Deze lokale APEX-opdracht is al verwerkt. Maak voor een nieuwe meting een nieuwe opdracht.",
+    MATCH_NOT_APPROVED: "Controleer en keur de productkoppeling eerst goed.",
+    RECOMMENDATION_NOT_ACTIONABLE: "Dit is uitleg of een behoudadvies en daarom geen uitvoerbare prijsactie.",
+    RECOMMENDATION_STALE_BASELINE: "Dit voorstel hoort nog bij een oudere eigen prijs. Laat de Prijscoach het opnieuw berekenen.",
+    STALE_OBSERVATION: "Deze concurrentieprijs is ouder dan 48 uur. Start eerst een nieuwe prijsronde.",
+    UNSAFE_SOURCE_DATA: "De brongegevens zijn niet betrouwbaar genoeg voor een prijsactie.",
+    STALE_PRICE: "De huidige productprijs is intussen gewijzigd. Open het voorstel opnieuw.",
+    MARGIN_CHECK_REQUIRED: "Bevestig eerst dat je marge en gevolgen hebt gecontroleerd.",
+    PRICE_UNCHANGED: "Kies een ander bedrag dan de huidige prijs.",
+    CHANGE_TOO_LARGE: "Deze wijziging is groter dan 15%. Pas het bedrag aan of wijzig het product handmatig.",
+    ACTIVE_SALE_PRICE: "Dit product heeft een actieve aanbiedingsprijs. De Prijscoach overschrijft die niet.",
+    INVALID_ORIGIN: "De beveiligingscontrole van deze aanvraag is mislukt. Vernieuw de pagina en probeer opnieuw.",
+    UNAUTHORIZED: "Je adminsessie is verlopen. Log opnieuw in.",
+    VALIDATION_ERROR: "Controleer de ingevulde gegevens.",
+    INTERNAL_ERROR: "Er ging iets mis. Je gegevens en productprijzen zijn niet stil aangepast.",
+  };
+  return messages[code] || `De actie kon niet worden afgerond (${code}).`;
+}

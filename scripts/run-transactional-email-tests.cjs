@@ -6,6 +6,7 @@ const nodeOptions = [inheritedOptions, "--conditions=react-server"].filter(Boole
 const testFiles = [
   "tests/aftersales-test-sample.test.ts",
   "tests/test-order-confirmation-delivery.test.ts",
+  "tests/merchant-order-notification.test.ts",
   "tests/transactional-email-provider.test.ts",
   "tests/transactional-email-log.integration.test.ts",
   "tests/mailchimp-transactional-webhook.test.ts",

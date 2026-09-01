@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PriceMonitorWorkspace } from "../components/admin-panel/price-monitor/PriceMonitorWorkspace";
 import type { PriceMonitorDashboard } from "../lib/price-monitor/types";
 import type { PriceMonitorApexScanSummary } from "../lib/price-monitor/types";
+import type { PriceMonitorApexScriptInfo } from "../lib/price-monitor/types";
 
 const source = readFileSync(
   join(process.cwd(), "components/admin-panel/price-monitor/PriceMonitorWorkspace.tsx"),
@@ -88,26 +89,47 @@ const apexScan: PriceMonitorApexScanSummary = {
   ],
 };
 
-test("non-technical onboarding and both connected scrapers render on first visit", () => {
-  const html = renderToStaticMarkup(<PriceMonitorWorkspace initialDashboard={dashboard} initialApexScan={apexScan} canWrite />);
+const apexScript: PriceMonitorApexScriptInfo = {
+  filename: "app/admin/(dashboard)/prijsmonitor/apex.py",
+  content: "SITES = ['basboernoten.nl']\n",
+  sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+};
+
+test("non-technical onboarding and the bounded APEX runner render on first visit", () => {
+  const html = renderToStaticMarkup(<PriceMonitorWorkspace initialDashboard={dashboard} initialApexScan={apexScan} initialApexScript={apexScript} canWrite />);
   assert.match(html, /Prijsmonitor/);
   assert.match(html, /Zo werkt de prijsmonitor/);
   for (const step of [
-    "Kies de winkels",
-    "Start de prijsronde",
+    "Kies de webshop",
+    "Download de scraper",
+    "Voer hem lokaal uit",
+    "Laat het resultaat inladen",
     "Wij maken prijzen vergelijkbaar",
     "Controleer wat niet duidelijk is",
     "Bekijk opvallende verschillen",
     "Bekijk het prijsvoorstel",
     "Pas aan en bevestig",
-    "Download of ontvang een rapport",
   ]) assert.match(html, new RegExp(step));
-  assert.match(html, /Noten\.nl/);
-  assert.match(html, /Bas Boer Noten/);
-  assert.match(html, /De begrensde Bas Boer-koppeling staat klaar/);
+  assert.match(html, /APEX scraper/);
+  assert.match(html, /Alle webshops zitten al in APEX/);
+  assert.match(html, /Gratis lokaal uitvoeren/);
+  assert.match(html, /Download apex\.py/);
+  assert.match(html, /Maak automatische opdracht/);
+  assert.match(html, /0 scrapingkosten/);
+  assert.match(html, /Toon scraperbestand/);
+  assert.match(html, /basboernoten\.nl/);
+  assert.match(html, /Controlecode: 0123456789ab/);
   assert.match(html, /Eerste APEX-scan ingelezen/);
   assert.match(html, /900 producten en 1\.419 prijsregels/);
   assert.match(html, /Er is geen live prijs aangepast/);
+  assert.match(html, /Welke verbeteringen APEX nog nodig heeft/);
+  assert.match(html, /prijs en de prijs van de concurrent omgerekend naar dezelfde eenheid/);
+  assert.ok(
+    html.indexOf("Nog niet gebruiken voor een prijsactie") > html.indexOf("APEX scraper"),
+    "de waarschuwing hoort onderaan na de APEX-sectie te staan"
+  );
+  assert.doesNotMatch(html, /Iedere webshop heeft een eigen koppeling/);
+  assert.doesNotMatch(html, /Start proefronde/);
   assert.doesNotMatch(html, /Script nog koppelen/);
 });
 
@@ -127,6 +149,15 @@ test("workspace keeps mobile cards, desktop tables, large controls and export ch
   assert.match(source, /setTab\("overview"\)/);
   assert.match(source, /Scraperresultaat/);
   assert.match(source, /\/api\/admin\/price-monitor\/apex-scan/);
+  assert.match(source, /\/api\/admin\/price-monitor\/apex-local/);
+  assert.doesNotMatch(source, /\/api\/admin\/price-monitor\/apex-runs/);
+  assert.match(source, /readLocalApexResult/);
+  assert.match(source, /navigator\.clipboard/);
   assert.match(source, /Nog niet gebruiken voor een prijsactie/);
-  assert.match(source, /een volgende automatische APEX-run is nog niet aan de adminactie gekoppeld/);
+  assert.match(source, /een nieuwe begrensde ronde start je met de APEX scraper/);
+  assert.match(source, /Maak automatische opdracht/);
+  assert.match(source, /VERVANGEN_DOOR_NIEUWSTE_METING|Nieuwste meetstand/);
+  assert.match(source, /Er ontstaat nooit automatisch een prijsactie/);
+  assert.doesNotMatch(source, /Iedere webshop heeft een eigen koppeling/);
+  assert.doesNotMatch(source, /Start proefronde/);
 });

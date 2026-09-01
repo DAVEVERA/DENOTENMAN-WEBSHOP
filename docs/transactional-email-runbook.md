@@ -14,6 +14,7 @@ De afzender wordt bepaald door:
 - `MAIL_FROM_NAME` (standaard `De Notenman`)
 - `MAIL_FROM_EMAIL` (standaard `bestellingen@denotenman.com`)
 - `MAIL_REPLY_TO` (optioneel)
+- `ORDER_NOTIFICATION_EMAIL` (optioneel; standaard `info@denotenman.com`)
 
 ## Resend DNS voor denotenman.com
 
@@ -54,6 +55,7 @@ gcloud run services update denotenman-webshop `
 - Bestel- en verzendmails gebruiken altijd het actuele `Order.contactEmail` uit de database.
 - Een afwijkende ontvanger wordt vóór verzending geblokkeerd met `RECIPIENT_MISMATCH`.
 - Iedere mail heeft een unieke idempotentiesleutel.
+- Fedor ontvangt alleen `NEW_ORDER_NOTIFICATION`: precies eenmaal nadat Mollie de eerste betaalde status heeft bevestigd. Test-, verzend- en latere statuswijzigingen sturen deze interne mail niet opnieuw.
 - Iedere poging wordt apart vastgelegd in `EmailDeliveryAttempt`.
 - Onderwerp, HTML en tekst worden als verzendsnapshot opgeslagen in `EmailDeliveryLog`.
 - `ACCEPTED` betekent dat de provider de mail heeft aangenomen; dit is niet hetzelfde als bewezen inboxaflevering.
