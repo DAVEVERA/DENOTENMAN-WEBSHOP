@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { isSameOriginMutation } from "@/lib/admin-request-security";
 import { recordAudit } from "@/lib/admin-audit";
-import { recordBusinessEvent } from "@/lib/business-portal";
+import { recordBusinessEvent, sendBusinessOrderListChangedEmail } from "@/lib/business-portal";
 import { businessOrderListItemInputSchema, resolveBusinessOrderListItems } from "@/lib/business-order-list-items";
 
 const inputSchema = z.object({
@@ -31,7 +31,10 @@ export async function PATCH(
   if (!parsed.success) return NextResponse.json({ error: "VALIDATION_ERROR", issues: parsed.error.flatten() }, { status: 400 });
 
   const { id, orderListId } = await context.params;
-  const existing = await prisma.businessOrderList.findFirst({ where: { id: orderListId, businessAccountId: id } });
+  const existing = await prisma.businessOrderList.findFirst({
+    where: { id: orderListId, businessAccountId: id },
+    include: { businessAccount: true },
+  });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   // PAID and CANCELLED lists are frozen: a paid list must match the invoice
@@ -107,7 +110,24 @@ export async function PATCH(
       return orderList;
     });
 
-    return NextResponse.json({ ok: true, orderList: updated, wasAlreadySent });
+    let emailWarning: string | undefined;
+    if (wasAlreadySent) {
+      try {
+        await sendBusinessOrderListChangedEmail({
+          orderListId,
+          version: updated.version,
+          title: updated.title,
+          items: updated.items,
+          totalCents: updated.totalCents,
+          account: existing.businessAccount,
+        });
+      } catch (error) {
+        console.error("Business order-list changed email failed", { orderListId, error });
+        emailWarning = "ORDER_LIST_CHANGED_EMAIL_FAILED";
+      }
+    }
+
+    return NextResponse.json({ ok: true, orderList: updated, wasAlreadySent, warning: emailWarning });
   } catch (error) {
     if (error instanceof VersionConflictError) {
       return NextResponse.json({ error: "VERSION_CONFLICT" }, { status: 409 });

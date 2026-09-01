@@ -1457,6 +1457,7 @@ model BusinessAccount {
   vatRegime            BusinessVatRegime     @default(STANDARD)
   vatRatePercent       Decimal               @default(9.00) @db.Decimal(5, 2)
   peppolConfigured     Boolean               @default(false)
+  peppolParticipantId  String?
   status               BusinessAccountStatus @default(PENDING)
   priceTier            String                @default("standard")
   notes                String?
@@ -1662,11 +1663,6 @@ model Quote {
   @@index([businessAccountId])
 }
 
-enum InvoiceRecipientType {
-  CUSTOMER
-  MERCHANT
-}
-
 enum InvoicePeppolStatus {
   NOT_APPLICABLE
   PENDING
@@ -1679,29 +1675,30 @@ model InvoiceCounter {
   lastNumber Int @default(0)
 }
 
+/**
+ * One invoice per paid business Order, emailed to both the customer and Fedor.
+ */
 model Invoice {
-  id                String               @id @default(cuid())
-  invoiceNumber     String               @unique
-  orderId           String
-  order             Order                @relation(fields: [orderId], references: [id])
-  recipientType     InvoiceRecipientType
-  businessAccountId String?
-  businessAccount   BusinessAccount?     @relation(fields: [businessAccountId], references: [id])
+  id                String              @id @default(cuid())
+  invoiceNumber     String              @unique
+  orderId           String              @unique
+  order             Order               @relation(fields: [orderId], references: [id])
+  businessAccountId String
+  businessAccount   BusinessAccount     @relation(fields: [businessAccountId], references: [id])
   subtotalCents     Int
-  vatRatePercent    Decimal              @db.Decimal(5, 2)
+  vatRatePercent    Decimal             @db.Decimal(5, 2)
   vatRegime         BusinessVatRegime
   vatAmountCents    Int
   totalCents        Int
-  currency          String               @default("EUR")
+  currency          String              @default("EUR")
   invoiceNote       String?
-  pdfStorageKey     String?
-  peppolStatus      InvoicePeppolStatus  @default(NOT_APPLICABLE)
+  pdfBase64         String?             @db.Text
+  peppolStatus      InvoicePeppolStatus @default(NOT_APPLICABLE)
   peppolMessageId   String?
   peppolSentAt      DateTime?
   peppolError       String?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
-  @@index([orderId])
   @@index([businessAccountId])
 }

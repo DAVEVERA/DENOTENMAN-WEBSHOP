@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, LogOut, PackageCheck } from "lucide-react";
+import { CreditCard, Download, LogOut, PackageCheck, Send, Clock } from "lucide-react";
 import { formatPrice } from "@/lib/format";
+import { calculateVat } from "@/lib/business-vat";
 
 type PortalItem = { id: string; productName: string; variantLabel: string | null; sku: string | null; quantity: number; unitPriceCents: number };
 type PortalNote = { id: string; actorType: string; authorName: string; text: string; createdAt: string };
@@ -31,7 +32,16 @@ const STATUS: Record<string, string> = {
   CANCELLED: "Geannuleerd",
 };
 
-export function BusinessPortalClient({ locale, account, initialOrderLists }: { locale: string; account: { companyName: string; contactName: string }; initialOrderLists: PortalList[] }) {
+type PortalAccount = {
+  companyName: string;
+  contactName: string;
+  country: string;
+  vatRegime: string;
+  vatRatePercent: number;
+  peppolConfigured: boolean;
+};
+
+export function BusinessPortalClient({ locale, account, initialOrderLists }: { locale: string; account: PortalAccount; initialOrderLists: PortalList[] }) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
@@ -69,17 +79,19 @@ export function BusinessPortalClient({ locale, account, initialOrderLists }: { l
           <p className="mt-1 text-body-sm text-muted">Zodra Fedor een voorstel verstuurt, verschijnt het hier automatisch.</p>
         </div>
       ) : (
-        <div className="mt-8 grid gap-6">{initialOrderLists.map((list) => <OrderListReview key={list.id} list={list} />)}</div>
+        <div className="mt-8 grid gap-6">{initialOrderLists.map((list) => <OrderListReview key={list.id} list={list} account={account} />)}</div>
       )}
     </main>
   );
 }
 
-function OrderListReview({ list }: { list: PortalList }) {
+function OrderListReview({ list, account }: { list: PortalList; account: PortalAccount }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const expired = list.validUntil ? new Date(list.validUntil).getTime() <= Date.now() : false;
   const payable = list.status === "SENT" && !expired;
+  const { vatAmountCents, totalCents: payableTotalCents } = calculateVat(list.totalCents, account.vatRatePercent);
+  const isReverseCharge = account.vatRegime === "REVERSE_CHARGE";
 
   async function startCheckout() {
     setBusy(true);
@@ -132,14 +144,24 @@ function OrderListReview({ list }: { list: PortalList }) {
             </li>
           ))}
         </ul>
-        <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-          <span className="font-heading font-bold text-text">Totaal</span>
-          <span className="font-heading text-heading-sm text-text">{formatPrice(list.totalCents, "nl")}</span>
+        <div className="mt-5 space-y-1 border-t border-border pt-4 text-body-sm">
+          <div className="flex items-center justify-between text-muted">
+            <span>Subtotaal (excl. BTW)</span>
+            <span>{formatPrice(list.totalCents, "nl")}</span>
+          </div>
+          <div className="flex items-center justify-between text-muted">
+            <span>{isReverseCharge ? "BTW verlegd" : `BTW (${account.vatRatePercent}%)`}</span>
+            <span>{formatPrice(vatAmountCents, "nl")}</span>
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <span className="font-heading font-bold text-text">Te betalen</span>
+            <span className="font-heading text-heading-sm text-text">{formatPrice(payableTotalCents, "nl")}</span>
+          </div>
         </div>
 
         {payable ? (
           <button type="button" disabled={busy} onClick={startCheckout} className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-button bg-accent px-5 font-heading font-bold text-contrast shadow-button disabled:opacity-60">
-            <CreditCard className="h-5 w-5" aria-hidden="true" /> {busy ? "Bezig…" : `Nu afrekenen — ${formatPrice(list.totalCents, "nl")}`}
+            <CreditCard className="h-5 w-5" aria-hidden="true" /> {busy ? "Bezig…" : `Nu afrekenen — ${formatPrice(payableTotalCents, "nl")}`}
           </button>
         ) : null}
         {list.status === "SENT" && expired ? (
@@ -148,11 +170,7 @@ function OrderListReview({ list }: { list: PortalList }) {
         {list.status === "CANCELLED" ? (
           <p className="mt-6 rounded-card bg-background p-4 text-body-sm text-muted">Deze bestellijst is geannuleerd.</p>
         ) : null}
-        {list.status === "PAID" ? (
-          <p className="mt-6 rounded-card bg-green-50 p-4 text-body-sm font-semibold text-green-800">
-            Betaald{list.paidAt ? ` op ${formatDate(list.paidAt)}` : ""}. De factuur volgt per e-mail.
-          </p>
-        ) : null}
+        {list.status === "PAID" ? <InvoiceSection list={list} account={account} /> : null}
         {error ? <p role="alert" className="mt-4 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">{error}</p> : null}
 
         {list.notes.length > 0 ? (
@@ -170,6 +188,63 @@ function OrderListReview({ list }: { list: PortalList }) {
         ) : null}
       </div>
     </article>
+  );
+}
+
+function InvoiceSection({ list, account }: { list: PortalList; account: PortalAccount }) {
+  const [peppolBusy, setPeppolBusy] = useState(false);
+  const [peppolResult, setPeppolResult] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+
+  async function sendPeppol() {
+    setPeppolBusy(true);
+    setPeppolResult(null);
+    try {
+      const response = await fetch(`/api/business/order-lists/${list.id}/peppol`, { method: "POST" });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setPeppolResult({ type: "error", text: data?.error === "PEPPOL_NOT_CONFIGURED" ? "Peppol-verzending is nog niet actief voor dit account." : "Versturen naar Peppol is niet gelukt." });
+        return;
+      }
+      setPeppolResult({ type: "ok", text: "Factuur verstuurd naar je Peppol-omgeving." });
+    } catch {
+      setPeppolResult({ type: "error", text: "De verbinding viel weg. Probeer het opnieuw." });
+    } finally {
+      setPeppolBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-6 rounded-card border border-border bg-background p-4 sm:p-5">
+      <div className="flex items-center gap-2">
+        <PackageCheck className="h-5 w-5 text-accent-ink" aria-hidden="true" />
+        <h3 className="font-heading font-bold text-text">Factuur</h3>
+      </div>
+      <p className="mt-1 text-body-sm text-muted">Betaald{list.paidAt ? ` op ${formatDate(list.paidAt)}` : ""}.</p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <a
+          href={`/api/business/order-lists/${list.id}/invoice`}
+          className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text hover:border-border-hover"
+        >
+          <Download className="h-4 w-4" aria-hidden="true" /> Factuur downloaden (PDF)
+        </a>
+        {account.country === "BE" ? (
+          account.peppolConfigured ? (
+            <button type="button" disabled={peppolBusy} onClick={sendPeppol} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-accent bg-surface px-4 font-heading text-body-sm font-bold text-accent-hover disabled:opacity-60">
+              <Send className="h-4 w-4" aria-hidden="true" /> {peppolBusy ? "Bezig…" : "Verstuur via Peppol"}
+            </button>
+          ) : (
+            <span title="Peppol-verzending wordt binnenkort beschikbaar" className="inline-flex min-h-11 items-center gap-2 rounded-button border border-dashed border-border px-4 font-heading text-body-sm font-semibold text-muted">
+              <Clock className="h-4 w-4" aria-hidden="true" /> Peppol-verzending — binnenkort beschikbaar
+            </span>
+          )
+        ) : null}
+      </div>
+      {peppolResult ? (
+        <p role={peppolResult.type === "error" ? "alert" : "status"} className={`mt-3 text-body-sm font-semibold ${peppolResult.type === "error" ? "text-red-700" : "text-green-700"}`}>
+          {peppolResult.text}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

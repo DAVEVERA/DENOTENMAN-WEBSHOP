@@ -22,7 +22,7 @@ export async function PATCH(
   const { id, orderListId } = await context.params;
   let existing = await prisma.businessOrderList.findFirst({
     where: { id: orderListId, businessAccountId: id },
-    include: { businessAccount: true },
+    include: { businessAccount: true, items: { orderBy: { sortOrder: "asc" } } },
   });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
@@ -54,7 +54,7 @@ export async function PATCH(
     });
     existing = await prisma.businessOrderList.findFirst({
       where: { id: orderListId, businessAccountId: id },
-      include: { businessAccount: true },
+      include: { businessAccount: true, items: { orderBy: { sortOrder: "asc" } } },
     });
     if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   }
@@ -149,7 +149,15 @@ export async function PATCH(
 
     let delivery;
     try {
-      delivery = await sendBusinessOrderListEmail({ orderListId, version: updated.version, title: existing.title, account: existing.businessAccount });
+      delivery = await sendBusinessOrderListEmail({
+        orderListId,
+        version: updated.version,
+        title: existing.title,
+        validUntil: existing.validUntil,
+        items: existing.items,
+        totalCents: existing.totalCents,
+        account: existing.businessAccount,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Onbekende verzendfout";
       await prisma.businessOrderList.updateMany({

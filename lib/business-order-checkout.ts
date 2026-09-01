@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getMollieClient } from "@/lib/mollie";
 import { BASE_URL } from "@/lib/routes";
 import { businessOrderListIsExpired } from "@/lib/business-portal-contract";
+import { calculateVat } from "@/lib/business-vat";
 import { recordBusinessEvent } from "@/lib/business-portal";
 import type { BusinessAccount, BusinessOrderListItem, Prisma } from "@prisma/client";
 
@@ -103,7 +104,11 @@ export async function createBusinessOrderListCheckout(
     }
   }
 
+  // orderList.totalCents is the sum of Fedor's line prices, which are always
+  // excl. BTW — the customer must actually pay that plus VAT (or the same
+  // amount at 0% for a BE reverse-charge account).
   const subtotalCents = orderList.totalCents;
+  const { totalCents } = calculateVat(subtotalCents, Number(account.vatRatePercent));
   const itemsData = orderList.items.map(businessOrderItemData);
 
   const order = existingOrder
@@ -114,7 +119,7 @@ export async function createBusinessOrderListCheckout(
           data: {
             status: "PENDING",
             subtotalCents,
-            totalCents: subtotalCents,
+            totalCents,
             molliePaymentId: null,
             paidAt: null,
             items: { create: itemsData },
@@ -129,7 +134,7 @@ export async function createBusinessOrderListCheckout(
           locale: "nl",
           currency: "EUR",
           subtotalCents,
-          totalCents: subtotalCents,
+          totalCents,
           contactName: account.contactName,
           contactEmail: account.email,
           deliveryMethod: "SHIPPING",
@@ -142,7 +147,7 @@ export async function createBusinessOrderListCheckout(
   const isPubliclyReachable = /^https:\/\//.test(BASE_URL);
   try {
     const payment = await getMollieClient().payments.create({
-      amount: { currency: "EUR", value: (subtotalCents / 100).toFixed(2) },
+      amount: { currency: "EUR", value: (totalCents / 100).toFixed(2) },
       description: `Zakelijke bestelling ${account.companyName} - De Notenman`,
       redirectUrl: `${BASE_URL}/nl/zakelijk`,
       ...(isPubliclyReachable ? { webhookUrl: `${BASE_URL}/api/webhooks/mollie` } : {}),

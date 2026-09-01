@@ -21,6 +21,7 @@ import {
 } from "@/lib/aftersales/service";
 import { getPickupLocation } from "@/lib/pickup-locations";
 import { markBusinessOrderListPaid } from "@/lib/business-order-checkout";
+import { generateAndSendBusinessInvoice } from "@/lib/business-invoice";
 import {
   evaluateCheckoutDiscount,
   hasDiscountCode,
@@ -567,6 +568,13 @@ export async function syncOrderPaymentStatus(
     } catch (error) {
       console.error(`Failed to send order confirmation email for order ${order.id}`, error);
       if (options.failOnAftersalesError) throw error;
+    }
+  } else if (transition.count === 1 && nextStatus === "PAID" && isBusinessOrder && order.businessOrderListId) {
+    try {
+      await generateAndSendBusinessInvoice(transition.updated, order.businessOrderListId);
+    } catch (error) {
+      console.error(`Failed to generate/send business invoice for order ${order.id}`, error);
+      if (options.failOnAftersalesError) throw error instanceof Error ? error : new Error(String(error));
     }
   }
 

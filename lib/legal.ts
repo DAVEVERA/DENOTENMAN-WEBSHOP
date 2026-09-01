@@ -5,6 +5,7 @@ export const LEGAL_IDENTITY = {
   businessDescription: "Ambulante handel in noten en zuidvruchten.",
   registrationNumber: "75797003",
   establishmentNumber: "000043648762",
+  vatNumber: "NL005289527B87",
   sbiRegistrations: [
     {
       source: "SBI (KVK)",

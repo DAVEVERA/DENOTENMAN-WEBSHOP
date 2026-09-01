@@ -75,6 +75,7 @@ export function BusinessAccountEditForm({
   currentCountry,
   currentVatRegime,
   currentVatRatePercent,
+  currentPeppolParticipantId,
 }: {
   businessAccountId: string;
   currentStatus: BusinessAccountStatus;
@@ -84,6 +85,7 @@ export function BusinessAccountEditForm({
   currentCountry: BusinessVatCountry;
   currentVatRegime: BusinessVatRegime;
   currentVatRatePercent: number;
+  currentPeppolParticipantId: string;
 }) {
   const router = useRouter();
 
@@ -103,13 +105,15 @@ export function BusinessAccountEditForm({
   const [country, setCountry] = useState<BusinessVatCountry>(currentCountry);
   const [vatRegime, setVatRegime] = useState<BusinessVatRegime>(currentVatRegime);
   const [vatRatePercent, setVatRatePercent] = useState(currentVatRatePercent);
+  const [peppolParticipantId, setPeppolParticipantId] = useState(currentPeppolParticipantId);
   const [taxState, setTaxState] = useState<SaveState>("idle");
   const [taxError, setTaxError] = useState<string | null>(null);
   const taxUnchanged =
     kvkNumber === currentKvkNumber &&
     country === currentCountry &&
     vatRegime === currentVatRegime &&
-    vatRatePercent === currentVatRatePercent;
+    vatRatePercent === currentVatRatePercent &&
+    peppolParticipantId === currentPeppolParticipantId;
 
   function handleCountryChange(next: BusinessVatCountry) {
     setCountry(next);
@@ -130,6 +134,7 @@ export function BusinessAccountEditForm({
         country,
         vatRegime,
         vatRatePercent,
+        peppolParticipantId: peppolParticipantId.trim().length > 0 ? peppolParticipantId.trim() : null,
       });
       setTaxState("saved");
       router.refresh();
@@ -320,6 +325,25 @@ export function BusinessAccountEditForm({
                 <>BTW verlegd is ongebruikelijk voor een Nederlandse klant. Controleer of dit klopt.</>
               )}
             </p>
+          ) : null}
+
+          {country === "BE" ? (
+            <label className="block text-body-sm font-semibold text-text">
+              Peppol-ID (ondernemingsnummer of participant-ID)
+              <input
+                value={peppolParticipantId}
+                onChange={(event) => {
+                  setPeppolParticipantId(event.target.value);
+                  setTaxState("idle");
+                }}
+                placeholder="Bijv. 0208:0123456789"
+                className="mt-1 min-h-12 w-full rounded-button border border-border bg-surface px-3 text-body-md text-text focus:border-accent focus:outline-none"
+              />
+              <span className="mt-1 block text-xs font-normal text-muted">
+                Nodig om facturen automatisch naar de Peppol-omgeving van deze klant te versturen. Leeg laten
+                zolang dit nog niet bekend is.
+              </span>
+            </label>
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
