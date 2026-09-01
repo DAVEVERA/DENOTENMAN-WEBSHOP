@@ -7,6 +7,7 @@ import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
 import { isSameOriginMutation } from "@/lib/admin-request-security";
 import { recordBusinessEvent } from "@/lib/business-portal";
+import { resolveVat } from "@/lib/business-vat";
 
 const businessAccountInputSchema = z
   .object({
@@ -15,6 +16,10 @@ const businessAccountInputSchema = z
     email: z.string().trim().email("valid email required"),
     phone: z.string().trim().nullable().optional(),
     vatNumber: z.string().trim().nullable().optional(),
+    kvkNumber: z.string().trim().nullable().optional(),
+    country: z.enum(["NL", "BE"]).optional(),
+    vatRegime: z.enum(["STANDARD", "REVERSE_CHARGE"]).optional(),
+    vatRatePercent: z.coerce.number().min(0).max(100).optional(),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "SUSPENDED"]).optional(),
     priceTier: z.string().trim().min(1).optional(),
     notes: z.string().trim().nullable().optional(),
@@ -48,6 +53,8 @@ export async function POST(request: NextRequest) {
   }
 
   const input = parsed.data;
+  const country = input.country ?? "NL";
+  const vatDefaults = resolveVat(country);
 
   try {
     const created = await prisma.$transaction(async (tx) => {
@@ -58,6 +65,10 @@ export async function POST(request: NextRequest) {
           email: input.email.toLowerCase(),
           phone: input.phone?.trim() ? input.phone.trim() : null,
           vatNumber: input.vatNumber?.trim() ? input.vatNumber.trim() : null,
+          kvkNumber: input.kvkNumber?.trim() ? input.kvkNumber.trim() : null,
+          country,
+          vatRegime: input.vatRegime ?? vatDefaults.regime,
+          vatRatePercent: input.vatRatePercent ?? vatDefaults.ratePercent,
           status: input.status ?? "PENDING",
           priceTier: input.priceTier ?? "standard",
           notes: input.notes?.trim() ? input.notes.trim() : null,

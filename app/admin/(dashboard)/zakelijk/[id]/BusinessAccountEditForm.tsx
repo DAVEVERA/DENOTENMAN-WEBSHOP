@@ -2,8 +2,9 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { BusinessAccountStatus } from "@prisma/client";
+import type { BusinessAccountStatus, BusinessVatRegime } from "@prisma/client";
 import { cn } from "@/lib/cn";
+import { resolveVat, type BusinessVatCountry } from "@/lib/business-vat";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -70,11 +71,19 @@ export function BusinessAccountEditForm({
   currentStatus,
   currentPriceTier,
   initialNotes,
+  currentKvkNumber,
+  currentCountry,
+  currentVatRegime,
+  currentVatRatePercent,
 }: {
   businessAccountId: string;
   currentStatus: BusinessAccountStatus;
   currentPriceTier: string;
   initialNotes: string;
+  currentKvkNumber: string;
+  currentCountry: BusinessVatCountry;
+  currentVatRegime: BusinessVatRegime;
+  currentVatRatePercent: number;
 }) {
   const router = useRouter();
 
@@ -89,6 +98,46 @@ export function BusinessAccountEditForm({
   const [notes, setNotes] = useState(initialNotes);
   const [notesState, setNotesState] = useState<SaveState>("idle");
   const [notesError, setNotesError] = useState<string | null>(null);
+
+  const [kvkNumber, setKvkNumber] = useState(currentKvkNumber);
+  const [country, setCountry] = useState<BusinessVatCountry>(currentCountry);
+  const [vatRegime, setVatRegime] = useState<BusinessVatRegime>(currentVatRegime);
+  const [vatRatePercent, setVatRatePercent] = useState(currentVatRatePercent);
+  const [taxState, setTaxState] = useState<SaveState>("idle");
+  const [taxError, setTaxError] = useState<string | null>(null);
+  const taxUnchanged =
+    kvkNumber === currentKvkNumber &&
+    country === currentCountry &&
+    vatRegime === currentVatRegime &&
+    vatRatePercent === currentVatRatePercent;
+
+  function handleCountryChange(next: BusinessVatCountry) {
+    setCountry(next);
+    const suggestion = resolveVat(next);
+    setVatRegime(suggestion.regime);
+    setVatRatePercent(suggestion.ratePercent);
+    setTaxState("idle");
+  }
+
+  async function handleTaxSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setTaxState("saving");
+    setTaxError(null);
+
+    try {
+      await patchBusinessAccount(businessAccountId, {
+        kvkNumber: kvkNumber.trim().length > 0 ? kvkNumber.trim() : null,
+        country,
+        vatRegime,
+        vatRatePercent,
+      });
+      setTaxState("saved");
+      router.refresh();
+    } catch (error) {
+      setTaxState("error");
+      setTaxError(error instanceof Error ? error.message : "Onbekende fout");
+    }
+  }
 
   async function handleStatusChange(status: BusinessAccountStatus, confirmMessage: string) {
     if (!window.confirm(confirmMessage)) return;
@@ -190,6 +239,100 @@ export function BusinessAccountEditForm({
           </button>
           {priceTierState === "saved" && <span className="text-body-sm text-green-700">Opgeslagen</span>}
           {priceTierState === "error" && <span className="text-body-sm text-red-600">{priceTierError}</span>}
+        </form>
+      </div>
+
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-ink">Facturatie</p>
+        <h2 className="mt-1 font-heading text-heading-sm text-text">Bedrijfsgegevens &amp; BTW</h2>
+        <form onSubmit={handleTaxSubmit} className="mt-3 space-y-4 rounded-card bg-background p-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-body-sm font-semibold text-text">
+              KVK-nummer
+              <input
+                value={kvkNumber}
+                onChange={(event) => {
+                  setKvkNumber(event.target.value);
+                  setTaxState("idle");
+                }}
+                placeholder="Bijv. 12345678"
+                className="mt-1 min-h-12 w-full rounded-button border border-border bg-surface px-3 text-body-md text-text focus:border-accent focus:outline-none"
+              />
+            </label>
+            <label className="block text-body-sm font-semibold text-text">
+              Land
+              <select
+                value={country}
+                onChange={(event) => handleCountryChange(event.target.value as BusinessVatCountry)}
+                className="mt-1 min-h-12 w-full rounded-button border border-border bg-surface px-3 text-body-md text-text focus:border-accent focus:outline-none"
+              >
+                <option value="NL">Nederland</option>
+                <option value="BE">België</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+            <label className="block text-body-sm font-semibold text-text">
+              BTW-percentage
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={vatRatePercent}
+                onChange={(event) => {
+                  setVatRatePercent(Number(event.target.value));
+                  setTaxState("idle");
+                }}
+                className="mt-1 min-h-12 w-full rounded-button border border-border bg-surface px-3 text-body-md text-text focus:border-accent focus:outline-none"
+              />
+            </label>
+            <label className="block text-body-sm font-semibold text-text">
+              BTW-regeling
+              <select
+                value={vatRegime}
+                onChange={(event) => {
+                  setVatRegime(event.target.value as BusinessVatRegime);
+                  setTaxState("idle");
+                }}
+                className="mt-1 min-h-12 w-full rounded-button border border-border bg-surface px-3 text-body-md text-text focus:border-accent focus:outline-none"
+              >
+                <option value="STANDARD">Standaard</option>
+                <option value="REVERSE_CHARGE">BTW verlegd</option>
+              </select>
+            </label>
+          </div>
+
+          {vatRegime === "REVERSE_CHARGE" ? (
+            <p
+              className={cn(
+                "rounded-card p-3 text-body-sm",
+                country === "BE" ? "bg-[#FFF9DA] text-accent-ink" : "bg-amber-50 text-amber-900"
+              )}
+            >
+              {country === "BE" ? (
+                <>
+                  <strong>BTW verlegd</strong> — op facturen aan dit account wordt 0% BTW berekend. De klant
+                  voldoet de BTW zelf via de eigen aangifte.
+                </>
+              ) : (
+                <>BTW verlegd is ongebruikelijk voor een Nederlandse klant. Controleer of dit klopt.</>
+              )}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={taxState === "saving" || taxUnchanged}
+              className="inline-flex items-center justify-center rounded-button border border-accent bg-accent px-4 py-2 font-heading text-body-sm font-semibold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {taxState === "saving" ? "Opslaan…" : "Opslaan"}
+            </button>
+            {taxState === "saved" && <span className="text-body-sm text-green-700">Opgeslagen</span>}
+            {taxState === "error" && <span className="text-body-sm text-red-600">{taxError}</span>}
+          </div>
         </form>
       </div>
 

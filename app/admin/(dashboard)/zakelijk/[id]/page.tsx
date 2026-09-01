@@ -116,6 +116,10 @@ export default async function ZakelijkDetailPage({
               currentStatus={businessAccount.status}
               currentPriceTier={businessAccount.priceTier}
               initialNotes={businessAccount.notes ?? ""}
+              currentKvkNumber={businessAccount.kvkNumber ?? ""}
+              currentCountry={businessAccount.country === "BE" ? "BE" : "NL"}
+              currentVatRegime={businessAccount.vatRegime}
+              currentVatRatePercent={Number(businessAccount.vatRatePercent)}
             />
           </div>
 
@@ -224,7 +228,7 @@ export default async function ZakelijkDetailPage({
 
         <div className="space-y-6">
           <div className="rounded-panel border border-border bg-surface p-5">
-            <h2 className="font-heading text-heading-sm text-text">Bedrijfsgegevens</h2>
+            <h2 className="font-heading text-heading-sm text-text">Contactgegevens</h2>
             <dl className="mt-3 space-y-2 text-body-sm">
               <div>
                 <dt className="text-muted">Contactpersoon</dt>
@@ -245,6 +249,43 @@ export default async function ZakelijkDetailPage({
               <div>
                 <dt className="text-muted">Aangemaakt op</dt>
                 <dd className="text-text">{formatDateTime(businessAccount.createdAt)}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="rounded-panel border border-border bg-surface p-5">
+            <h2 className="font-heading text-heading-sm text-text">Bedrijfsgegevens &amp; BTW</h2>
+            <dl className="mt-3 space-y-2 text-body-sm">
+              <div>
+                <dt className="text-muted">KVK-nummer</dt>
+                <dd className="text-text">{businessAccount.kvkNumber ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">BTW-nummer</dt>
+                <dd className="text-text">{businessAccount.vatNumber ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Land</dt>
+                <dd className="text-text">{businessAccount.country === "BE" ? "België" : "Nederland"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">BTW-percentage</dt>
+                <dd className="text-text">{Number(businessAccount.vatRatePercent)}%</dd>
+              </div>
+              <div>
+                <dt className="text-muted">BTW-regeling</dt>
+                <dd>
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-button px-2 py-1 text-xs font-semibold",
+                      businessAccount.vatRegime === "REVERSE_CHARGE"
+                        ? "bg-amber-100 text-amber-900"
+                        : "bg-border text-muted"
+                    )}
+                  >
+                    {businessAccount.vatRegime === "REVERSE_CHARGE" ? "BTW verlegd" : "Standaard"}
+                  </span>
+                </dd>
               </div>
             </dl>
           </div>
