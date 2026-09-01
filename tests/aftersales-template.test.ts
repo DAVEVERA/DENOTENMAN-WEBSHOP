@@ -16,6 +16,7 @@ const order = {
     id: "item-1",
     orderId: "order-123",
     variantId: "variant-1",
+    sku: null,
     productName: "Cashews & amandelen",
     variantLabel: "500 gram",
     quantity: 2,

@@ -40,6 +40,7 @@ const testOrder = {
       id: "test-item-1",
       orderId: "test-order-1",
       variantId: "test-variant-1",
+      sku: null,
       productName: "Testproduct",
       variantLabel: "250 gram",
       quantity: 2,

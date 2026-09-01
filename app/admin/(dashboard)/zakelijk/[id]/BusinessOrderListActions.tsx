@@ -10,7 +10,7 @@ export function BusinessOrderListActions({ accountId, orderListId, status, deliv
   const staleSending = deliveryStatus === "SENDING" && Date.now() - new Date(updatedAt).getTime() >= 5 * 60 * 1000;
   const canSend = status === "DRAFT" || status === "CHANGES_REQUESTED" || (status === "SENT" && (deliveryStatus === "FAILED" || staleSending));
   const canResolve = deliveryStatus === "UNKNOWN";
-  const canCancel = status !== "APPROVED" && status !== "CANCELLED" && !canResolve && deliveryStatus !== "SENDING";
+  const canCancel = status !== "APPROVED" && status !== "PAID" && status !== "CANCELLED" && !canResolve && deliveryStatus !== "SENDING";
   if (!canSend && !canCancel && !canResolve) return <p className="mt-3 text-body-sm font-semibold text-muted">Verzending wordt verwerkt. Ververs na vijf minuten als de status niet verandert.</p>;
 
   async function act(action: "SEND" | "CANCEL" | "CONFIRM_DELIVERED" | "CONFIRM_FAILED") {

@@ -864,8 +864,9 @@ model OrderItem {
   id             String            @id @default(cuid())
   orderId        String
   order          Order             @relation(fields: [orderId], references: [id])
-  variantId      String
-  variant        ProductVariant    @relation(fields: [variantId], references: [id])
+  variantId      String?
+  variant        ProductVariant?   @relation(fields: [variantId], references: [id])
+  sku            String?
   productName    String
   variantLabel   String
   quantity       Int

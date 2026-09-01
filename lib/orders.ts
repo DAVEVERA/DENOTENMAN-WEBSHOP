@@ -20,6 +20,7 @@ import {
   queueAftersalesEvent,
 } from "@/lib/aftersales/service";
 import { getPickupLocation } from "@/lib/pickup-locations";
+import { markBusinessOrderListPaid } from "@/lib/business-order-checkout";
 import {
   evaluateCheckoutDiscount,
   hasDiscountCode,
@@ -476,7 +477,7 @@ export async function syncOrderPaymentStatus(
   } = {}
 ): Promise<Order> {
   if (order.status === "PAID" || order.status === "FULFILLED") {
-    if (!order.isTest) {
+    if (!order.isTest && !order.businessOrderListId) {
       const results = await processPendingAftersalesForOrder(order.id);
       const failure = results.find((result) => result.status === "failed");
       if (failure?.status === "failed" && options.failOnAftersalesError) {
@@ -515,7 +516,8 @@ export async function syncOrderPaymentStatus(
     return order;
   }
 
-  const prepared = nextStatus === "PAID" && !order.isTest
+  const isBusinessOrder = Boolean(order.businessOrderListId);
+  const prepared = nextStatus === "PAID" && !order.isTest && !isBusinessOrder
     ? await prepareAftersalesEvent("ORDER_PAID")
     : null;
 
@@ -539,6 +541,9 @@ export async function syncOrderPaymentStatus(
             prepared
           )
         : null;
+    if (count === 1 && nextStatus === "PAID" && order.businessOrderListId) {
+      await markBusinessOrderListPaid(transaction, order.businessOrderListId);
+    }
     const updated = await transaction.order.findUniqueOrThrow({
       where: { id: order.id },
       include: { items: true },
@@ -546,7 +551,7 @@ export async function syncOrderPaymentStatus(
     return { count, queued, updated };
   });
 
-  if (transition.count === 1 && nextStatus === "PAID") {
+  if (transition.count === 1 && nextStatus === "PAID" && !isBusinessOrder) {
     try {
       if (transition.queued) {
         const result = await processAftersalesDelivery(transition.queued.deliveryId);
