@@ -74,6 +74,9 @@ enum EmailDeliveryKind {
   AFTERSALES_TEST
   BACK_IN_STOCK
   BUSINESS_ORDER_LIST
+  BUSINESS_INVITATION
+  BUSINESS_ORDER_LIST_CHANGED
+  BUSINESS_INVOICE
 }
 
 enum EmailDeliveryStatus {
@@ -361,6 +364,7 @@ model GoogleAdsConfiguration {
   status               GoogleAdsStatus @default(DRAFT)
   headlines            String[]        @default([])
   descriptions         String[]        @default([])
+  keywords             String[]        @default([])
   finalUrl             String?
   dailyBudgetMicros    Int?
   campaignResourceName String?
@@ -667,16 +671,18 @@ model ArticleTranslation {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  role      Role     @default(CUSTOMER)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String
+  role             Role     @default(CUSTOMER)
+  isActive         Boolean  @default(true)
+  isBusinessShadow Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  orders       Order[]
-  compositions Composition[]
+  orders                   Order[]
+  compositions             Composition[]
+  shadowForBusinessAccount BusinessAccount?
 }
 
 model Order {
@@ -710,6 +716,9 @@ model Order {
   molliePaymentId String?   @unique
   paidAt          DateTime?
 
+  businessOrderListId String?            @unique
+  businessOrderList   BusinessOrderList? @relation(fields: [businessOrderListId], references: [id])
+
   postnlTrackingCode    String?
   postnlLabelBase64     String?   @db.Text
   postnlLabelClaimToken String?
@@ -723,6 +732,7 @@ model Order {
   refunds              OrderRefund[]
   aftersalesDeliveries AftersalesDelivery[]
   emailDeliveryLogs    EmailDeliveryLog[]
+  invoices             Invoice[]
 
   @@index([userId])
   @@index([status])
@@ -1430,6 +1440,11 @@ enum BusinessAccountStatus {
   SUSPENDED
 }
 
+enum BusinessVatRegime {
+  STANDARD
+  REVERSE_CHARGE
+}
+
 model BusinessAccount {
   id                   String                @id @default(cuid())
   companyName          String
@@ -1437,10 +1452,17 @@ model BusinessAccount {
   email                String                @unique
   phone                String?
   vatNumber            String?
+  kvkNumber            String?
+  country              String                @default("NL")
+  vatRegime            BusinessVatRegime     @default(STANDARD)
+  vatRatePercent       Decimal               @default(9.00) @db.Decimal(5, 2)
+  peppolConfigured     Boolean               @default(false)
   status               BusinessAccountStatus @default(PENDING)
   priceTier            String                @default("standard")
   notes                String?
   loginLinkRequestedAt DateTime?
+  shadowUserId         String?               @unique
+  shadowUser           User?                 @relation(fields: [shadowUserId], references: [id])
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -1449,6 +1471,7 @@ model BusinessAccount {
   sessions    BusinessSession[]
   orderLists  BusinessOrderList[]
   events      BusinessEvent[]
+  invoices    Invoice[]
 }
 
 model BusinessLoginLinkRateLimit {
@@ -1465,6 +1488,7 @@ enum BusinessOrderListStatus {
   SENT
   CHANGES_REQUESTED
   APPROVED
+  PAID
   CANCELLED
 }
 
@@ -1481,11 +1505,19 @@ enum BusinessEventType {
   PORTAL_LOGIN
   ORDER_LIST_CREATED
   ORDER_LIST_SENT
+  ORDER_LIST_ITEMS_UPDATED
   ORDER_LIST_QUANTITIES_CHANGED
   ORDER_LIST_NOTE_ADDED
   ORDER_LIST_APPROVED
   ORDER_LIST_CHANGES_REQUESTED
   ORDER_LIST_CANCELLED
+  ORDER_LIST_DELETED
+  ORDER_LIST_CHECKOUT_STARTED
+  ORDER_LIST_PAID
+  INVOICE_GENERATED
+  INVOICE_SENT
+  INVOICE_PEPPOL_SENT
+  INVOICE_PEPPOL_FAILED
 }
 
 model BusinessInvitation {
@@ -1536,6 +1568,7 @@ model BusinessOrderList {
   deliveryStatus    String                  @default("NONE")
   providerMessageId String?
   deliveryError     String?
+  deletedAt         DateTime?
   createdByAdminId  String
   createdByAdmin    AdminUser               @relation("BusinessOrderListCreatedBy", fields: [createdByAdminId], references: [id], onDelete: Restrict)
   createdAt         DateTime                @default(now())
@@ -1544,6 +1577,7 @@ model BusinessOrderList {
   items  BusinessOrderListItem[]
   notes  BusinessOrderListNote[]
   events BusinessEvent[]
+  order  Order?
 
   @@index([businessAccountId, createdAt])
   @@index([status, updatedAt])
@@ -1625,5 +1659,49 @@ model Quote {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
+  @@index([businessAccountId])
+}
+
+enum InvoiceRecipientType {
+  CUSTOMER
+  MERCHANT
+}
+
+enum InvoicePeppolStatus {
+  NOT_APPLICABLE
+  PENDING
+  SENT
+  FAILED
+}
+
+model InvoiceCounter {
+  year       Int @id
+  lastNumber Int @default(0)
+}
+
+model Invoice {
+  id                String               @id @default(cuid())
+  invoiceNumber     String               @unique
+  orderId           String
+  order             Order                @relation(fields: [orderId], references: [id])
+  recipientType     InvoiceRecipientType
+  businessAccountId String?
+  businessAccount   BusinessAccount?     @relation(fields: [businessAccountId], references: [id])
+  subtotalCents     Int
+  vatRatePercent    Decimal              @db.Decimal(5, 2)
+  vatRegime         BusinessVatRegime
+  vatAmountCents    Int
+  totalCents        Int
+  currency          String               @default("EUR")
+  invoiceNote       String?
+  pdfStorageKey     String?
+  peppolStatus      InvoicePeppolStatus  @default(NOT_APPLICABLE)
+  peppolMessageId   String?
+  peppolSentAt      DateTime?
+  peppolError       String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([orderId])
   @@index([businessAccountId])
 }

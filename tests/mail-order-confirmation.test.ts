@@ -26,6 +26,7 @@ function baseOrder(overrides: Partial<Order> = {}): Order {
     shippingCity: "Uden",
     shippingCountry: "NL",
     molliePaymentId: null,
+    businessOrderListId: null,
     paidAt: new Date("2026-08-17T10:00:00.000Z"),
     postnlTrackingCode: null,
     postnlLabelBase64: null,

@@ -42,6 +42,7 @@ const ORDER_LIST_STATUS_LABELS: Record<BusinessOrderListStatus, string> = {
   SENT: "Wacht op klant",
   CHANGES_REQUESTED: "Klant heeft wijzigingen",
   APPROVED: "Goedgekeurd",
+  PAID: "Betaald",
   CANCELLED: "Geannuleerd",
 };
 
@@ -50,6 +51,7 @@ const ORDER_LIST_STATUS_CLASSES: Record<BusinessOrderListStatus, string> = {
   SENT: "bg-blue-50 text-blue-800",
   CHANGES_REQUESTED: "bg-amber-100 text-amber-900",
   APPROVED: "bg-green-50 text-green-800",
+  PAID: "bg-green-100 text-green-900",
   CANCELLED: "bg-red-50 text-red-700",
 };
 
