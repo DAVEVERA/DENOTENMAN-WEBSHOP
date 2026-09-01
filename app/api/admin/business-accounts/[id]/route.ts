@@ -15,6 +15,10 @@ const businessAccountPatchSchema = z
     email: z.string().trim().email().optional(),
     phone: z.string().trim().nullable().optional(),
     vatNumber: z.string().trim().nullable().optional(),
+    kvkNumber: z.string().trim().nullable().optional(),
+    country: z.enum(["NL", "BE"]).optional(),
+    vatRegime: z.enum(["STANDARD", "REVERSE_CHARGE"]).optional(),
+    vatRatePercent: z.coerce.number().min(0).max(100).optional(),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "SUSPENDED"]).optional(),
     priceTier: z.string().trim().min(1).optional(),
     notes: z.string().trim().nullable().optional(),
@@ -74,6 +78,10 @@ export async function PATCH(
     email?: string;
     phone?: string | null;
     vatNumber?: string | null;
+    kvkNumber?: string | null;
+    country?: "NL" | "BE";
+    vatRegime?: "STANDARD" | "REVERSE_CHARGE";
+    vatRatePercent?: number;
     status?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
     priceTier?: string;
     notes?: string | null;
@@ -84,6 +92,10 @@ export async function PATCH(
   if (input.email !== undefined) data.email = input.email.toLowerCase();
   if (input.phone !== undefined) data.phone = input.phone?.trim() ? input.phone.trim() : null;
   if (input.vatNumber !== undefined) data.vatNumber = input.vatNumber?.trim() ? input.vatNumber.trim() : null;
+  if (input.kvkNumber !== undefined) data.kvkNumber = input.kvkNumber?.trim() ? input.kvkNumber.trim() : null;
+  if (input.country !== undefined) data.country = input.country;
+  if (input.vatRegime !== undefined) data.vatRegime = input.vatRegime;
+  if (input.vatRatePercent !== undefined) data.vatRatePercent = input.vatRatePercent;
   if (input.status !== undefined) data.status = input.status;
   if (input.priceTier !== undefined) data.priceTier = input.priceTier;
   if (input.notes !== undefined) data.notes = input.notes?.trim() ? input.notes.trim() : null;
