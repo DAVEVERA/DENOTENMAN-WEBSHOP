@@ -26,6 +26,7 @@ const testOrder = {
   shippingCity: "Teststad",
   shippingCountry: "NL",
   molliePaymentId: null,
+  businessOrderListId: null,
   paidAt: new Date("2026-08-21T13:15:57.797Z"),
   postnlTrackingCode: null,
   postnlLabelBase64: null,

@@ -13,6 +13,9 @@ const KIND_LABELS: Record<EmailDeliveryKind, string> = {
   AFTERSALES_TEST: "Testmail",
   BACK_IN_STOCK: "Voorraadmelding",
   BUSINESS_ORDER_LIST: "Zakelijke bestellijst",
+  BUSINESS_INVITATION: "Uitnodiging zakelijke omgeving",
+  BUSINESS_ORDER_LIST_CHANGED: "Zakelijke bestellijst gewijzigd",
+  BUSINESS_INVOICE: "Zakelijke factuur",
 };
 
 const STATUS_LABELS: Record<EmailDeliveryStatus, string> = {
