@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   businessOrderListIsExpired,
   calculateBusinessOrderListTotal,
-  customerCanEditBusinessOrderList,
   hashBusinessToken,
 } from "../lib/business-portal-contract";
 
@@ -22,14 +21,6 @@ test("business totals are server calculated and bounded to PostgreSQL integer ra
   assert.throws(() => calculateBusinessOrderListTotal([{ quantity: 0, unitPriceCents: 100 }]), /INVALID_QUANTITY/);
 });
 
-test("customers can only mutate an active review state", () => {
-  assert.equal(customerCanEditBusinessOrderList("SENT"), true);
-  assert.equal(customerCanEditBusinessOrderList("CHANGES_REQUESTED"), true);
-  assert.equal(customerCanEditBusinessOrderList("DRAFT"), false);
-  assert.equal(customerCanEditBusinessOrderList("APPROVED"), false);
-  assert.equal(customerCanEditBusinessOrderList("CANCELLED"), false);
-});
-
 test("business order-list validity expires at the server deadline", () => {
   const now = new Date("2026-08-24T12:00:00.000Z");
   assert.equal(businessOrderListIsExpired(null, now), false);
@@ -38,22 +29,35 @@ test("business order-list validity expires at the server deadline", () => {
   assert.equal(businessOrderListIsExpired("2026-08-24T11:59:59.999Z", now), true);
 });
 
-test("portal routes enforce same-origin, tenant scoping and optimistic versions", async () => {
-  const [customerRoute, invitationRoute, sessionService, schema] = await Promise.all([
-    readFile("app/api/business/order-lists/[id]/route.ts", "utf8"),
+test("portal routes enforce same-origin and tenant scoping", async () => {
+  const [checkoutRoute, checkoutService, invitationRoute, sessionService, schema] = await Promise.all([
+    readFile("app/api/business/order-lists/[id]/checkout/route.ts", "utf8"),
+    readFile("lib/business-order-checkout.ts", "utf8"),
     readFile("app/api/business/auth/accept/route.ts", "utf8"),
     readFile("lib/business-portal.ts", "utf8"),
     readFile("prisma/schema.prisma", "utf8"),
   ]);
-  assert.match(customerRoute, /isSameOriginMutation/);
-  assert.match(customerRoute, /businessAccountId:\s*session\.businessAccountId/);
-  assert.match(customerRoute, /VERSION_CONFLICT/);
+  assert.match(checkoutRoute, /isSameOriginMutation/);
+  assert.match(checkoutRoute, /session\.businessAccountId/);
+  assert.match(checkoutService, /where:\s*{\s*id:\s*orderListId,\s*businessAccountId\s*}/);
   assert.match(invitationRoute, /httpOnly:\s*true/);
   assert.match(invitationRoute, /sameSite:\s*"lax"/);
   assert.match(sessionService, /tokenHash:\s*hashBusinessToken/);
   assert.match(schema, /model BusinessEvent/);
   assert.match(schema, /model BusinessEventRead/);
   assert.match(schema, /model BusinessOrderListItem/);
+});
+
+test("the customer can no longer mutate an order-list directly; only Fedor's admin routes can", async () => {
+  const [itemsRoute, adminRoute] = await Promise.all([
+    readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/items/route.ts", "utf8"),
+    readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/route.ts", "utf8"),
+  ]);
+  assert.match(itemsRoute, /admin\.role === "STAFF"/);
+  assert.match(itemsRoute, /VERSION_CONFLICT/);
+  assert.match(itemsRoute, /CHECKOUT_IN_PROGRESS/);
+  assert.match(adminRoute, /export async function DELETE/);
+  assert.match(adminRoute, /existing\.status !== "DRAFT"/);
 });
 
 test("business notification reads are isolated per admin and limited to displayed events", async () => {
@@ -106,19 +110,16 @@ test("admin send and cancel use an exclusive delivery claim", async () => {
   assert.match(adminRoute, /existing\.updatedAt\.getTime\(\)/);
 });
 
-test("every customer mutation is guarded by the server-side validity deadline", async () => {
-  const customerRoute = await readFile("app/api/business/order-lists/[id]/route.ts", "utf8");
-  assert.match(customerRoute, /ORDER_LIST_EXPIRED/);
-  assert.match(customerRoute, /ORDER_LIST_DELIVERY_IN_PROGRESS/);
-  assert.match(customerRoute, /status:\s*410/);
-  assert.ok((customerRoute.match(/validUntil:\s*\{ gt:\s*now \}/g) ?? []).length >= 3);
-  assert.ok((customerRoute.match(/deliveryStatus:\s*\{ not:\s*"SENDING" \}/g) ?? []).length >= 3);
-  assert.match(customerRoute, /throwCustomerMutationConflict/);
+test("the checkout endpoint is guarded by the server-side validity deadline", async () => {
+  const checkoutService = await readFile("lib/business-order-checkout.ts", "utf8");
+  assert.match(checkoutService, /businessOrderListIsExpired/);
+  assert.match(checkoutService, /ORDER_LIST_EXPIRED/);
+  assert.match(checkoutService, /ALREADY_PAID/);
 });
 
 test("admin date input means end of local day and expired lists cannot be created or sent", async () => {
   const [createForm, createRoute, transitionRoute] = await Promise.all([
-    readFile("app/admin/(dashboard)/zakelijk/[id]/bestellijsten/nieuw/BusinessOrderListCreateForm.tsx", "utf8"),
+    readFile("app/admin/(dashboard)/zakelijk/[id]/bestellijsten/BusinessOrderListForm.tsx", "utf8"),
     readFile("app/api/admin/business-accounts/[id]/order-lists/route.ts", "utf8"),
     readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/route.ts", "utf8"),
   ]);

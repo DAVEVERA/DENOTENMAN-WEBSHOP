@@ -200,7 +200,7 @@ export type ArticleDetailDto = ArticleSummaryDto & {
 };
 
 export type OrderItemDto = {
-  variantId: string;
+  variantId: string | null;
   quantity: number;
   unitPriceCents: number;
 };

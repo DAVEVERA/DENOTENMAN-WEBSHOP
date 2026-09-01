@@ -158,6 +158,13 @@ export default async function ZakelijkDetailPage({
                     </ul>
                     {orderList.notes.length > 0 ? <div className="mt-3 rounded-card bg-[#FFF9DA] p-3 text-body-sm"><strong className="text-text">Laatste notitie van {orderList.notes[0].authorName}</strong><p className="mt-1 whitespace-pre-wrap text-muted">{orderList.notes[0].text}</p></div> : null}
                     {orderList.deliveryStatus === "FAILED" ? <p className="mt-3 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">De klantmail is niet verzonden. Probeer opnieuw.</p> : null}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {orderList.status !== "PAID" && orderList.status !== "CANCELLED" ? (
+                        <Link href={`/admin/zakelijk/${businessAccount.id}/bestellijsten/${orderList.id}/bewerken`} className="inline-flex min-h-11 items-center rounded-button border border-border px-4 font-heading text-body-sm font-bold text-text">
+                          Bewerken
+                        </Link>
+                      ) : null}
+                    </div>
                     <BusinessOrderListActions accountId={businessAccount.id} orderListId={orderList.id} status={orderList.status} deliveryStatus={orderList.deliveryStatus} updatedAt={orderList.updatedAt.toISOString()} />
                   </article>
                 ))}

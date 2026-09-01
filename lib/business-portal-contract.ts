@@ -24,10 +24,6 @@ export function calculateBusinessOrderListTotal(
   return total;
 }
 
-export function customerCanEditBusinessOrderList(status: string): boolean {
-  return status === "SENT" || status === "CHANGES_REQUESTED";
-}
-
 export function businessOrderListIsExpired(
   validUntil: Date | string | null | undefined,
   now: Date = new Date()

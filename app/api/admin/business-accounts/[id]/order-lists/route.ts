@@ -5,16 +5,12 @@ import { getAdminSession } from "@/lib/admin-api-auth";
 import { isSameOriginMutation } from "@/lib/admin-request-security";
 import { recordBusinessEvent } from "@/lib/business-portal";
 import { recordAudit } from "@/lib/admin-audit";
-import { calculateBusinessOrderListTotal } from "@/lib/business-portal-contract";
+import { businessOrderListItemInputSchema, resolveBusinessOrderListItems } from "@/lib/business-order-list-items";
 
 const inputSchema = z.object({
   title: z.string().trim().min(1).max(160),
   validUntil: z.string().datetime().nullable().optional(),
-  items: z.array(z.object({
-    variantId: z.string().trim().min(1).max(100),
-    quantity: z.number().int().min(1).max(100_000),
-    unitPriceCents: z.number().int().min(0).max(100_000_000),
-  })).min(1).max(200),
+  items: z.array(businessOrderListItemInputSchema).min(1).max(200),
 }).strict();
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -34,24 +30,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!account) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   if (account.status !== "APPROVED") return NextResponse.json({ error: "ACCOUNT_NOT_APPROVED" }, { status: 409 });
 
-  const variantIds = parsed.data.items.map((item) => item.variantId);
-  if (new Set(variantIds).size !== variantIds.length) {
-    return NextResponse.json({ error: "DUPLICATE_VARIANT" }, { status: 400 });
-  }
-  const variants = await prisma.productVariant.findMany({
-    where: { id: { in: variantIds }, isActive: true, product: { isActive: true } },
-    include: {
-      product: { select: { translations: { where: { locale: "nl" }, select: { name: true } } } },
-      translations: { where: { locale: "nl" }, select: { label: true } },
-    },
-  });
-  if (variants.length !== variantIds.length) return NextResponse.json({ error: "VARIANT_NOT_AVAILABLE" }, { status: 409 });
-  const variantById = new Map(variants.map((variant) => [variant.id, variant]));
-  let totalCents: number;
-  try {
-    totalCents = calculateBusinessOrderListTotal(parsed.data.items);
-  } catch {
-    return NextResponse.json({ error: "TOTAL_OUT_OF_RANGE" }, { status: 400 });
+  const resolved = await resolveBusinessOrderListItems(parsed.data.items);
+  if (!resolved.ok) {
+    const status = resolved.error === "TOTAL_OUT_OF_RANGE" ? 400 : resolved.error === "DUPLICATE_VARIANT" ? 400 : 409;
+    return NextResponse.json({ error: resolved.error }, { status });
   }
 
   const created = await prisma.$transaction(async (tx) => {
@@ -59,22 +41,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       data: {
         businessAccountId: id,
         title: parsed.data.title,
-        totalCents,
+        totalCents: resolved.totalCents,
         validUntil,
         createdByAdminId: admin.id,
         items: {
-          create: parsed.data.items.map((item, index) => {
-            const variant = variantById.get(item.variantId)!;
-            return {
-              productVariantId: variant.id,
-              productName: variant.product.translations[0]?.name ?? variant.sku,
-              variantLabel: variant.translations[0]?.label ?? `${variant.weightGrams} gram`,
-              sku: variant.sku,
-              quantity: item.quantity,
-              unitPriceCents: item.unitPriceCents,
-              sortOrder: index,
-            };
-          }),
+          create: resolved.items.map((item, index) => ({ ...item, sortOrder: index })),
         },
       },
       include: { items: true },

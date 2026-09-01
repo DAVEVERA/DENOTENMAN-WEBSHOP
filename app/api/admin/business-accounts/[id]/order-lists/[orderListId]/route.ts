@@ -84,8 +84,14 @@ export async function PATCH(
   if (action === "CANCEL" && existing.deliveryStatus === "UNKNOWN") {
     return NextResponse.json({ error: "DELIVERY_STATUS_UNKNOWN" }, { status: 409 });
   }
-  if (action === "CANCEL" && ["APPROVED", "CANCELLED"].includes(existing.status)) {
+  if (action === "CANCEL" && ["APPROVED", "PAID", "CANCELLED"].includes(existing.status)) {
     return NextResponse.json({ error: "INVALID_STATUS_TRANSITION" }, { status: 409 });
+  }
+  if (action === "CANCEL") {
+    const pendingOrder = await prisma.order.findUnique({ where: { businessOrderListId: orderListId }, select: { status: true } });
+    if (pendingOrder?.status === "PENDING") {
+      return NextResponse.json({ error: "CHECKOUT_IN_PROGRESS" }, { status: 409 });
+    }
   }
 
   let updated;
@@ -168,6 +174,41 @@ export async function PATCH(
     }
   }
   return NextResponse.json({ ok: true, orderList: updated });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string; orderListId: string }> }
+) {
+  const admin = await getAdminSession(request);
+  if (!admin) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  if (admin.role === "STAFF") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
+
+  const { id, orderListId } = await context.params;
+  const existing = await prisma.businessOrderList.findFirst({ where: { id: orderListId, businessAccountId: id } });
+  if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+
+  // Only a never-sent concept can be truly deleted. Anything the customer may
+  // have already seen (SENT or beyond) must be cancelled instead, so the
+  // audit/event trail for that account keeps a record of it.
+  if (existing.status !== "DRAFT") {
+    return NextResponse.json({ error: "INVALID_STATUS_TRANSITION" }, { status: 409 });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await recordAudit(tx, admin, "BusinessOrderList", orderListId, "DELETE", existing, null);
+    await recordBusinessEvent(tx, {
+      businessAccountId: id,
+      type: "ORDER_LIST_DELETED",
+      actorType: "ADMIN",
+      actorName: admin.name,
+      summary: `Concept-bestellijst “${existing.title}” verwijderd`,
+    });
+    await tx.businessOrderList.delete({ where: { id: orderListId } });
+  });
+
+  return NextResponse.json({ ok: true });
 }
 
 class BusinessOrderListTransitionError extends Error {}

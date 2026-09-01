@@ -46,6 +46,23 @@ function assertShippableAddress(
   }
 }
 
+/**
+ * A free-form (non-catalog) order line, such as one Fedor added manually to a
+ * business bestellijst, has no ProductVariant and therefore no known weight.
+ * PostNL labels can only be generated automatically when every line can be
+ * weighed.
+ */
+function assertWeighableItems<T extends { variant: { weightGrams: number } | null }>(
+  items: T[]
+): asserts items is (T & { variant: { weightGrams: number } })[] {
+  if (items.some((item) => item.variant === null)) {
+    throw new PostnlLabelGuardError(
+      "ORDER_NOT_SHIPPABLE",
+      "Deze bestelling bevat een regel zonder productvariant en kan niet automatisch worden gewogen voor PostNL."
+    );
+  }
+}
+
 export type EnsuredPostnlLabel = {
   barcode: string | null;
   labelBase64: string;
@@ -104,6 +121,7 @@ export async function ensurePostnlLabel(orderId: string): Promise<EnsuredPostnlL
   }
 
   assertShippableAddress(initialOrder);
+  assertWeighableItems(initialOrder.items);
 
   const claimToken = randomUUID();
   const claimedAt = new Date();
@@ -164,7 +182,7 @@ export async function ensurePostnlLabel(orderId: string): Promise<EnsuredPostnlL
       }
     }
 
-    const { labelBase64 } = await createShipmentLabel(initialOrder, barcode);
+    const { labelBase64 } = await createShipmentLabel({ ...initialOrder, items: initialOrder.items }, barcode);
     const labelStored = await prisma.order.updateMany({
       where: {
         id: orderId,

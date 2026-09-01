@@ -95,7 +95,9 @@ export default async function OrderConfirmationPage({
                 discountCode: order.discountCode,
                 discountCents: order.discountCents,
                 shippingCents: order.shippingCents,
-                items: existing.items,
+                items: existing.items.filter(
+                  (item): item is typeof item & { variantId: string } => item.variantId !== null
+                ),
               }),
             }
           : {}),
