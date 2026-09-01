@@ -13,6 +13,7 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
   if (!isLocale(locale)) redirect("/nl/zakelijk");
   const session = await getBusinessPortalSession();
   if (!session) redirect(`/${locale}/zakelijk/inloggen`);
+  const { country, vatRegime, vatRatePercent, peppolConfigured } = session.businessAccount;
   const orderLists = await prisma.businessOrderList.findMany({
     where: { businessAccountId: session.businessAccountId, status: { not: "DRAFT" } },
     orderBy: { updatedAt: "desc" },
@@ -49,7 +50,18 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-surface"><div className="mx-auto flex min-h-20 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6"><Logo alt={{ mark: "De Notenman beeldmerk", wordmark: "De Notenman" }} parts="wordmark" size="nav" /><span className="rounded-button bg-background px-3 py-2 text-xs font-bold text-muted">Zakelijk</span></div></header>
-      <BusinessPortalClient locale={locale} account={{ companyName: session.businessAccount.companyName, contactName: session.businessAccount.contactName }} initialOrderLists={serialized} />
+      <BusinessPortalClient
+        locale={locale}
+        account={{
+          companyName: session.businessAccount.companyName,
+          contactName: session.businessAccount.contactName,
+          country,
+          vatRegime,
+          vatRatePercent: Number(vatRatePercent),
+          peppolConfigured,
+        }}
+        initialOrderLists={serialized}
+      />
     </div>
   );
 }

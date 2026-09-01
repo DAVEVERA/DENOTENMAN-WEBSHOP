@@ -2,15 +2,16 @@ import "server-only";
 
 import { createHmac, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import { createElement } from "react";
+import { render } from "react-email";
 import { EmailDeliveryKind, type BusinessActorType, type BusinessEventType, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { BASE_URL } from "@/lib/routes";
 import { deliverTransactionalEmail, type TransactionalEmailResult } from "@/lib/transactional-email";
-import {
-  checkTransactionalProviderReadiness,
-  sendAftersalesMail,
-  TransactionalProviderError,
-} from "@/lib/aftersales/provider";
+import { BusinessInvitationEmail } from "@/emails/BusinessInvitationEmail";
+import { BusinessOrderListReadyEmail } from "@/emails/BusinessOrderListReadyEmail";
+import { BusinessOrderListChangedEmail } from "@/emails/BusinessOrderListChangedEmail";
+import { formatPrice } from "@/lib/format";
 
 export { BUSINESS_SESSION_COOKIE, BUSINESS_SESSION_TTL_SECONDS, hashBusinessToken } from "@/lib/business-portal-contract";
 import { BUSINESS_SESSION_COOKIE, BUSINESS_SESSION_TTL_SECONDS, hashBusinessToken } from "@/lib/business-portal-contract";
@@ -28,15 +29,6 @@ export class BusinessPortalError extends Error {
 
 function newOpaqueToken(): string {
   return randomBytes(32).toString("base64url");
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 export async function recordBusinessEvent(
@@ -105,6 +97,11 @@ export async function createBusinessInvitation(input: {
   return { ...invitation, token };
 }
 
+function acceptedOrPending(result: TransactionalEmailResult): boolean {
+  if (result.status === "accepted" || result.status === "pending") return true;
+  return result.status === "duplicate" && result.deliveryStatus !== "FAILED";
+}
+
 export async function sendBusinessInvitationEmail(input: {
   invitationId: string;
   token: string;
@@ -114,23 +111,42 @@ export async function sendBusinessInvitationEmail(input: {
 }): Promise<{ status: "accepted"; providerMessageId: string } | { status: "failed"; error: string }> {
   const invitationUrl = new URL("/nl/zakelijk/inloggen", BASE_URL);
   invitationUrl.searchParams.set("token", input.token);
-  const companyName = escapeHtml(input.account.companyName);
-  const contactName = escapeHtml(input.account.contactName);
   const url = invitationUrl.toString();
+  const preview = `${input.adminName} heeft een zakelijke omgeving voor ${input.account.companyName} klaargezet`;
   try {
-    const readiness = await checkTransactionalProviderReadiness();
-    if (!readiness.ready) throw new TransactionalProviderError(readiness.message, "PROVIDER_NOT_READY", false);
-    const result = await sendAftersalesMail({
-      deliveryId: input.invitationId,
-      orderId: "",
-      trigger: "BUSINESS_INVITATION",
-      to: input.account.email.toLowerCase(),
+    const html = await render(createElement(BusinessInvitationEmail, {
+      preview,
+      contactName: input.account.contactName,
+      companyName: input.account.companyName,
+      invitationUrl: url,
+    }));
+    const text = [
+      `Beste ${input.account.contactName},`,
+      "",
+      `${input.adminName} heeft voor ${input.account.companyName} een zakelijke omgeving klaargezet.`,
+      "",
+      `Open de omgeving: ${url}`,
+      "",
+      "Deze persoonlijke link is 72 uur geldig en kan eenmaal worden gebruikt.",
+    ].join("\n");
+
+    const result = await deliverTransactionalEmail({
+      idempotencyKey: `business-invitation:${input.invitationId}`,
+      kind: EmailDeliveryKind.BUSINESS_INVITATION,
+      recipientEmail: input.account.email,
+      recipientName: input.account.contactName,
       subject: "Uitnodiging voor de zakelijke omgeving van De Notenman",
-      html: `<p>Beste ${contactName},</p><p>${escapeHtml(input.adminName)} heeft voor ${companyName} een zakelijke omgeving klaargezet.</p><p><a href="${escapeHtml(url)}">Open de zakelijke omgeving</a></p><p>Deze persoonlijke link is 72 uur geldig en kan eenmaal worden gebruikt.</p>`,
-      text: `Beste ${input.account.contactName},\n\n${input.adminName} heeft voor ${input.account.companyName} een zakelijke omgeving klaargezet.\n\nOpen de omgeving: ${url}\n\nDeze persoonlijke link is 72 uur geldig en kan eenmaal worden gebruikt.`,
+      html,
+      text,
     });
+    if (!acceptedOrPending(result)) {
+      const message = result.status === "failed" ? result.error : `E-mail niet geaccepteerd (${result.status})`;
+      await prisma.businessInvitation.update({ where: { id: input.invitationId }, data: { deliveryStatus: "FAILED", deliveryError: message.slice(0, 2000) } });
+      return { status: "failed", error: message };
+    }
+    const providerMessageId = result.status === "accepted" ? result.providerMessageId : "";
     await prisma.$transaction(async (tx) => {
-      await tx.businessInvitation.update({ where: { id: input.invitationId }, data: { deliveryStatus: "ACCEPTED", providerMessageId: result.messageId, deliveryError: null } });
+      await tx.businessInvitation.update({ where: { id: input.invitationId }, data: { deliveryStatus: "ACCEPTED", providerMessageId, deliveryError: null } });
       await recordBusinessEvent(tx, {
         businessAccountId: input.account.id,
         type: "INVITATION_SENT",
@@ -140,7 +156,7 @@ export async function sendBusinessInvitationEmail(input: {
         metadata: { invitationId: input.invitationId },
       });
     });
-    return { status: "accepted", providerMessageId: result.messageId };
+    return { status: "accepted", providerMessageId };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Onbekende verzendfout";
     await prisma.businessInvitation.update({ where: { id: input.invitationId }, data: { deliveryStatus: "FAILED", deliveryError: message.slice(0, 2000) } });
@@ -317,20 +333,109 @@ export async function revokeBusinessSession(token: string | undefined | null): P
   });
 }
 
+type BusinessOrderListEmailItem = { productName: string; variantLabel: string | null; quantity: number; unitPriceCents: number };
+
+function toEmailLineItems(items: BusinessOrderListEmailItem[]) {
+  return items.map((item) => ({
+    name: item.variantLabel ? `${item.productName} (${item.variantLabel})` : item.productName,
+    quantity: item.quantity,
+    lineTotal: formatPrice(item.unitPriceCents * item.quantity, "nl"),
+  }));
+}
+
 export async function sendBusinessOrderListEmail(input: {
   orderListId: string;
   version: number;
   title: string;
+  validUntil: Date | null;
+  items: BusinessOrderListEmailItem[];
+  totalCents: number;
   account: { companyName: string; contactName: string; email: string };
 }): Promise<TransactionalEmailResult> {
   const portalUrl = new URL("/nl/zakelijk", BASE_URL).toString();
+  const items = toEmailLineItems(input.items);
+  const total = formatPrice(input.totalCents, "nl");
+  const validUntil = input.validUntil
+    ? new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric" }).format(input.validUntil)
+    : null;
+  const preview = `Nieuwe bestellijst van De Notenman klaar om te bekijken`;
+  const html = await render(createElement(BusinessOrderListReadyEmail, {
+    preview,
+    contactName: input.account.contactName,
+    companyName: input.account.companyName,
+    title: input.title,
+    validUntil,
+    items,
+    total,
+    portalUrl,
+  }));
+  const text = [
+    `Beste ${input.account.contactName},`,
+    "",
+    `Fedor heeft de bestellijst "${input.title}" voor ${input.account.companyName} klaargezet.`,
+    "",
+    ...items.map((item) => `${item.quantity}x ${item.name} - ${item.lineTotal}`),
+    "",
+    `Totaal (excl. BTW): ${total}`,
+    "",
+    `Bekijk en reken af: ${portalUrl}`,
+    "",
+    "Wijzigen kan alleen via Fedor - vanuit hier reken je direct af.",
+  ].join("\n");
+
   return deliverTransactionalEmail({
     idempotencyKey: `business-order-list:${input.orderListId}:sent:${input.version}`,
     kind: EmailDeliveryKind.BUSINESS_ORDER_LIST,
     recipientEmail: input.account.email,
     recipientName: input.account.contactName,
     subject: `Nieuwe bestellijst van De Notenman: ${input.title}`,
-    html: `<p>Beste ${escapeHtml(input.account.contactName)},</p><p>De bestellijst <strong>${escapeHtml(input.title)}</strong> staat klaar voor ${escapeHtml(input.account.companyName)}.</p><p><a href="${escapeHtml(portalUrl)}">Bekijk en keur de bestellijst goed</a></p><p>Je kunt aantallen aanpassen en een notitie voor Fedor achterlaten.</p>`,
-    text: `Beste ${input.account.contactName},\n\nDe bestellijst ${input.title} staat klaar voor ${input.account.companyName}.\n\nBekijk de lijst: ${portalUrl}\n\nJe kunt aantallen aanpassen en een notitie voor Fedor achterlaten.`,
+    html,
+    text,
+  });
+}
+
+export async function sendBusinessOrderListChangedEmail(input: {
+  orderListId: string;
+  version: number;
+  title: string;
+  items: BusinessOrderListEmailItem[];
+  totalCents: number;
+  account: { companyName: string; contactName: string; email: string };
+}): Promise<TransactionalEmailResult> {
+  const portalUrl = new URL("/nl/zakelijk", BASE_URL).toString();
+  const items = toEmailLineItems(input.items);
+  const total = formatPrice(input.totalCents, "nl");
+  const changedDate = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric" }).format(new Date());
+  const preview = "Je bestellijst bij De Notenman is aangepast";
+  const html = await render(createElement(BusinessOrderListChangedEmail, {
+    preview,
+    contactName: input.account.contactName,
+    companyName: input.account.companyName,
+    title: input.title,
+    changedDate,
+    items,
+    total,
+    portalUrl,
+  }));
+  const text = [
+    `Beste ${input.account.contactName},`,
+    "",
+    `Fedor heeft wijzigingen doorgevoerd in "${input.title}" voor ${input.account.companyName}.`,
+    "",
+    ...items.map((item) => `${item.quantity}x ${item.name} - ${item.lineTotal}`),
+    "",
+    `Nieuw totaal (excl. BTW): ${total}`,
+    "",
+    `Bekijk de gewijzigde lijst en reken af: ${portalUrl}`,
+  ].join("\n");
+
+  return deliverTransactionalEmail({
+    idempotencyKey: `business-order-list:${input.orderListId}:changed:${input.version}`,
+    kind: EmailDeliveryKind.BUSINESS_ORDER_LIST_CHANGED,
+    recipientEmail: input.account.email,
+    recipientName: input.account.contactName,
+    subject: `Je bestellijst bij De Notenman is aangepast: ${input.title}`,
+    html,
+    text,
   });
 }

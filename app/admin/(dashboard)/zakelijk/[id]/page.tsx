@@ -79,6 +79,7 @@ export default async function ZakelijkDetailPage({
       orderLists: { orderBy: { createdAt: "desc" }, include: { items: { orderBy: { sortOrder: "asc" } }, notes: { orderBy: { createdAt: "desc" } } } },
       invitations: { orderBy: { createdAt: "desc" }, take: 5 },
       events: { orderBy: { createdAt: "desc" }, take: 20 },
+      invoices: { orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
 
@@ -120,6 +121,7 @@ export default async function ZakelijkDetailPage({
               currentCountry={businessAccount.country === "BE" ? "BE" : "NL"}
               currentVatRegime={businessAccount.vatRegime}
               currentVatRatePercent={Number(businessAccount.vatRatePercent)}
+              currentPeppolParticipantId={businessAccount.peppolParticipantId ?? ""}
             />
           </div>
 
@@ -295,6 +297,32 @@ export default async function ZakelijkDetailPage({
                 </dd>
               </div>
             </dl>
+          </div>
+
+          <div className="rounded-panel border border-border bg-surface p-5">
+            <h2 className="font-heading text-heading-sm text-text">Facturen</h2>
+            {businessAccount.invoices.length === 0 ? (
+              <p className="mt-3 text-body-sm text-muted">Nog geen facturen. Deze verschijnen zodra een bestellijst is betaald.</p>
+            ) : (
+              <ul className="mt-3 grid gap-2 text-body-sm">
+                {businessAccount.invoices.map((invoice) => (
+                  <li key={invoice.id} className="flex flex-wrap items-center justify-between gap-2 rounded-card bg-background px-3 py-2">
+                    <span>
+                      <strong className="text-text">{invoice.invoiceNumber}</strong>
+                      <span className="ml-2 text-muted">{formatPrice(invoice.totalCents, "nl")}</span>
+                    </span>
+                    <a
+                      href={`/api/admin/business-accounts/${businessAccount.id}/invoices/${invoice.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-heading text-body-sm font-bold text-accent-hover underline underline-offset-4"
+                    >
+                      Downloaden
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="rounded-panel border border-border bg-surface p-5">

@@ -19,6 +19,7 @@ const businessAccountPatchSchema = z
     country: z.enum(["NL", "BE"]).optional(),
     vatRegime: z.enum(["STANDARD", "REVERSE_CHARGE"]).optional(),
     vatRatePercent: z.coerce.number().min(0).max(100).optional(),
+    peppolParticipantId: z.string().trim().nullable().optional(),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "SUSPENDED"]).optional(),
     priceTier: z.string().trim().min(1).optional(),
     notes: z.string().trim().nullable().optional(),
@@ -82,6 +83,8 @@ export async function PATCH(
     country?: "NL" | "BE";
     vatRegime?: "STANDARD" | "REVERSE_CHARGE";
     vatRatePercent?: number;
+    peppolParticipantId?: string | null;
+    peppolConfigured?: boolean;
     status?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
     priceTier?: string;
     notes?: string | null;
@@ -96,6 +99,11 @@ export async function PATCH(
   if (input.country !== undefined) data.country = input.country;
   if (input.vatRegime !== undefined) data.vatRegime = input.vatRegime;
   if (input.vatRatePercent !== undefined) data.vatRatePercent = input.vatRatePercent;
+  if (input.peppolParticipantId !== undefined) {
+    const trimmed = input.peppolParticipantId?.trim() || null;
+    data.peppolParticipantId = trimmed;
+    data.peppolConfigured = Boolean(trimmed);
+  }
   if (input.status !== undefined) data.status = input.status;
   if (input.priceTier !== undefined) data.priceTier = input.priceTier;
   if (input.notes !== undefined) data.notes = input.notes?.trim() ? input.notes.trim() : null;
