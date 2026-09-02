@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { BusinessAccountStatus, BusinessOrderListStatus, QuoteStatus } from "@prisma/client";
+import type { BusinessAccountStatus, BusinessOrderListStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { formatPrice, formatDate } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { BusinessAccountEditForm } from "./BusinessAccountEditForm";
-import { QuoteRowActions } from "./QuoteRowActions";
 import { BusinessInvitationButton } from "./BusinessInvitationButton";
 import { BusinessOrderListActions } from "./BusinessOrderListActions";
 
@@ -21,20 +20,6 @@ const STATUS_BADGE_CLASSES: Record<BusinessAccountStatus, string> = {
   APPROVED: "bg-accent/10 text-accent-hover",
   REJECTED: "bg-red-50 text-red-700",
   SUSPENDED: "bg-violet-50 text-violet-800",
-};
-
-const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
-  DRAFT: "Concept",
-  SENT: "Verstuurd",
-  ACCEPTED: "Geaccepteerd",
-  DECLINED: "Afgewezen",
-};
-
-const QUOTE_STATUS_BADGE_CLASSES: Record<QuoteStatus, string> = {
-  DRAFT: "bg-border text-muted",
-  SENT: "bg-accent/10 text-accent-hover",
-  ACCEPTED: "bg-green-50 text-green-700",
-  DECLINED: "bg-red-50 text-red-700",
 };
 
 const ORDER_LIST_STATUS_LABELS: Record<BusinessOrderListStatus, string> = {
@@ -75,7 +60,6 @@ export default async function ZakelijkDetailPage({
   const businessAccount = await prisma.businessAccount.findUnique({
     where: { id },
     include: {
-      quotes: { orderBy: { createdAt: "desc" } },
       orderLists: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -122,8 +106,8 @@ export default async function ZakelijkDetailPage({
             <BusinessAccountEditForm
               businessAccountId={businessAccount.id}
               currentStatus={businessAccount.status}
-              currentPriceTier={businessAccount.priceTier}
               initialNotes={businessAccount.notes ?? ""}
+              currentVatNumber={businessAccount.vatNumber ?? ""}
               currentKvkNumber={businessAccount.kvkNumber ?? ""}
               currentCountry={businessAccount.country === "BE" ? "BE" : "NL"}
               currentVatRegime={businessAccount.vatRegime}
@@ -193,66 +177,6 @@ export default async function ZakelijkDetailPage({
               </div>
             )}
           </section>
-
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-heading text-heading-sm text-text">Bestaande offertes</h2>
-              <Link
-                href={`/admin/zakelijk/${businessAccount.id}/offertes/nieuw`}
-                className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button"
-              >
-                Nieuwe offerte
-              </Link>
-            </div>
-
-            {businessAccount.quotes.length === 0 ? (
-              <p className="mt-4 text-body-sm text-muted">Nog geen offertes voor dit account.</p>
-            ) : (
-              <div className="mt-4 overflow-x-auto rounded-panel border border-border bg-surface">
-                <table className="w-full text-body-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-muted">
-                      <th className="px-4 py-3 font-heading">Status</th>
-                      <th className="px-4 py-3 text-right font-heading">Totaal</th>
-                      <th className="px-4 py-3 font-heading">Geldig tot</th>
-                      <th className="px-4 py-3 font-heading">Aangemaakt</th>
-                      <th className="px-4 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {businessAccount.quotes.map((quote) => (
-                      <tr key={quote.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-3">
-                          <span
-                            className={cn(
-                              "inline-flex items-center rounded-button px-2 py-1 text-xs font-semibold",
-                              QUOTE_STATUS_BADGE_CLASSES[quote.status]
-                            )}
-                          >
-                            {QUOTE_STATUS_LABELS[quote.status]}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold text-text">
-                          {formatPrice(quote.totalCents, "nl")}
-                        </td>
-                        <td className="px-4 py-3 text-muted">
-                          {quote.validUntil ? formatDate(quote.validUntil, "nl") : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-muted">{formatDateTime(quote.createdAt)}</td>
-                        <td className="px-4 py-3">
-                          <QuoteRowActions
-                            businessAccountId={businessAccount.id}
-                            quoteId={quote.id}
-                            status={quote.status}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="space-y-6">
@@ -270,10 +194,6 @@ export default async function ZakelijkDetailPage({
               <div>
                 <dt className="text-muted">Telefoon</dt>
                 <dd className="text-text">{businessAccount.phone ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">Prijstier</dt>
-                <dd className="text-text">{businessAccount.priceTier}</dd>
               </div>
               <div>
                 <dt className="text-muted">Aangemaakt op</dt>

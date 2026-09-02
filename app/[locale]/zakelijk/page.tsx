@@ -50,7 +50,7 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
   if (!isLocale(locale)) redirect("/nl/zakelijk");
   const session = await getBusinessPortalSession();
   if (!session) redirect(`/${locale}/zakelijk/inloggen`);
-  const { country, vatRegime, vatRatePercent, peppolConfigured } = session.businessAccount;
+  const { country, vatRegime, vatRatePercent, vatNumber, peppolConfigured, peppolParticipantId } = session.businessAccount;
   const orderLists = await loadOrderLists(session.businessAccountId);
   const serialized = orderLists.map((list) => {
     const completedOrders = list.orders.filter((order) => COMPLETED_ORDER_STATUSES.includes(order.status as (typeof COMPLETED_ORDER_STATUSES)[number]));
@@ -113,7 +113,9 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
           country,
           vatRegime,
           vatRatePercent: Number(vatRatePercent),
+          vatNumber,
           peppolConfigured,
+          peppolParticipantId,
           hasPassword: Boolean(session.businessAccount.passwordHash),
         }}
         initialOrderLists={serialized}

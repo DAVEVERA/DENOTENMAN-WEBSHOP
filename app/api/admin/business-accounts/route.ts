@@ -21,7 +21,6 @@ const businessAccountInputSchema = z
     vatRegime: z.enum(["STANDARD", "REVERSE_CHARGE"]).optional(),
     vatRatePercent: z.coerce.number().min(0).max(100).optional(),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "SUSPENDED"]).optional(),
-    priceTier: z.string().trim().min(1).optional(),
     notes: z.string().trim().nullable().optional(),
   })
   .strict();
@@ -33,7 +32,6 @@ export async function GET(request: NextRequest) {
   }
   const businessAccounts = await prisma.businessAccount.findMany({
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { quotes: true } } },
   });
 
   return NextResponse.json({ businessAccounts });
@@ -70,7 +68,6 @@ export async function POST(request: NextRequest) {
           vatRegime: input.vatRegime ?? vatDefaults.regime,
           vatRatePercent: input.vatRatePercent ?? vatDefaults.ratePercent,
           status: input.status ?? "PENDING",
-          priceTier: input.priceTier ?? "standard",
           notes: input.notes?.trim() ? input.notes.trim() : null,
         },
       });

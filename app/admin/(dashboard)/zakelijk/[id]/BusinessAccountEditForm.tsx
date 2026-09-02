@@ -64,13 +64,11 @@ const STATUS_ACTIONS: { status: BusinessAccountStatus; label: string; confirm: s
   },
 ];
 
-const PRICE_TIER_OPTIONS = ["standard", "brons", "zilver", "goud"] as const;
-
 export function BusinessAccountEditForm({
   businessAccountId,
   currentStatus,
-  currentPriceTier,
   initialNotes,
+  currentVatNumber,
   currentKvkNumber,
   currentCountry,
   currentVatRegime,
@@ -79,8 +77,8 @@ export function BusinessAccountEditForm({
 }: {
   businessAccountId: string;
   currentStatus: BusinessAccountStatus;
-  currentPriceTier: string;
   initialNotes: string;
+  currentVatNumber: string;
   currentKvkNumber: string;
   currentCountry: BusinessVatCountry;
   currentVatRegime: BusinessVatRegime;
@@ -93,14 +91,11 @@ export function BusinessAccountEditForm({
   const [statusError, setStatusError] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<BusinessAccountStatus | null>(null);
 
-  const [priceTier, setPriceTier] = useState(currentPriceTier);
-  const [priceTierState, setPriceTierState] = useState<SaveState>("idle");
-  const [priceTierError, setPriceTierError] = useState<string | null>(null);
-
   const [notes, setNotes] = useState(initialNotes);
   const [notesState, setNotesState] = useState<SaveState>("idle");
   const [notesError, setNotesError] = useState<string | null>(null);
 
+  const [vatNumber, setVatNumber] = useState(currentVatNumber);
   const [kvkNumber, setKvkNumber] = useState(currentKvkNumber);
   const [country, setCountry] = useState<BusinessVatCountry>(currentCountry);
   const [vatRegime, setVatRegime] = useState<BusinessVatRegime>(currentVatRegime);
@@ -109,6 +104,7 @@ export function BusinessAccountEditForm({
   const [taxState, setTaxState] = useState<SaveState>("idle");
   const [taxError, setTaxError] = useState<string | null>(null);
   const taxUnchanged =
+    vatNumber === currentVatNumber &&
     kvkNumber === currentKvkNumber &&
     country === currentCountry &&
     vatRegime === currentVatRegime &&
@@ -130,6 +126,7 @@ export function BusinessAccountEditForm({
 
     try {
       await patchBusinessAccount(businessAccountId, {
+        vatNumber: vatNumber.trim().length > 0 ? vatNumber.trim() : null,
         kvkNumber: kvkNumber.trim().length > 0 ? kvkNumber.trim() : null,
         country,
         vatRegime,
@@ -160,21 +157,6 @@ export function BusinessAccountEditForm({
       setStatusError(error instanceof Error ? error.message : "Onbekende fout");
     } finally {
       setPendingStatus(null);
-    }
-  }
-
-  async function handlePriceTierSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPriceTierState("saving");
-    setPriceTierError(null);
-
-    try {
-      await patchBusinessAccount(businessAccountId, { priceTier });
-      setPriceTierState("saved");
-      router.refresh();
-    } catch (error) {
-      setPriceTierState("error");
-      setPriceTierError(error instanceof Error ? error.message : "Onbekende fout");
     }
   }
 
@@ -219,39 +201,23 @@ export function BusinessAccountEditForm({
       </div>
 
       <div>
-        <h2 className="font-heading text-heading-sm text-text">Prijstier</h2>
-        <form onSubmit={handlePriceTierSubmit} className="mt-3 flex flex-wrap items-center gap-3">
-          <select
-            value={priceTier}
-            onChange={(event) => {
-              setPriceTier(event.target.value);
-              setPriceTierState("idle");
-            }}
-            className="rounded-button border border-border bg-surface px-3 py-2 text-body-md text-text focus:border-accent focus:outline-none"
-          >
-            {[priceTier, ...PRICE_TIER_OPTIONS.filter((tier) => tier !== priceTier)].map((tier) => (
-              <option key={tier} value={tier}>
-                {tier}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            disabled={priceTierState === "saving" || priceTier === currentPriceTier}
-            className="inline-flex items-center justify-center rounded-button border border-accent bg-accent px-4 py-2 font-heading text-body-sm font-semibold text-contrast shadow-button transition-colors duration-hover-fast hover:border-accent-hover hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {priceTierState === "saving" ? "Opslaan…" : "Opslaan"}
-          </button>
-          {priceTierState === "saved" && <span className="text-body-sm text-green-700">Opgeslagen</span>}
-          {priceTierState === "error" && <span className="text-body-sm text-red-600">{priceTierError}</span>}
-        </form>
-      </div>
-
-      <div>
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-ink">Facturatie</p>
         <h2 className="mt-1 font-heading text-heading-sm text-text">Bedrijfsgegevens &amp; BTW</h2>
         <form onSubmit={handleTaxSubmit} className="mt-3 space-y-4 rounded-card bg-background p-4">
           <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-body-sm font-semibold text-text">
+              BTW-nummer
+              <input
+                value={vatNumber}
+                onChange={(event) => {
+                  setVatNumber(event.target.value);
+                  setTaxState("idle");
+                }}
+                placeholder="Bijv. NL123456789B01"
+                className="mt-1 min-h-12 w-full rounded-button border border-border bg-surface px-3 text-body-md text-text focus:border-accent focus:outline-none"
+              />
+              <span className="mt-1 block text-xs font-normal text-muted">De klant kan dit ook zelf invullen in de zakelijke omgeving.</span>
+            </label>
             <label className="block text-body-sm font-semibold text-text">
               KVK-nummer
               <input

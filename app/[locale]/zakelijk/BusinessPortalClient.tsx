@@ -6,6 +6,7 @@ import { CreditCard, Download, LogOut, PackageCheck, Save, Send, Clock, RefreshC
 import { formatPrice } from "@/lib/format";
 import { calculateVat } from "@/lib/business-vat";
 import { BusinessPasswordSettings } from "./BusinessPasswordSettings";
+import { BusinessAccountSettings } from "./BusinessAccountSettings";
 
 type PortalItem = { id: string; productName: string; variantLabel: string | null; sku: string | null; quantity: number; unitPriceCents: number; isNew: boolean };
 type PortalNote = { id: string; actorType: string; authorName: string; text: string; createdAt: string };
@@ -44,7 +45,9 @@ type PortalAccount = {
   country: string;
   vatRegime: string;
   vatRatePercent: number;
+  vatNumber: string | null;
   peppolConfigured: boolean;
+  peppolParticipantId: string | null;
   hasPassword: boolean;
 };
 
@@ -79,7 +82,10 @@ export function BusinessPortalClient({ locale, account, initialOrderLists }: { l
           {logoutError ? <p role="alert" className="mt-2 max-w-xs text-body-sm font-semibold text-red-700">{logoutError}</p> : null}
         </div>
       </div>
-      <div className="mt-4 max-w-sm"><BusinessPasswordSettings hasPassword={account.hasPassword} /></div>
+      <div className="mt-4 grid max-w-sm gap-4">
+        <BusinessAccountSettings vatNumber={account.vatNumber} peppolParticipantId={account.peppolParticipantId} country={account.country} />
+        <BusinessPasswordSettings hasPassword={account.hasPassword} />
+      </div>
       {initialOrderLists.length === 0 ? (
         <div className="mt-8 rounded-panel border border-dashed border-border bg-surface p-6 text-center">
           <PackageCheck className="mx-auto h-8 w-8 text-accent" aria-hidden="true" />

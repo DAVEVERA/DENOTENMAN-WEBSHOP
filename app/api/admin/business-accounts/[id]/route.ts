@@ -21,7 +21,6 @@ const businessAccountPatchSchema = z
     vatRatePercent: z.coerce.number().min(0).max(100).optional(),
     peppolParticipantId: z.string().trim().nullable().optional(),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "SUSPENDED"]).optional(),
-    priceTier: z.string().trim().min(1).optional(),
     notes: z.string().trim().nullable().optional(),
   })
   .strict();
@@ -36,10 +35,7 @@ export async function GET(
   }
   const { id } = await context.params;
 
-  const businessAccount = await prisma.businessAccount.findUnique({
-    where: { id },
-    include: { quotes: { orderBy: { createdAt: "desc" } } },
-  });
+  const businessAccount = await prisma.businessAccount.findUnique({ where: { id } });
 
   if (!businessAccount) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
@@ -86,7 +82,6 @@ export async function PATCH(
     peppolParticipantId?: string | null;
     peppolConfigured?: boolean;
     status?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
-    priceTier?: string;
     notes?: string | null;
   } = {};
 
@@ -105,7 +100,6 @@ export async function PATCH(
     data.peppolConfigured = Boolean(trimmed);
   }
   if (input.status !== undefined) data.status = input.status;
-  if (input.priceTier !== undefined) data.priceTier = input.priceTier;
   if (input.notes !== undefined) data.notes = input.notes?.trim() ? input.notes.trim() : null;
 
   if (Object.keys(data).length === 0) {

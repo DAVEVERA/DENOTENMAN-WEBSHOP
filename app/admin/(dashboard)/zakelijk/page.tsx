@@ -47,7 +47,7 @@ export default async function ZakelijkPage({
     prisma.businessAccount.findMany({
       where: activeStatus ? { status: activeStatus } : undefined,
       orderBy: { createdAt: "desc" },
-      include: { _count: { select: { quotes: true, orderLists: true } } },
+      include: { _count: { select: { orderLists: true } } },
     }),
     prisma.businessEvent.findMany({
       where: { actorType: "CUSTOMER", reads: { none: { adminUserId: session.userId } } },
@@ -147,7 +147,7 @@ export default async function ZakelijkPage({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2"><h2 className="font-heading text-heading-sm text-text">{account.companyName}</h2><span className={cn("rounded-button px-2 py-1 text-xs font-semibold", STATUS_BADGE_CLASSES[account.status])}>{STATUS_LABELS[account.status]}</span></div>
                   <p className="mt-1 break-words text-body-sm text-muted">{account.contactName} · {account.email}</p>
-                  <p className="mt-3 text-xs font-semibold text-text">{account._count.orderLists} bestellijsten · {account._count.quotes} offertes</p>
+                  <p className="mt-3 text-xs font-semibold text-text">{account._count.orderLists} {account._count.orderLists === 1 ? "bestellijst" : "bestellijsten"}</p>
                 </div>
               </div>
             </Link>
@@ -161,8 +161,6 @@ export default async function ZakelijkPage({
                 <th className="px-4 py-3 font-heading">Contactpersoon</th>
                 <th className="px-4 py-3 font-heading">E-mail</th>
                 <th className="px-4 py-3 font-heading">Status</th>
-                <th className="px-4 py-3 font-heading">Prijstier</th>
-                <th className="px-4 py-3 text-right font-heading">Offertes</th>
                 <th className="px-4 py-3 text-right font-heading">Bestellijsten</th>
               </tr>
             </thead>
@@ -189,8 +187,6 @@ export default async function ZakelijkPage({
                       {STATUS_LABELS[account.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-text">{account.priceTier}</td>
-                  <td className="px-4 py-3 text-right text-text">{account._count.quotes}</td>
                   <td className="px-4 py-3 text-right text-text">{account._count.orderLists}</td>
                 </tr>
               ))}
