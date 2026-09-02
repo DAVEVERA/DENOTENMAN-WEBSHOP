@@ -310,6 +310,20 @@ export default async function ZakelijkDetailPage({
                     <span>
                       <strong className="text-text">{invoice.invoiceNumber}</strong>
                       <span className="ml-2 text-muted">{formatPrice(invoice.totalCents, "nl")}</span>
+                      {invoice.peppolStatus !== "NOT_APPLICABLE" ? (
+                        <span
+                          className={cn(
+                            "ml-2 inline-flex items-center rounded-button px-2 py-0.5 text-xs font-semibold",
+                            invoice.peppolStatus === "SENT"
+                              ? "bg-green-50 text-green-800"
+                              : invoice.peppolStatus === "FAILED"
+                                ? "bg-red-50 text-red-700"
+                                : "bg-border text-muted"
+                          )}
+                        >
+                          Peppol: {invoice.peppolStatus === "SENT" ? "verstuurd" : invoice.peppolStatus === "FAILED" ? "mislukt" : "nog niet verstuurd"}
+                        </span>
+                      ) : null}
                     </span>
                     <a
                       href={`/api/admin/business-accounts/${businessAccount.id}/invoices/${invoice.id}`}
