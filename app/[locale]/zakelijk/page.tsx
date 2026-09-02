@@ -89,6 +89,7 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
           vatRegime,
           vatRatePercent: Number(vatRatePercent),
           peppolConfigured,
+          hasPassword: Boolean(session.businessAccount.passwordHash),
         }}
         initialOrderLists={serialized}
       />

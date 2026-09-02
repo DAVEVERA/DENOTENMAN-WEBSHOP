@@ -1463,6 +1463,7 @@ model BusinessAccount {
   priceTier            String                @default("standard")
   notes                String?
   loginLinkRequestedAt DateTime?
+  passwordHash         String?
   shadowUserId         String?               @unique
   shadowUser           User?                 @relation(fields: [shadowUserId], references: [id])
   createdAt            DateTime              @default(now())
@@ -1505,6 +1506,7 @@ enum BusinessEventType {
   ACCOUNT_UPDATED
   INVITATION_SENT
   PORTAL_LOGIN
+  PASSWORD_SET
   ORDER_LIST_CREATED
   ORDER_LIST_SENT
   ORDER_LIST_ITEMS_UPDATED

@@ -75,11 +75,10 @@ test("business notification reads are isolated per admin and limited to displaye
   assert.match(schema, /@@id\(\[businessEventId, adminUserId\]\)/);
 });
 
-test("invitation secret is not written to the full-body email delivery log", async () => {
+test("invitation email is delivered via the tracked, retryable transactional-email log", async () => {
   const service = await readFile("lib/business-portal.ts", "utf8");
   const invitationSection = service.slice(service.indexOf("sendBusinessInvitationEmail"), service.indexOf("acceptBusinessInvitation"));
-  assert.doesNotMatch(invitationSection, /deliverTransactionalEmail/);
-  assert.match(invitationSection, /sendAftersalesMail/);
+  assert.match(invitationSection, /deliverTransactionalEmail/);
   assert.match(invitationSection, /providerMessageId/);
 });
 

@@ -1,14 +1,10 @@
-// Uses the global Web Crypto API (crypto.subtle) rather than `node:crypto` so
-// this works unmodified in both the Node.js runtime and the Edge runtime the
-// proxy/middleware runs in.
-
 import { prisma } from "@/lib/prisma";
 import type { AdminUser } from "@prisma/client";
+import { hashPassword, verifyPassword } from "@/lib/pbkdf2-password";
 
 export const ADMIN_SESSION_COOKIE = "denotenman_admin_session";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
-const PBKDF2_ITERATIONS = 210_000;
 const encoder = new TextEncoder();
 
 function secret(): string {
@@ -44,40 +40,7 @@ function fromHex(hex: string): Uint8Array | null {
   return bytes;
 }
 
-// passwordHash format: pbkdf2$<iterations>$<saltHex>$<derivedKeyHex>
-export async function hashAdminPassword(password: string): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, [
-    "deriveBits",
-  ]);
-  const derived = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations: PBKDF2_ITERATIONS },
-    key,
-    256
-  );
-  return `pbkdf2$${PBKDF2_ITERATIONS}$${toHex(salt)}$${toHex(derived)}`;
-}
-
-async function verifyAdminPassword(password: string, storedHash: string): Promise<boolean> {
-  const parts = storedHash.split("$");
-  if (parts.length !== 4 || parts[0] !== "pbkdf2") return false;
-
-  const iterations = Number(parts[1]);
-  const salt = fromHex(parts[2]);
-  const expectedHex = parts[3];
-  if (!Number.isFinite(iterations) || !salt || !expectedHex) return false;
-
-  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, [
-    "deriveBits",
-  ]);
-  const derived = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt: salt as BufferSource, iterations },
-    key,
-    256
-  );
-
-  return constantTimeEqual(toHex(derived), expectedHex);
-}
+export const hashAdminPassword = hashPassword;
 
 export async function verifyAdminCredentials(
   username: string,
@@ -86,7 +49,7 @@ export async function verifyAdminCredentials(
   const user = await prisma.adminUser.findUnique({ where: { username } });
   if (!user || !user.active) return null;
 
-  const valid = await verifyAdminPassword(password, user.passwordHash);
+  const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) return null;
 
   return user;

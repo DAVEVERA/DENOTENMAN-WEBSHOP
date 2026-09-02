@@ -31,6 +31,31 @@ function newOpaqueToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
+/**
+ * Creates a new BusinessSession + records the PORTAL_LOGIN event, shared by
+ * every login method (invitation link, password, Google). Callers still set
+ * the session cookie on the response themselves via businessSessionCookieOptions.
+ */
+export async function createBusinessSession(
+  tx: Prisma.TransactionClient,
+  input: { businessAccountId: string; contactName: string; via: string }
+): Promise<{ sessionToken: string; expiresAt: Date }> {
+  const sessionToken = newOpaqueToken();
+  const sessionTokenHash = hashBusinessToken(sessionToken);
+  const expiresAt = new Date(Date.now() + BUSINESS_SESSION_TTL_SECONDS * 1000);
+  await tx.businessSession.create({
+    data: { businessAccountId: input.businessAccountId, tokenHash: sessionTokenHash, expiresAt },
+  });
+  await recordBusinessEvent(tx, {
+    businessAccountId: input.businessAccountId,
+    type: "PORTAL_LOGIN",
+    actorType: "CUSTOMER",
+    actorName: input.contactName,
+    summary: `${input.contactName} heeft ingelogd via ${input.via}`,
+  });
+  return { sessionToken, expiresAt };
+}
+
 export async function recordBusinessEvent(
   tx: Prisma.TransactionClient,
   input: {
@@ -215,17 +240,14 @@ function businessLoginRateLimitSecret(): string {
   return secret;
 }
 
-function hashBusinessLoginRateLimitScope(clientAddress: string): string {
-  return createHmac("sha256", businessLoginRateLimitSecret())
-    .update(`business-login-link:ip:${clientAddress}`, "utf8")
-    .digest("hex");
+function hashBusinessRateLimitScope(scope: string): string {
+  return createHmac("sha256", businessLoginRateLimitSecret()).update(scope, "utf8").digest("hex");
 }
 
-export async function claimBusinessLoginLinkIpAllowance(clientAddressCandidate: string): Promise<boolean> {
-  const clientAddress = clientAddressCandidate.trim().slice(0, 128) || "unknown";
-  const scopeKey = hashBusinessLoginRateLimitScope(clientAddress);
+async function claimBusinessRateLimitAllowance(scope: string, maxRequests: number, windowMs: number): Promise<boolean> {
+  const scopeKey = hashBusinessRateLimitScope(scope);
   const now = new Date();
-  const resetBefore = new Date(now.getTime() - LOGIN_LINK_IP_WINDOW_MS);
+  const resetBefore = new Date(now.getTime() - windowMs);
   await prisma.businessLoginLinkRateLimit.deleteMany({
     where: { updatedAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
   });
@@ -239,12 +261,35 @@ export async function claimBusinessLoginLinkIpAllowance(clientAddressCandidate: 
       END,
       "requestCount" = CASE
         WHEN "BusinessLoginLinkRateLimit"."windowStartedAt" <= ${resetBefore} THEN 1
-        ELSE LEAST("BusinessLoginLinkRateLimit"."requestCount" + 1, ${LOGIN_LINK_IP_MAX_REQUESTS + 1})
+        ELSE LEAST("BusinessLoginLinkRateLimit"."requestCount" + 1, ${maxRequests + 1})
       END,
       "updatedAt" = ${now}
     RETURNING "requestCount"
   `;
-  return (rows[0]?.requestCount ?? LOGIN_LINK_IP_MAX_REQUESTS + 1) <= LOGIN_LINK_IP_MAX_REQUESTS;
+  return (rows[0]?.requestCount ?? maxRequests + 1) <= maxRequests;
+}
+
+export async function claimBusinessLoginLinkIpAllowance(clientAddressCandidate: string): Promise<boolean> {
+  const clientAddress = clientAddressCandidate.trim().slice(0, 128) || "unknown";
+  return claimBusinessRateLimitAllowance(`business-login-link:ip:${clientAddress}`, LOGIN_LINK_IP_MAX_REQUESTS, LOGIN_LINK_IP_WINDOW_MS);
+}
+
+const PASSWORD_LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const PASSWORD_LOGIN_IP_MAX_REQUESTS = 20;
+const PASSWORD_LOGIN_EMAIL_MAX_REQUESTS = 8;
+
+/**
+ * Throttles password-login attempts on two axes at once: per source IP (a
+ * generous ceiling — mainly to blunt a single client hammering many
+ * accounts) and per target email (a tight ceiling — the actual brute-force
+ * defense for one account). Both must allow the attempt.
+ */
+export async function claimBusinessPasswordLoginAllowance(clientAddressCandidate: string, emailCandidate: string): Promise<boolean> {
+  const clientAddress = clientAddressCandidate.trim().slice(0, 128) || "unknown";
+  const email = emailCandidate.trim().toLowerCase().slice(0, 320) || "unknown";
+  const ipOk = await claimBusinessRateLimitAllowance(`business-password-login:ip:${clientAddress}`, PASSWORD_LOGIN_IP_MAX_REQUESTS, PASSWORD_LOGIN_WINDOW_MS);
+  const emailOk = await claimBusinessRateLimitAllowance(`business-password-login:email:${email}`, PASSWORD_LOGIN_EMAIL_MAX_REQUESTS, PASSWORD_LOGIN_WINDOW_MS);
+  return ipOk && emailOk;
 }
 
 export async function acceptBusinessInvitation(token: string) {
@@ -253,9 +298,8 @@ export async function acceptBusinessInvitation(token: string) {
   }
 
   const tokenHash = hashBusinessToken(token);
-  const sessionToken = newOpaqueToken();
-  const sessionTokenHash = hashBusinessToken(sessionToken);
-  const expiresAt = new Date(Date.now() + BUSINESS_SESSION_TTL_SECONDS * 1000);
+  let sessionToken = "";
+  let expiresAt = new Date();
 
   const account = await prisma.$transaction(async (tx) => {
     const invitation = await tx.businessInvitation.findUnique({
@@ -282,20 +326,13 @@ export async function acceptBusinessInvitation(token: string) {
       throw new BusinessPortalError("INVITATION_INVALID", "Deze uitnodiging is al gebruikt.");
     }
 
-    await tx.businessSession.create({
-      data: {
-        businessAccountId: invitation.businessAccountId,
-        tokenHash: sessionTokenHash,
-        expiresAt,
-      },
-    });
-    await recordBusinessEvent(tx, {
+    const session = await createBusinessSession(tx, {
       businessAccountId: invitation.businessAccountId,
-      type: "PORTAL_LOGIN",
-      actorType: "CUSTOMER",
-      actorName: invitation.businessAccount.contactName,
-      summary: `${invitation.businessAccount.contactName} heeft de zakelijke omgeving geactiveerd`,
+      contactName: invitation.businessAccount.contactName,
+      via: "uitnodigingslink",
     });
+    sessionToken = session.sessionToken;
+    expiresAt = session.expiresAt;
     return invitation.businessAccount;
   });
 

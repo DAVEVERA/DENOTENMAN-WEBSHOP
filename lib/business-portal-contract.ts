@@ -10,6 +10,18 @@ export function hashBusinessToken(token: string): string {
   return createHash("sha256").update(token, "utf8").digest("hex");
 }
 
+export function businessSessionCookieOptions(expiresAt: Date) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: BUSINESS_SESSION_TTL_SECONDS,
+    expires: expiresAt,
+    priority: "high" as const,
+  };
+}
+
 export function calculateBusinessOrderListTotal(
   items: ReadonlyArray<{ quantity: number; unitPriceCents: number }>
 ): number {
