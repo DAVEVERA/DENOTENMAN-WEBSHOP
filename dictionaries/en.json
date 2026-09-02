@@ -616,7 +616,8 @@
       "hero": {
         "eyebrow": "The base for your breakfast",
         "title": "Muesli and grains at De Notenman",
-        "intro": "Muesli, granola, oats and multigrain flakes form the base of the breakfast range. Add nuts, dried fruit or honey from the same assortment."
+        "intro": "Muesli, granola, oats and multigrain flakes form the base of the breakfast range. Add nuts, dried fruit or honey from the same assortment.",
+        "imageAlt": "Bowl of muesli from De Notenman"
       },
       "varieties": {
         "eyebrow": "The range",
@@ -672,7 +673,8 @@
       "hero": {
         "eyebrow": "For the drinks table",
         "title": "Snacks and savouries at De Notenman",
-        "intro": "Spicy snacks, crackers, savouries and vegetable snacks make up De Notenman's drinks-table range. Easy to order alongside a nut mix for a complete board."
+        "intro": "Spicy snacks, crackers, savouries and vegetable snacks make up De Notenman's drinks-table range. Easy to order alongside a nut mix for a complete board.",
+        "imageAlt": "Spicy snack mix from De Notenman"
       },
       "varieties": {
         "eyebrow": "The range",

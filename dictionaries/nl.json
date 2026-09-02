@@ -616,7 +616,8 @@
       "hero": {
         "eyebrow": "De basis voor je ontbijt",
         "title": "Muesli en granen bij De Notenman",
-        "intro": "Muesli, granola, havermout en meergranenvlokken vormen de basis van het ontbijtschap. Vul ze aan met noten, gedroogd fruit of honing uit hetzelfde assortiment."
+        "intro": "Muesli, granola, havermout en meergranenvlokken vormen de basis van het ontbijtschap. Vul ze aan met noten, gedroogd fruit of honing uit hetzelfde assortiment.",
+        "imageAlt": "Kom muesli van De Notenman"
       },
       "varieties": {
         "eyebrow": "Het assortiment",
@@ -672,7 +673,8 @@
       "hero": {
         "eyebrow": "Voor bij de borrel",
         "title": "Snacks en zoutjes bij De Notenman",
-        "intro": "Pittige snacks, crackers, zoutjes en groentesnacks vormen het borrelassortiment van De Notenman. Handig samen te bestellen met een notenmix voor een compleet plankje."
+        "intro": "Pittige snacks, crackers, zoutjes en groentesnacks vormen het borrelassortiment van De Notenman. Handig samen te bestellen met een notenmix voor een compleet plankje.",
+        "imageAlt": "Pittige mix van De Notenman"
       },
       "varieties": {
         "eyebrow": "Het assortiment",

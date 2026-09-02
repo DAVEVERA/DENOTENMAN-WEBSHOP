@@ -616,7 +616,8 @@
       "hero": {
         "eyebrow": "La base de votre petit-déjeuner",
         "title": "Muesli et céréales chez De Notenman",
-        "intro": "Muesli, granola, flocons d'avoine et flocons multicéréales forment la base du rayon petit-déjeuner. Complétez-les avec des noix, des fruits secs ou du miel du même assortiment."
+        "intro": "Muesli, granola, flocons d'avoine et flocons multicéréales forment la base du rayon petit-déjeuner. Complétez-les avec des noix, des fruits secs ou du miel du même assortiment.",
+        "imageAlt": "Bol de muesli de De Notenman"
       },
       "varieties": {
         "eyebrow": "L'assortiment",
@@ -672,7 +673,8 @@
       "hero": {
         "eyebrow": "Pour l'apéritif",
         "title": "Snacks et biscuits salés chez De Notenman",
-        "intro": "Snacks épicés, crackers, biscuits salés et snacks de légumes composent l'assortiment apéritif de De Notenman. Faciles à commander avec un mélange de noix pour une planche complète."
+        "intro": "Snacks épicés, crackers, biscuits salés et snacks de légumes composent l'assortiment apéritif de De Notenman. Faciles à commander avec un mélange de noix pour une planche complète.",
+        "imageAlt": "Mélange épicé de De Notenman"
       },
       "varieties": {
         "eyebrow": "L'assortiment",
