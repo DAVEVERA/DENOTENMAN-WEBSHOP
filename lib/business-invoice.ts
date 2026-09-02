@@ -165,7 +165,7 @@ export async function generateAndSendBusinessInvoice(
   const businessAccount = orderList.businessAccount;
   const invoice = await generateInvoiceForOrder(order, businessAccount);
 
-  const customerDownloadUrl = `${BASE_URL}/api/business/order-lists/${businessOrderListId}/invoice`;
+  const customerDownloadUrl = `${BASE_URL}/api/business/orders/${order.id}/invoice`;
   const merchantDownloadUrl = `${BASE_URL}/api/admin/business-accounts/${businessAccount.id}/invoices/${invoice.id}`;
 
   const results = await Promise.allSettled([

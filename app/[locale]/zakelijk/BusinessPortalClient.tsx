@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Download, LogOut, PackageCheck, Send, Clock, RefreshCw } from "lucide-react";
+import { CreditCard, Download, LogOut, PackageCheck, Save, Send, Clock, RefreshCw, Sparkles } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { calculateVat } from "@/lib/business-vat";
 import { BusinessPasswordSettings } from "./BusinessPasswordSettings";
 
-type PortalItem = { id: string; productName: string; variantLabel: string | null; sku: string | null; quantity: number; unitPriceCents: number };
+type PortalItem = { id: string; productName: string; variantLabel: string | null; sku: string | null; quantity: number; unitPriceCents: number; isNew: boolean };
 type PortalNote = { id: string; actorType: string; authorName: string; text: string; createdAt: string };
+type PortalOrderHistoryItem = { id: string; productName: string; variantLabel: string | null; quantity: number; unitPriceCents: number };
+type PortalOrderHistoryEntry = { id: string; date: string; totalCents: number; items: PortalOrderHistoryItem[] };
 type PortalList = {
   id: string;
   title: string;
@@ -18,17 +20,18 @@ type PortalList = {
   validUntil: string | null;
   sentAt: string | null;
   approvedAt: string | null;
-  paidAt: string | null;
-  /** An Order exists for this list and is still awaiting Mollie confirmation. */
+  /** A PENDING Order exists for this list — a payment is currently in flight. */
   paymentPending: boolean;
   createdAt: string;
   updatedAt: string;
   items: PortalItem[];
   notes: PortalNote[];
+  /** Past completed checkout rounds for this same continuous list, newest first. */
+  orderHistory: PortalOrderHistoryEntry[];
 };
 
 const STATUS: Record<string, string> = {
-  SENT: "Klaar om te betalen",
+  SENT: "Actief",
   CHANGES_REQUESTED: "In behandeling bij Fedor",
   APPROVED: "In behandeling bij Fedor",
   PAID: "Betaald",
@@ -68,8 +71,8 @@ export function BusinessPortalClient({ locale, account, initialOrderLists }: { l
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">Welkom {account.contactName}</p>
-          <h1 className="mt-1 font-heading text-heading-lg text-text">Bestellijsten voor {account.companyName}</h1>
-          <p className="mt-2 max-w-2xl text-body-sm text-muted">Dit is het voorstel van Fedor. Kloppen de aantallen niet, neem dan contact op — aanpassen kan alleen via Fedor.</p>
+          <h1 className="mt-1 font-heading text-heading-lg text-text">Bestellijst voor {account.companyName}</h1>
+          <p className="mt-2 max-w-2xl text-body-sm text-muted">Dit is de doorlopende lijst die Fedor voor je bijhoudt. Je past zelf de aantallen aan — de producten, eenheden en prijzen stelt Fedor in.</p>
         </div>
         <div>
           <button type="button" onClick={logout} disabled={loggingOut} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text"><LogOut className="h-4 w-4" aria-hidden="true" /> {loggingOut ? "Uitloggen…" : "Uitloggen"}</button>
@@ -92,44 +95,107 @@ export function BusinessPortalClient({ locale, account, initialOrderLists }: { l
 
 function OrderListReview({ list, account }: { list: PortalList; account: PortalAccount }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [quantities, setQuantities] = useState<Record<string, number>>(() => Object.fromEntries(list.items.map((item) => [item.id, item.quantity])));
+  const [syncedVersion, setSyncedVersion] = useState(list.version);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  // A newer version means the server state moved on (our own save, Fedor's
+  // edit, or a payment resetting the list) — resync local inputs to match.
+  // Unsaved local edits are only ever discarded together with the version
+  // bump that made them stale, never silently by an unrelated re-render.
+  useEffect(() => {
+    if (list.version === syncedVersion) return;
+    setQuantities(Object.fromEntries(list.items.map((item) => [item.id, item.quantity])));
+    setSyncedVersion(list.version);
+  }, [list.version, list.items, syncedVersion]);
+
+  const dirty = useMemo(
+    () => list.items.some((item) => (quantities[item.id] ?? item.quantity) !== item.quantity),
+    [list.items, quantities]
+  );
+  const liveTotalCents = useMemo(
+    () => list.items.reduce((sum, item) => sum + (quantities[item.id] ?? item.quantity) * item.unitPriceCents, 0),
+    [list.items, quantities]
+  );
+
   const expired = list.validUntil ? new Date(list.validUntil).getTime() <= Date.now() : false;
-  const payable = list.status === "SENT" && !expired && !list.paymentPending;
-  const { vatAmountCents, totalCents: payableTotalCents } = calculateVat(list.totalCents, account.vatRatePercent);
+  const listActive = list.status === "SENT" && !expired && !list.paymentPending;
+  const payable = listActive && !dirty && liveTotalCents > 0;
+  const { vatAmountCents, totalCents: payableTotalCents } = calculateVat(liveTotalCents, account.vatRatePercent);
   const isReverseCharge = account.vatRegime === "REVERSE_CHARGE";
 
   // The customer may have just returned from Mollie before the webhook has
   // confirmed payment. Poll the server truth rather than trusting anything
   // from the redirect URL, and stop as soon as this list is no longer
-  // pending (it moved to PAID, or the payment failed and reverted to SENT).
+  // pending (the payment succeeded and the list reset, or it failed).
   useEffect(() => {
     if (!list.paymentPending) return;
     const interval = setInterval(() => router.refresh(), 4000);
     return () => clearInterval(interval);
   }, [list.paymentPending, router]);
 
+  function setQuantity(itemId: string, value: number) {
+    setQuantities((current) => ({ ...current, [itemId]: Math.max(0, Math.min(100_000, Math.round(value))) }));
+  }
+
+  async function saveQuantities() {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const response = await fetch(`/api/business/order-lists/${list.id}/quantities`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          version: list.version,
+          quantities: list.items.map((item) => ({ itemId: item.id, quantity: quantities[item.id] ?? item.quantity })),
+        }),
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        setSaveError(
+          data?.error === "VERSION_CONFLICT"
+            ? "Deze lijst is intussen gewijzigd. De pagina wordt ververst."
+            : data?.error === "CHECKOUT_IN_PROGRESS"
+              ? "Er loopt al een betaling voor deze lijst. Wacht tot die is afgerond."
+              : data?.error === "ORDER_LIST_EXPIRED"
+                ? "Deze bestellijst is verlopen. Neem contact op met Fedor."
+                : "Opslaan is niet gelukt. Probeer het opnieuw."
+        );
+        router.refresh();
+        return;
+      }
+      router.refresh();
+    } catch {
+      setSaveError("De verbinding viel weg. Probeer het opnieuw.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function startCheckout() {
-    setBusy(true);
-    setError(null);
+    setCheckoutBusy(true);
+    setCheckoutError(null);
     try {
       const response = await fetch(`/api/business/order-lists/${list.id}/checkout`, { method: "POST" });
       const data = (await response.json().catch(() => null)) as { checkoutUrl?: string; error?: string } | null;
       if (!response.ok || !data?.checkoutUrl) {
-        setError(
+        setCheckoutError(
           data?.error === "ORDER_LIST_EXPIRED"
             ? "Deze bestellijst is verlopen. Vraag Fedor om een nieuwe versie."
-            : data?.error === "ALREADY_PAID"
-              ? "Deze bestellijst is al betaald."
+            : data?.error === "EMPTY_ORDER"
+              ? "Kies eerst een aantal bij minstens één product."
               : "Afrekenen is niet gelukt. Probeer het opnieuw."
         );
-        setBusy(false);
+        setCheckoutBusy(false);
         return;
       }
       window.location.href = data.checkoutUrl;
     } catch {
-      setError("De verbinding viel weg. Er is niets afgeschreven; probeer het opnieuw.");
-      setBusy(false);
+      setCheckoutError("De verbinding viel weg. Er is niets afgeschreven; probeer het opnieuw.");
+      setCheckoutBusy(false);
     }
   }
 
@@ -146,53 +212,76 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
         </div>
       </div>
       <div className="p-4 sm:p-6">
-        <ul className="divide-y divide-border rounded-card border border-border">
-          {list.items.map((item) => (
-            <li key={item.id} className="flex items-start justify-between gap-3 px-3 py-3 text-body-sm">
-              <span className="min-w-0">
-                <strong className="block text-text">{item.productName}</strong>
-                <span className="break-words text-muted">{item.variantLabel ?? item.sku ?? "—"}</span>
-              </span>
-              <span className="shrink-0 text-right">
-                <strong className="block text-text">{item.quantity} × {formatPrice(item.unitPriceCents, "nl")}</strong>
-                <span className="text-muted">{formatPrice(item.quantity * item.unitPriceCents, "nl")}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-5 space-y-1 border-t border-border pt-4 text-body-sm">
-          <div className="flex items-center justify-between text-muted">
-            <span>Subtotaal (excl. BTW)</span>
-            <span>{formatPrice(list.totalCents, "nl")}</span>
-          </div>
-          <div className="flex items-center justify-between text-muted">
-            <span>{isReverseCharge ? "BTW verlegd" : `BTW (${account.vatRatePercent}%)`}</span>
-            <span>{formatPrice(vatAmountCents, "nl")}</span>
-          </div>
-          <div className="flex items-center justify-between pt-1">
-            <span className="font-heading font-bold text-text">Te betalen</span>
-            <span className="font-heading text-heading-sm text-text">{formatPrice(payableTotalCents, "nl")}</span>
-          </div>
-        </div>
+        {listActive ? (
+          <>
+            <ul className="divide-y divide-border rounded-card border border-border">
+              {list.items.map((item) => (
+                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 text-body-sm">
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <strong className="block text-text">{item.productName}</strong>
+                      {item.isNew ? <span className="inline-flex items-center gap-1 rounded-button bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent-hover"><Sparkles className="h-3 w-3" aria-hidden="true" /> Nieuw van Fedor</span> : null}
+                    </span>
+                    <span className="break-words text-muted">{item.variantLabel ?? item.sku ?? "—"} · {formatPrice(item.unitPriceCents, "nl")} per stuk</span>
+                  </span>
+                  <label className="flex shrink-0 items-center gap-2">
+                    <span className="sr-only">Aantal voor {item.productName}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100_000}
+                      step={1}
+                      value={quantities[item.id] ?? item.quantity}
+                      onChange={(event) => setQuantity(item.id, Number(event.target.value))}
+                      className="min-h-11 w-20 rounded-button border border-border bg-background px-2 text-right text-body-md text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                    />
+                    <span className="w-24 shrink-0 text-right font-semibold text-text">{formatPrice((quantities[item.id] ?? item.quantity) * item.unitPriceCents, "nl")}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-5 space-y-1 border-t border-border pt-4 text-body-sm">
+              <div className="flex items-center justify-between text-muted">
+                <span>Subtotaal (excl. BTW)</span>
+                <span>{formatPrice(liveTotalCents, "nl")}</span>
+              </div>
+              <div className="flex items-center justify-between text-muted">
+                <span>{isReverseCharge ? "BTW verlegd" : `BTW (${account.vatRatePercent}%)`}</span>
+                <span>{formatPrice(vatAmountCents, "nl")}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <span className="font-heading font-bold text-text">Te betalen</span>
+                <span className="font-heading text-heading-sm text-text">{formatPrice(payableTotalCents, "nl")}</span>
+              </div>
+            </div>
 
-        {payable ? (
-          <button type="button" disabled={busy} onClick={startCheckout} className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-button bg-accent px-5 font-heading font-bold text-contrast shadow-button disabled:opacity-60">
-            <CreditCard className="h-5 w-5" aria-hidden="true" /> {busy ? "Bezig…" : `Nu afrekenen — ${formatPrice(payableTotalCents, "nl")}`}
-          </button>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {dirty ? (
+                <button type="button" disabled={saving} onClick={saveQuantities} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-button border border-accent bg-surface px-5 font-heading font-bold text-accent-hover shadow-button disabled:opacity-60">
+                  <Save className="h-5 w-5" aria-hidden="true" /> {saving ? "Bezig…" : "Wijzigingen opslaan"}
+                </button>
+              ) : (
+                <button type="button" disabled={!payable || checkoutBusy} onClick={startCheckout} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-button bg-accent px-5 font-heading font-bold text-contrast shadow-button disabled:opacity-60">
+                  <CreditCard className="h-5 w-5" aria-hidden="true" /> {checkoutBusy ? "Bezig…" : liveTotalCents === 0 ? "Kies eerst een aantal" : `Nu afrekenen — ${formatPrice(payableTotalCents, "nl")}`}
+                </button>
+              )}
+            </div>
+            {dirty ? <p className="mt-2 text-xs text-muted">Sla je wijzigingen op voordat je afrekent.</p> : null}
+            {saveError ? <p role="alert" className="mt-4 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">{saveError}</p> : null}
+            {checkoutError ? <p role="alert" className="mt-4 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">{checkoutError}</p> : null}
+          </>
         ) : null}
         {list.status === "SENT" && list.paymentPending ? (
-          <p className="mt-6 flex items-center gap-2 rounded-card bg-background p-4 text-body-sm text-muted">
+          <p className="mt-2 flex items-center gap-2 rounded-card bg-background p-4 text-body-sm text-muted">
             <RefreshCw className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" /> We controleren je betaling nog even. Deze pagina werkt vanzelf bij zodra dat rond is.
           </p>
         ) : null}
         {list.status === "SENT" && expired && !list.paymentPending ? (
-          <p className="mt-6 rounded-card bg-background p-4 text-body-sm text-muted">Deze bestellijst is verlopen. Vraag Fedor om een nieuwe versie.</p>
+          <p className="mt-2 rounded-card bg-background p-4 text-body-sm text-muted">Deze bestellijst is verlopen. Vraag Fedor om een nieuwe versie.</p>
         ) : null}
         {list.status === "CANCELLED" ? (
-          <p className="mt-6 rounded-card bg-background p-4 text-body-sm text-muted">Deze bestellijst is geannuleerd.</p>
+          <p className="mt-2 rounded-card bg-background p-4 text-body-sm text-muted">Deze bestellijst is geannuleerd.</p>
         ) : null}
-        {list.status === "PAID" ? <InvoiceSection list={list} account={account} /> : null}
-        {error ? <p role="alert" className="mt-4 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">{error}</p> : null}
 
         {list.notes.length > 0 ? (
           <div className="mt-6">
@@ -207,12 +296,22 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
             </ol>
           </div>
         ) : null}
+
+        {list.orderHistory.length > 0 ? (
+          <div className="mt-6">
+            <h3 className="font-heading font-bold text-text">Eerdere bestellingen</h3>
+            <div className="mt-2 grid gap-3">
+              {list.orderHistory.map((order) => <OrderHistoryEntry key={order.id} order={order} account={account} />)}
+            </div>
+          </div>
+        ) : null}
       </div>
     </article>
   );
 }
 
-function InvoiceSection({ list, account }: { list: PortalList; account: PortalAccount }) {
+function OrderHistoryEntry({ order, account }: { order: PortalOrderHistoryEntry; account: PortalAccount }) {
+  const [open, setOpen] = useState(false);
   const [peppolBusy, setPeppolBusy] = useState(false);
   const [peppolResult, setPeppolResult] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
@@ -220,7 +319,7 @@ function InvoiceSection({ list, account }: { list: PortalList; account: PortalAc
     setPeppolBusy(true);
     setPeppolResult(null);
     try {
-      const response = await fetch(`/api/business/order-lists/${list.id}/peppol`, { method: "POST" });
+      const response = await fetch(`/api/business/orders/${order.id}/peppol`, { method: "POST" });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
         setPeppolResult({ type: "error", text: data?.error === "PEPPOL_NOT_CONFIGURED" ? "Peppol-verzending is nog niet actief voor dit account." : "Versturen naar Peppol is niet gelukt." });
@@ -235,35 +334,46 @@ function InvoiceSection({ list, account }: { list: PortalList; account: PortalAc
   }
 
   return (
-    <div className="mt-6 rounded-card border border-border bg-background p-4 sm:p-5">
-      <div className="flex items-center gap-2">
-        <PackageCheck className="h-5 w-5 text-accent-ink" aria-hidden="true" />
-        <h3 className="font-heading font-bold text-text">Factuur</h3>
-      </div>
-      <p className="mt-1 text-body-sm text-muted">Betaald{list.paidAt ? ` op ${formatDate(list.paidAt)}` : ""}.</p>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <a
-          href={`/api/business/order-lists/${list.id}/invoice`}
-          className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text hover:border-border-hover"
-        >
-          <Download className="h-4 w-4" aria-hidden="true" /> Factuur downloaden (PDF)
-        </a>
-        {account.country === "BE" ? (
-          account.peppolConfigured ? (
-            <button type="button" disabled={peppolBusy} onClick={sendPeppol} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-accent bg-surface px-4 font-heading text-body-sm font-bold text-accent-hover disabled:opacity-60">
-              <Send className="h-4 w-4" aria-hidden="true" /> {peppolBusy ? "Bezig…" : "Verstuur via Peppol"}
-            </button>
-          ) : (
-            <span title="Peppol-verzending wordt binnenkort beschikbaar" className="inline-flex min-h-11 items-center gap-2 rounded-button border border-dashed border-border px-4 font-heading text-body-sm font-semibold text-muted">
-              <Clock className="h-4 w-4" aria-hidden="true" /> Peppol-verzending — binnenkort beschikbaar
-            </span>
-          )
-        ) : null}
-      </div>
-      {peppolResult ? (
-        <p role={peppolResult.type === "error" ? "alert" : "status"} className={`mt-3 text-body-sm font-semibold ${peppolResult.type === "error" ? "text-red-700" : "text-green-700"}`}>
-          {peppolResult.text}
-        </p>
+    <div className="rounded-card border border-border bg-background p-4">
+      <button type="button" onClick={() => setOpen((value) => !value)} className="flex w-full flex-wrap items-center justify-between gap-2 text-left">
+        <span className="text-body-sm text-text"><strong className="font-heading">{formatDate(order.date)}</strong> · {order.items.length} {order.items.length === 1 ? "product" : "producten"}</span>
+        <span className="font-heading font-bold text-text">{formatPrice(order.totalCents, "nl")}</span>
+      </button>
+      {open ? (
+        <>
+          <ul className="mt-3 divide-y divide-border border-t border-border pt-2 text-body-sm">
+            {order.items.map((item) => (
+              <li key={item.id} className="flex items-start justify-between gap-3 py-2">
+                <span className="min-w-0"><strong className="block text-text">{item.productName}</strong><span className="text-muted">{item.variantLabel ?? "—"}</span></span>
+                <span className="shrink-0 text-right text-muted">{item.quantity} × {formatPrice(item.unitPriceCents, "nl")}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <a
+              href={`/api/business/orders/${order.id}/invoice`}
+              className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text hover:border-border-hover"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" /> Factuur downloaden (PDF)
+            </a>
+            {account.country === "BE" ? (
+              account.peppolConfigured ? (
+                <button type="button" disabled={peppolBusy} onClick={sendPeppol} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-accent bg-surface px-4 font-heading text-body-sm font-bold text-accent-hover disabled:opacity-60">
+                  <Send className="h-4 w-4" aria-hidden="true" /> {peppolBusy ? "Bezig…" : "Verstuur via Peppol"}
+                </button>
+              ) : (
+                <span title="Peppol-verzending wordt binnenkort beschikbaar" className="inline-flex min-h-11 items-center gap-2 rounded-button border border-dashed border-border px-4 font-heading text-body-sm font-semibold text-muted">
+                  <Clock className="h-4 w-4" aria-hidden="true" /> Peppol-verzending — binnenkort beschikbaar
+                </span>
+              )
+            ) : null}
+          </div>
+          {peppolResult ? (
+            <p role={peppolResult.type === "error" ? "alert" : "status"} className={`mt-3 text-body-sm font-semibold ${peppolResult.type === "error" ? "text-red-700" : "text-green-700"}`}>
+              {peppolResult.text}
+            </p>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

@@ -22,12 +22,18 @@ export function businessSessionCookieOptions(expiresAt: Date) {
   };
 }
 
+/**
+ * A quantity of 0 is valid and contributes nothing to the total: on a
+ * continuous order list it means "on the list, not ordered this round" —
+ * either because the customer hasn't chosen an amount yet, or because a
+ * completed checkout reset it for the next round.
+ */
 export function calculateBusinessOrderListTotal(
   items: ReadonlyArray<{ quantity: number; unitPriceCents: number }>
 ): number {
   let total = 0;
   for (const item of items) {
-    if (!Number.isSafeInteger(item.quantity) || item.quantity < 1) throw new Error("INVALID_QUANTITY");
+    if (!Number.isSafeInteger(item.quantity) || item.quantity < 0) throw new Error("INVALID_QUANTITY");
     if (!Number.isSafeInteger(item.unitPriceCents) || item.unitPriceCents < 0) throw new Error("INVALID_UNIT_PRICE");
     const lineTotal = item.quantity * item.unitPriceCents;
     if (!Number.isSafeInteger(lineTotal) || lineTotal > POSTGRES_INT_MAX - total) throw new Error("TOTAL_OUT_OF_RANGE");

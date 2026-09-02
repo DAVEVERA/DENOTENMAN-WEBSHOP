@@ -45,7 +45,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         validUntil,
         createdByAdminId: admin.id,
         items: {
-          create: resolved.items.map((item, index) => ({ ...item, sortOrder: index })),
+          create: resolved.items.map(({ existingId: _existingId, ...item }, index) => ({ ...item, sortOrder: index })),
         },
       },
       include: { items: true },

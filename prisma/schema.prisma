@@ -716,7 +716,13 @@ model Order {
   molliePaymentId String?   @unique
   paidAt          DateTime?
 
-  businessOrderListId String?            @unique
+  // Not @unique: a business order list is continuous and can produce many
+  // Orders over time (one per checkout round). A separate partial unique
+  // index (Order_pending_business_order_list_unique, added via raw SQL in
+  // migration 20260902130000 since Prisma can't express WHERE-partial
+  // indexes declaratively) still guarantees at most one PENDING order per
+  // list at a time, which is what prevents a double-checkout race.
+  businessOrderListId String?
   businessOrderList   BusinessOrderList? @relation(fields: [businessOrderListId], references: [id])
 
   postnlTrackingCode    String?
@@ -736,6 +742,7 @@ model Order {
 
   @@index([userId])
   @@index([status])
+  @@index([businessOrderListId])
 }
 
 model AftersalesFlow {
@@ -1581,7 +1588,9 @@ model BusinessOrderList {
   items  BusinessOrderListItem[]
   notes  BusinessOrderListNote[]
   events BusinessEvent[]
-  order  Order?
+  // A list is continuous/reusable: it accumulates one Order per checkout
+  // round instead of being retired by its first payment.
+  orders Order[]
 
   @@index([businessAccountId, createdAt])
   @@index([status, updatedAt])
@@ -1599,6 +1608,10 @@ model BusinessOrderListItem {
   quantity         Int
   unitPriceCents   Int
   sortOrder        Int               @default(0)
+  // Preserved across admin edits (not reset to "now" on every save) so the
+  // customer portal can tell which items are genuinely new since the last
+  // completed order, versus lines that were merely re-saved.
+  createdAt        DateTime          @default(now())
 
   @@index([orderListId, sortOrder])
   @@index([productVariantId])

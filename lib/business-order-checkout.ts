@@ -3,7 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getMollieClient } from "@/lib/mollie";
 import { BASE_URL } from "@/lib/routes";
-import { businessOrderListIsExpired } from "@/lib/business-portal-contract";
+import { businessOrderListIsExpired, calculateBusinessOrderListTotal } from "@/lib/business-portal-contract";
 import { calculateVat } from "@/lib/business-vat";
 import { recordBusinessEvent } from "@/lib/business-portal";
 import { Prisma } from "@prisma/client";
@@ -12,19 +12,29 @@ import type { BusinessAccount, BusinessOrderListItem } from "@prisma/client";
 /**
  * Called from within the Mollie webhook's order-status transaction
  * (lib/orders.ts syncOrderPaymentStatus) once an Order linked to a business
- * order-list is confirmed paid. Idempotent: a retried webhook call for an
- * already-PAID list is a silent no-op.
+ * order-list is confirmed paid. The caller only invokes this on the single
+ * transaction that wins the order's PENDING->PAID transition (guarded by
+ * its own optimistic-status update), so this never needs its own
+ * idempotency check.
+ *
+ * The order list itself is continuous — it is never "used up" by a
+ * payment. Quantities reset to a clean slate for the next ordering round;
+ * the completed round remains visible to the customer via the Order row
+ * itself (see the orders relation), not via the list's own state.
  */
 export async function markBusinessOrderListPaid(
   tx: Prisma.TransactionClient,
   businessOrderListId: string
 ): Promise<void> {
-  const claimed = await tx.businessOrderList.updateMany({
-    where: { id: businessOrderListId, status: { not: "PAID" } },
-    data: { status: "PAID" },
-  });
-  if (claimed.count === 0) return;
   const orderList = await tx.businessOrderList.findUniqueOrThrow({ where: { id: businessOrderListId } });
+  await tx.businessOrderListItem.updateMany({
+    where: { orderListId: businessOrderListId, quantity: { gt: 0 } },
+    data: { quantity: 0 },
+  });
+  await tx.businessOrderList.update({
+    where: { id: businessOrderListId },
+    data: { totalCents: 0, version: { increment: 1 } },
+  });
   await recordBusinessEvent(tx, {
     businessAccountId: orderList.businessAccountId,
     orderListId: businessOrderListId,
@@ -39,7 +49,7 @@ export type BusinessCheckoutResult =
   | { ok: true; checkoutUrl: string }
   | {
       ok: false;
-      error: "NOT_FOUND" | "ORDER_LIST_EXPIRED" | "ORDER_LIST_NOT_PAYABLE" | "ALREADY_PAID" | "PAYMENT_CREATE_FAILED";
+      error: "NOT_FOUND" | "ORDER_LIST_EXPIRED" | "ORDER_LIST_NOT_PAYABLE" | "EMPTY_ORDER" | "PAYMENT_CREATE_FAILED";
     };
 
 function businessOrderItemData(item: BusinessOrderListItem) {
@@ -69,10 +79,12 @@ async function ensureBusinessShadowUser(account: BusinessAccount) {
 }
 
 /**
- * Creates (or resumes) the Mollie payment for a business order-list checkout.
- * A list may only ever have one linked Order (unique businessOrderListId), so
- * a retry after a cancelled/expired payment reuses that same Order row and
- * re-snapshots the current line items rather than creating a second one.
+ * Creates (or resumes) the Mollie payment for one checkout round of a
+ * continuous business order list. Each round gets its own Order row — past
+ * rounds stay in place as order history rather than being reused or
+ * overwritten. A partial unique index (Order_pending_business_order_list_unique)
+ * guarantees at most one PENDING order per list, so a resumed/abandoned
+ * payment reuses that same PENDING Order rather than creating a second one.
  */
 export async function createBusinessOrderListCheckout(
   businessAccountId: string,
@@ -85,18 +97,19 @@ export async function createBusinessOrderListCheckout(
   });
   if (!orderList) return { ok: false, error: "NOT_FOUND" };
   if (businessOrderListIsExpired(orderList.validUntil)) return { ok: false, error: "ORDER_LIST_EXPIRED" };
-  if (orderList.status === "PAID") return { ok: false, error: "ALREADY_PAID" };
   if (orderList.status !== "SENT") return { ok: false, error: "ORDER_LIST_NOT_PAYABLE" };
+
+  const orderableItems = orderList.items.filter((item) => item.quantity > 0);
+  if (orderableItems.length === 0) return { ok: false, error: "EMPTY_ORDER" };
 
   const account = orderList.businessAccount;
   const shadowUser = await ensureBusinessShadowUser(account);
-  const existingOrder = await prisma.order.findUnique({ where: { businessOrderListId: orderListId } });
+  const existingOrder = await prisma.order.findFirst({
+    where: { businessOrderListId: orderListId, status: "PENDING" },
+    orderBy: { createdAt: "desc" },
+  });
 
-  if (existingOrder && (existingOrder.status === "PAID" || existingOrder.status === "FULFILLED")) {
-    return { ok: false, error: "ALREADY_PAID" };
-  }
-
-  if (existingOrder && existingOrder.status === "PENDING" && existingOrder.molliePaymentId) {
+  if (existingOrder?.molliePaymentId) {
     try {
       const payment = await getMollieClient().payments.get(existingOrder.molliePaymentId);
       const url = payment.getCheckoutUrl();
@@ -109,9 +122,9 @@ export async function createBusinessOrderListCheckout(
   // orderList.totalCents is the sum of Fedor's line prices, which are always
   // excl. BTW — the customer must actually pay that plus VAT (or the same
   // amount at 0% for a BE reverse-charge account).
-  const subtotalCents = orderList.totalCents;
+  const subtotalCents = calculateBusinessOrderListTotal(orderableItems);
   const { totalCents } = calculateVat(subtotalCents, Number(account.vatRatePercent));
-  const itemsData = orderList.items.map(businessOrderItemData);
+  const itemsData = orderableItems.map(businessOrderItemData);
 
   let order;
   if (existingOrder) {
@@ -150,10 +163,10 @@ export async function createBusinessOrderListCheckout(
       });
     } catch (error) {
       // Two concurrent checkout clicks (a double-click, or two open tabs)
-      // can both pass the existingOrder check as null; the unique
-      // businessOrderListId constraint then rejects the loser here. Rather
-      // than surface that as a checkout failure, retry once — the retry
-      // will see the winner's Order and reuse its Mollie payment.
+      // can both pass the "no PENDING order" check as true; the partial
+      // unique index then rejects the loser here. Rather than surface that
+      // as a checkout failure, retry once — the retry will see the
+      // winner's PENDING Order and reuse its Mollie payment.
       const isConcurrentCreate = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
       if (isConcurrentCreate && retriesLeft > 0) {
         return createBusinessOrderListCheckout(businessAccountId, orderListId, retriesLeft - 1);

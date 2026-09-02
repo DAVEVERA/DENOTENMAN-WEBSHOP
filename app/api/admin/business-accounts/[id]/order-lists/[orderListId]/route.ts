@@ -88,8 +88,8 @@ export async function PATCH(
     return NextResponse.json({ error: "INVALID_STATUS_TRANSITION" }, { status: 409 });
   }
   if (action === "CANCEL") {
-    const pendingOrder = await prisma.order.findUnique({ where: { businessOrderListId: orderListId }, select: { status: true } });
-    if (pendingOrder?.status === "PENDING") {
+    const pendingOrder = await prisma.order.findFirst({ where: { businessOrderListId: orderListId, status: "PENDING" }, select: { id: true } });
+    if (pendingOrder) {
       return NextResponse.json({ error: "CHECKOUT_IN_PROGRESS" }, { status: 409 });
     }
   }

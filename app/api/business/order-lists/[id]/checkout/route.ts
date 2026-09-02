@@ -17,7 +17,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         ? 410
         : result.error === "PAYMENT_CREATE_FAILED"
           ? 502
-          : 409;
+          : result.error === "EMPTY_ORDER"
+            ? 400
+            : 409;
     return NextResponse.json({ error: result.error }, { status });
   }
 

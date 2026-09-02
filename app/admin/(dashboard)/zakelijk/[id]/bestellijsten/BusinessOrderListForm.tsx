@@ -8,6 +8,8 @@ type CatalogOption = { id: string; sku: string; name: string; label: string; pri
 
 type Line = {
   key: string;
+  /** Present when this line came from an existing BusinessOrderListItem — carried through to PATCH so the save can update in place instead of recreating (which would reset the "new since last order" timestamp). */
+  existingId: string | null;
   variantId: string | null;
   productName: string;
   unit: string;
@@ -59,6 +61,7 @@ export function BusinessOrderListForm({
   const [lines, setLines] = useState<Line[]>(() =>
     (existingList?.items ?? []).map((item) => ({
       key: nextLineKey(),
+      existingId: item.id,
       variantId: item.productVariantId,
       productName: item.productName,
       unit: item.variantLabel ?? "",
@@ -83,6 +86,7 @@ export function BusinessOrderListForm({
       ...current,
       {
         key: nextLineKey(),
+        existingId: null,
         variantId: option.id,
         productName: option.name,
         unit: option.label,
@@ -96,7 +100,7 @@ export function BusinessOrderListForm({
   function addCustomLine() {
     setLines((current) => [
       ...current,
-      { key: nextLineKey(), variantId: null, productName: "", unit: "", sku: null, quantity: 1, unitPriceEuro: "0.00" },
+      { key: nextLineKey(), existingId: null, variantId: null, productName: "", unit: "", sku: null, quantity: 1, unitPriceEuro: "0.00" },
     ]);
   }
 
@@ -121,8 +125,9 @@ export function BusinessOrderListForm({
     const form = new FormData(event.currentTarget);
     const items = lines.map((line) =>
       line.variantId
-        ? { variantId: line.variantId, quantity: line.quantity, unitPriceCents: toCents(line.unitPriceEuro) }
+        ? { id: line.existingId ?? undefined, variantId: line.variantId, quantity: line.quantity, unitPriceCents: toCents(line.unitPriceEuro) }
         : {
+            id: line.existingId ?? undefined,
             productName: line.productName.trim(),
             unit: line.unit.trim() ? line.unit.trim() : null,
             sku: line.sku?.trim() ? line.sku.trim() : null,
@@ -130,7 +135,7 @@ export function BusinessOrderListForm({
             unitPriceCents: toCents(line.unitPriceEuro),
           }
     );
-    if (items.some((item) => !Number.isInteger(item.quantity) || item.quantity < 1 || !Number.isSafeInteger(item.unitPriceCents) || item.unitPriceCents < 0)) {
+    if (items.some((item) => !Number.isInteger(item.quantity) || item.quantity < 0 || !Number.isSafeInteger(item.unitPriceCents) || item.unitPriceCents < 0)) {
       setError("Controleer de aantallen en prijzen.");
       return;
     }
@@ -244,7 +249,7 @@ export function BusinessOrderListForm({
               ) : null}
               <label className="text-body-sm font-semibold text-text">
                 Aantal
-                <input type="number" min={1} step={1} value={line.quantity} onChange={(event) => patchLine(line.key, { quantity: Number(event.target.value) })} className="mt-1 min-h-12 w-full rounded-button border border-border bg-background px-3" />
+                <input type="number" min={0} step={1} value={line.quantity} onChange={(event) => patchLine(line.key, { quantity: Number(event.target.value) })} className="mt-1 min-h-12 w-full rounded-button border border-border bg-background px-3" />
               </label>
               <label className="text-body-sm font-semibold text-text">
                 Prijs per eenheid (€)

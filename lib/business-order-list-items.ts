@@ -6,15 +6,17 @@ import { calculateBusinessOrderListTotal } from "@/lib/business-portal-contract"
 
 export const businessOrderListItemInputSchema = z.union([
   z.object({
+    id: z.string().trim().min(1).max(100).optional(),
     variantId: z.string().trim().min(1).max(100),
-    quantity: z.number().int().min(1).max(100_000),
+    quantity: z.number().int().min(0).max(100_000),
     unitPriceCents: z.number().int().min(0).max(100_000_000),
   }).strict(),
   z.object({
+    id: z.string().trim().min(1).max(100).optional(),
     productName: z.string().trim().min(1).max(200),
     unit: z.string().trim().max(60).nullable().optional(),
     sku: z.string().trim().max(100).nullable().optional(),
-    quantity: z.number().int().min(1).max(100_000),
+    quantity: z.number().int().min(0).max(100_000),
     unitPriceCents: z.number().int().min(0).max(100_000_000),
   }).strict(),
 ]);
@@ -22,6 +24,8 @@ export const businessOrderListItemInputSchema = z.union([
 export type BusinessOrderListItemInput = z.infer<typeof businessOrderListItemInputSchema>;
 
 export type ResolvedBusinessOrderListItem = {
+  /** The existing BusinessOrderListItem id this line was edited from, if any — lets the save route update in place instead of recreating (which would reset createdAt and lose "new since last order" accuracy). */
+  existingId: string | null;
   productVariantId: string | null;
   productName: string;
   variantLabel: string | null;
@@ -65,6 +69,7 @@ export async function resolveBusinessOrderListItems(
       if ("variantId" in item) {
         const variant = variantById.get(item.variantId)!;
         return {
+          existingId: item.id ?? null,
           productVariantId: variant.id,
           productName: variant.product.translations[0]?.name ?? variant.sku,
           variantLabel: variant.translations[0]?.label ?? `${variant.weightGrams} gram`,
@@ -74,6 +79,7 @@ export async function resolveBusinessOrderListItems(
         };
       }
       return {
+        existingId: item.id ?? null,
         productVariantId: null,
         productName: item.productName,
         variantLabel: item.unit?.trim() ? item.unit.trim() : null,

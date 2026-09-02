@@ -18,7 +18,10 @@ test("business invitation tokens are stored as stable one-way hashes", () => {
 test("business totals are server calculated and bounded to PostgreSQL integer range", () => {
   assert.equal(calculateBusinessOrderListTotal([{ quantity: 3, unitPriceCents: 499 }, { quantity: 2, unitPriceCents: 1000 }]), 3497);
   assert.throws(() => calculateBusinessOrderListTotal([{ quantity: 100_000, unitPriceCents: 100_000_000 }]), /TOTAL_OUT_OF_RANGE/);
-  assert.throws(() => calculateBusinessOrderListTotal([{ quantity: 0, unitPriceCents: 100 }]), /INVALID_QUANTITY/);
+  // A quantity of 0 is valid on a continuous order list: it means "on the
+  // list, not ordered this round" and contributes nothing to the total.
+  assert.equal(calculateBusinessOrderListTotal([{ quantity: 0, unitPriceCents: 100 }]), 0);
+  assert.throws(() => calculateBusinessOrderListTotal([{ quantity: -1, unitPriceCents: 100 }]), /INVALID_QUANTITY/);
 });
 
 test("business order-list validity expires at the server deadline", () => {
@@ -48,16 +51,22 @@ test("portal routes enforce same-origin and tenant scoping", async () => {
   assert.match(schema, /model BusinessOrderListItem/);
 });
 
-test("the customer can no longer mutate an order-list directly; only Fedor's admin routes can", async () => {
-  const [itemsRoute, adminRoute] = await Promise.all([
+test("the customer can only adjust quantities on an order-list; only Fedor's admin routes can change anything else", async () => {
+  const [itemsRoute, adminRoute, quantitiesService, quantitiesRoute] = await Promise.all([
     readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/items/route.ts", "utf8"),
     readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/route.ts", "utf8"),
+    readFile("lib/business-order-list-quantities.ts", "utf8"),
+    readFile("app/api/business/order-lists/[id]/quantities/route.ts", "utf8"),
   ]);
   assert.match(itemsRoute, /admin\.role === "STAFF"/);
   assert.match(itemsRoute, /VERSION_CONFLICT/);
   assert.match(itemsRoute, /CHECKOUT_IN_PROGRESS/);
   assert.match(adminRoute, /export async function DELETE/);
   assert.match(adminRoute, /existing\.status !== "DRAFT"/);
+  // The customer's only write path touches quantity and nothing else on the item row.
+  assert.match(quantitiesService, /data:\s*\{\s*quantity\s*\}/);
+  assert.match(quantitiesRoute, /getBusinessPortalSession/);
+  assert.match(quantitiesRoute, /isSameOriginMutation/);
 });
 
 test("business notification reads are isolated per admin and limited to displayed events", async () => {
@@ -113,7 +122,10 @@ test("the checkout endpoint is guarded by the server-side validity deadline", as
   const checkoutService = await readFile("lib/business-order-checkout.ts", "utf8");
   assert.match(checkoutService, /businessOrderListIsExpired/);
   assert.match(checkoutService, /ORDER_LIST_EXPIRED/);
-  assert.match(checkoutService, /ALREADY_PAID/);
+  // A continuous list is never permanently used up by a payment (see
+  // markBusinessOrderListPaid), so there is no more ALREADY_PAID state to
+  // guard against here — an empty selection is guarded instead.
+  assert.match(checkoutService, /EMPTY_ORDER/);
 });
 
 test("admin date input means end of local day and expired lists cannot be created or sent", async () => {

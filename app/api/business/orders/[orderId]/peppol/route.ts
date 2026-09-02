@@ -4,7 +4,7 @@ import { BUSINESS_SESSION_COOKIE, getBusinessPortalSession, recordBusinessEvent 
 import { prisma } from "@/lib/prisma";
 import { getPeppolAdapter, PeppolNotConfiguredError } from "@/lib/peppol";
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ orderId: string }> }) {
   if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
   const session = await getBusinessPortalSession(request.cookies.get(BUSINESS_SESSION_COOKIE)?.value);
   if (!session) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
@@ -15,12 +15,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return NextResponse.json({ error: "PEPPOL_NOT_CONFIGURED" }, { status: 409 });
   }
 
-  const { id } = await context.params;
-  const orderList = await prisma.businessOrderList.findFirst({
-    where: { id, businessAccountId: session.businessAccountId },
-    include: { order: { include: { invoices: true } } },
+  const { orderId } = await context.params;
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, businessOrderList: { businessAccountId: session.businessAccountId } },
+    include: { invoices: true },
   });
-  const invoice = orderList?.order?.invoices[0];
+  const invoice = order?.invoices[0];
   if (!invoice?.pdfBase64) return NextResponse.json({ error: "INVOICE_NOT_FOUND" }, { status: 404 });
 
   try {

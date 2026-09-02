@@ -33,7 +33,7 @@ export async function PATCH(
   const { id, orderListId } = await context.params;
   const existing = await prisma.businessOrderList.findFirst({
     where: { id: orderListId, businessAccountId: id },
-    include: { businessAccount: true },
+    include: { businessAccount: true, items: { select: { id: true } } },
   });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
@@ -53,11 +53,11 @@ export async function PATCH(
   // A checkout attempt is in flight for this list: editing now could let the
   // customer pay an amount that no longer matches what Fedor is changing it
   // to. Wait for that payment to reach a terminal state first.
-  const pendingOrder = await prisma.order.findUnique({
-    where: { businessOrderListId: orderListId },
-    select: { status: true },
+  const pendingOrder = await prisma.order.findFirst({
+    where: { businessOrderListId: orderListId, status: "PENDING" },
+    select: { id: true },
   });
-  if (pendingOrder?.status === "PENDING") {
+  if (pendingOrder) {
     return NextResponse.json({ error: "CHECKOUT_IN_PROGRESS" }, { status: 409 });
   }
 
@@ -89,10 +89,30 @@ export async function PATCH(
       });
       if (claimed.count !== 1) throw new VersionConflictError();
 
-      await tx.businessOrderListItem.deleteMany({ where: { orderListId } });
-      await tx.businessOrderListItem.createMany({
-        data: resolved.items.map((item, index) => ({ orderListId, ...item, sortOrder: index })),
-      });
+      // Update-in-place for lines the client identified as existing (keeps
+      // their createdAt, which the customer portal uses to tell genuinely
+      // new items from ones that were merely re-saved), create the rest,
+      // and delete whatever existing line isn't present in this save.
+      const existingIds = new Set(existing.items.map((item) => item.id));
+      const keptIds = new Set<string>();
+      for (const [index, item] of resolved.items.entries()) {
+        const { existingId, ...data } = item;
+        if (existingId && existingIds.has(existingId)) {
+          keptIds.add(existingId);
+          await tx.businessOrderListItem.update({
+            where: { id: existingId },
+            data: { ...data, sortOrder: index },
+          });
+        } else {
+          await tx.businessOrderListItem.create({
+            data: { orderListId, ...data, sortOrder: index },
+          });
+        }
+      }
+      const removedIds = [...existingIds].filter((itemId) => !keptIds.has(itemId));
+      if (removedIds.length > 0) {
+        await tx.businessOrderListItem.deleteMany({ where: { id: { in: removedIds } } });
+      }
 
       const orderList = await tx.businessOrderList.findUniqueOrThrow({
         where: { id: orderListId },

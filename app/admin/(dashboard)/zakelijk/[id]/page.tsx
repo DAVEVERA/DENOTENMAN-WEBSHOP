@@ -76,7 +76,14 @@ export default async function ZakelijkDetailPage({
     where: { id },
     include: {
       quotes: { orderBy: { createdAt: "desc" } },
-      orderLists: { orderBy: { createdAt: "desc" }, include: { items: { orderBy: { sortOrder: "asc" } }, notes: { orderBy: { createdAt: "desc" } } } },
+      orderLists: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          items: { orderBy: { sortOrder: "asc" } },
+          notes: { orderBy: { createdAt: "desc" } },
+          orders: { orderBy: { createdAt: "desc" }, where: { status: { in: ["PAID", "FULFILLED"] } }, take: 10 },
+        },
+      },
       invitations: { orderBy: { createdAt: "desc" }, take: 5 },
       events: { orderBy: { createdAt: "desc" }, take: 20 },
       invoices: { orderBy: { createdAt: "desc" }, take: 10 },
@@ -159,6 +166,19 @@ export default async function ZakelijkDetailPage({
                       {orderList.items.map((item) => <li key={item.id} className="flex items-start justify-between gap-3 px-3 py-2 text-body-sm"><span className="min-w-0"><strong className="block text-text">{item.productName}</strong><span className="text-muted">{item.variantLabel ?? item.sku ?? "Variant"}</span></span><span className="shrink-0 text-right"><strong className="block text-text">{item.quantity} × {formatPrice(item.unitPriceCents, "nl")}</strong><span className="text-muted">{formatPrice(item.quantity * item.unitPriceCents, "nl")}</span></span></li>)}
                     </ul>
                     {orderList.notes.length > 0 ? <div className="mt-3 rounded-card bg-[#FFF9DA] p-3 text-body-sm"><strong className="text-text">Laatste notitie van {orderList.notes[0].authorName}</strong><p className="mt-1 whitespace-pre-wrap text-muted">{orderList.notes[0].text}</p></div> : null}
+                    {orderList.orders.length > 0 ? (
+                      <div className="mt-3 rounded-card border border-border bg-background p-3">
+                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Eerdere bestellingen ({orderList.orders.length})</p>
+                        <ul className="mt-2 grid gap-1 text-body-sm">
+                          {orderList.orders.map((order) => (
+                            <li key={order.id} className="flex items-center justify-between gap-2">
+                              <span className="text-muted">{order.paidAt ? formatDateTime(order.paidAt) : formatDateTime(order.createdAt)}</span>
+                              <span className="font-semibold text-text">{formatPrice(order.totalCents, "nl")}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     {orderList.deliveryStatus === "FAILED" ? <p className="mt-3 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">De klantmail is niet verzonden. Probeer opnieuw.</p> : null}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       {orderList.status !== "PAID" && orderList.status !== "CANCELLED" ? (
