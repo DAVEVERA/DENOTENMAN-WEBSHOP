@@ -15,6 +15,7 @@ import { getAlternates } from "@/lib/alternates";
 import { Container } from "@/components/ui/Container";
 import { getCategoryNavigation, getPageBySlug } from "@/lib/queries";
 import { findCategoryByCanonicalSlug } from "@/lib/categoryGroups";
+import { publicImageUrl } from "@/lib/storage";
 import { categories as categoriesPath, category as categoryPath } from "@/lib/routes";
 import { Terms } from "./_components/Terms";
 import { Privacy } from "./_components/Privacy";
@@ -54,8 +55,16 @@ const categoryStoryHeroImage: Partial<Record<CategoryStoryPageKey, { src: string
   categoryNuts: { src: "/hero/hero-nuts-desktop.webp", objectPosition: "80% 50%" },
   categoryHoney: { src: "/hero/hero-honey-desktop.webp", objectPosition: "70% 45%" },
   categoryNutButter: { src: "/home/notenpasta-closeup.webp" },
+  // These three categories have no dedicated hero shoot, so this reuses an
+  // existing, genuinely appetizing catalog product photo (top-down on the
+  // same cream backdrop as every other product image) rather than leaving
+  // the generic icon placeholder in place.
+  categoryDriedFruit: { src: publicImageUrl("Gedroogd fruit/Gezwafelde abrikozen/gebruikt/FRU-4018-zoete-abrikozen-gezwaveld.webp") },
+  categoryMuesliGrains: { src: publicImageUrl("Muesli & Granen/Muesli/gebruikt/MUE-11005-muesli.webp") },
+  categorySnacks: { src: publicImageUrl("Snacks/Pittige mix/gebruikt/SNK-6007-gemengd-pikant.webp") },
 };
 
+/** Only used if a category above ever loses its heroImage entry. */
 const categoryStoryHeroIcon: Partial<Record<CategoryStoryPageKey, LucideIcon>> = {
   categoryDriedFruit: Sun,
   categoryMuesliGrains: Wheat,
