@@ -6,7 +6,8 @@ import { BASE_URL } from "@/lib/routes";
 import { businessOrderListIsExpired } from "@/lib/business-portal-contract";
 import { calculateVat } from "@/lib/business-vat";
 import { recordBusinessEvent } from "@/lib/business-portal";
-import type { BusinessAccount, BusinessOrderListItem, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import type { BusinessAccount, BusinessOrderListItem } from "@prisma/client";
 
 /**
  * Called from within the Mollie webhook's order-status transaction
@@ -75,7 +76,8 @@ async function ensureBusinessShadowUser(account: BusinessAccount) {
  */
 export async function createBusinessOrderListCheckout(
   businessAccountId: string,
-  orderListId: string
+  orderListId: string,
+  retriesLeft = 1
 ): Promise<BusinessCheckoutResult> {
   const orderList = await prisma.businessOrderList.findFirst({
     where: { id: orderListId, businessAccountId },
@@ -111,22 +113,25 @@ export async function createBusinessOrderListCheckout(
   const { totalCents } = calculateVat(subtotalCents, Number(account.vatRatePercent));
   const itemsData = orderList.items.map(businessOrderItemData);
 
-  const order = existingOrder
-    ? await prisma.$transaction(async (tx) => {
-        await tx.orderItem.deleteMany({ where: { orderId: existingOrder.id } });
-        return tx.order.update({
-          where: { id: existingOrder.id },
-          data: {
-            status: "PENDING",
-            subtotalCents,
-            totalCents,
-            molliePaymentId: null,
-            paidAt: null,
-            items: { create: itemsData },
-          },
-        });
-      })
-    : await prisma.order.create({
+  let order;
+  if (existingOrder) {
+    order = await prisma.$transaction(async (tx) => {
+      await tx.orderItem.deleteMany({ where: { orderId: existingOrder.id } });
+      return tx.order.update({
+        where: { id: existingOrder.id },
+        data: {
+          status: "PENDING",
+          subtotalCents,
+          totalCents,
+          molliePaymentId: null,
+          paidAt: null,
+          items: { create: itemsData },
+        },
+      });
+    });
+  } else {
+    try {
+      order = await prisma.order.create({
         data: {
           userId: shadowUser.id,
           status: "PENDING",
@@ -143,6 +148,19 @@ export async function createBusinessOrderListCheckout(
           items: { create: itemsData },
         },
       });
+    } catch (error) {
+      // Two concurrent checkout clicks (a double-click, or two open tabs)
+      // can both pass the existingOrder check as null; the unique
+      // businessOrderListId constraint then rejects the loser here. Rather
+      // than surface that as a checkout failure, retry once — the retry
+      // will see the winner's Order and reuse its Mollie payment.
+      const isConcurrentCreate = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+      if (isConcurrentCreate && retriesLeft > 0) {
+        return createBusinessOrderListCheckout(businessAccountId, orderListId, retriesLeft - 1);
+      }
+      throw error;
+    }
+  }
 
   const isPubliclyReachable = /^https:\/\//.test(BASE_URL);
   try {
