@@ -3,10 +3,40 @@ import { redirect } from "next/navigation";
 import { isLocale } from "@/lib/i18n";
 import { getBusinessPortalSession } from "@/lib/business-portal";
 import { prisma } from "@/lib/prisma";
+import { syncOrderPaymentStatus } from "@/lib/orders";
 import { Logo } from "@/components/ui/Logo";
 import { BusinessPortalClient } from "./BusinessPortalClient";
 
 export const metadata: Metadata = { title: "Zakelijke omgeving | De Notenman", robots: { index: false, follow: false } };
+
+async function loadOrderLists(businessAccountId: string) {
+  const orderListInclude = {
+    items: { orderBy: { sortOrder: "asc" as const } },
+    notes: { orderBy: { createdAt: "asc" as const } },
+    order: true,
+  };
+  let orderLists = await prisma.businessOrderList.findMany({
+    where: { businessAccountId, status: { not: "DRAFT" } },
+    orderBy: { updatedAt: "desc" },
+    include: orderListInclude,
+  });
+
+  // The customer may land back here before Mollie's webhook has confirmed
+  // payment — or, without a public webhook URL, before anything ever will.
+  // Verify pending orders the same way the consumer order-confirmation page
+  // does, rather than only trusting whatever the webhook already wrote.
+  const pendingOrders = orderLists.map((list) => list.order).filter((order) => order?.status === "PENDING");
+  if (pendingOrders.length > 0) {
+    await Promise.all(pendingOrders.map((order) => syncOrderPaymentStatus(order!)));
+    orderLists = await prisma.businessOrderList.findMany({
+      where: { businessAccountId, status: { not: "DRAFT" } },
+      orderBy: { updatedAt: "desc" },
+      include: orderListInclude,
+    });
+  }
+
+  return orderLists;
+}
 
 export default async function BusinessPortalPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -14,11 +44,7 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
   const session = await getBusinessPortalSession();
   if (!session) redirect(`/${locale}/zakelijk/inloggen`);
   const { country, vatRegime, vatRatePercent, peppolConfigured } = session.businessAccount;
-  const orderLists = await prisma.businessOrderList.findMany({
-    where: { businessAccountId: session.businessAccountId, status: { not: "DRAFT" } },
-    orderBy: { updatedAt: "desc" },
-    include: { items: { orderBy: { sortOrder: "asc" } }, notes: { orderBy: { createdAt: "asc" } }, order: { select: { status: true, paidAt: true } } },
-  });
+  const orderLists = await loadOrderLists(session.businessAccountId);
   const serialized = orderLists.map((list) => ({
     id: list.id,
     title: list.title,
