@@ -1,8 +1,17 @@
-import "server-only";
-
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import sharp from "sharp";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { LEGAL_IDENTITY } from "@/lib/legal";
 import { formatPrice } from "@/lib/format";
+
+const LOGO_SIZE = 28;
+
+async function loadLogoPng(): Promise<Buffer> {
+  const svgPath = path.join(process.cwd(), "public", "brand", "logo-mark.svg");
+  const svg = await readFile(svgPath);
+  return sharp(svg).resize(LOGO_SIZE * 4, LOGO_SIZE * 4).png().toBuffer();
+}
 
 export type InvoiceLine = {
   productName: string;
@@ -50,12 +59,26 @@ export async function renderInvoicePdfBase64(input: InvoicePdfInput): Promise<st
 
   let y = PAGE_HEIGHT - MARGIN;
 
-  page.drawText(LEGAL_IDENTITY.tradeName, { x: MARGIN, y, size: 20, font: bold, color: ACCENT });
+  let brandTextX = MARGIN;
+  try {
+    const logoPng = await loadLogoPng();
+    const logoImage = await doc.embedPng(logoPng);
+    page.drawImage(logoImage, { x: MARGIN, y: y - LOGO_SIZE + 4, width: LOGO_SIZE, height: LOGO_SIZE });
+    brandTextX = MARGIN + LOGO_SIZE + 10;
+  } catch (error) {
+    // A missing/unreadable logo asset must never block invoice generation —
+    // fall back to the text-only header used before the logo existed.
+    console.error("Could not embed invoice logo, falling back to text-only header", error);
+  }
+
+  page.drawText(LEGAL_IDENTITY.tradeName, { x: brandTextX, y, size: 20, font: bold, color: ACCENT });
   page.drawText("FACTUUR", { x: PAGE_WIDTH - MARGIN - bold.widthOfTextAtSize("FACTUUR", 20), y, size: 20, font: bold, color: INK });
   y -= 20;
-  page.drawText(LEGAL_IDENTITY.address, { x: MARGIN, y, size: 9, font: regular, color: MUTED });
+  // Indented to brandTextX (not MARGIN) so these lines never sit under the
+  // logo mark, regardless of its exact height.
+  page.drawText(LEGAL_IDENTITY.address, { x: brandTextX, y, size: 9, font: regular, color: MUTED });
   y -= 12;
-  page.drawText(`KVK ${LEGAL_IDENTITY.registrationNumber} · BTW ${LEGAL_IDENTITY.vatNumber}`, { x: MARGIN, y, size: 9, font: regular, color: MUTED });
+  page.drawText(`KVK ${LEGAL_IDENTITY.registrationNumber} · BTW ${LEGAL_IDENTITY.vatNumber}`, { x: brandTextX, y, size: 9, font: regular, color: MUTED });
 
   y -= 40;
   const columnGap = 260;
@@ -94,23 +117,26 @@ export async function renderInvoicePdfBase64(input: InvoicePdfInput): Promise<st
 
   y = Math.min(detailY, recipientY) - 24;
 
-  // Line-items table
+  // Line-items table. Money columns are right-aligned against a fixed edge
+  // so amounts of any width (four digits, cents, a wide "Totaal" label)
+  // never collide with a neighboring column.
+  const rightEdge = PAGE_WIDTH - MARGIN;
   const tableTop = y;
-  const col = { name: leftX, qty: 330, price: 400, total: 480 };
+  const col = { name: leftX, qty: 320, priceRight: 460, totalRight: rightEdge };
   page.drawRectangle({ x: leftX, y: tableTop - 4, width: PAGE_WIDTH - MARGIN * 2, height: 20, color: rgb(0.96, 0.94, 0.89) });
   page.drawText("Omschrijving", { x: col.name + 4, y: tableTop, size: 9, font: bold, color: INK });
   page.drawText("Aantal", { x: col.qty, y: tableTop, size: 9, font: bold, color: INK });
-  page.drawText("Prijs", { x: col.price, y: tableTop, size: 9, font: bold, color: INK });
-  page.drawText("Totaal", { x: col.total, y: tableTop, size: 9, font: bold, color: INK });
+  drawTextRight(page, "Prijs", col.priceRight, tableTop, 9, bold, INK);
+  drawTextRight(page, "Totaal", col.totalRight, tableTop, 9, bold, INK);
   y = tableTop - 26;
 
   for (const item of input.items) {
     const label = item.variantLabel ? `${item.productName} (${item.variantLabel})` : item.productName;
     drawWrappedText(page, label, leftX, y, col.qty - leftX - 8, 9, regular, INK);
     page.drawText(String(item.quantity), { x: col.qty, y, size: 9, font: regular, color: INK });
-    page.drawText(formatPrice(item.unitPriceCents, "nl"), { x: col.price, y, size: 9, font: regular, color: INK });
+    drawTextRight(page, formatPrice(item.unitPriceCents, "nl"), col.priceRight, y, 9, regular, INK);
     const lineTotal = formatPrice(item.unitPriceCents * item.quantity, "nl");
-    page.drawText(lineTotal, { x: col.total, y, size: 9, font: regular, color: INK });
+    drawTextRight(page, lineTotal, col.totalRight, y, 9, regular, INK);
     y -= 18;
   }
 
@@ -118,11 +144,11 @@ export async function renderInvoicePdfBase64(input: InvoicePdfInput): Promise<st
   page.drawLine({ start: { x: leftX, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness: 0.5, color: MUTED });
   y -= 20;
 
-  const totalsX = col.price;
+  const totalsLabelX = 300;
   const drawTotal = (label: string, value: string, useBold = false) => {
     const font = useBold ? bold : regular;
-    page.drawText(label, { x: totalsX, y, size: 10, font, color: INK });
-    page.drawText(value, { x: col.total, y, size: 10, font, color: INK });
+    page.drawText(label, { x: totalsLabelX, y, size: 10, font, color: INK });
+    drawTextRight(page, value, col.totalRight, y, 10, font, INK);
     y -= 16;
   };
   drawTotal("Subtotaal (excl. BTW)", formatPrice(input.subtotalCents, "nl"));
@@ -142,6 +168,19 @@ export async function renderInvoicePdfBase64(input: InvoicePdfInput): Promise<st
 
   const bytes = await doc.save();
   return Buffer.from(bytes).toString("base64");
+}
+
+function drawTextRight(
+  page: PDFPage,
+  text: string,
+  rightEdge: number,
+  y: number,
+  size: number,
+  font: PDFFont,
+  color: ReturnType<typeof rgb>
+): void {
+  const width = font.widthOfTextAtSize(text, size);
+  page.drawText(text, { x: rightEdge - width, y, size, font, color });
 }
 
 function drawWrappedText(
