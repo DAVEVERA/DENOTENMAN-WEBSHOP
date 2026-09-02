@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Download, LogOut, PackageCheck, Send, Clock } from "lucide-react";
+import { CreditCard, Download, LogOut, PackageCheck, Send, Clock, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { calculateVat } from "@/lib/business-vat";
 
@@ -18,6 +18,8 @@ type PortalList = {
   sentAt: string | null;
   approvedAt: string | null;
   paidAt: string | null;
+  /** An Order exists for this list and is still awaiting Mollie confirmation. */
+  paymentPending: boolean;
   createdAt: string;
   updatedAt: string;
   items: PortalItem[];
@@ -86,12 +88,23 @@ export function BusinessPortalClient({ locale, account, initialOrderLists }: { l
 }
 
 function OrderListReview({ list, account }: { list: PortalList; account: PortalAccount }) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const expired = list.validUntil ? new Date(list.validUntil).getTime() <= Date.now() : false;
-  const payable = list.status === "SENT" && !expired;
+  const payable = list.status === "SENT" && !expired && !list.paymentPending;
   const { vatAmountCents, totalCents: payableTotalCents } = calculateVat(list.totalCents, account.vatRatePercent);
   const isReverseCharge = account.vatRegime === "REVERSE_CHARGE";
+
+  // The customer may have just returned from Mollie before the webhook has
+  // confirmed payment. Poll the server truth rather than trusting anything
+  // from the redirect URL, and stop as soon as this list is no longer
+  // pending (it moved to PAID, or the payment failed and reverted to SENT).
+  useEffect(() => {
+    if (!list.paymentPending) return;
+    const interval = setInterval(() => router.refresh(), 4000);
+    return () => clearInterval(interval);
+  }, [list.paymentPending, router]);
 
   async function startCheckout() {
     setBusy(true);
@@ -164,7 +177,12 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
             <CreditCard className="h-5 w-5" aria-hidden="true" /> {busy ? "Bezig…" : `Nu afrekenen — ${formatPrice(payableTotalCents, "nl")}`}
           </button>
         ) : null}
-        {list.status === "SENT" && expired ? (
+        {list.status === "SENT" && list.paymentPending ? (
+          <p className="mt-6 flex items-center gap-2 rounded-card bg-background p-4 text-body-sm text-muted">
+            <RefreshCw className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" /> We controleren je betaling nog even. Deze pagina werkt vanzelf bij zodra dat rond is.
+          </p>
+        ) : null}
+        {list.status === "SENT" && expired && !list.paymentPending ? (
           <p className="mt-6 rounded-card bg-background p-4 text-body-sm text-muted">Deze bestellijst is verlopen. Vraag Fedor om een nieuwe versie.</p>
         ) : null}
         {list.status === "CANCELLED" ? (

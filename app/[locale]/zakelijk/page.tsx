@@ -17,7 +17,7 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
   const orderLists = await prisma.businessOrderList.findMany({
     where: { businessAccountId: session.businessAccountId, status: { not: "DRAFT" } },
     orderBy: { updatedAt: "desc" },
-    include: { items: { orderBy: { sortOrder: "asc" } }, notes: { orderBy: { createdAt: "asc" } }, order: { select: { paidAt: true } } },
+    include: { items: { orderBy: { sortOrder: "asc" } }, notes: { orderBy: { createdAt: "asc" } }, order: { select: { status: true, paidAt: true } } },
   });
   const serialized = orderLists.map((list) => ({
     id: list.id,
@@ -29,6 +29,10 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
     sentAt: list.sentAt?.toISOString() ?? null,
     approvedAt: list.approvedAt?.toISOString() ?? null,
     paidAt: list.order?.paidAt?.toISOString() ?? null,
+    // The customer may have just returned from Mollie before the webhook
+    // has confirmed payment — never show "Nu afrekenen" again while that
+    // is still settling, and never trust anything from the redirect URL.
+    paymentPending: list.order?.status === "PENDING",
     createdAt: list.createdAt.toISOString(),
     updatedAt: list.updatedAt.toISOString(),
     items: list.items.map((item) => ({
