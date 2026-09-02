@@ -58,7 +58,7 @@ export default async function BestellijstBewerkenPage({
         <>
           <p className="mt-2 text-body-sm text-muted">
             {orderList.status === "SENT"
-              ? "De klant heeft deze lijst al ontvangen. Wijzigingen zijn direct zichtbaar zodra je opslaat."
+              ? "De klant heeft deze lijst al ontvangen. Wijzigingen zijn direct zichtbaar zodra je opslaat, en de klant krijgt hier automatisch een e-mail over."
               : "Dit concept heeft de klant nog niet gezien."}
           </p>
           <BusinessOrderListForm
