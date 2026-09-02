@@ -96,8 +96,11 @@ test("category entrances use a two-column mobile grid and six columns on desktop
   assert.match(markup, /lg:grid-cols-6/);
   assert.doesNotMatch(markup, /snap-x|overflow-x-auto|min-w-\[8\.5rem\]/);
   assert.equal((markup.match(/<li/g) ?? []).length, 6);
-  assert.match(markup, /min-h-14 touch-manipulation/);
-  assert.equal((markup.match(/sizes="40px"/g) ?? []).length, 6);
+  // Redesigned as image-forward tiles: the photo fills the card
+  // (aspect-[4/5]) with the category name and a large accent arrow badge
+  // overlaid on a bottom scrim, instead of a short text-led pill.
+  assert.match(markup, /aspect-\[4\/5\] touch-manipulation/);
+  assert.equal((markup.match(/sizes="\(max-width: 639px\) 45vw/g) ?? []).length, 6);
   assert.equal((markup.match(/alt=""/g) ?? []).length, 6);
   assert.doesNotMatch(markup, />0[1-6]</);
 });

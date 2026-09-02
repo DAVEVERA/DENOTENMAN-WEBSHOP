@@ -36,6 +36,73 @@ export type HomeHeroProps = {
 const AUTOPLAY_DELAY = 8_000;
 const SWIPE_THRESHOLD = 42;
 
+/**
+ * Mobile hero imagery is art-directed per slide (see `mobileImage` in the
+ * dictionaries), and the three source photos are framed very differently:
+ * - hero-nuts-mobile.webp: a small bowl sits in the bottom-right corner of a
+ *   tall, mostly-empty marble backdrop (~57% of the frame is bare counter).
+ * - hero-honey-mobile.webp: a landscape product-grid shot, which leaves
+ *   letterboxing above/below when contain-fit into a portrait box.
+ * - hero-nutbutter-mobile.webp: an already full-bleed portrait shot (person +
+ *   product wall) that fills a portrait box edge-to-edge with minimal margin.
+ *
+ * Rather than one blanket `object-contain object-bottom` treatment for every
+ * slide, each image gets its own crop/fit + reserved top offset so the
+ * product actually fills the visible mobile viewport instead of floating in
+ * dead space. Keyed by `mobileImage` (stable across locales) rather than
+ * `id` (which is translated per locale).
+ */
+type MobileHeroImageTreatment = {
+  /** Tailwind class(es) controlling how much space is reserved above the
+   * image on mobile/sm, i.e. how tall the image box ends up being. */
+  top: string;
+  fit: "cover" | "contain";
+  position: string;
+  naturalSize: { width: number; height: number };
+};
+
+const DEFAULT_MOBILE_HERO_IMAGE_TREATMENT: MobileHeroImageTreatment = {
+  top: "top-[22rem] sm:top-[19rem]",
+  fit: "contain",
+  position: "object-bottom",
+  naturalSize: { width: 1122, height: 1402 },
+};
+
+const MOBILE_HERO_IMAGE_TREATMENTS: Record<string, MobileHeroImageTreatment> = {
+  "/hero/hero-nuts-mobile.webp": {
+    // The bowl only occupies the bottom-right ~40% of the source frame, so
+    // contain-fit (which preserves the whole image, dead space included)
+    // just shrinks the whole problem down. Cropping in with object-fit:
+    // cover — anchored bottom-right, where the bowl actually sits — and a
+    // shorter reserved box (more top offset) zooms into the product instead.
+    top: "top-[25rem] sm:top-[22rem]",
+    fit: "cover",
+    position: "object-right-bottom",
+    naturalSize: { width: 1024, height: 1536 },
+  },
+  "/hero/hero-honey-mobile.webp": {
+    // Landscape source in a portrait box: cover fills the box completely
+    // (cropping the sides slightly) instead of leaving a blank band.
+    top: "top-[22.5rem] sm:top-[19.5rem]",
+    fit: "cover",
+    position: "object-center",
+    naturalSize: { width: 1024, height: 768 },
+  },
+  "/hero/hero-nutbutter-mobile.webp": {
+    // Already a tight, full-bleed portrait composition — contain-fit keeps
+    // the whole figure safely in frame; only the reserved top offset needed
+    // trimming to match the (short) text card above it.
+    top: "top-[22rem] sm:top-[19rem]",
+    fit: "contain",
+    position: "object-bottom",
+    naturalSize: { width: 1122, height: 1402 },
+  },
+};
+
+function getMobileHeroImageTreatment(mobileImage: string): MobileHeroImageTreatment {
+  return MOBILE_HERO_IMAGE_TREATMENTS[mobileImage] ?? DEFAULT_MOBILE_HERO_IMAGE_TREATMENT;
+}
+
 export function HomeHero({
   carouselLabel,
   slideLabel,
@@ -147,7 +214,7 @@ export function HomeHero({
   return (
     <section
       data-home-section="hero"
-      className="relative isolate min-h-[54rem] overflow-hidden bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-contrast sm:min-h-[52rem] lg:min-h-[38rem] xl:min-h-[clamp(39rem,42vw,44rem)]"
+      className="relative isolate min-h-[46rem] overflow-hidden bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-contrast sm:min-h-[44rem] lg:min-h-[38rem] xl:min-h-[clamp(39rem,42vw,44rem)]"
       role="region"
       aria-roledescription="carousel"
       aria-label={carouselLabel}
@@ -163,6 +230,7 @@ export function HomeHero({
       <div className="absolute inset-0 z-0" aria-live="off">
         {slides.map((slide, index) => {
           const isActive = index === activeIndex;
+          const treatment = getMobileHeroImageTreatment(slide.mobileImage);
 
           return (
             <div
@@ -173,7 +241,12 @@ export function HomeHero({
               )}
               aria-hidden={!isActive}
             >
-              <picture className="absolute inset-x-0 bottom-[5.5rem] top-[23rem] block sm:top-[20rem] lg:bottom-[5.25rem] lg:top-0">
+              <picture
+                className={cn(
+                  "absolute inset-x-0 bottom-[5.5rem] block lg:bottom-[5.25rem] lg:top-0",
+                  treatment.top,
+                )}
+              >
                 <source
                   media="(min-width: 1024px)"
                   srcSet={slide.desktopImage}
@@ -181,12 +254,18 @@ export function HomeHero({
                 <img
                   src={slide.mobileImage}
                   alt={isActive ? slide.imageAlt : ""}
-                  width={1122}
-                  height={1402}
+                  width={treatment.naturalSize.width}
+                  height={treatment.naturalSize.height}
                   loading={index === 0 ? "eager" : "lazy"}
                   fetchPriority={index === 0 ? "high" : "auto"}
                   decoding="async"
-                  className="absolute inset-0 h-full w-full object-contain object-bottom lg:object-center"
+                  className={cn(
+                    "absolute inset-0 h-full w-full lg:object-center",
+                    treatment.fit === "cover"
+                      ? "object-cover lg:object-contain"
+                      : "object-contain",
+                    treatment.position,
+                  )}
                 />
               </picture>
             </div>
@@ -199,7 +278,7 @@ export function HomeHero({
         aria-hidden="true"
       />
 
-      <Container className="relative z-10 flex min-h-[54rem] items-start pb-28 pt-5 sm:min-h-[52rem] sm:pt-7 lg:min-h-[38rem] lg:items-center lg:pb-32 lg:pt-10 xl:min-h-[clamp(39rem,42vw,44rem)]">
+      <Container className="relative z-10 flex min-h-[46rem] items-start pb-28 pt-5 sm:min-h-[44rem] sm:pt-7 lg:min-h-[38rem] lg:items-center lg:pb-32 lg:pt-10 xl:min-h-[clamp(39rem,42vw,44rem)]">
         <div
           className="max-w-[31rem] rounded-[0.85rem] border border-white/70 bg-white/[0.84] p-4 shadow-[0_16px_44px_rgba(35,27,18,0.11)] backdrop-blur-md sm:p-6 lg:max-w-[24rem] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none xl:max-w-[28rem]"
           aria-live={isPaused ? "polite" : "off"}

@@ -1,6 +1,23 @@
 import type { Locale } from "@/lib/i18n";
 import { pagesSegment } from "./segments";
 
+/**
+ * Editorial "story/landing" pages for top-level product categories. Each key
+ * maps to exactly one canonical category slug (see categoryStoryCanonicalSlug)
+ * so the header can route a category name to its story page instead of the
+ * plain product grid.
+ */
+export const categoryStoryPageKeys = [
+  "categoryNuts",
+  "categoryDriedFruit",
+  "categoryMuesliGrains",
+  "categorySnacks",
+  "categoryHoney",
+  "categoryNutButter",
+] as const;
+
+export type CategoryStoryPageKey = (typeof categoryStoryPageKeys)[number];
+
 export const pageKeys = [
   "about",
   "contact",
@@ -15,9 +32,30 @@ export const pageKeys = [
   "processingAgreement",
   "subscribe",
   "optOut",
+  ...categoryStoryPageKeys,
 ] as const;
 
 export type PageKey = (typeof pageKeys)[number];
+
+/** The canonical (DB) category slug each category story page is about. */
+export const categoryStoryCanonicalSlug: Record<CategoryStoryPageKey, string> = {
+  categoryNuts: "noten",
+  categoryDriedFruit: "gedroogd-fruit",
+  categoryMuesliGrains: "muesli-granen",
+  categorySnacks: "snacks-zoutjes",
+  categoryHoney: "honing",
+  categoryNutButter: "notenpasta-s",
+};
+
+/** Reverse lookup: canonical category slug -> its story page key, if any. */
+export const categoryStoryPageKeyByCanonicalSlug: Partial<Record<string, CategoryStoryPageKey>> =
+  Object.fromEntries(
+    categoryStoryPageKeys.map((key) => [categoryStoryCanonicalSlug[key], key])
+  );
+
+export function isCategoryStoryPageKey(key: PageKey): key is CategoryStoryPageKey {
+  return (categoryStoryPageKeys as readonly PageKey[]).includes(key);
+}
 
 export const indexablePageKeys = pageKeys.filter(
   (key): key is Exclude<PageKey, "subscribe" | "optOut" | "processingAgreement"> =>
@@ -60,6 +98,12 @@ export const pageSlugs: Record<PageKey, Record<Locale, string>> = {
   },
   subscribe: { nl: "aanmelden-nieuwsbrief", en: "newsletter-signup", fr: "inscription-newsletter" },
   optOut: { nl: "afmelden-nieuwsbrief", en: "newsletter-opt-out", fr: "desinscription-newsletter" },
+  categoryNuts: { nl: "noten", en: "nuts", fr: "noix" },
+  categoryDriedFruit: { nl: "gedroogd-fruit", en: "dried-fruit", fr: "fruits-secs" },
+  categoryMuesliGrains: { nl: "muesli-granen", en: "muesli-and-grains", fr: "muesli-et-cereales" },
+  categorySnacks: { nl: "snacks-zoutjes", en: "snacks-and-savouries", fr: "snacks-et-sales" },
+  categoryHoney: { nl: "honing", en: "honey", fr: "miel" },
+  categoryNutButter: { nl: "notenpasta-s", en: "nut-butter", fr: "beurre-de-noix" },
 };
 
 export function pagePath(key: PageKey, locale: Locale): string {

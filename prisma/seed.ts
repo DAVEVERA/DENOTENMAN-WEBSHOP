@@ -45,6 +45,15 @@ const pageTitles: Record<(typeof pageKeys)[number], Record<(typeof locales)[numb
   },
   subscribe: { nl: "Aanmelden nieuwsbrief", en: "Newsletter signup", fr: "Inscription newsletter" },
   optOut: { nl: "Afmelden nieuwsbrief", en: "Newsletter opt-out", fr: "Désinscription newsletter" },
+  // Editorial category story pages. These render from dictionaries/*.json
+  // (see components/content/CategoryStoryPage.tsx), never from this Page row,
+  // but the row is still seeded so the pageKeys/pageTitles types stay exhaustive.
+  categoryNuts: { nl: "Noten", en: "Nuts", fr: "Noix" },
+  categoryDriedFruit: { nl: "Gedroogd fruit", en: "Dried fruit", fr: "Fruits secs" },
+  categoryMuesliGrains: { nl: "Muesli & granen", en: "Muesli & grains", fr: "Muesli & céréales" },
+  categorySnacks: { nl: "Snacks & zoutjes", en: "Snacks & savouries", fr: "Snacks & biscuits salés" },
+  categoryHoney: { nl: "Honing", en: "Honey", fr: "Miel" },
+  categoryNutButter: { nl: "Notenpasta's", en: "Nut butters", fr: "Purées de noix" },
 };
 
 function cleanName(str: string): string {

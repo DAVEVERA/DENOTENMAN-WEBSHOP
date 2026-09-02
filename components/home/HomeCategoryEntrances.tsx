@@ -57,44 +57,36 @@ export function HomeCategoryEntrances({
           </h2>
           <p className="sr-only">{intro}</p>
 
-          <ul className="grid grid-cols-2 gap-2 px-3 pb-3 sm:grid-cols-3 sm:px-4 lg:grid-cols-6">
+          <ul className="grid grid-cols-2 gap-2.5 px-3 pb-3 sm:grid-cols-3 sm:gap-3 sm:px-4 lg:grid-cols-6">
             {categories.map((category) => (
-              <li
-                key={category.id}
-                className="min-w-0"
-              >
+              <li key={category.id} className="min-w-0">
                 <Link
                   href={category.href}
                   prefetch={false}
-                  className="group flex min-h-14 touch-manipulation items-center justify-between gap-2 rounded-[0.55rem] border border-border bg-[#f7f4ee] px-3 py-2.5 transition-[border-color,background-color,transform] duration-hover hover:-translate-y-0.5 hover:border-border-hover hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
+                  className="group relative flex aspect-[4/5] touch-manipulation flex-col justify-end overflow-hidden rounded-[0.85rem] border border-border bg-[#f7f4ee] shadow-[0_4px_14px_rgba(47,36,22,0.08)] transition-[border-color,box-shadow,transform] duration-hover hover:-translate-y-1 hover:border-border-hover hover:shadow-[0_10px_24px_rgba(47,36,22,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
                 >
-                  <span className="min-w-0 font-heading text-sm font-bold leading-tight text-contrast">
-                    {category.name}
-                  </span>
                   {category.imageSrc ? (
-                    <span className="relative size-10 shrink-0 overflow-hidden rounded-full border border-[#ded5c7] bg-white shadow-[0_4px_12px_rgba(47,36,22,0.12)]">
-                      <Image
-                        src={category.imageSrc}
-                        alt=""
-                        fill
-                        sizes="40px"
-                        style={getProductImageStyle(category.imageSrc)}
-                        className="product-image-focal h-full w-full object-cover transition-transform duration-hover group-hover:scale-[1.04]"
-                      />
-                      <span className="absolute bottom-0 right-0 inline-flex size-4 items-center justify-center rounded-full bg-accent text-contrast shadow-sm">
-                        <ArrowRight
-                          className="h-2.5 w-2.5"
-                          strokeWidth={2.5}
-                          aria-hidden="true"
-                        />
-                      </span>
-                    </span>
-                  ) : (
-                    <ArrowRight
-                      className="h-3.5 w-3.5 shrink-0 text-muted transition-transform duration-hover group-hover:translate-x-0.5 group-hover:text-accent-ink"
-                      aria-hidden="true"
+                    <Image
+                      src={category.imageSrc}
+                      alt=""
+                      fill
+                      sizes="(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 15vw"
+                      style={getProductImageStyle(category.imageSrc)}
+                      className="product-image-focal absolute inset-0 h-full w-full object-cover transition-transform duration-hover group-hover:scale-[1.06]"
                     />
-                  )}
+                  ) : null}
+                  <span
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/70 via-black/25 to-transparent"
+                    aria-hidden="true"
+                  />
+                  <span className="relative z-10 flex items-end justify-between gap-2 p-2.5 sm:p-3">
+                    <span className="min-w-0 font-heading text-sm font-bold leading-tight text-white drop-shadow-sm sm:text-base">
+                      {category.name}
+                    </span>
+                    <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-contrast shadow-[0_3px_10px_rgba(0,0,0,0.25)] transition-transform duration-hover group-hover:scale-110 sm:size-9">
+                      <ArrowRight className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
+                    </span>
+                  </span>
                 </Link>
               </li>
             ))}

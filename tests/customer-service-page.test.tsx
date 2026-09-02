@@ -15,7 +15,15 @@ import fr from "../dictionaries/fr.json";
 test("Dutch customer service content stays grounded in the configured webshop facts", () => {
   const copy = getCustomerServiceCopy("nl");
 
-  assert.equal(copy.entries.length, 7);
+  // 7 original ordering/shipping/product entries, plus 7 legal-document
+  // entries (terms, additional terms, privacy, cookies, cookie settings,
+  // withdrawal, processing agreement) so every footer legal link also has
+  // an FAQ answer with the matching document.
+  assert.equal(copy.entries.length, 14);
+  assert.deepEqual(
+    copy.entries.filter((entry) => entry.category === "Voorwaarden & beleid").map((entry) => entry.id),
+    ["terms", "additional-terms", "privacy", "cookies", "cookie-settings", "withdrawal", "processing-agreement"]
+  );
   assert.deepEqual(
     copy.marketVisits.map(({ day, location, hours }) => ({ day, location, hours })),
     [

@@ -15,7 +15,7 @@ import type nl from "@/dictionaries/nl.json";
 import type { NavigationCategoryDto } from "@/lib/categoryGroups";
 import { cn } from "@/lib/cn";
 import type { Locale } from "@/lib/i18n";
-import { pagePath } from "@/lib/pages";
+import { categoryStoryPageKeyByCanonicalSlug, pagePath } from "@/lib/pages";
 import {
   account,
   cart as cartPath,
@@ -108,6 +108,19 @@ function splitColumns<T>(items: T[], columnCount: number): T[][] {
 
 function categoryHref(locale: Locale, category: PreviewCategory): string {
   return category.previewHref ?? categoryPath(locale, category.slug);
+}
+
+/**
+ * Six top-level categories (Noten, Gedroogd fruit, Muesli & Granen,
+ * Snacks & Zoutjes, Honing, Notenpasta's) have a dedicated editorial story
+ * page. For those, the category NAME link in the header should land on the
+ * story page instead of the plain product grid. The chevron dropdown
+ * (subcategory links and "view all" links) must keep pointing at the product
+ * grid via categoryHref, unchanged.
+ */
+function categoryPrimaryHref(locale: Locale, category: PreviewCategory): string {
+  const storyPageKey = categoryStoryPageKeyByCanonicalSlug[category.canonicalSlug];
+  return storyPageKey ? pagePath(storyPageKey, locale) : categoryHref(locale, category);
 }
 
 function catalogSearchHref(locale: Locale, categorySlug: string, query: string): string {
@@ -400,7 +413,7 @@ export function CompactHeader({
                 >
                   <Link
                     id={`site-header-category-${category.id}`}
-                    href={categoryHref(locale, category)}
+                    href={categoryPrimaryHref(locale, category)}
                     onClick={closePanels}
                     className={cn(menuItemClass, hasChildren ? "pl-1.5 pr-0" : "px-1.5")}
                   >
@@ -628,7 +641,7 @@ export function CompactHeader({
                   <li key={category.id}>
                     <div className="flex min-h-14 items-center">
                       <Link
-                        href={categoryHref(locale, category)}
+                        href={categoryPrimaryHref(locale, category)}
                         onClick={closeMobile}
                         className="flex min-h-14 min-w-0 flex-1 items-center font-heading text-[1.05rem] font-bold text-text"
                       >

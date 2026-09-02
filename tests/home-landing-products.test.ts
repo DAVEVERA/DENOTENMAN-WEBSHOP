@@ -71,10 +71,10 @@ test("homepage renders the alternating sequence in one compact responsive produc
   const orderedMarkers = [
     "<HomeCraftStory",
     "products={homeProducts.nuts}",
-    "<HomeHoneyStory",
-    "products={homeProducts.honey}",
     "<HomeNutButterStory",
     "products={homeProducts.nutButters}",
+    "<HomeHoneyStory",
+    "products={homeProducts.honey}",
   ];
   const positions = orderedMarkers.map((marker) => page.indexOf(marker));
 

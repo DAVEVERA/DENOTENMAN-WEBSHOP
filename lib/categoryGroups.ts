@@ -77,6 +77,20 @@ export function buildCategoryNavigation(
   };
 }
 
+/** Depth-first search for a category anywhere in a navigation tree by its canonical slug. */
+export function findCategoryByCanonicalSlug(
+  categories: NavigationCategoryDto[],
+  canonicalSlug: string
+): NavigationCategoryDto | undefined {
+  for (const category of categories) {
+    if (category.canonicalSlug === canonicalSlug) return category;
+    const child = findCategoryByCanonicalSlug(category.children, canonicalSlug);
+    if (child) return child;
+  }
+
+  return undefined;
+}
+
 /** @deprecated Storefront navigation should use buildCategoryNavigation. */
 export function groupMainCategories<
   T extends Pick<NavigationCategoryDto, "id" | "slug" | "name" | "type">

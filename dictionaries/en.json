@@ -451,5 +451,419 @@
     "resultsCountSingular": "1 product found",
     "resultsCountPlural": "{count} products found",
     "loadMore": "Show more ({remaining} remaining)"
+  },
+  "categoryStories": {
+    "categoryNuts": {
+      "shortLabel": "Nuts",
+      "seo": {
+        "title": "All nut varieties from De Notenman | Freshly roasted",
+        "description": "Almonds, cashews, pistachios and more: discover De Notenman's full range of nuts and how they are roasted and selected."
+      },
+      "hero": {
+        "eyebrow": "The whole nut selection",
+        "title": "All nut varieties from De Notenman",
+        "intro": "From almonds to pistachios: De Notenman carries a wide range of nuts, freshly roasted and available salted or plain. The same nuts you find at the stall are here in the webshop.",
+        "imageAlt": "Tray of mixed, freshly roasted nuts from De Notenman"
+      },
+      "varieties": {
+        "eyebrow": "The range",
+        "title": "Nine varieties, one standard",
+        "intro": "These are the nut varieties you find at De Notenman, roasted or raw, salted or plain.",
+        "items": [
+          {
+            "name": "Almonds",
+            "description": "Brown and blanched, roasted or raw."
+          },
+          {
+            "name": "Cashews",
+            "description": "Roasted, raw or with their skin."
+          },
+          {
+            "name": "Hazelnuts",
+            "description": "Brown and blanched, roasted or raw."
+          },
+          {
+            "name": "Pistachios",
+            "description": "Shelled, roasted or salted."
+          },
+          {
+            "name": "Walnuts",
+            "description": "Shelled halves and pieces."
+          },
+          {
+            "name": "Pecans",
+            "description": "Salted, raw or unsalted."
+          },
+          {
+            "name": "Macadamias",
+            "description": "Salted, raw or unsalted."
+          },
+          {
+            "name": "Brazil nuts",
+            "description": "Rich and creamy in flavour."
+          },
+          {
+            "name": "Peanuts and nut mixes",
+            "description": "Loose peanuts and blended mixes for drinks."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Freshly roasted",
+        "title": "Why De Notenman roasts its own nuts",
+        "body": [
+          "Nuts are judged by their smell, taste and texture. That is why De Notenman roasts in small batches, keeping stock fresh at the stall and in the webshop.",
+          "Fedor works the stall himself and tastes along the way. What holds up stays in the range. What doesn't, gets dropped."
+        ],
+        "points": [
+          "Freshly roasted, in small batches",
+          "Roasted or raw, salted or plain",
+          "Same range at the market and online"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Are De Notenman's nuts freshly roasted?",
+          "answer": "Yes. Nuts are roasted in small batches, so stock stays fresh both at the market and in the webshop."
+        },
+        {
+          "question": "Can I order nuts without salt?",
+          "answer": "Many varieties are available salted or plain. This is listed per product, along with the other ingredients."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Ready to order?",
+        "title": "View the full nut range",
+        "body": "Choose from every nut variety, mix and pack size, and order straight from the webshop.",
+        "primaryLabel": "View all nuts"
+      }
+    },
+    "categoryDriedFruit": {
+      "shortLabel": "Dried fruit",
+      "seo": {
+        "title": "Dried fruit at De Notenman | Dates, figs, apricots",
+        "description": "Dates, figs, raisins, apricots and tropical fruit: De Notenman's dried fruit range, from the market stall to the webshop."
+      },
+      "hero": {
+        "eyebrow": "From the stall to the webshop",
+        "title": "Dried fruit at De Notenman",
+        "intro": "Dried fruit has been part of the stall for as long as the nuts have. Dates, figs, raisins, apricots and tropical fruit together form a fixed part of the range.",
+        "imageAlt": "Range of dried fruit from De Notenman"
+      },
+      "varieties": {
+        "eyebrow": "The range",
+        "title": "Five kinds of dried fruit",
+        "intro": "An overview of the dried fruit De Notenman carries.",
+        "items": [
+          {
+            "name": "Dates",
+            "description": "Loose, pitted or filled."
+          },
+          {
+            "name": "Figs",
+            "description": "Dried figs, by the piece or by the bag."
+          },
+          {
+            "name": "Raisins",
+            "description": "Currants and raisins for breakfast or baking."
+          },
+          {
+            "name": "Apricots",
+            "description": "Soft dried apricots, with or without sulphur."
+          },
+          {
+            "name": "Mango and tropical fruit",
+            "description": "Dried mango, pineapple and other tropical fruit."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Breakfast, baking or on the go",
+        "title": "One category, many uses",
+        "body": [
+          "Dried fruit combines well with much of the range. Through muesli or oats, in a bake, or mixed with nuts in your own blend.",
+          "The range shifts with the harvest. New-season figs or dates get a place in the webshop as soon as they're ready, just like at the stall."
+        ],
+        "points": [
+          "Order loose or combine with nuts",
+          "Suited to breakfast, baking or snacking",
+          "Range follows the season's harvest"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Does the dried fruit range change through the year?",
+          "answer": "Yes, some products such as new-season figs are seasonal. What's available is shown in the webshop."
+        },
+        {
+          "question": "Can I combine dried fruit and nuts in one order?",
+          "answer": "Yes. Order them separately or together; both are picked from the same warehouse in Haaren."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Ready to order?",
+        "title": "View all dried fruit",
+        "body": "From dates to tropical fruit: browse the full dried fruit range in the webshop.",
+        "primaryLabel": "View all dried fruit"
+      }
+    },
+    "categoryMuesliGrains": {
+      "shortLabel": "Muesli & grains",
+      "seo": {
+        "title": "Muesli and grains at De Notenman | Build your breakfast",
+        "description": "Muesli, granola, oats and multigrain flakes from De Notenman. Combine with nuts, dried fruit and honey to build your own breakfast."
+      },
+      "hero": {
+        "eyebrow": "The base for your breakfast",
+        "title": "Muesli and grains at De Notenman",
+        "intro": "Muesli, granola, oats and multigrain flakes form the base of the breakfast range. Add nuts, dried fruit or honey from the same assortment."
+      },
+      "varieties": {
+        "eyebrow": "The range",
+        "title": "Two groups, one breakfast",
+        "intro": "The muesli and grains range consists of two groups.",
+        "items": [
+          {
+            "name": "Muesli and granola",
+            "description": "Ready-made mixes with grains, nuts and fruit."
+          },
+          {
+            "name": "Oats and grains",
+            "description": "Oat flakes and multigrain flakes to build your own mix."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Build your own",
+        "title": "From base to your own mix",
+        "body": [
+          "Some customers pick a ready-made muesli, others prefer to build their own with oats, nuts, dried fruit and a spoon of honey.",
+          "Both work at De Notenman. The breakfast range sits next to the nuts and dried fruit, so everything you need is in one order."
+        ],
+        "points": [
+          "Ready-made muesli and granola",
+          "Oats and grains to mix yourself",
+          "Easy to combine with nuts, fruit and honey"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Can I combine oats with nuts and dried fruit from the same order?",
+          "answer": "Yes, all three categories are in the same webshop and are picked and shipped together."
+        },
+        {
+          "question": "What's the difference between muesli and granola at De Notenman?",
+          "answer": "Muesli is an unbaked mix of grains, nuts and fruit. Granola is baked, which makes it crunchier. This is listed per product."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Ready to order?",
+        "title": "View all muesli and grains",
+        "body": "Build your breakfast with muesli, granola, oats and multigrain flakes.",
+        "primaryLabel": "View all muesli and grains"
+      }
+    },
+    "categorySnacks": {
+      "shortLabel": "Snacks & savouries",
+      "seo": {
+        "title": "Snacks and savouries from De Notenman | Drinks range",
+        "description": "Spicy snacks, crackers, savouries and vegetable snacks: De Notenman's drinks-table range, from the market stall to the webshop."
+      },
+      "hero": {
+        "eyebrow": "For the drinks table",
+        "title": "Snacks and savouries at De Notenman",
+        "intro": "Spicy snacks, crackers, savouries and vegetable snacks make up De Notenman's drinks-table range. Easy to order alongside a nut mix for a complete board."
+      },
+      "varieties": {
+        "eyebrow": "The range",
+        "title": "Three groups of savoury snacks",
+        "intro": "This is what you'll find in snacks and savouries.",
+        "items": [
+          {
+            "name": "Spicy snacks",
+            "description": "Seasoned, sharper flavours for the drinks table."
+          },
+          {
+            "name": "Crackers and savouries",
+            "description": "Crunchy crackers and rice snacks."
+          },
+          {
+            "name": "Vegetable snacks",
+            "description": "Vegetable crisps, edamame and broad beans."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "More than just nuts",
+        "title": "Completing the snack board",
+        "body": [
+          "At the stall, customers often ask for something extra alongside their nut mix: a spicy snack, a cracker or a bag of edamame.",
+          "That demand shaped the range. That's how snacks and savouries grew into a category of its own, next to the nuts."
+        ],
+        "points": [
+          "Spicy, crunchy or vegetable-based",
+          "Combine with a nut mix for a full board",
+          "Same range as at the stall"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Do De Notenman's snacks suit a drinks board?",
+          "answer": "Yes, combine a spicy snack, cracker or vegetable snack with a nut mix for a complete board."
+        },
+        {
+          "question": "Does every product show how spicy it is?",
+          "answer": "For spicy snacks, the flavour profile is listed in the product description, so you know what you're ordering."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Ready to order?",
+        "title": "View all snacks and savouries",
+        "body": "Round off your order with spicy snacks, crackers or vegetable snacks.",
+        "primaryLabel": "View all snacks and savouries"
+      }
+    },
+    "categoryHoney": {
+      "shortLabel": "Honey",
+      "seo": {
+        "title": "Honey at De Notenman | De Traay's organic range",
+        "description": "Flower honey, liquid honey, comb honey and more: De Notenman selects from De Traay's organic range."
+      },
+      "hero": {
+        "eyebrow": "From flower to jar",
+        "title": "Honey at De Notenman",
+        "intro": "De Notenman selects honey from De Traay's organic range. Delicate and floral or dark and full-bodied: there's a jar for every use.",
+        "imageAlt": "Jars of De Traay organic honey at De Notenman"
+      },
+      "varieties": {
+        "eyebrow": "The range",
+        "title": "Five kinds of honey",
+        "intro": "This is what you'll find in De Notenman's honey range.",
+        "items": [
+          {
+            "name": "Flower honey",
+            "description": "Mild honey from mixed flowers."
+          },
+          {
+            "name": "Liquid honey",
+            "description": "Ready to use on bread or in tea."
+          },
+          {
+            "name": "Organic honey",
+            "description": "Certified organic, from De Traay's range."
+          },
+          {
+            "name": "Comb honey",
+            "description": "Honey still in the honeycomb."
+          },
+          {
+            "name": "Syrup",
+            "description": "Apple syrup and other natural syrups."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "One supplier, a known range",
+        "title": "Why De Notenman chooses De Traay",
+        "body": [
+          "Instead of carrying many separate honey brands, De Notenman sticks to one fixed range from De Traay. That keeps quality and origin clear per jar.",
+          "So with every jar you know what you're buying: from mild flower honey to full-bodied comb honey."
+        ],
+        "points": [
+          "Certified organic range",
+          "From liquid to comb honey",
+          "Fixed supplier: De Traay"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Is all of De Notenman's honey organic?",
+          "answer": "A large part of the range is certified organic. This is shown per product."
+        },
+        {
+          "question": "What's the difference between liquid honey and comb honey?",
+          "answer": "Liquid honey is ready to spread. Comb honey is still in the honeycomb, and you eat the comb along with it."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Ready to order?",
+        "title": "View all honey",
+        "body": "Browse De Traay's full organic honey range at De Notenman.",
+        "primaryLabel": "View all honey"
+      }
+    },
+    "categoryNutButter": {
+      "shortLabel": "Nut butters",
+      "seo": {
+        "title": "Nut butters from De Notenman | Peanut to pistachio",
+        "description": "Peanut butter, almond butter, pistachio butter and more: De Notenman selects nut butters on flavour, texture and ingredients."
+      },
+      "hero": {
+        "eyebrow": "Straight into the jar",
+        "title": "Nut butters from De Notenman",
+        "intro": "From peanut butter to pistachio butter: De Notenman decides what makes the shelf. Judged on flavour, texture and what's on the label.",
+        "imageAlt": "Close-up of nut butters from De Notenman"
+      },
+      "varieties": {
+        "eyebrow": "The range",
+        "title": "Six kinds of nut butter",
+        "intro": "This is what you'll find in the nut butter range.",
+        "items": [
+          {
+            "name": "Peanut butter",
+            "description": "Plain or with a hint of salt."
+          },
+          {
+            "name": "Almond butter",
+            "description": "Ground almonds, plain or with additions."
+          },
+          {
+            "name": "Hazelnut butter",
+            "description": "Full-flavoured, with or without cocoa."
+          },
+          {
+            "name": "Pistachio butter",
+            "description": "Creamy, from ground pistachios."
+          },
+          {
+            "name": "Mixed nut butter",
+            "description": "A blend of several nut varieties."
+          },
+          {
+            "name": "Pecan butter",
+            "description": "Soft and lightly sweet in flavour."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Flavour, texture, label",
+        "title": "What De Notenman selects on",
+        "body": [
+          "Nut butter is judged on three points: flavour, texture and the ingredient list. What doesn't need to be in it, stays out.",
+          "On toast, through breakfast, in a sauce or straight from the spoon: every jar is meant to be used without detours."
+        ],
+        "points": [
+          "Selected on flavour, texture and ingredients",
+          "From peanut and almond to pistachio and mixed nuts",
+          "For toast, breakfast, sauce or the spoon"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Do De Notenman's nut butters contain added sugar or oil?",
+          "answer": "This varies per product. The ingredient list is shown on every jar, so you know what's inside before you order."
+        },
+        {
+          "question": "Which nut butter is the creamiest?",
+          "answer": "Pistachio butter and almond butter are finely ground and creamy in texture. Chunky peanut butter is coarser."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Ready to order?",
+        "title": "View all nut butters",
+        "body": "Browse the full nut butter range and pick the jar that suits you.",
+        "primaryLabel": "View all nut butters"
+      }
+    }
   }
 }

@@ -217,27 +217,6 @@ export default async function HomePage({
           }}
         />
 
-        <HomeHoneyStory
-          eyebrow={dictionary.home.honeyStory.eyebrow}
-          title={dictionary.home.honeyStory.title}
-          body={dictionary.home.honeyStory.body}
-          imageAlt={dictionary.home.honeyStory.imageAlt}
-          ctaLabel={dictionary.home.honeyStory.cta}
-          ctaHref={honeyHref}
-        />
-
-        <HomeFeaturedProducts
-          products={homeProducts.honey}
-          locale={locale}
-          href={honeyHref}
-          sectionId="home-honey"
-          copy={{
-            ...dictionary.home.honeyProducts,
-            card: productCardCopy,
-            quickView: productQuickViewCopy,
-          }}
-        />
-
         <HomeNutButterStory
           eyebrow={dictionary.home.nutButter.eyebrow}
           title={dictionary.home.nutButter.title}
@@ -256,6 +235,27 @@ export default async function HomePage({
           sectionId="home-nut-butters"
           copy={{
             ...dictionary.home.nutButterProducts,
+            card: productCardCopy,
+            quickView: productQuickViewCopy,
+          }}
+        />
+
+        <HomeHoneyStory
+          eyebrow={dictionary.home.honeyStory.eyebrow}
+          title={dictionary.home.honeyStory.title}
+          body={dictionary.home.honeyStory.body}
+          imageAlt={dictionary.home.honeyStory.imageAlt}
+          ctaLabel={dictionary.home.honeyStory.cta}
+          ctaHref={honeyHref}
+        />
+
+        <HomeFeaturedProducts
+          products={homeProducts.honey}
+          locale={locale}
+          href={honeyHref}
+          sectionId="home-honey"
+          copy={{
+            ...dictionary.home.honeyProducts,
             card: productCardCopy,
             quickView: productQuickViewCopy,
           }}

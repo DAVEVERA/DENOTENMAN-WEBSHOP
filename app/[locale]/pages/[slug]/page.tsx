@@ -1,10 +1,21 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { locales, isLocale } from "@/lib/i18n";
-import { pageKeys, pageRobots, pageSlugs, resolvePageKey } from "@/lib/pages";
+import { Martini, Sun, Wheat, type LucideIcon } from "lucide-react";
+import { locales, isLocale, type Locale } from "@/lib/i18n";
+import {
+  categoryStoryCanonicalSlug,
+  isCategoryStoryPageKey,
+  pageKeys,
+  pageRobots,
+  pageSlugs,
+  resolvePageKey,
+  type CategoryStoryPageKey,
+} from "@/lib/pages";
 import { getAlternates } from "@/lib/alternates";
 import { Container } from "@/components/ui/Container";
-import { getPageBySlug } from "@/lib/queries";
+import { getCategoryNavigation, getPageBySlug } from "@/lib/queries";
+import { findCategoryByCanonicalSlug } from "@/lib/categoryGroups";
+import { categories as categoriesPath, category as categoryPath } from "@/lib/routes";
 import { Terms } from "./_components/Terms";
 import { Privacy } from "./_components/Privacy";
 import { ShippingReturns } from "./_components/ShippingReturns";
@@ -17,6 +28,39 @@ import { SquirrelEmptyState } from "@/components/layout/SquirrelEmptyState";
 import { CustomerServicePage } from "@/components/customer-service/CustomerServicePage";
 import { getCustomerServiceCopy } from "@/lib/customer-service-content";
 import { AboutNotenmanPage } from "@/components/content/AboutNotenmanPage";
+import { CategoryStoryPage, type CategoryStoryContent } from "@/components/content/CategoryStoryPage";
+import nl from "@/dictionaries/nl.json";
+import en from "@/dictionaries/en.json";
+import fr from "@/dictionaries/fr.json";
+
+const categoryStoryDictionaries = { nl, en, fr };
+
+/**
+ * Typed accessor for a category story's dictionary content. Indexing
+ * categoryStoryDictionaries[locale].categoryStories directly with a
+ * CategoryStoryPageKey union infers a union of six distinct literal JSON
+ * shapes (each missing the optional fields the others have, e.g. hero.imageAlt),
+ * so this normalizes the result to the shared CategoryStoryContent shape.
+ */
+function getCategoryStoryContent(locale: Locale, key: CategoryStoryPageKey): CategoryStoryContent {
+  return categoryStoryDictionaries[locale].categoryStories[key];
+}
+
+const categoryStoryHeroImage: Partial<Record<CategoryStoryPageKey, { src: string; objectPosition?: string }>> = {
+  // Both source photos are wide "hero" crops with the product bowl/jars off
+  // to one side; a plain centered object-cover on this component's portrait
+  // frame lands mostly on empty background, so bias the crop toward the
+  // product cluster instead.
+  categoryNuts: { src: "/hero/hero-nuts-desktop.webp", objectPosition: "80% 50%" },
+  categoryHoney: { src: "/hero/hero-honey-desktop.webp", objectPosition: "70% 45%" },
+  categoryNutButter: { src: "/home/notenpasta-closeup.webp" },
+};
+
+const categoryStoryHeroIcon: Partial<Record<CategoryStoryPageKey, LucideIcon>> = {
+  categoryDriedFruit: Sun,
+  categoryMuesliGrains: Wheat,
+  categorySnacks: Martini,
+};
 
 const dutchAboutMetadata = {
   title: "Over De Notenman | Vers gebrande noten van de markt",
@@ -120,6 +164,20 @@ export async function generateMetadata({
     return {};
   }
 
+  if (isCategoryStoryPageKey(key)) {
+    const { seo } = getCategoryStoryContent(locale, key);
+
+    return {
+      title: seo.title,
+      description: seo.description,
+      robots: pageRobots(key),
+      alternates: {
+        canonical: alternates.canonical,
+        languages: alternates.languages,
+      },
+    };
+  }
+
   const customerServiceCopy = key === "faq" ? getCustomerServiceCopy(locale) : null;
   const isDutchAbout = locale === "nl" && key === "about";
   const page = key === "markets" || key === "faq" || isDutchAbout
@@ -174,6 +232,36 @@ export default async function ContentPage({
 
   if (locale === "nl" && key === "about") {
     return <AboutNotenmanPage />;
+  }
+
+  if (isCategoryStoryPageKey(key)) {
+    const canonicalSlug = categoryStoryCanonicalSlug[key];
+    const content = getCategoryStoryContent(locale, key);
+    const navigation = await getCategoryNavigation(locale);
+    const liveCategory = findCategoryByCanonicalSlug(navigation.categories, canonicalSlug);
+    const productsHref = liveCategory
+      ? categoryPath(locale, liveCategory.slug)
+      : categoriesPath(locale);
+    const heroImageSrc = categoryStoryHeroImage[key];
+
+    return (
+      <CategoryStoryPage
+        content={content}
+        productsHref={productsHref}
+        assortmentHref={categoriesPath(locale)}
+        assortmentLabel={categoryStoryDictionaries[locale].nav.categories}
+        heroImage={
+          heroImageSrc
+            ? {
+                src: heroImageSrc.src,
+                alt: content.hero.imageAlt ?? content.hero.title,
+                objectPosition: heroImageSrc.objectPosition,
+              }
+            : undefined
+        }
+        heroIcon={categoryStoryHeroIcon[key]}
+      />
+    );
   }
 
   // 1. Render custom high-quality statically-styled Dutch components

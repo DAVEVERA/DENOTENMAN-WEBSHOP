@@ -451,5 +451,419 @@
     "resultsCountSingular": "1 produit trouvé",
     "resultsCountPlural": "{count} produits trouvés",
     "loadMore": "Afficher plus ({remaining} restants)"
+  },
+  "categoryStories": {
+    "categoryNuts": {
+      "shortLabel": "Noix",
+      "seo": {
+        "title": "Toutes les variétés de noix de De Notenman | Fraîchement grillées",
+        "description": "Amandes, noix de cajou, pistaches et plus encore : découvrez l'assortiment complet de noix de De Notenman et la façon dont elles sont grillées et sélectionnées."
+      },
+      "hero": {
+        "eyebrow": "Tout le rayon des noix",
+        "title": "Toutes les variétés de noix de De Notenman",
+        "intro": "Des amandes aux pistaches : De Notenman propose un large assortiment de noix, fraîchement grillées, salées ou nature. Les mêmes noix que celles du marché se retrouvent ici, dans la boutique en ligne.",
+        "imageAlt": "Bac de noix mélangées, fraîchement grillées, de De Notenman"
+      },
+      "varieties": {
+        "eyebrow": "L'assortiment",
+        "title": "Neuf variétés, une seule exigence",
+        "intro": "Voici les variétés de noix que vous trouverez chez De Notenman, grillées ou crues, salées ou nature.",
+        "items": [
+          {
+            "name": "Amandes",
+            "description": "Brunes et blanches, grillées ou crues."
+          },
+          {
+            "name": "Noix de cajou",
+            "description": "Grillées, crues ou avec leur peau."
+          },
+          {
+            "name": "Noisettes",
+            "description": "Brunes et blanches, grillées ou crues."
+          },
+          {
+            "name": "Pistaches",
+            "description": "Décortiquées, grillées ou salées."
+          },
+          {
+            "name": "Noix (cerneaux)",
+            "description": "Cerneaux entiers et morceaux."
+          },
+          {
+            "name": "Noix de pécan",
+            "description": "Salées, crues ou non salées."
+          },
+          {
+            "name": "Noix de macadamia",
+            "description": "Salées, crues ou non salées."
+          },
+          {
+            "name": "Noix du Brésil",
+            "description": "Riches et crémeuses en goût."
+          },
+          {
+            "name": "Cacahuètes et mélanges de noix",
+            "description": "Cacahuètes nature et mélanges composés pour l'apéritif."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Fraîchement grillées",
+        "title": "Pourquoi De Notenman grille lui-même ses noix",
+        "body": [
+          "Une noix se juge à son odeur, son goût et sa texture. C'est pourquoi De Notenman grille par petites quantités, pour garder un stock frais au marché comme en ligne.",
+          "Fedor tient lui-même le stand et goûte au fil des semaines. Ce qui convainc reste dans l'assortiment. Ce qui ne convainc pas en disparaît."
+        ],
+        "points": [
+          "Fraîchement grillées, par petites quantités",
+          "Grillées ou crues, salées ou nature",
+          "Le même assortiment au marché et en ligne"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Les noix de De Notenman sont-elles fraîchement grillées ?",
+          "answer": "Oui. Les noix sont grillées par petites quantités, afin de garder un stock frais au marché comme dans la boutique en ligne."
+        },
+        {
+          "question": "Puis-je commander des noix sans sel ?",
+          "answer": "Pour de nombreuses variétés, vous pouvez choisir entre salé et nature. C'est indiqué pour chaque produit, avec les autres ingrédients."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Prêt à commander ?",
+        "title": "Découvrez tout l'assortiment de noix",
+        "body": "Choisissez parmi toutes les variétés de noix, mélanges et conditionnements, et commandez directement dans la boutique en ligne.",
+        "primaryLabel": "Voir toutes les noix"
+      }
+    },
+    "categoryDriedFruit": {
+      "shortLabel": "Fruits secs",
+      "seo": {
+        "title": "Fruits secs chez De Notenman | Dattes, figues, abricots",
+        "description": "Dattes, figues, raisins, abricots et fruits tropicaux : l'assortiment de fruits secs de De Notenman, du stand de marché à la boutique en ligne."
+      },
+      "hero": {
+        "eyebrow": "Du stand à la boutique en ligne",
+        "title": "Fruits secs chez De Notenman",
+        "intro": "Les fruits secs font partie du stand depuis aussi longtemps que les noix. Dattes, figues, raisins, abricots et fruits tropicaux forment ensemble une partie fixe de l'assortiment.",
+        "imageAlt": "Assortiment de fruits secs de De Notenman"
+      },
+      "varieties": {
+        "eyebrow": "L'assortiment",
+        "title": "Cinq types de fruits secs",
+        "intro": "Un aperçu des fruits secs proposés par De Notenman.",
+        "items": [
+          {
+            "name": "Dattes",
+            "description": "Nature, dénoyautées ou fourrées."
+          },
+          {
+            "name": "Figues",
+            "description": "Figues séchées, à la pièce ou en sachet."
+          },
+          {
+            "name": "Raisins secs",
+            "description": "Raisins de Corinthe et raisins secs pour le petit-déjeuner ou la pâtisserie."
+          },
+          {
+            "name": "Abricots",
+            "description": "Abricots secs moelleux, avec ou sans soufre."
+          },
+          {
+            "name": "Mangue et fruits tropicaux",
+            "description": "Mangue séchée, ananas et autres fruits tropicaux."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Petit-déjeuner, pâtisserie ou en route",
+        "title": "Une catégorie, de nombreux usages",
+        "body": [
+          "Les fruits secs se combinent facilement avec le reste de l'assortiment. Dans un muesli ou des flocons d'avoine, dans une pâtisserie, ou mélangés à des noix dans votre propre mélange.",
+          "L'assortiment évolue avec la récolte. Les nouvelles figues ou dattes de saison trouvent leur place dans la boutique en ligne dès qu'elles sont prêtes, comme au marché."
+        ],
+        "points": [
+          "À commander seuls ou à combiner avec des noix",
+          "Adaptés au petit-déjeuner, à la pâtisserie ou en encas",
+          "L'assortiment suit la récolte de la saison"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "L'assortiment de fruits secs change-t-il au fil de l'année ?",
+          "answer": "Oui, certains produits, comme les figues de la nouvelle récolte, sont saisonniers. Ce qui est disponible est indiqué dans la boutique en ligne."
+        },
+        {
+          "question": "Puis-je combiner fruits secs et noix dans une même commande ?",
+          "answer": "Bien sûr. Commandez-les séparément ou ensemble ; ils sont préparés depuis le même entrepôt à Haaren."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Prêt à commander ?",
+        "title": "Découvrez tous les fruits secs",
+        "body": "Des dattes aux fruits tropicaux : parcourez l'assortiment complet de fruits secs dans la boutique en ligne.",
+        "primaryLabel": "Voir tous les fruits secs"
+      }
+    },
+    "categoryMuesliGrains": {
+      "shortLabel": "Muesli & céréales",
+      "seo": {
+        "title": "Muesli et céréales chez De Notenman | Composez votre petit-déjeuner",
+        "description": "Muesli, granola, flocons d'avoine et flocons multicéréales de De Notenman. À combiner avec des noix, des fruits secs et du miel pour composer votre petit-déjeuner."
+      },
+      "hero": {
+        "eyebrow": "La base de votre petit-déjeuner",
+        "title": "Muesli et céréales chez De Notenman",
+        "intro": "Muesli, granola, flocons d'avoine et flocons multicéréales forment la base du rayon petit-déjeuner. Complétez-les avec des noix, des fruits secs ou du miel du même assortiment."
+      },
+      "varieties": {
+        "eyebrow": "L'assortiment",
+        "title": "Deux groupes, un petit-déjeuner",
+        "intro": "L'assortiment muesli et céréales se compose de deux groupes.",
+        "items": [
+          {
+            "name": "Muesli et granola",
+            "description": "Mélanges prêts à l'emploi avec céréales, noix et fruits."
+          },
+          {
+            "name": "Avoine et céréales",
+            "description": "Flocons d'avoine et flocons multicéréales pour composer votre propre mélange."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Composez vous-même",
+        "title": "De la base à votre propre mélange",
+        "body": [
+          "Certains clients choisissent un muesli prêt à l'emploi, d'autres préfèrent composer leur propre mélange avec des flocons d'avoine, des noix, des fruits secs et une cuillère de miel.",
+          "Les deux sont possibles chez De Notenman. Le rayon petit-déjeuner se trouve juste à côté des noix et des fruits secs, pour tout réunir en une seule commande."
+        ],
+        "points": [
+          "Muesli et granola prêts à l'emploi",
+          "Avoine et céréales à mélanger vous-même",
+          "Facile à combiner avec des noix, des fruits et du miel"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Puis-je combiner des flocons d'avoine avec des noix et des fruits secs dans la même commande ?",
+          "answer": "Oui, les trois catégories se trouvent dans la même boutique en ligne et sont préparées et expédiées ensemble."
+        },
+        {
+          "question": "Quelle est la différence entre le muesli et le granola chez De Notenman ?",
+          "answer": "Le muesli est un mélange non cuit de céréales, de noix et de fruits. Le granola est cuit, ce qui le rend plus croustillant. C'est précisé pour chaque produit."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Prêt à commander ?",
+        "title": "Découvrez tout le muesli et les céréales",
+        "body": "Composez votre petit-déjeuner avec du muesli, du granola, des flocons d'avoine et multicéréales.",
+        "primaryLabel": "Voir tout le muesli et les céréales"
+      }
+    },
+    "categorySnacks": {
+      "shortLabel": "Snacks & biscuits salés",
+      "seo": {
+        "title": "Snacks et biscuits salés de De Notenman | Assortiment apéritif",
+        "description": "Snacks épicés, crackers, biscuits salés et snacks de légumes : l'assortiment apéritif de De Notenman, du stand de marché à la boutique en ligne."
+      },
+      "hero": {
+        "eyebrow": "Pour l'apéritif",
+        "title": "Snacks et biscuits salés chez De Notenman",
+        "intro": "Snacks épicés, crackers, biscuits salés et snacks de légumes composent l'assortiment apéritif de De Notenman. Faciles à commander avec un mélange de noix pour une planche complète."
+      },
+      "varieties": {
+        "eyebrow": "L'assortiment",
+        "title": "Trois groupes de snacks salés",
+        "intro": "Voici ce que vous trouverez dans les snacks et biscuits salés.",
+        "items": [
+          {
+            "name": "Snacks épicés",
+            "description": "Saveurs relevées et épicées pour l'apéritif."
+          },
+          {
+            "name": "Crackers et biscuits salés",
+            "description": "Crackers croustillants et snacks de riz."
+          },
+          {
+            "name": "Snacks de légumes",
+            "description": "Chips de légumes, edamame et fèves."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Plus que des noix",
+        "title": "Compléter la planche apéritive",
+        "body": [
+          "Au marché, les clients demandent souvent un extra à côté de leur mélange de noix : un snack épicé, un cracker ou un sachet d'edamame.",
+          "Cette demande a façonné l'assortiment. C'est ainsi que les snacks et biscuits salés sont devenus une catégorie à part entière, à côté des noix."
+        ],
+        "points": [
+          "Épicé, croustillant ou à base de légumes",
+          "À combiner avec un mélange de noix pour une planche complète",
+          "Le même assortiment qu'au stand de marché"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Les snacks de De Notenman conviennent-ils à une planche apéritive ?",
+          "answer": "Oui, combinez un snack épicé, un cracker ou un snack de légumes avec un mélange de noix pour une planche complète."
+        },
+        {
+          "question": "L'intensité épicée est-elle indiquée pour chaque produit ?",
+          "answer": "Pour les snacks épicés, la saveur est précisée dans la description du produit, afin que vous sachiez ce que vous commandez."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Prêt à commander ?",
+        "title": "Découvrez tous les snacks et biscuits salés",
+        "body": "Complétez votre commande avec des snacks épicés, des crackers ou des snacks de légumes.",
+        "primaryLabel": "Voir tous les snacks et biscuits salés"
+      }
+    },
+    "categoryHoney": {
+      "shortLabel": "Miel",
+      "seo": {
+        "title": "Miel chez De Notenman | La gamme biologique De Traay",
+        "description": "Miel de fleurs, miel liquide, miel en rayon et plus encore : De Notenman sélectionne dans la gamme biologique De Traay."
+      },
+      "hero": {
+        "eyebrow": "De la fleur au pot",
+        "title": "Miel chez De Notenman",
+        "intro": "De Notenman sélectionne son miel dans la gamme biologique De Traay. Doux et floral ou sombre et intense : il y a un pot pour chaque usage.",
+        "imageAlt": "Pots de miel biologique De Traay chez De Notenman"
+      },
+      "varieties": {
+        "eyebrow": "L'assortiment",
+        "title": "Cinq sortes de miel",
+        "intro": "Voici ce que vous trouverez dans l'assortiment de miel de De Notenman.",
+        "items": [
+          {
+            "name": "Miel de fleurs",
+            "description": "Miel doux issu de fleurs mélangées."
+          },
+          {
+            "name": "Miel liquide",
+            "description": "Prêt à l'emploi sur le pain ou dans le thé."
+          },
+          {
+            "name": "Miel biologique",
+            "description": "Certifié biologique, de la gamme De Traay."
+          },
+          {
+            "name": "Miel en rayon",
+            "description": "Miel encore présent dans le rayon de cire."
+          },
+          {
+            "name": "Sirop",
+            "description": "Sirop de pomme et autres sirops naturels."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Un seul fournisseur, une gamme connue",
+        "title": "Pourquoi De Notenman choisit De Traay",
+        "body": [
+          "Plutôt que de proposer de nombreuses marques de miel différentes, De Notenman s'en tient à une gamme fixe de De Traay. La qualité et l'origine restent ainsi claires pour chaque pot.",
+          "Vous savez donc toujours ce que vous achetez : du miel de fleurs doux au miel en rayon plus corsé."
+        ],
+        "points": [
+          "Gamme certifiée biologique",
+          "Du miel liquide au miel en rayon",
+          "Fournisseur fixe : De Traay"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Tout le miel de De Notenman est-il biologique ?",
+          "answer": "Une grande partie de l'assortiment est certifiée biologique. C'est indiqué pour chaque produit."
+        },
+        {
+          "question": "Quelle est la différence entre le miel liquide et le miel en rayon ?",
+          "answer": "Le miel liquide est prêt à tartiner. Le miel en rayon est encore dans son rayon de cire, que vous consommez avec le miel."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Prêt à commander ?",
+        "title": "Découvrez tous les miels",
+        "body": "Parcourez toute la gamme de miel biologique De Traay chez De Notenman.",
+        "primaryLabel": "Voir tous les miels"
+      }
+    },
+    "categoryNutButter": {
+      "shortLabel": "Purées de noix",
+      "seo": {
+        "title": "Purées de noix de De Notenman | De la cacahuète à la pistache",
+        "description": "Beurre de cacahuète, purée d'amande, purée de pistache et plus : De Notenman sélectionne ses purées de noix selon le goût, la texture et les ingrédients."
+      },
+      "hero": {
+        "eyebrow": "Directement dans le pot",
+        "title": "Purées de noix de De Notenman",
+        "intro": "Du beurre de cacahuète à la purée de pistache : De Notenman décide lui-même ce qui mérite sa place. Jugé sur le goût, la texture et ce qui figure sur l'étiquette.",
+        "imageAlt": "Gros plan sur des purées de noix de De Notenman"
+      },
+      "varieties": {
+        "eyebrow": "L'assortiment",
+        "title": "Six sortes de purées de noix",
+        "intro": "Voici ce que vous trouverez dans l'assortiment de purées de noix.",
+        "items": [
+          {
+            "name": "Beurre de cacahuète",
+            "description": "Nature ou avec une pointe de sel."
+          },
+          {
+            "name": "Purée d'amande",
+            "description": "Amandes moulues, nature ou avec ajouts."
+          },
+          {
+            "name": "Purée de noisette",
+            "description": "Riche en goût, avec ou sans cacao."
+          },
+          {
+            "name": "Purée de pistache",
+            "description": "Crémeuse, à base de pistaches moulues."
+          },
+          {
+            "name": "Purée de noix mélangées",
+            "description": "Combinaison de plusieurs variétés de noix."
+          },
+          {
+            "name": "Purée de noix de pécan",
+            "description": "Douce et légèrement sucrée."
+          }
+        ]
+      },
+      "story": {
+        "eyebrow": "Goût, texture, étiquette",
+        "title": "Les critères de sélection de De Notenman",
+        "body": [
+          "Une purée de noix est jugée sur trois points : le goût, la texture et la liste d'ingrédients. Ce qui n'a pas besoin d'y être n'y figure pas.",
+          "Sur du pain, dans le petit-déjeuner, dans une sauce ou directement à la cuillère : chaque pot est pensé pour être utilisé sans détour."
+        ],
+        "points": [
+          "Sélectionnées selon le goût, la texture et les ingrédients",
+          "De la cacahuète et l'amande à la pistache et aux mélanges de noix",
+          "Pour le pain, le petit-déjeuner, une sauce ou la cuillère"
+        ]
+      },
+      "faqs": [
+        {
+          "question": "Les purées de noix de De Notenman contiennent-elles du sucre ou de l'huile ajoutés ?",
+          "answer": "Cela varie selon le produit. La liste d'ingrédients est indiquée sur chaque pot, pour que vous sachiez ce qu'il contient avant de commander."
+        },
+        {
+          "question": "Quelle purée de noix est la plus crémeuse ?",
+          "answer": "La purée de pistache et la purée d'amande sont finement moulues et donc crémeuses. Le beurre de cacahuète avec morceaux est plus grossier."
+        }
+      ],
+      "cta": {
+        "eyebrow": "Prêt à commander ?",
+        "title": "Découvrez toutes les purées de noix",
+        "body": "Parcourez tout l'assortiment de purées de noix et choisissez le pot qui vous convient.",
+        "primaryLabel": "Voir toutes les purées de noix"
+      }
+    }
   }
 }

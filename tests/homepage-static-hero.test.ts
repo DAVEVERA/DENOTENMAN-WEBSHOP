@@ -52,7 +52,7 @@ test("the homepage renders three content-aware hero slides without navigation co
   assert.match(categories, /lg:grid-cols-6/);
   assert.doesNotMatch(categories, /snap-x|overflow-x-auto/);
   assert.doesNotMatch(categories, /border-t-2 border-t-contrast/);
-  assert.match(categories, /sizes="40px"/);
+  assert.match(categories, /sizes="\(max-width: 639px\) 45vw/);
   assert.match(categories, /alt=""/);
   assert.doesNotMatch(categories, /padStart|String\(index \+ 1\)/);
 
@@ -64,17 +64,18 @@ test("the homepage renders three content-aware hero slides without navigation co
   assert.match(homepage, /<HomeCategoryEntrances/);
   assert.match(homepage, /<USPBar dictionary=\{dictionary\} shipping=\{shippingUsp\}/);
   assert.match(homepage, /<HomeNutButterStory/);
+  // Notenpasta's now sits one level up, swapped with the honey section.
   const storyIndex = homepage.indexOf("<HomeCraftStory");
   const nutsIndex = homepage.indexOf("products={homeProducts.nuts}");
-  const honeyStoryIndex = homepage.indexOf("<HomeHoneyStory");
-  const honeyIndex = homepage.indexOf("products={homeProducts.honey}");
   const nutButterStoryIndex = homepage.indexOf("<HomeNutButterStory");
   const nutButterProductsIndex = homepage.indexOf("products={homeProducts.nutButters}");
+  const honeyStoryIndex = homepage.indexOf("<HomeHoneyStory");
+  const honeyIndex = homepage.indexOf("products={homeProducts.honey}");
   assert.ok(storyIndex < nutsIndex);
-  assert.ok(nutsIndex < honeyStoryIndex);
-  assert.ok(honeyStoryIndex < honeyIndex);
-  assert.ok(honeyIndex < nutButterStoryIndex);
+  assert.ok(nutsIndex < nutButterStoryIndex);
   assert.ok(nutButterStoryIndex < nutButterProductsIndex);
+  assert.ok(nutButterProductsIndex < honeyStoryIndex);
+  assert.ok(honeyStoryIndex < honeyIndex);
   assert.equal((homepage.match(/<HomeFeaturedProducts/g) ?? []).length, 3);
   assert.match(homepage, /imageSrc="\/home\/de-notenman-marktbak\.webp"/);
   assert.match(homepage, /dictionary\.home\.honeyStory/);
