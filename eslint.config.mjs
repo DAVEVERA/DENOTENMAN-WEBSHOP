@@ -39,7 +39,6 @@ export default defineConfig([
     files: [
       "components/admin-panel/AdminDashboardWorkspace.tsx",
       "components/admin-panel/AdminNav.tsx",
-      "components/admin-panel/CloudCostsDashboard.tsx",
       "components/admin-panel/ProductFaqEditor.tsx",
       "components/layout/MegaMenu.tsx",
       "components/privacy/CookieConsent.tsx",
