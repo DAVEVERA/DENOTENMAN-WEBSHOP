@@ -25,6 +25,7 @@ import {
 } from "@/lib/routes";
 import { useStorefrontState } from "@/lib/storefront-state";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
+import { NativeCategoryLink } from "@/components/layout/NativeCategoryLink";
 import { NavbarSearch } from "@/components/layout/NavbarSearch";
 import { Logo } from "@/components/ui/Logo";
 import styles from "./CompactHeader.module.css";
@@ -209,13 +210,13 @@ function CategoryLinks({
     <ul className="space-y-0.5">
       {categories.map((category) => (
         <li key={category.id}>
-          <Link
+          <NativeCategoryLink
             href={categoryHref(locale, category)}
             onClick={close}
             className={panelLinkClass}
           >
             {category.name}
-          </Link>
+          </NativeCategoryLink>
         </li>
       ))}
     </ul>
@@ -411,14 +412,14 @@ export function CompactHeader({
                     if (event.pointerType !== "touch") scheduleClose();
                   }}
                 >
-                  <Link
+                  <NativeCategoryLink
                     id={`site-header-category-${category.id}`}
                     href={categoryPrimaryHref(locale, category)}
                     onClick={closePanels}
                     className={cn(menuItemClass, hasChildren ? "pl-1.5 pr-0" : "px-1.5")}
                   >
                     {category.name}
-                  </Link>
+                  </NativeCategoryLink>
                   {hasChildren ? (
                     <button
                       type="button"
@@ -456,13 +457,13 @@ export function CompactHeader({
                           ))
                           : <CategoryLinks categories={category.children} locale={locale} close={closePanels} />}
                         <div className={cn("mt-1 border-t border-border pt-1", category.children.length > 6 && "col-span-2")}>
-                          <Link
+                          <NativeCategoryLink
                             href={categoryHref(locale, category)}
                             onClick={closePanels}
                             className={panelLinkClass}
                           >
                             {dictionary.nav.viewAllCategory.replace("{category}", category.name)}
-                          </Link>
+                          </NativeCategoryLink>
                         </div>
                       </div>
                     </div>
@@ -483,9 +484,9 @@ export function CompactHeader({
                   if (event.pointerType !== "touch") scheduleClose();
                 }}
               >
-                <Link href={categoriesPath(locale)} className={cn(menuItemClass, "pl-1.5 pr-0") }>
+                <NativeCategoryLink href={categoriesPath(locale)} className={cn(menuItemClass, "pl-1.5 pr-0") }>
                   {moreLabel[locale]}
-                </Link>
+                </NativeCategoryLink>
                 <button
                   type="button"
                   aria-label={`${moreLabel[locale]} ${dictionary.nav.categories}`}
@@ -510,13 +511,13 @@ export function CompactHeader({
                     <div className="grid grid-cols-2 gap-x-5 gap-y-2 p-4">
                       {overflowCategories.map((category) => (
                         <div key={category.id} className="min-w-0">
-                          <Link
+                          <NativeCategoryLink
                             href={categoryHref(locale, category)}
                             onClick={closePanels}
                             className="inline-flex min-h-11 items-center font-heading font-bold text-text hover:text-accent-ink"
                           >
                             {category.name}
-                          </Link>
+                          </NativeCategoryLink>
                           {category.canonicalSlug !== "bakproducten" && category.children.length > 0 ? (
                             <CategoryLinks
                               categories={category.children}
@@ -532,14 +533,14 @@ export function CompactHeader({
                         </p>
                         <ul className="mt-2 space-y-0.5">
                           <li>
-                            <Link href={pagePath("faq", locale)} className={panelLinkClass}>
+                            <NativeCategoryLink href={pagePath("faq", locale)} className={panelLinkClass}>
                               {dictionary.nav.customerService}
-                            </Link>
+                            </NativeCategoryLink>
                           </li>
                           <li>
-                            <Link href={pagePath("markets", locale)} className={panelLinkClass}>
+                            <NativeCategoryLink href={pagePath("markets", locale)} className={panelLinkClass}>
                               {dictionary.nav.whereIsNotenman}
-                            </Link>
+                            </NativeCategoryLink>
                           </li>
                         </ul>
                       </div>
@@ -551,12 +552,12 @@ export function CompactHeader({
 
             {promotional ? (
               <li className="ml-0.5">
-                <Link
+                <NativeCategoryLink
                   href={categoryPath(locale, promotional.slug)}
                   className="inline-flex min-h-10 items-center rounded-full bg-accent px-3 font-heading text-[0.8rem] font-extrabold text-contrast shadow-button transition-transform hover:-translate-y-0.5"
                 >
                   {promotional.name}
-                </Link>
+                </NativeCategoryLink>
               </li>
             ) : null}
           </ul>
@@ -640,13 +641,13 @@ export function CompactHeader({
                 return (
                   <li key={category.id}>
                     <div className="flex min-h-14 items-center">
-                      <Link
+                      <NativeCategoryLink
                         href={categoryPrimaryHref(locale, category)}
                         onClick={closeMobile}
                         className="flex min-h-14 min-w-0 flex-1 items-center font-heading text-[1.05rem] font-bold text-text"
                       >
                         {category.name}
-                      </Link>
+                      </NativeCategoryLink>
                       {hasChildren ? (
                         <button
                           type="button"
@@ -677,13 +678,13 @@ export function CompactHeader({
               })}
               <li>
                 <div className="flex min-h-14 items-center">
-                  <Link
+                  <NativeCategoryLink
                     href={categoriesPath(locale)}
                     onClick={closeMobile}
                     className="flex min-h-14 min-w-0 flex-1 items-center font-heading text-[1.05rem] font-bold text-text"
                   >
                     {moreLabel[locale]}
-                  </Link>
+                  </NativeCategoryLink>
                   <button
                     type="button"
                     aria-label={`${moreLabel[locale]} ${dictionary.nav.categories}`}
@@ -707,22 +708,22 @@ export function CompactHeader({
             </ul>
 
             {promotional ? (
-              <Link
+              <NativeCategoryLink
                 href={categoryPath(locale, promotional.slug)}
                 onClick={closeMobile}
                 className="mt-5 flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-heading font-extrabold text-contrast shadow-button"
               >
                 {promotional.name}
-              </Link>
+              </NativeCategoryLink>
             ) : null}
 
             <div className="mt-6 grid gap-1 border-t border-border pt-4">
-              <Link href={pagePath("faq", locale)} onClick={closeMobile} className={panelLinkClass}>
+              <NativeCategoryLink href={pagePath("faq", locale)} onClick={closeMobile} className={panelLinkClass}>
                 {dictionary.nav.customerService}
-              </Link>
-              <Link href={pagePath("markets", locale)} onClick={closeMobile} className={panelLinkClass}>
+              </NativeCategoryLink>
+              <NativeCategoryLink href={pagePath("markets", locale)} onClick={closeMobile} className={panelLinkClass}>
                 {dictionary.nav.whereIsNotenman}
-              </Link>
+              </NativeCategoryLink>
               <div className="mt-2 px-3">
                 <LocaleSwitcher currentLocale={locale} languages={languages} />
               </div>
