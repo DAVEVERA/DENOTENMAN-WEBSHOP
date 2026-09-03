@@ -457,12 +457,12 @@
       "shortLabel": "Noten",
       "seo": {
         "title": "Alle notensoorten van De Notenman | Vers gebrand",
-        "description": "Amandelen, cashewnoten, pistachenoten en meer: ontdek het volledige notenassortiment van De Notenman en hoe wij onze noten branden en selecteren."
+        "description": "Amandelen, cashewnoten, pistachenoten en meer: vers gebrand en gezeefd, zoals ze ook aan de kraam liggen. Ontdek het hele assortiment van De Notenman."
       },
       "hero": {
         "eyebrow": "Het hele notenschap",
         "title": "Alle notensoorten van De Notenman",
-        "intro": "Van amandelen tot pistachenoten: De Notenman voert een breed assortiment noten, vers gebrand en met of zonder zout. Dezelfde noten die aan de kraam liggen, vind je hier terug in de webshop.",
+        "intro": "Een goede noot herken je meteen: aan de geur, de beet, het verschil tussen een mooie hele cashew en een zak vol gruis. Wat niet goed genoeg is voor de kraam, hoort ook niet in de webshop.",
         "imageAlt": "Bak met gemengde, vers gebrande noten van De Notenman"
       },
       "varieties": {
@@ -472,11 +472,11 @@
         "items": [
           {
             "name": "Amandelen",
-            "description": "Bruin en wit, gebrand of ongebrand."
+            "description": "Stevig en herkenbaar van smaak."
           },
           {
             "name": "Cashewnoten",
-            "description": "Gebrand, ongebrand of met vlies."
+            "description": "Zachter en ronder van smaak."
           },
           {
             "name": "Hazelnoten",
@@ -484,15 +484,15 @@
           },
           {
             "name": "Pistachenoten",
-            "description": "Gepeld, gebrand of gezouten."
+            "description": "Hartig van karakter, waar je makkelijk van blijft pakken."
           },
           {
             "name": "Walnoten",
-            "description": "Gepelde helften en stukjes."
+            "description": "Doet het goed in de keuken en net zo goed op tafel."
           },
           {
             "name": "Pecannoten",
-            "description": "Gezouten, ongebrand of ongezouten."
+            "description": "Ook top in de keuken of zo uit het bakje."
           },
           {
             "name": "Macadamia's",
@@ -510,15 +510,16 @@
       },
       "story": {
         "eyebrow": "Vers gebrand",
-        "title": "Waarom De Notenman noten zelf brandt",
+        "title": "Vers gebrand, dat proef je",
         "body": [
-          "Noten proef je aan hun geur, smaak en structuur. Daarom brandt De Notenman de noten vers, in kleine hoeveelheden, zodat de kraam en de webshop steeds actuele voorraad hebben.",
-          "Fedor staat zelf aan de kraam en proeft mee. Wat goed bevalt, blijft in het assortiment. Wat niet overtuigt, verdwijnt weer."
+          "Noten branden is geen bijzaak. Op de markt zie je wat dat doet: de geur komt los, de kleur wordt mooier en de smaak krijgt meer diepte. Een vers gebrande noot heeft beet, kraakt zoals het hoort en blijft niet laf in je mond hangen.",
+          "We houden niet van half werk. Noten worden gezeefd en nagekeken voordat ze de zak in gaan, niet omdat dat mooi klinkt, maar omdat je het merkt zodra je thuis een verpakking opent. Je wilt hele, frisse noten, geen bodem vol stof en kruimels.",
+          "Bestel je bij De Notenman, dan worden je noten vers ingepakt en verzonden. Goed branden, goed zeven, goed verpakken en dan zorgen dat ze netjes bij je aankomen. Geen fratsen, wel verse noten en die herkenbare smaak waar je voor terugkomt."
         ],
         "points": [
-          "Vers gebrand, in kleine batches",
-          "Gebrand of ongebrand, gezouten of naturel",
-          "Zelfde assortiment op de markt en online"
+          "Vers gebrand, met meer geur, kleur en beet",
+          "Gezeefd en nagekeken: geen kruimels of stof",
+          "Vers ingepakt en snel bij je bezorgd"
         ]
       },
       "faqs": [
@@ -542,12 +543,12 @@
       "shortLabel": "Gedroogd fruit",
       "seo": {
         "title": "Gedroogd fruit bij De Notenman | Dadels, vijgen, abrikozen",
-        "description": "Dadels, vijgen, rozijnen, abrikozen en tropisch fruit: het gedroogd fruit-assortiment van De Notenman, vanaf de marktkraam in de webshop."
+        "description": "Dadels, vijgen, rozijnen, abrikozen en tropisch fruit: dezelfde kwaliteit die je aan de kraam kiest, nu ook besteld voor thuis bij De Notenman."
       },
       "hero": {
         "eyebrow": "Van kraam naar webshop",
         "title": "Gedroogd fruit bij De Notenman",
-        "intro": "Gedroogd fruit hoort al net zo lang bij de kraam als de noten zelf. Dadels, vijgen, rozijnen, abrikozen en tropisch fruit vormen samen een vast onderdeel van het assortiment.",
+        "intro": "Gedroogd fruit hoort net zo goed bij De Notenman als de noten. Dadels, vijgen, rozijnen, abrikozen en tropisch fruit: de een gaat door het ontbijt, de ander verdwijnt in een baksel, en sommige eet je zo uit de hand, tot het bakje leeg is.",
         "imageAlt": "Assortiment gedroogd fruit van De Notenman"
       },
       "varieties": {
@@ -557,23 +558,23 @@
         "items": [
           {
             "name": "Dadels",
-            "description": "Van los tot ontpit en gevuld."
+            "description": "Vol, zacht en makkelijk pakken; los, ontpit of gevuld."
           },
           {
             "name": "Vijgen",
-            "description": "Gedroogde vijgen, per stuk of in zak."
+            "description": "Stevige buitenkant, zachte binnenkant, per stuk of in zak."
           },
           {
             "name": "Rozijnen",
-            "description": "Krenten en rozijnen voor bij het ontbijt of in gebak."
+            "description": "Altijd van pas: door yoghurt, havermout of gebak."
           },
           {
             "name": "Abrikozen",
-            "description": "Zachte gedroogde abrikozen, met of zonder zwavel."
+            "description": "Met of zonder zwavel, zachte beet en volle fruitsmaak."
           },
           {
             "name": "Mango en tropisch fruit",
-            "description": "Gedroogde mango, ananas en andere tropische vruchten."
+            "description": "Zoet, stevig en makkelijk mee te nemen onderweg."
           }
         ]
       },
@@ -581,13 +582,14 @@
         "eyebrow": "Bij het ontbijt, de baktrommel of onderweg",
         "title": "Eén categorie, veel gebruiksmomenten",
         "body": [
-          "Gedroogd fruit combineert met veel andere producten uit het assortiment. Door muesli of havermout, in een baksel of samen met noten in een eigen mix.",
-          "Het aanbod verandert met de oogst. Nieuwe vijgen of dadels krijgen op tijd een plek in de webshop, net als op de kraam."
+          "Gedroogd fruit is zo'n categorie waar je alle kanten mee op kunt. Een hand rozijnen door je ontbijt, vijgen bij een borrelplank, abrikozen in een baksel, mango mee voor onderweg, of gewoon samen met noten in één bakje, omdat dat vaak precies goed uitkomt.",
+          "Je hoeft er niet ingewikkeld over te doen. Je kiest wat je lekker vindt, combineert het met noten als je daar zin in hebt en vult je voorraadkast aan met producten die je ook op de kraam zou meenemen.",
+          "Het aanbod beweegt mee met de oogst. Nieuwe vijgen of dadels krijgen op tijd een plek in de webshop, net als op de kraam, zo blijft het assortiment herkenbaar, maar niet stilstaand."
         ],
         "points": [
-          "Los te bestellen of te combineren met noten",
-          "Geschikt voor ontbijt, bakken of tussendoor",
-          "Aanbod volgt de oogst van het seizoen"
+          "Voor ontbijt, baksels, onderweg of gewoon zo uit de hand",
+          "Vrij te combineren met noten in je eigen mix",
+          "Aanbod volgt de oogst, net als aan de kraam"
         ]
       },
       "faqs": [
@@ -611,12 +613,12 @@
       "shortLabel": "Muesli & granen",
       "seo": {
         "title": "Muesli en granen bij De Notenman | Ontbijt samenstellen",
-        "description": "Muesli, granola, havermout en meergranenvlokken van De Notenman. Combineer met noten, gedroogd fruit en honing voor je eigen ontbijt."
+        "description": "Muesli, granola, havermout en meergranenvlokken: bouw zelf je ontbijt met noten, gedroogd fruit en honing uit hetzelfde assortiment van De Notenman."
       },
       "hero": {
         "eyebrow": "De basis voor je ontbijt",
         "title": "Muesli en granen bij De Notenman",
-        "intro": "Muesli, granola, havermout en meergranenvlokken vormen de basis van het ontbijtschap. Vul ze aan met noten, gedroogd fruit of honing uit hetzelfde assortiment.",
+        "intro": "Een goed ontbijt begint simpel: een kom yoghurt, een hand muesli, havermout die warm wordt in de pan of granola met wat extra beet. Bij De Notenman vind je de basis, muesli, granola, havermout en meergranenvlokken, gewoon tussen de rest van het assortiment.",
         "imageAlt": "Kom muesli van De Notenman"
       },
       "varieties": {
@@ -626,11 +628,11 @@
         "items": [
           {
             "name": "Muesli en granola",
-            "description": "Kant-en-klare mixen met granen, noten en fruit."
+            "description": "Kant-en-klare mix met granen, noten en fruit; granola voor extra beet, muesli iets rustiger."
           },
           {
             "name": "Havermout en granen",
-            "description": "Havervlokken en meergranenvlokken om zelf mee samen te stellen."
+            "description": "Voor wie zelf mengt: warm als pap, koud door yoghurt of als basis voor je eigen ontbijtpot."
           }
         ]
       },
@@ -638,13 +640,14 @@
         "eyebrow": "Zelf samenstellen",
         "title": "Van basis tot eigen mix",
         "body": [
-          "Sommige klanten kiezen een kant-en-klare muesli, anderen bouwen liever hun eigen mix op met havermout, noten, gedroogd fruit en een lepel honing.",
-          "Beide kan bij De Notenman. Het ontbijtschap staat naast de noten en het gedroogd fruit, zodat je in één bestelling verzamelt wat je nodig hebt."
+          "Sommige klanten pakken gewoon een zak muesli mee, klaar. Anderen bouwen hun ontbijt liever zelf op: havermout als bodem, noten voor de kraak, gedroogd fruit voor iets zoets en een beetje honing voor de smaak. Dat is het fijne aan dit schap, je maakt het zo eenvoudig of uitgebreid als je zelf wilt.",
+          "Muesli en granen staan bij De Notenman niet los van de rest. Het hoort naast de noten, het gedroogd fruit en de honing, zodat je in één bestelling verzamelt wat je nodig hebt voor de voorraadkast, geen losse rondes langs drie winkels.",
+          "En eerlijk is eerlijk: zo'n goed gevulde ontbijtplank maakt de ochtend makkelijker. Niet nadenken, niet zoeken. Zak open, kom pakken, aanvullen met wat je lekker vindt, en door."
         ],
         "points": [
-          "Kant-en-klare muesli en granola",
-          "Havermout en granen om zelf te mengen",
-          "Eenvoudig te combineren met noten, fruit en honing"
+          "Kant-en-klare muesli of zelf mengen met havermout",
+          "Combineer met noten, fruit en honing uit hetzelfde assortiment",
+          "Alles in één bestelling, geen losse rondes langs drie winkels"
         ]
       },
       "faqs": [
@@ -668,12 +671,12 @@
       "shortLabel": "Snacks & zoutjes",
       "seo": {
         "title": "Snacks en zoutjes van De Notenman | Borrelassortiment",
-        "description": "Pittige snacks, crackers, zoutjes en groentesnacks: het borrelassortiment van De Notenman, van de marktkraam in de webshop."
+        "description": "Pittige snacks, crackers, rijstsnacks en groentesnacks: vul je notenmix aan tot een compleet borrelplankje, rechtstreeks van De Notenman."
       },
       "hero": {
         "eyebrow": "Voor bij de borrel",
         "title": "Snacks en zoutjes bij De Notenman",
-        "intro": "Pittige snacks, crackers, zoutjes en groentesnacks vormen het borrelassortiment van De Notenman. Handig samen te bestellen met een notenmix voor een compleet plankje.",
+        "intro": "Een borrelplank leeft niet van noten alleen. Een goede notenmix hoort erop, maar dan komt de vraag: heb je er nog iets pittigs bij? Iets dat kraakt, iets waar je van blijft pakken terwijl het glas nog halfvol is.",
         "imageAlt": "Pittige mix van De Notenman"
       },
       "varieties": {
@@ -683,15 +686,15 @@
         "items": [
           {
             "name": "Pittige snacks",
-            "description": "Kruidige en scherpe smaken voor bij de borrel."
+            "description": "Kruidig en pittig, zakjes waar je toch steeds weer naar teruggrijpt."
           },
           {
             "name": "Crackers en zoutjes",
-            "description": "Krokante crackers en rijstsnacks."
+            "description": "Voor de kraak op je plankje, meestal als eerste aangebroken."
           },
           {
             "name": "Groentesnacks",
-            "description": "Groentechips, edamame en tuinbonen."
+            "description": "Groentechips, edamame en tuinbonen, net even anders dan een gewone chipszak."
           }
         ]
       },
@@ -699,13 +702,14 @@
         "eyebrow": "Meer dan alleen noten",
         "title": "Het borrelplankje compleet",
         "body": [
-          "Aan de kraam vragen klanten vaak om iets extra's bij hun notenmix: een pittige snack, een cracker of een zakje edamame.",
-          "Die vraag bepaalde het assortiment. Zo groeide snacks en zoutjes uit tot een vaste categorie naast de noten."
+          "Aan de kraam gaat het vaak heel eenvoudig: iemand kiest een notenmix en vraagt daarna om ook iets pittigs, een zakje crackers of edamame, omdat dat thuis altijd snel opgaat. Zo groeit een borrelplank vanzelf: eerst noten, dan iets zoutigs, dan nog iets met pit.",
+          "Die vraag uit de praktijk zie je terug in de webshop. Snacks en zoutjes staan hier niet los van De Notenman, ze horen naast de noten, je stelt in één keer je plankje samen, zonder dat je nog ergens anders achter een laatste zakje aan hoeft.",
+          "Een goede borrel hoeft niet moeilijk te zijn. Zet een bakje noten neer, doe er iets krokants bij, iets pittigs als je daarvan houdt en misschien een groentesnack voor de afwisseling. Meer hoeft het vaak niet te zijn."
         ],
         "points": [
           "Pittig, krokant of op basis van groente",
-          "Te combineren met een notenmix voor een plankje",
-          "Zelfde assortiment als aan de kraam"
+          "Vraag uit de praktijk: altijd naast een notenmix",
+          "Stel je hele plankje in één keer samen"
         ]
       },
       "faqs": [
@@ -729,12 +733,12 @@
       "shortLabel": "Honing",
       "seo": {
         "title": "Honing bij De Notenman | Biologisch assortiment van De Traay",
-        "description": "Bloemenhoning, vloeibare honing, raathoning en meer: De Notenman kiest uit het biologische assortiment van De Traay."
+        "description": "Bloemenhoning, vloeibare honing, raathoning en meer: De Notenman voert een vast, biologisch assortiment van De Traay, zodat je precies weet wat je koopt."
       },
       "hero": {
         "eyebrow": "Van bloem tot pot",
         "title": "Honing bij De Notenman",
-        "intro": "De Notenman kiest voor honing uit het biologische assortiment van De Traay. Zacht en bloemig of donker en krachtig: er is voor ieder gebruik een passende pot.",
+        "intro": "Honing is een product waar je niet ingewikkeld over hoeft te doen: een goede pot klopt zodra je hem opendraait. De ene honing is zacht en bloemig, de andere donkerder en steviger, daarom voert De Notenman een vast assortiment met duidelijke verschillen.",
         "imageAlt": "Potten biologische honing van De Traay bij De Notenman"
       },
       "varieties": {
@@ -744,23 +748,23 @@
         "items": [
           {
             "name": "Bloemenhoning",
-            "description": "Milde honing van gemengde bloemen."
+            "description": "Mild en zacht van smaak, op brood, door yoghurt of bij het ontbijt."
           },
           {
             "name": "Vloeibare honing",
-            "description": "Direct te gebruiken op brood of door thee."
+            "description": "Snel en makkelijk: geen gedoe met schrapen, gewoon schenken."
           },
           {
             "name": "Biologische honing",
-            "description": "Gecertificeerd biologisch, uit het assortiment van De Traay."
+            "description": "Uit het assortiment van De Traay, overzichtelijk en duidelijk."
           },
           {
             "name": "Raathoning",
-            "description": "Honing nog in de honingraat."
+            "description": "Nog in de honingraat, stevig en bijzonder om te zien."
           },
           {
             "name": "Stroop en siroop",
-            "description": "Appelstroop en andere natuurlijke siropen."
+            "description": "Appelstroop en andere siropen, fijn bij pannenkoeken of op brood."
           }
         ]
       },
@@ -768,13 +772,14 @@
         "eyebrow": "Eén leverancier, bekend assortiment",
         "title": "Waarom De Notenman voor De Traay kiest",
         "body": [
-          "In plaats van veel losse honingmerken voert De Notenman een vast assortiment van De Traay. Dat maakt de kwaliteit en herkomst per pot duidelijk.",
-          "Zo weet je bij elke pot wat je koopt: van milde bloemenhoning tot stevige raathoning."
+          "Bij honing wil je weten wat je koopt. Niet alleen omdat de smaak verschilt, maar ook omdat elke pot zijn eigen karakter heeft: licht en mild is iets anders dan donker en krachtig, vloeibaar gebruik je anders dan raathoning, en stroop zet je weer op een ander moment op tafel.",
+          "Daarom voert De Notenman een vast assortiment van De Traay. Dat houdt het duidelijk, voor ons aan de kraam, maar vooral voor jou thuis. Je hoeft niet door tien onbekende merken te zoeken, je kiest gewoon op smaak, gebruik en soort.",
+          "Zo hoort honing in het assortiment: rustig, herkenbaar en goed te combineren met de rest van je bestelling. Een pot voor op brood, een pot voor door thee, iets stevigers voor wie meer smaak zoekt, en raathoning voor wie zin heeft in iets bijzonders."
         ],
         "points": [
-          "Biologisch gecertificeerd assortiment",
-          "Van vloeibaar tot raathoning",
-          "Vaste leverancier: De Traay"
+          "Eén vast, biologisch assortiment van De Traay",
+          "Van mild en bloemig tot donker en krachtig",
+          "Kiezen op smaak, gebruik en soort, geen wirwar aan merken"
         ]
       },
       "faqs": [
@@ -798,12 +803,12 @@
       "shortLabel": "Notenpasta's",
       "seo": {
         "title": "Notenpasta's van De Notenman | Pindakaas tot pistachepasta",
-        "description": "Pindakaas, amandelpasta, pistachepasta en meer: De Notenman selecteert notenpasta's op smaak, structuur en ingrediënten."
+        "description": "Pindakaas, amandelpasta, pistachepasta en meer: De Notenman selecteert elke notenpasta op smaak, structuur en het etiket, zodat de pot doet wat hij belooft."
       },
       "hero": {
         "eyebrow": "De pot in, zonder omwegen",
         "title": "Notenpasta's van De Notenman",
-        "intro": "Van pindakaas tot pistachepasta: De Notenman kiest zelf wat er in het schap komt. Beoordeeld op smaak, structuur en wat er op het etiket staat.",
+        "intro": "Een goede notenpasta hoeft zich niet te verstoppen achter een groot verhaal. Je draait de pot open, ruikt de noten en weet eigenlijk al genoeg: op brood, door je ontbijt, in een saus of rechtstreeks van de lepel.",
         "imageAlt": "Close-up van notenpasta's van De Notenman"
       },
       "varieties": {
@@ -813,27 +818,27 @@
         "items": [
           {
             "name": "Pindakaas",
-            "description": "Naturel of met een korrel zout."
+            "description": "Naturel of met een korrel zout, gewoon een pot die goed moet smaken."
           },
           {
             "name": "Amandelpasta",
-            "description": "Gemalen amandelen, puur of met toevoeging."
+            "description": "Stevige, herkenbare notensmaak, puur of met een toevoeging."
           },
           {
             "name": "Hazelnootpasta",
-            "description": "Vol van smaak, met of zonder cacao."
+            "description": "Vol van smaak, voor wie iets rijkers zoekt, met of zonder cacao."
           },
           {
             "name": "Pistachepasta",
-            "description": "Romig, van gemalen pistachenoten."
+            "description": "Romig en uitgesproken, van gemalen pistachenoten."
           },
           {
             "name": "Gemengde notenpasta",
-            "description": "Combinatie van meerdere notensoorten."
+            "description": "Meerdere notensoorten in één pot voor een bredere smaak."
           },
           {
             "name": "Pecannotenpasta",
-            "description": "Zacht en licht zoet van smaak."
+            "description": "Zacht en licht zoet, voor wie pindakaas te gewoon vindt."
           }
         ]
       },
@@ -841,13 +846,14 @@
         "eyebrow": "Smaak, structuur, etiket",
         "title": "Waarop De Notenman selecteert",
         "body": [
-          "Notenpasta beoordeelt De Notenman op drie punten: smaak, structuur en de ingrediëntenlijst. Wat er niet in hoeft, blijft eruit.",
-          "Op brood, door het ontbijt, in een saus of rechtstreeks van de lepel: elke pot is bedoeld om zonder omwegen te gebruiken."
+          "De structuur moet kloppen. Niet waterig, niet vervelend korrelig, maar passend bij de noot waar de pasta van gemaakt is: pindakaas mag anders eten dan pistachepasta, amandelpasta hoeft niet op hazelnootpasta te lijken.",
+          "Daarna komt de smaak. Die moet herkenbaar zijn: staat er pistache op de pot, dan proef je pistache. Staat er hazelnoot met cacao op, dan moet dat ook zo overkomen. Simpel eigenlijk, maar juist daar zit het verschil.",
+          "En dan het etiket: we kijken naar wat erin zit en wat er niet in hoeft. Sommige pasta's zijn puur, andere hebben bewust zout, cacao of een andere toevoeging, prima, zolang het duidelijk is en de pot doet wat hij belooft. Geen omweg, geen mooi verpakt verhaal waar de smaak achteraan komt."
         ],
         "points": [
-          "Geselecteerd op smaak, structuur en ingrediënten",
-          "Van pinda en amandel tot pistache en gemengde noten",
-          "Voor brood, ontbijt, saus of de lepel"
+          "Structuur passend bij de noot, nooit waterig of vervelend korrelig",
+          "Smaak die klopt met wat er op het etiket staat",
+          "Puur of met bewuste toevoeging, altijd duidelijk"
         ]
       },
       "faqs": [
