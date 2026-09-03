@@ -42,7 +42,14 @@ export function NavbarSearch({
       setQuery((event as CatalogSearchEvent).detail.query);
     };
 
-    syncFromUrl();
+    // Deliberately does not call syncFromUrl() on mount: the header isn't
+    // part of one shared persistent layout (each top-level route section
+    // renders its own SiteShell), so this component fully remounts on
+    // every navigation, including right after a search submits. Reading
+    // the query param on mount would immediately re-fill the field with
+    // the just-submitted search, when it should be offered empty for the
+    // next one. Genuine mid-session back/forward navigation (the instance
+    // stays mounted) still resyncs via the popstate listener below.
     window.addEventListener("popstate", syncFromUrl);
     window.addEventListener(CATALOG_SEARCH_EVENT, syncFromCatalog);
 
@@ -81,6 +88,7 @@ export function NavbarSearch({
       })
     );
     onSubmitted?.();
+    setQuery("");
 
     if (pathname === destination) {
       router.push(href, { scroll: false });

@@ -148,6 +148,9 @@ export function ProductBrowser({
   const lastLoadedSignature = useRef(
     `${requestKey(initialQuery, initialSelected, initialSort)}::0`
   );
+  // Starts true so the very first (hydration) run of the broadcast effect
+  // below doesn't echo the query this component was initialized with.
+  const suppressNextBroadcast = useRef(true);
   const catalogRequestId = useRef(0);
   const quickViewRequestId = useRef(0);
   const quickViewCache = useRef(new Map<string, ProductSummaryDto>());
@@ -158,6 +161,7 @@ export function ProductBrowser({
   useEffect(() => {
     const restoreFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
+      suppressNextBroadcast.current = true;
       setQuery(params.get(QUERY_PARAM) ?? "");
       setSelected(filterValuesFromUrl(params));
       setSort(normalizeCatalogSort(params.get(SORT_PARAM)));
@@ -165,6 +169,10 @@ export function ProductBrowser({
     };
     const applyNavbarSearch = (event: Event) => {
       const searchEvent = event as CustomEvent<CatalogSearchEventDetail>;
+      // The header's search field already knows this value (it's the one
+      // that sent it) and resets itself to empty right after sending it.
+      // Don't echo it back, or it would immediately re-fill that field.
+      suppressNextBroadcast.current = true;
       setQuery(searchEvent.detail.query);
     };
 
@@ -179,6 +187,14 @@ export function ProductBrowser({
 
   useEffect(() => {
     if (!hydrated) return;
+    // Only broadcast changes that genuinely originated here (typing in
+    // this page's own search field, removing the search chip, etc.).
+    // Changes that arrived FROM the URL or the header's search field are
+    // flagged above and must not be echoed back to the header.
+    if (suppressNextBroadcast.current) {
+      suppressNextBroadcast.current = false;
+      return;
+    }
     window.dispatchEvent(new CustomEvent(CATALOG_SEARCH_EVENT, { detail: { query } }));
   }, [query, hydrated]);
 
