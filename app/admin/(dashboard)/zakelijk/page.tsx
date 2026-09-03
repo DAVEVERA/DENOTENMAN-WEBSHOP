@@ -45,7 +45,7 @@ export default async function ZakelijkPage({
 
   const [businessAccounts, unreadEvents, recentEvents, unreadCount] = await Promise.all([
     prisma.businessAccount.findMany({
-      where: activeStatus ? { status: activeStatus } : undefined,
+      where: { deletedAt: null, ...(activeStatus ? { status: activeStatus } : {}) },
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { orderLists: true } } },
     }),
@@ -146,6 +146,7 @@ export default async function ZakelijkPage({
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-background text-accent-ink"><Building2 className="h-5 w-5" aria-hidden="true" /></span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2"><h2 className="font-heading text-heading-sm text-text">{account.companyName}</h2><span className={cn("rounded-button px-2 py-1 text-xs font-semibold", STATUS_BADGE_CLASSES[account.status])}>{STATUS_LABELS[account.status]}</span></div>
+                  {account.customerNumber ? <p className="mt-0.5 text-xs font-semibold text-muted">Klantnr. {account.customerNumber}</p> : null}
                   <p className="mt-1 break-words text-body-sm text-muted">{account.contactName} · {account.email}</p>
                   <p className="mt-3 text-xs font-semibold text-text">{account._count.orderLists} {account._count.orderLists === 1 ? "bestellijst" : "bestellijsten"}</p>
                 </div>
@@ -157,6 +158,7 @@ export default async function ZakelijkPage({
           <table className="w-full text-body-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted">
+                <th className="px-4 py-3 font-heading">Klantnr.</th>
                 <th className="px-4 py-3 font-heading">Bedrijf</th>
                 <th className="px-4 py-3 font-heading">Contactpersoon</th>
                 <th className="px-4 py-3 font-heading">E-mail</th>
@@ -167,6 +169,7 @@ export default async function ZakelijkPage({
             <tbody>
               {businessAccounts.map((account) => (
                 <tr key={account.id} className="border-b border-border last:border-0 hover:bg-background">
+                  <td className="px-4 py-3 text-muted">{account.customerNumber ?? "—"}</td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/zakelijk/${account.id}`}

@@ -1455,6 +1455,7 @@ enum BusinessVatRegime {
 
 model BusinessAccount {
   id                   String                @id @default(cuid())
+  customerNumber       String?               @unique
   companyName          String
   contactName          String
   email                String                @unique
@@ -1472,6 +1473,23 @@ model BusinessAccount {
   passwordHash         String?
   shadowUserId         String?               @unique
   shadowUser           User?                 @relation(fields: [shadowUserId], references: [id])
+  // Shipping is opt-in per account, toggled by an admin — until enabled the
+  // customer only sees pickup at the market stall as an option.
+  shippingEnabled      Boolean               @default(false)
+  billingStreet        String?
+  billingHouseNumber   String?
+  billingPostalCode    String?
+  billingCity          String?
+  billingCountry       String?
+  shippingStreet       String?
+  shippingHouseNumber  String?
+  shippingPostalCode   String?
+  shippingCity         String?
+  shippingCountry      String?
+  // Soft delete: an account can reference paid Orders/Invoices that must
+  // remain valid historical records, so admin "delete" hides it instead of
+  // removing the row.
+  deletedAt            DateTime?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -1509,6 +1527,7 @@ enum BusinessActorType {
 enum BusinessEventType {
   ACCOUNT_CREATED
   ACCOUNT_UPDATED
+  ACCOUNT_DELETED
   INVITATION_SENT
   PORTAL_LOGIN
   PASSWORD_SET
@@ -1663,9 +1682,14 @@ enum InvoicePeppolStatus {
   FAILED
 }
 
+/**
+ * One running counter per country, not per year: invoice numbers are built
+ * as {countryCode}{counter} (e.g. NL0031, BE0032) so admin exports can
+ * filter by country from the number alone.
+ */
 model InvoiceCounter {
-  year       Int @id
-  lastNumber Int @default(0)
+  countryCode String @id
+  lastNumber  Int    @default(0)
 }
 
 /**

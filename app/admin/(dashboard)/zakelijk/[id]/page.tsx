@@ -40,6 +40,19 @@ const ORDER_LIST_STATUS_CLASSES: Record<BusinessOrderListStatus, string> = {
   CANCELLED: "bg-red-50 text-red-700",
 };
 
+function formatAddress(
+  street: string | null,
+  houseNumber: string | null,
+  postalCode: string | null,
+  city: string | null,
+  country: string | null
+): string {
+  const line1 = [street, houseNumber].filter(Boolean).join(" ");
+  const line2 = [postalCode, city].filter(Boolean).join(" ");
+  const parts = [line1, line2, country].filter((part) => part && part.trim().length > 0);
+  return parts.length > 0 ? parts.join(", ") : "—";
+}
+
 function formatDateTime(date: Date) {
   return new Intl.DateTimeFormat("nl-NL", {
     day: "2-digit",
@@ -89,6 +102,9 @@ export default async function ZakelijkDetailPage({
             ← Alle zakelijke accounts
           </Link>
           <h1 className="mt-2 text-heading-lg text-text">{businessAccount.companyName}</h1>
+          {businessAccount.customerNumber ? (
+            <p className="mt-1 text-body-sm font-semibold text-muted">Klantnr. {businessAccount.customerNumber}</p>
+          ) : null}
         </div>
         <span
           className={cn(
@@ -106,13 +122,34 @@ export default async function ZakelijkDetailPage({
             <BusinessAccountEditForm
               businessAccountId={businessAccount.id}
               currentStatus={businessAccount.status}
+              isDeleted={businessAccount.deletedAt !== null}
               initialNotes={businessAccount.notes ?? ""}
+              currentCompanyName={businessAccount.companyName}
+              currentContactName={businessAccount.contactName}
+              currentEmail={businessAccount.email}
+              currentPhone={businessAccount.phone ?? ""}
+              currentCustomerNumber={businessAccount.customerNumber ?? ""}
               currentVatNumber={businessAccount.vatNumber ?? ""}
               currentKvkNumber={businessAccount.kvkNumber ?? ""}
               currentCountry={businessAccount.country === "BE" ? "BE" : "NL"}
               currentVatRegime={businessAccount.vatRegime}
               currentVatRatePercent={Number(businessAccount.vatRatePercent)}
               currentPeppolParticipantId={businessAccount.peppolParticipantId ?? ""}
+              currentShippingEnabled={businessAccount.shippingEnabled}
+              currentBillingAddress={{
+                street: businessAccount.billingStreet ?? "",
+                houseNumber: businessAccount.billingHouseNumber ?? "",
+                postalCode: businessAccount.billingPostalCode ?? "",
+                city: businessAccount.billingCity ?? "",
+                country: businessAccount.billingCountry ?? "",
+              }}
+              currentShippingAddress={{
+                street: businessAccount.shippingStreet ?? "",
+                houseNumber: businessAccount.shippingHouseNumber ?? "",
+                postalCode: businessAccount.shippingPostalCode ?? "",
+                city: businessAccount.shippingCity ?? "",
+                country: businessAccount.shippingCountry ?? "",
+              }}
             />
           </div>
 
@@ -235,6 +272,33 @@ export default async function ZakelijkDetailPage({
                     {businessAccount.vatRegime === "REVERSE_CHARGE" ? "BTW verlegd" : "Standaard"}
                   </span>
                 </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="rounded-panel border border-border bg-surface p-5">
+            <h2 className="font-heading text-heading-sm text-text">Levering &amp; adressen</h2>
+            <dl className="mt-3 space-y-3 text-body-sm">
+              <div>
+                <dt className="text-muted">Verzending</dt>
+                <dd>
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-button px-2 py-1 text-xs font-semibold",
+                      businessAccount.shippingEnabled ? "bg-accent/10 text-accent-hover" : "bg-border text-muted"
+                    )}
+                  >
+                    {businessAccount.shippingEnabled ? "Aan" : "Uit — klant haalt af op de markt"}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted">Verzendadres</dt>
+                <dd className="text-text">{formatAddress(businessAccount.shippingStreet, businessAccount.shippingHouseNumber, businessAccount.shippingPostalCode, businessAccount.shippingCity, businessAccount.shippingCountry)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Factuuradres</dt>
+                <dd className="text-text">{formatAddress(businessAccount.billingStreet, businessAccount.billingHouseNumber, businessAccount.billingPostalCode, businessAccount.billingCity, businessAccount.billingCountry)}</dd>
               </div>
             </dl>
           </div>

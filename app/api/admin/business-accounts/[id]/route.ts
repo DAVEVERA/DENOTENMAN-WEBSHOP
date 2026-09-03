@@ -14,6 +14,7 @@ const businessAccountPatchSchema = z
     contactName: z.string().trim().min(1).optional(),
     email: z.string().trim().email().optional(),
     phone: z.string().trim().nullable().optional(),
+    customerNumber: z.string().trim().nullable().optional(),
     vatNumber: z.string().trim().nullable().optional(),
     kvkNumber: z.string().trim().nullable().optional(),
     country: z.enum(["NL", "BE"]).optional(),
@@ -22,6 +23,17 @@ const businessAccountPatchSchema = z
     peppolParticipantId: z.string().trim().nullable().optional(),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "SUSPENDED"]).optional(),
     notes: z.string().trim().nullable().optional(),
+    shippingEnabled: z.boolean().optional(),
+    billingStreet: z.string().trim().nullable().optional(),
+    billingHouseNumber: z.string().trim().nullable().optional(),
+    billingPostalCode: z.string().trim().nullable().optional(),
+    billingCity: z.string().trim().nullable().optional(),
+    billingCountry: z.string().trim().nullable().optional(),
+    shippingStreet: z.string().trim().nullable().optional(),
+    shippingHouseNumber: z.string().trim().nullable().optional(),
+    shippingPostalCode: z.string().trim().nullable().optional(),
+    shippingCity: z.string().trim().nullable().optional(),
+    shippingCountry: z.string().trim().nullable().optional(),
   })
   .strict();
 
@@ -74,6 +86,7 @@ export async function PATCH(
     contactName?: string;
     email?: string;
     phone?: string | null;
+    customerNumber?: string | null;
     vatNumber?: string | null;
     kvkNumber?: string | null;
     country?: "NL" | "BE";
@@ -83,12 +96,24 @@ export async function PATCH(
     peppolConfigured?: boolean;
     status?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
     notes?: string | null;
+    shippingEnabled?: boolean;
+    billingStreet?: string | null;
+    billingHouseNumber?: string | null;
+    billingPostalCode?: string | null;
+    billingCity?: string | null;
+    billingCountry?: string | null;
+    shippingStreet?: string | null;
+    shippingHouseNumber?: string | null;
+    shippingPostalCode?: string | null;
+    shippingCity?: string | null;
+    shippingCountry?: string | null;
   } = {};
 
   if (input.companyName !== undefined) data.companyName = input.companyName;
   if (input.contactName !== undefined) data.contactName = input.contactName;
   if (input.email !== undefined) data.email = input.email.toLowerCase();
   if (input.phone !== undefined) data.phone = input.phone?.trim() ? input.phone.trim() : null;
+  if (input.customerNumber !== undefined) data.customerNumber = input.customerNumber?.trim() ? input.customerNumber.trim() : null;
   if (input.vatNumber !== undefined) data.vatNumber = input.vatNumber?.trim() ? input.vatNumber.trim() : null;
   if (input.kvkNumber !== undefined) data.kvkNumber = input.kvkNumber?.trim() ? input.kvkNumber.trim() : null;
   if (input.country !== undefined) data.country = input.country;
@@ -101,6 +126,17 @@ export async function PATCH(
   }
   if (input.status !== undefined) data.status = input.status;
   if (input.notes !== undefined) data.notes = input.notes?.trim() ? input.notes.trim() : null;
+  if (input.shippingEnabled !== undefined) data.shippingEnabled = input.shippingEnabled;
+  if (input.billingStreet !== undefined) data.billingStreet = input.billingStreet?.trim() ? input.billingStreet.trim() : null;
+  if (input.billingHouseNumber !== undefined) data.billingHouseNumber = input.billingHouseNumber?.trim() ? input.billingHouseNumber.trim() : null;
+  if (input.billingPostalCode !== undefined) data.billingPostalCode = input.billingPostalCode?.trim() ? input.billingPostalCode.trim() : null;
+  if (input.billingCity !== undefined) data.billingCity = input.billingCity?.trim() ? input.billingCity.trim() : null;
+  if (input.billingCountry !== undefined) data.billingCountry = input.billingCountry?.trim() ? input.billingCountry.trim() : null;
+  if (input.shippingStreet !== undefined) data.shippingStreet = input.shippingStreet?.trim() ? input.shippingStreet.trim() : null;
+  if (input.shippingHouseNumber !== undefined) data.shippingHouseNumber = input.shippingHouseNumber?.trim() ? input.shippingHouseNumber.trim() : null;
+  if (input.shippingPostalCode !== undefined) data.shippingPostalCode = input.shippingPostalCode?.trim() ? input.shippingPostalCode.trim() : null;
+  if (input.shippingCity !== undefined) data.shippingCity = input.shippingCity?.trim() ? input.shippingCity.trim() : null;
+  if (input.shippingCountry !== undefined) data.shippingCountry = input.shippingCountry?.trim() ? input.shippingCountry.trim() : null;
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "NO_CHANGES" }, { status: 400 });
@@ -132,8 +168,61 @@ export async function PATCH(
     return NextResponse.json({ ok: true, businessAccount: updated });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : String(error.meta?.target ?? "");
+      if (target.includes("customerNumber")) {
+        return NextResponse.json({ error: "CUSTOMER_NUMBER_ALREADY_EXISTS" }, { status: 409 });
+      }
       return NextResponse.json({ error: "EMAIL_ALREADY_EXISTS" }, { status: 409 });
     }
     throw error;
   }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const admin = await getAdminSession(request);
+  if (!admin) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (admin.role === "STAFF") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
+
+  const { id } = await context.params;
+
+  const existing = await prisma.businessAccount.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  }
+  if (existing.deletedAt) {
+    return NextResponse.json({ error: "ALREADY_DELETED" }, { status: 409 });
+  }
+
+  const deletedAt = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    const businessAccount = await tx.businessAccount.update({
+      where: { id },
+      data: { deletedAt, loginLinkRequestedAt: null },
+    });
+    await tx.businessSession.updateMany({
+      where: { businessAccountId: id, revokedAt: null },
+      data: { revokedAt: deletedAt },
+    });
+    await tx.businessInvitation.updateMany({
+      where: { businessAccountId: id, acceptedAt: null, revokedAt: null },
+      data: { revokedAt: deletedAt },
+    });
+    await recordAudit(tx, admin, "BusinessAccount", id, "DELETE", existing, businessAccount);
+    await recordBusinessEvent(tx, {
+      businessAccountId: id,
+      type: "ACCOUNT_DELETED",
+      actorType: "ADMIN",
+      actorName: admin.name,
+      summary: `Zakelijk account voor ${businessAccount.companyName} verwijderd`,
+    });
+  });
+
+  return NextResponse.json({ ok: true });
 }

@@ -17,14 +17,18 @@ import { BusinessInvoiceEmail } from "@/emails/BusinessInvoiceEmail";
 const REVERSE_CHARGE_NOTE =
   "BTW verlegd naar de afnemer (intracommunautaire levering, art. 138 Btw-richtlijn / art. 39bis Belgisch Btw-Wetboek).";
 
-async function nextInvoiceNumber(tx: Prisma.TransactionClient): Promise<string> {
-  const year = new Date().getFullYear();
+/**
+ * Invoice numbers are {countryCode}{counter}, e.g. NL0031 or BE0032 - each
+ * country has its own running counter (not shared, not year-scoped) so an
+ * admin export can filter invoices by country from the number alone.
+ */
+async function nextInvoiceNumber(tx: Prisma.TransactionClient, countryCode: string): Promise<string> {
   const counter = await tx.invoiceCounter.upsert({
-    where: { year },
-    create: { year, lastNumber: 1 },
+    where: { countryCode },
+    create: { countryCode, lastNumber: 1 },
     update: { lastNumber: { increment: 1 } },
   });
-  return `F${year}-${String(counter.lastNumber).padStart(6, "0")}`;
+  return `${countryCode}${String(counter.lastNumber).padStart(4, "0")}`;
 }
 
 /**
@@ -49,7 +53,7 @@ export async function generateInvoiceForOrder(
     const alreadyCreated = await tx.invoice.findUnique({ where: { orderId: order.id } });
     if (alreadyCreated) return alreadyCreated;
 
-    const invoiceNumber = await nextInvoiceNumber(tx);
+    const invoiceNumber = await nextInvoiceNumber(tx, businessAccount.country);
     const pdfBase64 = await renderInvoicePdfBase64({
       invoiceNumber,
       createdAt,
