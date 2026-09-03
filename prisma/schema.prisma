@@ -77,6 +77,7 @@ enum EmailDeliveryKind {
   BUSINESS_INVITATION
   BUSINESS_ORDER_LIST_CHANGED
   BUSINESS_INVOICE
+  BUSINESS_PRICE_REQUESTED
 }
 
 enum EmailDeliveryStatus {
@@ -749,6 +750,7 @@ model AftersalesFlow {
   id        String   @id @default(cuid())
   name      String
   isActive  Boolean  @default(false)
+  logoUrl   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -980,6 +982,30 @@ model AdminUser {
   reviewedPriceAdvice  PricingRecommendation[]      @relation("PricingRecommendationReviewedBy")
   appliedPriceAdvice   PricingRecommendation[]      @relation("PricingRecommendationAppliedBy")
   priceReportSchedules PriceMonitorReportSchedule[] @relation("PriceMonitorReportScheduleCreatedBy")
+  uploadedMedia        MediaAsset[]
+}
+
+/**
+ * Shared media library: one upload, reusable across every marketing
+ * section (mail flows, banners, acties, etc.) instead of each feature
+ * managing its own images. Storage itself is unchanged - still the GCS
+ * bucket via lib/storage.ts - this table is just a browsable catalog of
+ * what has been uploaded.
+ */
+model MediaAsset {
+  id                String     @id @default(cuid())
+  storageKey        String     @unique
+  originalFilename  String
+  contentType       String
+  sizeBytes         Int
+  width             Int?
+  height            Int?
+  altText           String?
+  uploadedByAdminId String?
+  uploadedByAdmin   AdminUser? @relation(fields: [uploadedByAdminId], references: [id], onDelete: SetNull)
+  createdAt         DateTime   @default(now())
+
+  @@index([createdAt])
 }
 
 enum PriceMonitorSourceStatus {
@@ -1536,6 +1562,7 @@ enum BusinessEventType {
   ORDER_LIST_ITEMS_UPDATED
   ORDER_LIST_QUANTITIES_CHANGED
   ORDER_LIST_NOTE_ADDED
+  ORDER_LIST_PRICE_REQUESTED
   ORDER_LIST_APPROVED
   ORDER_LIST_CHANGES_REQUESTED
   ORDER_LIST_CANCELLED
@@ -1623,7 +1650,17 @@ model BusinessOrderListItem {
   variantLabel     String?
   sku              String?
   quantity         Int
-  unitPriceCents   Int
+  // Null exactly when priceOnRequest is true: the admin hasn't set a real
+  // price yet and the customer sees "Prijs op aanvraag" instead of an
+  // amount. Filling in unitPriceCents and clearing priceOnRequest is how an
+  // admin resolves a price request.
+  unitPriceCents   Int?
+  priceOnRequest   Boolean           @default(false)
+  // Set when the customer clicks "Vraag prijs aan" - lets the UI show
+  // "Aangevraagd" instead of the button again, and stops a second click from
+  // emailing the admin twice. Cleared automatically once an admin fills in
+  // a real price (priceOnRequest goes back to false).
+  priceRequestedAt DateTime?
   sortOrder        Int               @default(0)
   // Preserved across admin edits (not reset to "now" on every save) so the
   // customer portal can tell which items are genuinely new since the last

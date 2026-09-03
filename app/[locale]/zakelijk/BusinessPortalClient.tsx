@@ -8,7 +8,17 @@ import { calculateVat } from "@/lib/business-vat";
 import { BusinessPasswordSettings } from "./BusinessPasswordSettings";
 import { BusinessAccountSettings } from "./BusinessAccountSettings";
 
-type PortalItem = { id: string; productName: string; variantLabel: string | null; sku: string | null; quantity: number; unitPriceCents: number; isNew: boolean };
+type PortalItem = {
+  id: string;
+  productName: string;
+  variantLabel: string | null;
+  sku: string | null;
+  quantity: number;
+  unitPriceCents: number | null;
+  priceOnRequest: boolean;
+  priceRequestedAt: string | null;
+  isNew: boolean;
+};
 type PortalNote = { id: string; actorType: string; authorName: string; text: string; createdAt: string };
 type PortalOrderHistoryItem = { id: string; productName: string; variantLabel: string | null; quantity: number; unitPriceCents: number };
 type PortalOrderHistoryEntry = { id: string; date: string; totalCents: number; items: PortalOrderHistoryItem[] };
@@ -107,6 +117,8 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
   const [saveError, setSaveError] = useState<string | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [priceRequestBusyId, setPriceRequestBusyId] = useState<string | null>(null);
+  const [priceRequestedIds, setPriceRequestedIds] = useState<Set<string>>(new Set());
 
   // A newer version means the server state moved on (our own save, Fedor's
   // edit, or a payment resetting the list) — resync local inputs to match.
@@ -123,13 +135,22 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
     [list.items, quantities]
   );
   const liveTotalCents = useMemo(
-    () => list.items.reduce((sum, item) => sum + (quantities[item.id] ?? item.quantity) * item.unitPriceCents, 0),
+    () =>
+      list.items.reduce(
+        (sum, item) =>
+          sum + (item.priceOnRequest || item.unitPriceCents === null ? 0 : (quantities[item.id] ?? item.quantity) * item.unitPriceCents),
+        0
+      ),
+    [list.items, quantities]
+  );
+  const hasUnresolvedPriceRequest = useMemo(
+    () => list.items.some((item) => (quantities[item.id] ?? item.quantity) > 0 && (item.priceOnRequest || item.unitPriceCents === null)),
     [list.items, quantities]
   );
 
   const expired = list.validUntil ? new Date(list.validUntil).getTime() <= Date.now() : false;
   const listActive = list.status === "SENT" && !expired && !list.paymentPending;
-  const payable = listActive && !dirty && liveTotalCents > 0;
+  const payable = listActive && !dirty && liveTotalCents > 0 && !hasUnresolvedPriceRequest;
   const { vatAmountCents, totalCents: payableTotalCents } = calculateVat(liveTotalCents, account.vatRatePercent);
   const isReverseCharge = account.vatRegime === "REVERSE_CHARGE";
 
@@ -181,6 +202,20 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
     }
   }
 
+  async function requestPrice(itemId: string) {
+    setPriceRequestBusyId(itemId);
+    try {
+      const response = await fetch(`/api/business/order-lists/${list.id}/items/${itemId}/request-price`, { method: "POST" });
+      if (response.ok) {
+        setPriceRequestedIds((current) => new Set(current).add(itemId));
+      }
+    } catch {
+      // Silently retry-able: the button just stays visible if this failed.
+    } finally {
+      setPriceRequestBusyId(null);
+    }
+  }
+
   async function startCheckout() {
     setCheckoutBusy(true);
     setCheckoutError(null);
@@ -193,7 +228,9 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
             ? "Deze bestellijst is verlopen. Vraag Fedor om een nieuwe versie."
             : data?.error === "EMPTY_ORDER"
               ? "Kies eerst een aantal bij minstens één product."
-              : "Afrekenen is niet gelukt. Probeer het opnieuw."
+              : data?.error === "PRICE_PENDING"
+                ? "Voor minstens één gekozen product is de prijs nog niet bekend. Vraag de prijs op of wacht tot Fedor deze heeft ingevuld."
+                : "Afrekenen is niet gelukt. Probeer het opnieuw."
         );
         setCheckoutBusy(false);
         return;
@@ -221,30 +258,47 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
         {listActive ? (
           <>
             <ul className="divide-y divide-border rounded-card border border-border">
-              {list.items.map((item) => (
-                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 text-body-sm">
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <strong className="block text-text">{item.productName}</strong>
-                      {item.isNew ? <span className="inline-flex items-center gap-1 rounded-button bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent-hover"><Sparkles className="h-3 w-3" aria-hidden="true" /> Nieuw van Fedor</span> : null}
+              {list.items.map((item) => {
+                const onRequest = item.priceOnRequest || item.unitPriceCents === null;
+                const requested = priceRequestedIds.has(item.id) || item.priceRequestedAt !== null;
+                return (
+                  <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 text-body-sm">
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <strong className="block text-text">{item.productName}</strong>
+                        {item.isNew ? <span className="inline-flex items-center gap-1 rounded-button bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent-hover"><Sparkles className="h-3 w-3" aria-hidden="true" /> Nieuw van Fedor</span> : null}
+                      </span>
+                      <span className="break-words text-muted">
+                        {item.variantLabel ?? item.sku ?? "—"} · {onRequest ? "Prijs op aanvraag" : `${formatPrice(item.unitPriceCents!, "nl")} per stuk`}
+                      </span>
                     </span>
-                    <span className="break-words text-muted">{item.variantLabel ?? item.sku ?? "—"} · {formatPrice(item.unitPriceCents, "nl")} per stuk</span>
-                  </span>
-                  <label className="flex shrink-0 items-center gap-2">
-                    <span className="sr-only">Aantal voor {item.productName}</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100_000}
-                      step={1}
-                      value={quantities[item.id] ?? item.quantity}
-                      onChange={(event) => setQuantity(item.id, Number(event.target.value))}
-                      className="min-h-11 w-20 rounded-button border border-border bg-background px-2 text-right text-body-md text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-                    />
-                    <span className="w-24 shrink-0 text-right font-semibold text-text">{formatPrice((quantities[item.id] ?? item.quantity) * item.unitPriceCents, "nl")}</span>
-                  </label>
-                </li>
-              ))}
+                    <label className="flex shrink-0 items-center gap-2">
+                      <span className="sr-only">Aantal voor {item.productName}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100_000}
+                        step={1}
+                        value={quantities[item.id] ?? item.quantity}
+                        onChange={(event) => setQuantity(item.id, Number(event.target.value))}
+                        className="min-h-11 w-20 rounded-button border border-border bg-background px-2 text-right text-body-md text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                      />
+                      {onRequest ? (
+                        <button
+                          type="button"
+                          disabled={requested || priceRequestBusyId === item.id}
+                          onClick={() => requestPrice(item.id)}
+                          className="min-h-11 w-28 shrink-0 rounded-button border border-accent bg-surface px-2 text-xs font-bold text-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {requested ? "Aangevraagd" : priceRequestBusyId === item.id ? "Bezig…" : "Vraag prijs aan"}
+                        </button>
+                      ) : (
+                        <span className="w-24 shrink-0 text-right font-semibold text-text">{formatPrice((quantities[item.id] ?? item.quantity) * item.unitPriceCents!, "nl")}</span>
+                      )}
+                    </label>
+                  </li>
+                );
+              })}
             </ul>
             <div className="mt-5 space-y-1 border-t border-border pt-4 text-body-sm">
               <div className="flex items-center justify-between text-muted">
@@ -268,11 +322,21 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
                 </button>
               ) : (
                 <button type="button" disabled={!payable || checkoutBusy} onClick={startCheckout} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-button bg-accent px-5 font-heading font-bold text-contrast shadow-button disabled:opacity-60">
-                  <CreditCard className="h-5 w-5" aria-hidden="true" /> {checkoutBusy ? "Bezig…" : liveTotalCents === 0 ? "Kies eerst een aantal" : `Nu afrekenen — ${formatPrice(payableTotalCents, "nl")}`}
+                  <CreditCard className="h-5 w-5" aria-hidden="true" />
+                  {checkoutBusy
+                    ? "Bezig…"
+                    : hasUnresolvedPriceRequest
+                      ? "Wacht op prijs van Fedor"
+                      : liveTotalCents === 0
+                        ? "Kies eerst een aantal"
+                        : `Nu afrekenen — ${formatPrice(payableTotalCents, "nl")}`}
                 </button>
               )}
             </div>
             {dirty ? <p className="mt-2 text-xs text-muted">Sla je wijzigingen op voordat je afrekent.</p> : null}
+            {!dirty && hasUnresolvedPriceRequest ? (
+              <p className="mt-2 text-xs text-muted">Voor minstens één gekozen product moet de prijs nog worden ingevuld.</p>
+            ) : null}
             {saveError ? <p role="alert" className="mt-4 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">{saveError}</p> : null}
             {checkoutError ? <p role="alert" className="mt-4 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">{checkoutError}</p> : null}
           </>

@@ -31,7 +31,10 @@ export async function POST(request: NextRequest) {
   }
   let step;
   try {
-    step = await prisma.aftersalesStep.findUnique({ where: { id: parsed.data.stepId } });
+    step = await prisma.aftersalesStep.findUnique({
+      where: { id: parsed.data.stepId },
+      include: { flow: { select: { logoUrl: true } } },
+    });
   } catch (error) {
     if (!isAftersalesSchemaUnavailable(error)) throw error;
     return NextResponse.json(
@@ -60,9 +63,9 @@ export async function POST(request: NextRequest) {
   if (!order) return NextResponse.json({ error: "NO_SAMPLE_ORDER" }, { status: 409 });
 
   try {
-    const content = parseAftersalesContent(step.content);
+    const stepContent = parseAftersalesContent(step.content);
     const locale = order.locale === "en" || order.locale === "fr" ? order.locale : "nl";
-    const rendered = renderAftersalesEmail(order, step.trigger, content[locale]);
+    const rendered = renderAftersalesEmail(order, step.trigger, stepContent.locales[locale], stepContent.design, step.flow.logoUrl);
     const result = await deliverTransactionalEmail({
       idempotencyKey: `aftersales-test-${crypto.randomUUID()}`,
       kind: EmailDeliveryKind.AFTERSALES_TEST,

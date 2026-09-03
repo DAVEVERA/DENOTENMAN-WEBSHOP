@@ -174,7 +174,7 @@ export async function processAftersalesDelivery(
   const delivery = await prisma.aftersalesDelivery.findUnique({
     where: { id: deliveryId },
     include: {
-      step: true,
+      step: { include: { flow: { select: { logoUrl: true } } } },
       order: { include: { items: true } },
     },
   });
@@ -196,7 +196,7 @@ export async function processAftersalesDelivery(
   });
 
   try {
-    const content = parseAftersalesContent(delivery.step.content);
+    const stepContent = parseAftersalesContent(delivery.step.content);
     const locale =
       delivery.order.locale === "en" || delivery.order.locale === "fr"
         ? delivery.order.locale
@@ -204,7 +204,9 @@ export async function processAftersalesDelivery(
     const rendered = renderAftersalesEmail(
       delivery.order,
       delivery.trigger,
-      content[locale]
+      stepContent.locales[locale],
+      stepContent.design,
+      delivery.step.flow.logoUrl
     );
     const idempotencyKey = `aftersales-${delivery.id}`;
     const existingLog = await prisma.emailDeliveryLog.findUnique({

@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest) {
 
       await transaction.aftersalesFlow.update({
         where: { id: input.id },
-        data: { name: input.name, isActive: input.isActive },
+        data: { name: input.name, isActive: input.isActive, logoUrl: input.logoUrl },
       });
       for (const step of input.steps) {
         await transaction.aftersalesStep.update({

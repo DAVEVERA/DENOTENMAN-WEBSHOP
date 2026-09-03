@@ -16,6 +16,7 @@ type Line = {
   sku: string | null;
   quantity: number;
   unitPriceEuro: string;
+  priceOnRequest: boolean;
 };
 
 export type ExistingOrderList = {
@@ -31,7 +32,8 @@ export type ExistingOrderList = {
     variantLabel: string | null;
     sku: string | null;
     quantity: number;
-    unitPriceCents: number;
+    unitPriceCents: number | null;
+    priceOnRequest: boolean;
   }>;
 };
 
@@ -67,7 +69,8 @@ export function BusinessOrderListForm({
       unit: item.variantLabel ?? "",
       sku: item.sku,
       quantity: item.quantity,
-      unitPriceEuro: (item.unitPriceCents / 100).toFixed(2),
+      unitPriceEuro: item.unitPriceCents !== null ? (item.unitPriceCents / 100).toFixed(2) : "0.00",
+      priceOnRequest: item.priceOnRequest,
     }))
   );
   const [busy, setBusy] = useState(false);
@@ -75,7 +78,11 @@ export function BusinessOrderListForm({
   const [dangerBusy, setDangerBusy] = useState(false);
   const minimumDate = useMemo(() => formatLocalDate(new Date()), []);
   const total = useMemo(
-    () => lines.reduce((sum, line) => sum + Math.round(Number(line.unitPriceEuro) * 100) * line.quantity, 0),
+    () =>
+      lines.reduce(
+        (sum, line) => sum + (line.priceOnRequest ? 0 : Math.round(Number(line.unitPriceEuro) * 100) * line.quantity),
+        0
+      ),
     [lines]
   );
 
@@ -93,6 +100,7 @@ export function BusinessOrderListForm({
         sku: option.sku,
         quantity: 1,
         unitPriceEuro: (option.priceCents / 100).toFixed(2),
+        priceOnRequest: false,
       },
     ]);
   }
@@ -100,7 +108,7 @@ export function BusinessOrderListForm({
   function addCustomLine() {
     setLines((current) => [
       ...current,
-      { key: nextLineKey(), existingId: null, variantId: null, productName: "", unit: "", sku: null, quantity: 1, unitPriceEuro: "0.00" },
+      { key: nextLineKey(), existingId: null, variantId: null, productName: "", unit: "", sku: null, quantity: 1, unitPriceEuro: "0.00", priceOnRequest: false },
     ]);
   }
 
@@ -125,17 +133,31 @@ export function BusinessOrderListForm({
     const form = new FormData(event.currentTarget);
     const items = lines.map((line) =>
       line.variantId
-        ? { id: line.existingId ?? undefined, variantId: line.variantId, quantity: line.quantity, unitPriceCents: toCents(line.unitPriceEuro) }
+        ? {
+            id: line.existingId ?? undefined,
+            variantId: line.variantId,
+            quantity: line.quantity,
+            unitPriceCents: line.priceOnRequest ? null : toCents(line.unitPriceEuro),
+            priceOnRequest: line.priceOnRequest,
+          }
         : {
             id: line.existingId ?? undefined,
             productName: line.productName.trim(),
             unit: line.unit.trim() ? line.unit.trim() : null,
             sku: line.sku?.trim() ? line.sku.trim() : null,
             quantity: line.quantity,
-            unitPriceCents: toCents(line.unitPriceEuro),
+            unitPriceCents: line.priceOnRequest ? null : toCents(line.unitPriceEuro),
+            priceOnRequest: line.priceOnRequest,
           }
     );
-    if (items.some((item) => !Number.isInteger(item.quantity) || item.quantity < 0 || !Number.isSafeInteger(item.unitPriceCents) || item.unitPriceCents < 0)) {
+    if (
+      items.some(
+        (item) =>
+          !Number.isInteger(item.quantity) ||
+          item.quantity < 0 ||
+          (!item.priceOnRequest && (!Number.isSafeInteger(item.unitPriceCents) || (item.unitPriceCents ?? 0) < 0))
+      )
+    ) {
       setError("Controleer de aantallen en prijzen.");
       return;
     }
@@ -240,7 +262,7 @@ export function BusinessOrderListForm({
               )}
               <button type="button" onClick={() => removeLine(line.key)} className="min-h-11 shrink-0 font-heading text-body-sm font-bold text-red-700 underline">Verwijder</button>
             </div>
-            <div className={`mt-3 grid gap-3 ${line.variantId ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+            <div className={`mt-3 grid gap-3 ${line.variantId ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
               {!line.variantId ? (
                 <label className="text-body-sm font-semibold text-text">
                   Eenheid
@@ -252,9 +274,24 @@ export function BusinessOrderListForm({
                 <input type="number" min={0} step={1} value={line.quantity} onChange={(event) => patchLine(line.key, { quantity: Number(event.target.value) })} className="mt-1 min-h-12 w-full rounded-button border border-border bg-background px-3" />
               </label>
               <label className="text-body-sm font-semibold text-text">
-                Prijs per eenheid (€)
-                <input type="number" min={0} step="0.01" value={line.unitPriceEuro} onChange={(event) => patchLine(line.key, { unitPriceEuro: event.target.value })} className="mt-1 min-h-12 w-full rounded-button border border-border bg-background px-3" />
+                Prijs
+                <select
+                  value={line.priceOnRequest ? "request" : "fixed"}
+                  onChange={(event) => patchLine(line.key, { priceOnRequest: event.target.value === "request" })}
+                  className="mt-1 min-h-12 w-full rounded-button border border-border bg-background px-3"
+                >
+                  <option value="fixed">Vaste prijs</option>
+                  <option value="request">Prijs op aanvraag</option>
+                </select>
               </label>
+              {!line.priceOnRequest ? (
+                <label className="text-body-sm font-semibold text-text">
+                  Prijs per eenheid (€)
+                  <input type="number" min={0} step="0.01" value={line.unitPriceEuro} onChange={(event) => patchLine(line.key, { unitPriceEuro: event.target.value })} className="mt-1 min-h-12 w-full rounded-button border border-border bg-background px-3" />
+                </label>
+              ) : (
+                <p className="self-end text-body-sm text-muted">Klant ziet “Prijs op aanvraag” tot je hier een bedrag invult.</p>
+              )}
             </div>
           </article>
         ))}

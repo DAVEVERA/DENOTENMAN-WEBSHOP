@@ -49,10 +49,16 @@ export type BusinessCheckoutResult =
   | { ok: true; checkoutUrl: string }
   | {
       ok: false;
-      error: "NOT_FOUND" | "ORDER_LIST_EXPIRED" | "ORDER_LIST_NOT_PAYABLE" | "EMPTY_ORDER" | "PAYMENT_CREATE_FAILED";
+      error:
+        | "NOT_FOUND"
+        | "ORDER_LIST_EXPIRED"
+        | "ORDER_LIST_NOT_PAYABLE"
+        | "EMPTY_ORDER"
+        | "PRICE_PENDING"
+        | "PAYMENT_CREATE_FAILED";
     };
 
-function businessOrderItemData(item: BusinessOrderListItem) {
+function businessOrderItemData(item: BusinessOrderListItem & { unitPriceCents: number }) {
   return {
     variantId: item.productVariantId,
     sku: item.sku,
@@ -101,6 +107,13 @@ export async function createBusinessOrderListCheckout(
 
   const orderableItems = orderList.items.filter((item) => item.quantity > 0);
   if (orderableItems.length === 0) return { ok: false, error: "EMPTY_ORDER" };
+  // A line still marked "prijs op aanvraag" has no settled price yet - it
+  // must never reach Mollie or an OrderItem (whose unitPriceCents is
+  // NOT NULL). The admin resolves this by setting a real price on the line.
+  if (orderableItems.some((item) => item.priceOnRequest || item.unitPriceCents === null)) {
+    return { ok: false, error: "PRICE_PENDING" };
+  }
+  const priceResolvedItems = orderableItems as (BusinessOrderListItem & { unitPriceCents: number })[];
 
   const account = orderList.businessAccount;
   const shadowUser = await ensureBusinessShadowUser(account);
@@ -122,9 +135,9 @@ export async function createBusinessOrderListCheckout(
   // orderList.totalCents is the sum of Fedor's line prices, which are always
   // excl. BTW — the customer must actually pay that plus VAT (or the same
   // amount at 0% for a BE reverse-charge account).
-  const subtotalCents = calculateBusinessOrderListTotal(orderableItems);
+  const subtotalCents = calculateBusinessOrderListTotal(priceResolvedItems);
   const { totalCents } = calculateVat(subtotalCents, Number(account.vatRatePercent));
-  const itemsData = orderableItems.map(businessOrderItemData);
+  const itemsData = priceResolvedItems.map(businessOrderItemData);
 
   let order;
   if (existingOrder) {

@@ -77,6 +77,8 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
         sku: item.sku,
         quantity: item.quantity,
         unitPriceCents: item.unitPriceCents,
+        priceOnRequest: item.priceOnRequest,
+        priceRequestedAt: item.priceRequestedAt ? item.priceRequestedAt.toISOString() : null,
         // Flags a line Fedor added after the customer's last completed
         // order, so it stands out from what's already been ordered before.
         isNew: lastCompletedOrder ? item.createdAt > lastCompletedOrder.createdAt : false,

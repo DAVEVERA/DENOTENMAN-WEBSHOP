@@ -17,6 +17,7 @@ const KIND_LABELS: Record<EmailDeliveryKind, string> = {
   BUSINESS_INVITATION: "Uitnodiging zakelijke omgeving",
   BUSINESS_ORDER_LIST_CHANGED: "Zakelijke bestellijst gewijzigd",
   BUSINESS_INVOICE: "Zakelijke factuur",
+  BUSINESS_PRICE_REQUESTED: "Prijs opgevraagd · Fedor",
 };
 
 const STATUS_LABELS: Record<EmailDeliveryStatus, string> = {

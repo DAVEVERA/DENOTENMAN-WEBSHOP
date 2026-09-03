@@ -4,11 +4,12 @@ import { prisma } from "@/lib/prisma";
 
 export default async function MarketingHubPage() {
   await connection();
-  const [campaignCount, bannerCount, newsletterCount, emailLogCount] = await Promise.all([
+  const [campaignCount, bannerCount, newsletterCount, emailLogCount, mediaAssetCount] = await Promise.all([
     prisma.marketingCampaign.count(),
     prisma.marketingBanner.count(),
     prisma.newsletterCampaign.count(),
     prisma.emailDeliveryLog.count(),
+    prisma.mediaAsset.count(),
   ]);
 
   const sections = [
@@ -31,16 +32,22 @@ export default async function MarketingHubPage() {
       count: newsletterCount,
     },
     {
-      title: "Aftersales-flow",
+      title: "Mail flows",
       href: "/admin/marketing/aftersales",
       description: "Persoonlijke bestel- en verzendmails via Mailchimp.",
-      count: "P1",
+      count: "Service en Support",
     },
     {
       title: "Maillogboek",
       href: "/admin/marketing/email-logboek",
       description: "Ontvangers, bestellingen, providerstatussen en mislukte pogingen.",
       count: emailLogCount,
+    },
+    {
+      title: "Mediabibliotheek",
+      href: "/admin/marketing/media-bibliotheek",
+      description: "Afbeeldingen uploaden en hergebruiken binnen alle marketingcategorieën.",
+      count: mediaAssetCount,
     },
   ];
 

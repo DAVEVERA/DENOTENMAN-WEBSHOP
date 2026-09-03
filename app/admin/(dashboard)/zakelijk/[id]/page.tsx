@@ -184,7 +184,24 @@ export default async function ZakelijkDetailPage({
                       <span className={`rounded-button px-2 py-1 text-xs font-bold ${ORDER_LIST_STATUS_CLASSES[orderList.status]}`}>{ORDER_LIST_STATUS_LABELS[orderList.status]}</span>
                     </div>
                     <ul className="mt-4 divide-y divide-border rounded-card border border-border">
-                      {orderList.items.map((item) => <li key={item.id} className="flex items-start justify-between gap-3 px-3 py-2 text-body-sm"><span className="min-w-0"><strong className="block text-text">{item.productName}</strong><span className="text-muted">{item.variantLabel ?? item.sku ?? "Variant"}</span></span><span className="shrink-0 text-right"><strong className="block text-text">{item.quantity} × {formatPrice(item.unitPriceCents, "nl")}</strong><span className="text-muted">{formatPrice(item.quantity * item.unitPriceCents, "nl")}</span></span></li>)}
+                      {orderList.items.map((item) => {
+                        const onRequest = item.priceOnRequest || item.unitPriceCents === null;
+                        return (
+                          <li key={item.id} className="flex items-start justify-between gap-3 px-3 py-2 text-body-sm">
+                            <span className="min-w-0"><strong className="block text-text">{item.productName}</strong><span className="text-muted">{item.variantLabel ?? item.sku ?? "Variant"}</span></span>
+                            <span className="shrink-0 text-right">
+                              {onRequest ? (
+                                <strong className="block text-amber-800">{item.quantity} × prijs op aanvraag</strong>
+                              ) : (
+                                <>
+                                  <strong className="block text-text">{item.quantity} × {formatPrice(item.unitPriceCents!, "nl")}</strong>
+                                  <span className="text-muted">{formatPrice(item.quantity * item.unitPriceCents!, "nl")}</span>
+                                </>
+                              )}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                     {orderList.notes.length > 0 ? <div className="mt-3 rounded-card bg-[#FFF9DA] p-3 text-body-sm"><strong className="text-text">Laatste notitie van {orderList.notes[0].authorName}</strong><p className="mt-1 whitespace-pre-wrap text-muted">{orderList.notes[0].text}</p></div> : null}
                     {orderList.orders.length > 0 ? (

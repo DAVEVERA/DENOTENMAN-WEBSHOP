@@ -27,13 +27,17 @@ export function businessSessionCookieOptions(expiresAt: Date) {
  * continuous order list it means "on the list, not ordered this round" —
  * either because the customer hasn't chosen an amount yet, or because a
  * completed checkout reset it for the next round.
+ *
+ * A line with priceOnRequest also contributes 0: its real price isn't set
+ * yet, so it can't be part of a checkout total until an admin resolves it.
  */
 export function calculateBusinessOrderListTotal(
-  items: ReadonlyArray<{ quantity: number; unitPriceCents: number }>
+  items: ReadonlyArray<{ quantity: number; unitPriceCents: number | null | undefined; priceOnRequest?: boolean }>
 ): number {
   let total = 0;
   for (const item of items) {
     if (!Number.isSafeInteger(item.quantity) || item.quantity < 0) throw new Error("INVALID_QUANTITY");
+    if (item.priceOnRequest || item.unitPriceCents === null || item.unitPriceCents === undefined) continue;
     if (!Number.isSafeInteger(item.unitPriceCents) || item.unitPriceCents < 0) throw new Error("INVALID_UNIT_PRICE");
     const lineTotal = item.quantity * item.unitPriceCents;
     if (!Number.isSafeInteger(lineTotal) || lineTotal > POSTGRES_INT_MAX - total) throw new Error("TOTAL_OUT_OF_RANGE");

@@ -23,6 +23,44 @@ export type AftersalesLocaleContent = {
 
 export type AftersalesContent = Record<Locale, AftersalesLocaleContent>;
 
+export const AFTERSALES_LAYOUTS = ["CLASSIC", "IMAGE_TOP", "IMAGE_SIDE", "IMAGE_BOTTOM"] as const;
+export type AftersalesLayout = (typeof AFTERSALES_LAYOUTS)[number];
+
+export const AFTERSALES_FONTS = ["SANS", "SERIF", "MODERN"] as const;
+export type AftersalesFont = (typeof AFTERSALES_FONTS)[number];
+
+export const AFTERSALES_FONT_SIZES = ["COMPACT", "STANDAARD", "GROOT"] as const;
+export type AftersalesFontSize = (typeof AFTERSALES_FONT_SIZES)[number];
+
+export type AftersalesDesign = {
+  layout: AftersalesLayout;
+  font: AftersalesFont;
+  fontSize: AftersalesFontSize;
+  mediaUrl: string | null;
+  mediaAlt: string;
+};
+
+export const defaultAftersalesDesign: AftersalesDesign = {
+  layout: "CLASSIC",
+  font: "SANS",
+  fontSize: "STANDAARD",
+  mediaUrl: null,
+  mediaAlt: "",
+};
+
+export const aftersalesDesignSchema = z.object({
+  layout: z.enum(AFTERSALES_LAYOUTS).default("CLASSIC"),
+  font: z.enum(AFTERSALES_FONTS).default("SANS"),
+  fontSize: z.enum(AFTERSALES_FONT_SIZES).default("STANDAARD"),
+  mediaUrl: z.string().trim().url().nullable().default(null),
+  mediaAlt: z.string().trim().max(200).default(""),
+}).strict();
+
+export type AftersalesStepContent = {
+  locales: AftersalesContent;
+  design: AftersalesDesign;
+};
+
 const allowedTokenSet = new Set<string>(AFTERSALES_TOKENS);
 
 function onlySupportedTokens(value: string): boolean {
@@ -52,6 +90,11 @@ export const aftersalesContentSchema = z.object(
   >
 ).strict();
 
+export const aftersalesStepContentSchema = z.object({
+  locales: aftersalesContentSchema,
+  design: aftersalesDesignSchema,
+}).strict();
+
 export const aftersalesStepInputSchema = z.object({
   id: z.string().trim().min(1).max(100),
   trigger: z.enum(AFTERSALES_TRIGGERS),
@@ -59,13 +102,14 @@ export const aftersalesStepInputSchema = z.object({
   position: z.number().int().min(0).max(20),
   enabled: z.boolean(),
   delayMinutes: z.literal(0),
-  content: aftersalesContentSchema,
+  content: aftersalesStepContentSchema,
 }).strict();
 
 export const aftersalesFlowInputSchema = z.object({
   id: z.string().trim().min(1).max(100),
   name: z.string().trim().min(1, "Flownaam is verplicht").max(120),
   isActive: z.boolean(),
+  logoUrl: z.string().trim().url().nullable(),
   version: z.string().datetime(),
   steps: z.array(aftersalesStepInputSchema).length(2),
 }).strict().superRefine((input, context) => {
@@ -85,6 +129,21 @@ export const aftersalesFlowInputSchema = z.object({
 
 export type AftersalesFlowInput = z.infer<typeof aftersalesFlowInputSchema>;
 
-export function parseAftersalesContent(value: unknown): AftersalesContent {
-  return aftersalesContentSchema.parse(value);
+// AftersalesStep.content is a flexible Json column. Steps saved before the
+// design/layout feature shipped store the locale map directly (no wrapper);
+// steps saved since store { locales, design }. Normalizing both shapes here
+// means existing flows keep rendering exactly as before until an admin
+// explicitly opens the editor and changes the design.
+export function parseAftersalesContent(value: unknown): AftersalesStepContent {
+  if (value && typeof value === "object" && "locales" in (value as Record<string, unknown>)) {
+    const record = value as Record<string, unknown>;
+    return {
+      locales: aftersalesContentSchema.parse(record.locales),
+      design: aftersalesDesignSchema.parse(record.design ?? {}),
+    };
+  }
+  return {
+    locales: aftersalesContentSchema.parse(value),
+    design: defaultAftersalesDesign,
+  };
 }

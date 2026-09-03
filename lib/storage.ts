@@ -153,6 +153,18 @@ function extractExtension(filename: string): string {
   return extension;
 }
 
+export function buildMediaLibraryKey(filename: string): string {
+  if (filename.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(filename)) {
+    throw new Error("Filename must not be an absolute path");
+  }
+
+  if (filename.includes("..")) {
+    throw new Error("Filename must not contain path traversal segments");
+  }
+
+  return `media-library/${randomUUID()}.${extractExtension(filename)}`;
+}
+
 export function buildProductImageKey(productSlug: string, filename: string): string {
   if (filename.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(filename)) {
     throw new Error("Filename must not be an absolute path");

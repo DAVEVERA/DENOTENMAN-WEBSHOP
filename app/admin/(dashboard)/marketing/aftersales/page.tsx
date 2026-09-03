@@ -36,7 +36,7 @@ export default async function AftersalesPage() {
         <Link href="/admin/marketing" className="text-body-sm text-accent-hover underline underline-offset-4">
           ← Terug naar marketing
         </Link>
-        <h1 className="mt-3 text-heading-xl text-text">Aftersales-flow niet geïnstalleerd</h1>
+        <h1 className="mt-3 text-heading-xl text-text">Mail flows niet geïnstalleerd</h1>
         <div className="mt-6 rounded-panel border border-amber-300 bg-amber-50 p-5 text-body-sm text-amber-950">
           <p className="font-semibold">De applicatiecode is nieuwer dan het databaseschema.</p>
           <p className="mt-2">
@@ -56,7 +56,7 @@ export default async function AftersalesPage() {
         <Link href="/admin/marketing" className="text-body-sm text-accent-hover underline underline-offset-4">← Terug naar marketing</Link>
         <h1 className="mt-3 text-heading-xl text-text">Aftersales</h1>
         <div className="mt-6 rounded-panel border border-red-200 bg-red-50 p-5 text-body-sm text-red-800">
-          De aftersales-flow ontbreekt. Voer eerst de database-migratie uit.
+          De mail flow ontbreekt. Voer eerst de database-migratie uit.
         </div>
       </div>
     );
@@ -66,6 +66,7 @@ export default async function AftersalesPage() {
     id: flow.id,
     name: flow.name,
     isActive: flow.isActive,
+    logoUrl: flow.logoUrl,
     version: flow.updatedAt.toISOString(),
     steps: flow.steps.map((step) => ({
       id: step.id,
@@ -102,7 +103,7 @@ export default async function AftersalesPage() {
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-heading text-body-sm font-bold uppercase tracking-heading text-accent-hover">Mailchimp · transactioneel</p>
-          <h1 className="mt-1 text-heading-xl text-text">Aftersales-flow</h1>
+          <h1 className="mt-1 text-heading-xl text-text">Mail flows</h1>
           <p className="mt-1 max-w-2xl text-body-sm text-muted">Bepaal welke persoonlijke e-mail klanten ontvangen na betaling en verzending.</p>
         </div>
         <div className={`max-w-md rounded-panel border p-4 text-body-sm ${providerStatus.provider === "mailchimp" ? "border-emerald-300 bg-emerald-50 text-emerald-900" : providerStatus.provider === "resend" ? "border-amber-300 bg-amber-50 text-amber-950" : "border-red-300 bg-red-50 text-red-900"}`}>

@@ -33,7 +33,7 @@ export async function PATCH(
   const { id, orderListId } = await context.params;
   const existing = await prisma.businessOrderList.findFirst({
     where: { id: orderListId, businessAccountId: id },
-    include: { businessAccount: true, items: { select: { id: true } } },
+    include: { businessAccount: true, items: { select: { id: true, priceOnRequest: true } } },
   });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
@@ -93,15 +93,21 @@ export async function PATCH(
       // their createdAt, which the customer portal uses to tell genuinely
       // new items from ones that were merely re-saved), create the rest,
       // and delete whatever existing line isn't present in this save.
+      const existingItemsById = new Map(existing.items.map((item) => [item.id, item]));
       const existingIds = new Set(existing.items.map((item) => item.id));
       const keptIds = new Set<string>();
       for (const [index, item] of resolved.items.entries()) {
         const { existingId, ...data } = item;
         if (existingId && existingIds.has(existingId)) {
           keptIds.add(existingId);
+          // A line just resolved from "prijs op aanvraag" to a real price —
+          // clear the request marker so the customer sees the button again
+          // (rather than a stale "aangevraagd") if this ever recurs.
+          const wasOnRequest = existingItemsById.get(existingId)?.priceOnRequest === true;
+          const priceRequestedAt = wasOnRequest && !data.priceOnRequest ? null : undefined;
           await tx.businessOrderListItem.update({
             where: { id: existingId },
-            data: { ...data, sortOrder: index },
+            data: { ...data, sortOrder: index, ...(priceRequestedAt !== undefined ? { priceRequestedAt } : {}) },
           });
         } else {
           await tx.businessOrderListItem.create({

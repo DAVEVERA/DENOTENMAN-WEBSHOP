@@ -4,12 +4,17 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { calculateBusinessOrderListTotal } from "@/lib/business-portal-contract";
 
+const priceFields = {
+  unitPriceCents: z.number().int().min(0).max(100_000_000).nullable().optional(),
+  priceOnRequest: z.boolean().optional(),
+} as const;
+
 export const businessOrderListItemInputSchema = z.union([
   z.object({
     id: z.string().trim().min(1).max(100).optional(),
     variantId: z.string().trim().min(1).max(100),
     quantity: z.number().int().min(0).max(100_000),
-    unitPriceCents: z.number().int().min(0).max(100_000_000),
+    ...priceFields,
   }).strict(),
   z.object({
     id: z.string().trim().min(1).max(100).optional(),
@@ -17,9 +22,12 @@ export const businessOrderListItemInputSchema = z.union([
     unit: z.string().trim().max(60).nullable().optional(),
     sku: z.string().trim().max(100).nullable().optional(),
     quantity: z.number().int().min(0).max(100_000),
-    unitPriceCents: z.number().int().min(0).max(100_000_000),
+    ...priceFields,
   }).strict(),
-]);
+]).refine(
+  (item) => item.priceOnRequest === true || typeof item.unitPriceCents === "number",
+  { message: "unitPriceCents is verplicht tenzij priceOnRequest is ingeschakeld" }
+);
 
 export type BusinessOrderListItemInput = z.infer<typeof businessOrderListItemInputSchema>;
 
@@ -31,7 +39,8 @@ export type ResolvedBusinessOrderListItem = {
   variantLabel: string | null;
   sku: string | null;
   quantity: number;
-  unitPriceCents: number;
+  unitPriceCents: number | null;
+  priceOnRequest: boolean;
 };
 
 export type ResolveBusinessOrderListItemsResult =
@@ -64,8 +73,16 @@ export async function resolveBusinessOrderListItems(
   const variantById = new Map(variants.map((variant) => [variant.id, variant]));
 
   try {
-    const totalCents = calculateBusinessOrderListTotal(inputItems);
+    const totalCents = calculateBusinessOrderListTotal(
+      inputItems.map((item) => ({
+        quantity: item.quantity,
+        unitPriceCents: item.unitPriceCents,
+        priceOnRequest: item.priceOnRequest,
+      }))
+    );
     const items: ResolvedBusinessOrderListItem[] = inputItems.map((item) => {
+      const priceOnRequest = item.priceOnRequest === true;
+      const unitPriceCents = priceOnRequest ? null : item.unitPriceCents ?? null;
       if ("variantId" in item) {
         const variant = variantById.get(item.variantId)!;
         return {
@@ -75,7 +92,8 @@ export async function resolveBusinessOrderListItems(
           variantLabel: variant.translations[0]?.label ?? `${variant.weightGrams} gram`,
           sku: variant.sku,
           quantity: item.quantity,
-          unitPriceCents: item.unitPriceCents,
+          unitPriceCents,
+          priceOnRequest,
         };
       }
       return {
@@ -85,7 +103,8 @@ export async function resolveBusinessOrderListItems(
         variantLabel: item.unit?.trim() ? item.unit.trim() : null,
         sku: item.sku?.trim() ? item.sku.trim() : null,
         quantity: item.quantity,
-        unitPriceCents: item.unitPriceCents,
+        unitPriceCents,
+        priceOnRequest,
       };
     });
     return { ok: true, items, totalCents };

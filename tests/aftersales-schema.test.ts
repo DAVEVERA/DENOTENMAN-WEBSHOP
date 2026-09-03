@@ -10,11 +10,27 @@ const localeContent = {
   buttonLabel: "Bekijk je bestelling",
 };
 
+const defaultDesign = {
+  layout: "CLASSIC" as const,
+  font: "SANS" as const,
+  fontSize: "STANDAARD" as const,
+  mediaUrl: null,
+  mediaAlt: "",
+};
+
+function stepContent() {
+  return {
+    locales: { nl: localeContent, en: localeContent, fr: localeContent },
+    design: defaultDesign,
+  };
+}
+
 function validFlow() {
   return {
     id: "flow-1",
     name: "Bestelling en verzending",
     isActive: true,
+    logoUrl: null,
     version: "2026-08-19T08:00:00.000Z",
     steps: [
       {
@@ -24,7 +40,7 @@ function validFlow() {
         position: 0,
         enabled: true,
         delayMinutes: 0,
-        content: { nl: localeContent, en: localeContent, fr: localeContent },
+        content: stepContent(),
       },
       {
         id: "fulfilled",
@@ -33,7 +49,7 @@ function validFlow() {
         position: 1,
         enabled: true,
         delayMinutes: 0,
-        content: { nl: localeContent, en: localeContent, fr: localeContent },
+        content: stepContent(),
       },
     ],
   };
@@ -45,7 +61,7 @@ test("aftersales flow accepts the two required transaction events and supported 
 
 test("aftersales flow rejects unknown personalization fields", () => {
   const input = validFlow();
-  input.steps[0].content.nl.subject = "Hallo {{password}}";
+  input.steps[0].content.locales.nl.subject = "Hallo {{password}}";
   const parsed = aftersalesFlowInputSchema.safeParse(input);
   assert.equal(parsed.success, false);
   assert.match(JSON.stringify(parsed.error?.flatten()), /ondersteunde personalisatievelden/);

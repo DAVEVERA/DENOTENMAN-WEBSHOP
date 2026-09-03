@@ -11,6 +11,8 @@ import { deliverTransactionalEmail, type TransactionalEmailResult } from "@/lib/
 import { BusinessInvitationEmail } from "@/emails/BusinessInvitationEmail";
 import { BusinessOrderListReadyEmail } from "@/emails/BusinessOrderListReadyEmail";
 import { BusinessOrderListChangedEmail } from "@/emails/BusinessOrderListChangedEmail";
+import { BusinessPriceRequestedEmail } from "@/emails/BusinessPriceRequestedEmail";
+import { merchantOrderNotificationRecipient } from "@/lib/merchant-order-notification";
 import { formatPrice } from "@/lib/format";
 
 export { BUSINESS_SESSION_COOKIE, BUSINESS_SESSION_TTL_SECONDS, hashBusinessToken } from "@/lib/business-portal-contract";
@@ -370,13 +372,22 @@ export async function revokeBusinessSession(token: string | undefined | null): P
   });
 }
 
-type BusinessOrderListEmailItem = { productName: string; variantLabel: string | null; quantity: number; unitPriceCents: number };
+type BusinessOrderListEmailItem = {
+  productName: string;
+  variantLabel: string | null;
+  quantity: number;
+  unitPriceCents: number | null;
+  priceOnRequest?: boolean;
+};
 
 function toEmailLineItems(items: BusinessOrderListEmailItem[]) {
   return items.map((item) => ({
     name: item.variantLabel ? `${item.productName} (${item.variantLabel})` : item.productName,
     quantity: item.quantity,
-    lineTotal: formatPrice(item.unitPriceCents * item.quantity, "nl"),
+    lineTotal:
+      item.priceOnRequest || item.unitPriceCents === null
+        ? "Prijs op aanvraag"
+        : formatPrice(item.unitPriceCents * item.quantity, "nl"),
   }));
 }
 
@@ -472,6 +483,60 @@ export async function sendBusinessOrderListChangedEmail(input: {
     recipientEmail: input.account.email,
     recipientName: input.account.contactName,
     subject: `Je bestellijst bij De Notenman is aangepast: ${input.title}`,
+    html,
+    text,
+  });
+}
+
+/** Notifies the admin (Fedor) when a business customer asks for a price on
+ * a line that's still marked "prijs op aanvraag". Goes to the merchant
+ * notification address, never to the customer. */
+export async function sendBusinessPriceRequestedEmail(input: {
+  itemId: string;
+  requestedAt: Date;
+  businessAccountId: string;
+  orderListTitle: string;
+  productName: string;
+  variantLabel: string | null;
+  quantity: number;
+  account: { companyName: string; contactName: string };
+}): Promise<TransactionalEmailResult> {
+  const adminUrl = new URL(`/admin/zakelijk/${input.businessAccountId}`, BASE_URL).toString();
+  const requestedAt = new Intl.DateTimeFormat("nl-NL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(input.requestedAt);
+  const preview = `${input.account.companyName} vraagt een prijs op`;
+  const html = await render(createElement(BusinessPriceRequestedEmail, {
+    preview,
+    companyName: input.account.companyName,
+    contactName: input.account.contactName,
+    orderListTitle: input.orderListTitle,
+    productName: input.productName,
+    variantLabel: input.variantLabel,
+    quantity: input.quantity,
+    requestedAt,
+    adminUrl,
+  }));
+  const text = [
+    `${input.account.contactName} van ${input.account.companyName} heeft een prijs opgevraagd voor "${input.orderListTitle}".`,
+    "",
+    `Product: ${input.productName}${input.variantLabel ? ` (${input.variantLabel})` : ""}`,
+    `Aantal: ${input.quantity}`,
+    `Opgevraagd op: ${requestedAt}`,
+    "",
+    `Prijs invullen: ${adminUrl}`,
+  ].join("\n");
+
+  return deliverTransactionalEmail({
+    idempotencyKey: `business-price-request:${input.itemId}:${input.requestedAt.toISOString()}`,
+    kind: EmailDeliveryKind.BUSINESS_PRICE_REQUESTED,
+    recipientEmail: merchantOrderNotificationRecipient(),
+    recipientName: "Fedor",
+    subject: `Prijs opgevraagd door ${input.account.companyName}`,
     html,
     text,
   });

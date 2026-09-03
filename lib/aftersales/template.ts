@@ -4,9 +4,29 @@ import { formatPrice } from "@/lib/format";
 import { BASE_URL, orderConfirmation } from "@/lib/routes";
 import { postnlTrackingUrl } from "@/lib/shipping";
 import type {
+  AftersalesDesign,
   AftersalesLocaleContent,
   AftersalesTriggerValue,
 } from "@/lib/aftersales/schema";
+import { defaultAftersalesDesign } from "@/lib/aftersales/schema";
+
+const FONT_STACKS: Record<AftersalesDesign["font"], string> = {
+  SANS: "Arial,Helvetica,sans-serif",
+  SERIF: "Georgia,'Times New Roman',serif",
+  MODERN: "'Segoe UI',Verdana,sans-serif",
+};
+
+const FONT_SIZES: Record<AftersalesDesign["fontSize"], { heading: number; body: number }> = {
+  COMPACT: { heading: 20, body: 14 },
+  STANDAARD: { heading: 24, body: 16 },
+  GROOT: { heading: 28, body: 18 },
+};
+
+function mediaBlockHtml(design: AftersalesDesign, altFallback: string): string {
+  if (!design.mediaUrl) return "";
+  const alt = escapeHtml(design.mediaAlt || altFallback);
+  return `<img src="${escapeHtml(design.mediaUrl)}" alt="${alt}" width="544" style="display:block;width:100%;max-width:544px;height:auto;border-radius:8px;margin:0 0 18px" />`;
+}
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -49,17 +69,19 @@ function replaceTokens(value: string, values: Record<string, string>): string {
   return value.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, token: string) => values[token] ?? "");
 }
 
-function bodyHtml(value: string): string {
+function bodyHtml(value: string, bodyFontPx: number): string {
   return value
     .split(/\n{2,}/)
-    .map((paragraph) => `<p style="margin:0 0 14px;color:#4f4a42;font-size:16px;line-height:1.65">${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`)
+    .map((paragraph) => `<p style="margin:0 0 14px;color:#4f4a42;font-size:${bodyFontPx}px;line-height:1.65">${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`)
     .join("");
 }
 
 export function renderAftersalesEmail(
   order: OrderWithItems,
   trigger: AftersalesTriggerValue,
-  content: AftersalesLocaleContent
+  content: AftersalesLocaleContent,
+  design: AftersalesDesign = defaultAftersalesDesign,
+  logoUrl: string | null = null
 ): RenderedAftersalesEmail {
   const locale: Locale = isLocale(order.locale) ? order.locale : "nl";
   const actionUrl = actionUrlFor(order, trigger, locale);
@@ -96,18 +118,37 @@ export function renderAftersalesEmail(
     ? `<p style="margin:18px 0 0;color:#333;font-size:14px"><strong>Track &amp; trace:</strong> ${escapeHtml(order.postnlTrackingCode)}</p>`
     : "";
 
+  const fontStack = FONT_STACKS[design.font];
+  const sizes = FONT_SIZES[design.fontSize];
+  const brandBlock = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
+    : `<p style="margin:0;color:#806600;font-size:13px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
+  const headingBlock = `<h1 style="margin:12px 0 10px;color:#141414;font-size:${sizes.heading}px;line-height:1.25">${escapeHtml(heading)}</h1>`;
+  const textBlock = `${headingBlock}${bodyHtml(message, sizes.body)}`;
+  const media = mediaBlockHtml(design, heading);
+
+  const contentBlock = design.layout === "IMAGE_SIDE" && media
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+        <td width="200" valign="top" style="padding:0 16px 0 0">${media}</td>
+        <td valign="top">${textBlock}</td>
+      </tr></table>`
+    : design.layout === "IMAGE_TOP" && media
+      ? `${media}${textBlock}`
+      : design.layout === "IMAGE_BOTTOM" && media
+        ? `${textBlock}${media}`
+        : textBlock;
+
   const html = `<!doctype html>
 <html lang="${locale}" dir="ltr">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;background:#f6f3ee;font-family:Arial,Helvetica,sans-serif">
+<body style="margin:0;background:#f6f3ee;font-family:${fontStack}">
   <div lang="${locale}" dir="ltr" style="display:none;max-height:0;overflow:hidden">${escapeHtml(preview)}</div>
   <div lang="${locale}" dir="ltr" style="padding:24px 12px">
     <div style="max-width:600px;margin:0 auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff">
       <div style="height:5px;background:#e0b200"></div>
       <div style="padding:28px">
-        <p style="margin:0;color:#806600;font-size:13px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>
-        <h1 style="margin:12px 0 10px;color:#141414;font-size:24px;line-height:1.25">${escapeHtml(heading)}</h1>
-        ${bodyHtml(message)}
+        ${brandBlock}
+        ${contentBlock}
         <div style="margin:18px 0;padding:14px 16px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;color:#333;font-size:14px">
           <strong>Bestelnummer:</strong> ${escapeHtml(order.id)}
         </div>
