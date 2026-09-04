@@ -74,6 +74,7 @@ export function CheckoutForm({
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscountPreview | null>(null);
   const [checkingDiscount, setCheckingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState<string | null>(null);
+  const [contactEmail, setContactEmail] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("SHIPPING");
   const [country, setCountry] = useState<CountryCode>("NL");
   const [pickupLocationId, setPickupLocationId] = useState<string>("");
@@ -157,6 +158,7 @@ export function CheckoutForm({
           country,
           totalWeightGrams,
           deliveryMethod,
+          email: contactEmail,
         }),
       });
       const result = (await response.json().catch(() => null)) as AppliedDiscountPreview | null;
@@ -319,6 +321,14 @@ export function CheckoutForm({
               id="email"
               name="email"
               type="email"
+              value={contactEmail}
+              onChange={(event) => {
+                setContactEmail(event.target.value);
+                if (appliedDiscount) {
+                  setAppliedDiscount(null);
+                  setDiscountError(null);
+                }
+              }}
               required
               autoComplete="email"
               className="mt-1 min-h-11 w-full rounded-button border border-border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"

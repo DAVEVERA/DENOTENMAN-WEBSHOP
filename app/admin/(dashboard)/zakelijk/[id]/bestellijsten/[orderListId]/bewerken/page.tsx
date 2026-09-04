@@ -4,8 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { BusinessOrderListForm } from "../../BusinessOrderListForm";
 import { BusinessOrderListActions } from "../../../BusinessOrderListActions";
 
-const FROZEN_STATUSES = new Set(["PAID", "CANCELLED"]);
-
 export default async function BestellijstBewerkenPage({
   params,
 }: {
@@ -17,7 +15,10 @@ export default async function BestellijstBewerkenPage({
     prisma.businessAccount.findUnique({ where: { id }, select: { id: true, companyName: true } }),
     prisma.businessOrderList.findFirst({
       where: { id: orderListId, businessAccountId: id },
-      include: { items: { orderBy: { sortOrder: "asc" } } },
+      include: {
+        items: { orderBy: { sortOrder: "asc" } },
+        orders: { where: { status: "PENDING" }, select: { id: true } },
+      },
     }),
     prisma.productVariant.findMany({
       where: { isActive: true, product: { isActive: true } },
@@ -48,17 +49,10 @@ export default async function BestellijstBewerkenPage({
       <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-accent-ink">Bestellijst bewerken</p>
       <h1 className="mt-1 text-heading-lg text-text">{orderList.title}</h1>
 
-      {FROZEN_STATUSES.has(orderList.status) ? (
-        <p role="alert" className="mt-5 rounded-card border border-border bg-background p-4 text-body-sm text-muted">
-          {orderList.status === "PAID"
-            ? "Deze bestellijst is al betaald en kan niet meer worden gewijzigd. Correcties horen in een nieuwe lijst."
-            : "Deze bestellijst is geannuleerd en kan niet meer worden gewijzigd."}
-        </p>
-      ) : (
-        <>
+      <>
           <p className="mt-2 text-body-sm text-muted">
-            {orderList.status === "SENT"
-              ? "De klant heeft deze lijst al ontvangen. Wijzigingen zijn direct zichtbaar zodra je opslaat, en de klant krijgt hier automatisch een e-mail over."
+            {orderList.status !== "DRAFT"
+              ? "Wijzigingen zijn na opslaan direct zichtbaar. Er wordt pas een e-mail verstuurd wanneer je zelf op de verzendknop drukt."
               : "Dit concept heeft de klant nog niet gezien."}
           </p>
           <BusinessOrderListForm
@@ -74,21 +68,21 @@ export default async function BestellijstBewerkenPage({
               items: orderList.items,
             }}
           />
-          {orderList.status !== "DRAFT" ? (
+          {orderList.orders.length > 0 ? (
             <div className="mt-6 rounded-card border border-red-200 bg-red-50 p-4">
-              <p className="text-body-sm font-semibold text-red-900">Bestellijst annuleren</p>
-              <p className="mt-1 text-body-sm text-red-800">Annuleren verwijdert niets — de lijst blijft zichtbaar met status “Geannuleerd”.</p>
+              <p className="text-body-sm font-semibold text-red-900">Huidige bestelling annuleren</p>
+              <p className="mt-1 text-body-sm text-red-800">Alleen de lopende betaalronde wordt geannuleerd. De vaste bestellijst en alle producten blijven bewaard.</p>
               <BusinessOrderListActions
                 accountId={account.id}
                 orderListId={orderList.id}
                 status={orderList.status}
                 deliveryStatus={orderList.deliveryStatus}
                 updatedAt={orderList.updatedAt.toISOString()}
+                hasPendingOrder
               />
             </div>
           ) : null}
         </>
-      )}
     </div>
   );
 }

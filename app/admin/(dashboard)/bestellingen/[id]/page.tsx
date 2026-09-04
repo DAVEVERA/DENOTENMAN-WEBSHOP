@@ -52,6 +52,10 @@ export default async function OrderDetailPage({
         include: { items: true },
         orderBy: { createdAt: "desc" },
       },
+      businessCancellationRequests: {
+        include: { items: true },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -178,6 +182,16 @@ export default async function OrderDetailPage({
                   orderItemId: item.orderItemId,
                   quantity: item.quantity,
                   grossAmountCents: item.grossAmountCents,
+                })),
+              }))}
+              cancellationRequests={order.businessCancellationRequests.map((request) => ({
+                id: request.id,
+                status: request.status,
+                reason: request.reason,
+                createdAt: request.createdAt.toISOString(),
+                items: request.items.map((item) => ({
+                  orderItemId: item.orderItemId,
+                  quantity: item.quantity,
                 })),
               }))}
               canRefund={

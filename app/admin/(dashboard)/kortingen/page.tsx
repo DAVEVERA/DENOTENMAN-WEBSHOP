@@ -19,9 +19,11 @@ function discountValueLabel(percentOff: number | null, amountOffCents: number | 
 }
 
 export default async function KortingenPage() {
-  const discounts = await prisma.discount.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const [discounts, usage] = await Promise.all([
+    prisma.discount.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.discountUsageCounter.groupBy({ by: ["code"], _sum: { usageCount: true } }),
+  ]);
+  const usageByCode = new Map(usage.map((entry) => [entry.code.toUpperCase(), entry._sum.usageCount ?? 0]));
 
   return (
     <div>
@@ -49,6 +51,7 @@ export default async function KortingenPage() {
               <th className="px-4 py-3 font-heading">Status</th>
               <th className="px-4 py-3 text-right font-heading">Korting</th>
               <th className="px-4 py-3 font-heading">Geldig</th>
+              <th className="px-4 py-3 font-heading">Gebruik</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -82,6 +85,16 @@ export default async function KortingenPage() {
                   {discount.startsAt ? formatDate(discount.startsAt, "nl") : "—"} –{" "}
                   {discount.endsAt ? formatDate(discount.endsAt, "nl") : "—"}
                 </td>
+                <td className="px-4 py-3 text-muted">
+                  <span className="block font-semibold text-text">
+                    {discount.redemptionMode === "SINGLE_USE"
+                      ? "1× per klant"
+                      : discount.maxUsesPerIdentity === null
+                        ? "Onbeperkt"
+                        : `${discount.maxUsesPerIdentity}× per klant`}
+                  </span>
+                  <span className="text-xs">{usageByCode.get(discount.code.toUpperCase()) ?? 0} keer gebruikt of gereserveerd</span>
+                </td>
                 <td className="px-4 py-3 text-right">
                   <DiscountRowActions discountId={discount.id} />
                 </td>
@@ -89,7 +102,7 @@ export default async function KortingenPage() {
             ))}
             {discounts.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-muted">
+                <td colSpan={7} className="px-4 py-6 text-center text-muted">
                   Geen kortingscodes gevonden.
                 </td>
               </tr>

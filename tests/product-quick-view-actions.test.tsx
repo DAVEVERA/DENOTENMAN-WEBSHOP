@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ProductQuickViewAddedActions } from "../components/product/ProductQuickView";
 
 const labels = {
-  added: "Toegevoegd aan je winkelwagen",
+  added: "Toegevoegd!",
   goToCart: "Naar winkelwagen",
   continueShopping: "Verder winkelen",
 };
@@ -22,12 +22,13 @@ test("the added state confirms the selected product and exposes exactly two next
 
   assert.match(markup, /role="status"/);
   assert.match(markup, /aria-live="polite"/);
-  assert.match(markup, /Toegevoegd aan je winkelwagen/);
+  assert.match(markup, /Toegevoegd!/);
   assert.match(markup, /2× Chocolade amandelen/);
   assert.match(markup, /href="\/nl\/cart"/);
   assert.doesNotMatch(markup, /href="\/nl\/checkout"/);
   assert.match(markup, />Naar winkelwagen<\/span>/);
   assert.match(markup, /type="button"[^>]*>.*Verder winkelen/s);
+  assert.ok(markup.indexOf("Verder winkelen") < markup.indexOf("Naar winkelwagen"));
   assert.equal((markup.match(/<(?:a|button)\b/g) ?? []).length, 2);
 });
 

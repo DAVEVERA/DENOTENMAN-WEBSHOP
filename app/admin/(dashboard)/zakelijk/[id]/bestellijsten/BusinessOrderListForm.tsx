@@ -14,7 +14,7 @@ type Line = {
   productName: string;
   unit: string;
   sku: string | null;
-  quantity: number;
+  quantity: string;
   unitPriceEuro: string;
   priceOnRequest: boolean;
 };
@@ -68,8 +68,8 @@ export function BusinessOrderListForm({
       productName: item.productName,
       unit: item.variantLabel ?? "",
       sku: item.sku,
-      quantity: item.quantity,
-      unitPriceEuro: item.unitPriceCents !== null ? (item.unitPriceCents / 100).toFixed(2) : "0.00",
+      quantity: item.quantity === 0 ? "" : String(item.quantity),
+      unitPriceEuro: item.unitPriceCents !== null ? (item.unitPriceCents / 100).toFixed(2) : "",
       priceOnRequest: item.priceOnRequest,
     }))
   );
@@ -80,7 +80,7 @@ export function BusinessOrderListForm({
   const total = useMemo(
     () =>
       lines.reduce(
-        (sum, line) => sum + (line.priceOnRequest ? 0 : Math.round(Number(line.unitPriceEuro) * 100) * line.quantity),
+        (sum, line) => sum + (line.priceOnRequest ? 0 : Math.round(Number(line.unitPriceEuro) * 100) * Number(line.quantity || 0)),
         0
       ),
     [lines]
@@ -98,7 +98,7 @@ export function BusinessOrderListForm({
         productName: option.name,
         unit: option.label,
         sku: option.sku,
-        quantity: 1,
+        quantity: "",
         unitPriceEuro: (option.priceCents / 100).toFixed(2),
         priceOnRequest: false,
       },
@@ -108,7 +108,7 @@ export function BusinessOrderListForm({
   function addCustomLine() {
     setLines((current) => [
       ...current,
-      { key: nextLineKey(), existingId: null, variantId: null, productName: "", unit: "", sku: null, quantity: 1, unitPriceEuro: "0.00", priceOnRequest: false },
+      { key: nextLineKey(), existingId: null, variantId: null, productName: "", unit: "", sku: null, quantity: "", unitPriceEuro: "", priceOnRequest: false },
     ]);
   }
 
@@ -136,7 +136,7 @@ export function BusinessOrderListForm({
         ? {
             id: line.existingId ?? undefined,
             variantId: line.variantId,
-            quantity: line.quantity,
+            quantity: Number(line.quantity || 0),
             unitPriceCents: line.priceOnRequest ? null : toCents(line.unitPriceEuro),
             priceOnRequest: line.priceOnRequest,
           }
@@ -145,7 +145,7 @@ export function BusinessOrderListForm({
             productName: line.productName.trim(),
             unit: line.unit.trim() ? line.unit.trim() : null,
             sku: line.sku?.trim() ? line.sku.trim() : null,
-            quantity: line.quantity,
+            quantity: Number(line.quantity || 0),
             unitPriceCents: line.priceOnRequest ? null : toCents(line.unitPriceEuro),
             priceOnRequest: line.priceOnRequest,
           }
@@ -271,7 +271,7 @@ export function BusinessOrderListForm({
               ) : null}
               <label className="text-body-sm font-semibold text-text">
                 Aantal
-                <input type="number" min={0} step={1} value={line.quantity} onChange={(event) => patchLine(line.key, { quantity: Number(event.target.value) })} className="mt-1 min-h-12 w-full rounded-button border border-border bg-background px-3" />
+                <input type="number" min={0} step={1} value={line.quantity} onChange={(event) => patchLine(line.key, { quantity: event.target.value })} placeholder="Aantal" className="mt-1 min-h-12 w-full rounded-button border border-border bg-background px-3 text-base sm:text-body-sm" />
               </label>
               <label className="text-body-sm font-semibold text-text">
                 Prijs

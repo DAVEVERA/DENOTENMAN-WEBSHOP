@@ -76,6 +76,7 @@ export function HomeProductSlider({
   const viewportRef = useRef<HTMLDivElement>(null);
   const firstSetRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);
+  const cartActionRef = useRef<HTMLAnchorElement>(null);
   const setWidthRef = useRef(0);
   const slideRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const dragRef = useRef<DragState | null>(null);
@@ -308,6 +309,12 @@ export function HomeProductSlider({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [activeProduct?.key, isModal]);
+
+  useEffect(() => {
+    if (!addedKey) return;
+    const frame = window.requestAnimationFrame(() => cartActionRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [addedKey]);
 
   const step = useCallback(
     (direction: -1 | 1, moveFocus = false) => {
@@ -687,10 +694,6 @@ export function HomeProductSlider({
                   {copy.added}
                 </p>
                 <div className={styles.addedActions}>
-                  <Link href={cartPath(locale)} className={styles.primaryButton}>
-                    <ShoppingCart aria-hidden="true" />
-                    {copy.goToCart}
-                  </Link>
                   <button
                     type="button"
                     className={styles.secondaryButton}
@@ -698,6 +701,10 @@ export function HomeProductSlider({
                   >
                     {copy.continueShopping}
                   </button>
+                  <Link ref={cartActionRef} href={cartPath(locale)} className={styles.primaryButton}>
+                    <ShoppingCart aria-hidden="true" />
+                    {copy.goToCart}
+                  </Link>
                 </div>
               </div>
             ) : (

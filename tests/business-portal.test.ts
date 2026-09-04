@@ -91,20 +91,23 @@ test("invitation email is delivered via the tracked, retryable transactional-ema
   assert.match(invitationSection, /providerMessageId/);
 });
 
-test("failed order-list emails remain visible and retryable with a new idempotency version", async () => {
+test("order-list emails are only sent by the explicit admin action and remain retryable", async () => {
   const [adminRoute, service, actions] = await Promise.all([
     readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/route.ts", "utf8"),
     readFile("lib/business-portal.ts", "utf8"),
     readFile("app/admin/(dashboard)/zakelijk/[id]/BusinessOrderListActions.tsx", "utf8"),
   ]);
   assert.match(adminRoute, /deliveryStatus:\s*"FAILED"/);
-  assert.match(adminRoute, /existing\.deliveryStatus === "FAILED"/);
   assert.match(adminRoute, /version:\s*updated\.version/);
   assert.match(service, /business-order-list:\$\{input\.orderListId\}:sent:\$\{input\.version\}/);
-  assert.match(actions, /deliveryStatus === "FAILED"/);
+  assert.match(actions, /deliveryStatus === "CHANGES_PENDING"/);
+  assert.doesNotMatch(
+    await readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/items/route.ts", "utf8"),
+    /sendBusinessOrderListChangedEmail/
+  );
 });
 
-test("admin send and cancel use an exclusive delivery claim", async () => {
+test("admin send uses an exclusive delivery claim and cancel targets only the current order", async () => {
   const adminRoute = await readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/route.ts", "utf8");
   assert.match(adminRoute, /deliveryStatus === "SENDING"/);
   assert.match(adminRoute, /deliveryStatus:\s*"PENDING"[\s\S]*data:\s*\{ deliveryStatus:\s*"SENDING" \}/);
@@ -116,6 +119,27 @@ test("admin send and cancel use an exclusive delivery claim", async () => {
   assert.match(adminRoute, /CONFIRM_DELIVERED/);
   assert.match(adminRoute, /CONFIRM_FAILED/);
   assert.match(adminRoute, /existing\.updatedAt\.getTime\(\)/);
+  assert.match(adminRoute, /tx\.order\.updateMany/);
+  assert.match(adminRoute, /orderListUnchanged:\s*true/);
+  assert.doesNotMatch(adminRoute, /data:\s*\{\s*status:\s*"CANCELLED"[\s\S]{0,120}businessOrderList/);
+});
+
+test("paid business rounds keep the reusable list quantities and customer cancellations are tenant scoped", async () => {
+  const [checkoutService, cancellationRoute, form, migration] = await Promise.all([
+    readFile("lib/business-order-checkout.ts", "utf8"),
+    readFile("app/api/business/orders/[orderId]/cancellations/route.ts", "utf8"),
+    readFile("app/admin/(dashboard)/zakelijk/[id]/bestellijsten/BusinessOrderListForm.tsx", "utf8"),
+    readFile("prisma/migrations/20260904214500_business_cancellation_requests/migration.sql", "utf8"),
+  ]);
+  const paidTransition = checkoutService.slice(checkoutService.indexOf("markBusinessOrderListPaid"), checkoutService.indexOf("export type BusinessCheckoutResult"));
+  assert.doesNotMatch(paidTransition, /quantity:\s*0/);
+  assert.match(paidTransition, /version:\s*\{ increment:\s*1 \}/);
+  assert.match(cancellationRoute, /businessAccountId:\s*session\.businessAccountId/);
+  assert.match(cancellationRoute, /TransactionIsolationLevel\.Serializable/);
+  assert.match(cancellationRoute, /QUANTITY_EXCEEDS_REMAINING/);
+  assert.match(form, /quantity:\s*item\.quantity === 0 \? ""/);
+  assert.match(form, /placeholder="Aantal"/);
+  assert.match(migration, /WHERE "status" IN \('PAID', 'CANCELLED'\)/);
 });
 
 test("the checkout endpoint is guarded by the server-side validity deadline", async () => {

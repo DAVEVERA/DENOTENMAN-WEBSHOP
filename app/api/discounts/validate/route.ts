@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { evaluateCheckoutDiscount } from "@/lib/discounts";
+import { evaluateCheckoutDiscount, resolveDiscountUsagePolicy } from "@/lib/discounts";
+import { discountUsageAvailable } from "@/lib/discount-usage";
 import { calculateShippingCents, isShippingCountryCode } from "@/lib/shipping";
 import { prisma } from "@/lib/prisma";
 
@@ -9,6 +10,7 @@ type DiscountValidationBody = {
   country?: unknown;
   totalWeightGrams?: unknown;
   deliveryMethod?: unknown;
+  email?: unknown;
 };
 
 export async function POST(request: Request) {
@@ -40,6 +42,11 @@ export async function POST(request: Request) {
       amountOffCents: true,
       startsAt: true,
       endsAt: true,
+      minimumOrderCents: true,
+      maximumDiscountCents: true,
+      redemptionMode: true,
+      identityScope: true,
+      maxUsesPerIdentity: true,
     },
   });
   const evaluation = evaluateCheckoutDiscount(
@@ -51,7 +58,22 @@ export async function POST(request: Request) {
   );
 
   if (evaluation.status !== "applied") {
-    return NextResponse.json({ error: "INVALID_DISCOUNT_CODE" }, { status: 422 });
+    return NextResponse.json(
+      { error: evaluation.status === "ineligible" ? "DISCOUNT_NOT_ELIGIBLE" : "INVALID_DISCOUNT_CODE" },
+      { status: 422 }
+    );
+  }
+
+  const submittedEmail = typeof body.email === "string" ? body.email.trim() : "";
+  if (!evaluation.isTest && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submittedEmail)) {
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: submittedEmail, mode: "insensitive" } },
+      select: { id: true },
+    });
+    const policy = resolveDiscountUsagePolicy(evaluation.discount.code, configuredDiscount);
+    if (!await discountUsageAvailable(policy, { email: submittedEmail, userId: existingUser?.id ?? null })) {
+      return NextResponse.json({ error: "DISCOUNT_NOT_ELIGIBLE" }, { status: 422 });
+    }
   }
 
   const country =

@@ -9,7 +9,8 @@ import { BusinessPortalClient } from "./BusinessPortalClient";
 
 export const metadata: Metadata = { title: "Zakelijke omgeving | De Notenman", robots: { index: false, follow: false } };
 
-const COMPLETED_ORDER_STATUSES = ["PAID", "FULFILLED"] as const;
+const ORDER_HISTORY_STATUSES = ["PAID", "FULFILLED", "REFUNDED", "CANCELLED"] as const;
+const SUCCESSFUL_ORDER_STATUSES = ["PAID", "FULFILLED", "REFUNDED"] as const;
 
 function orderListInclude() {
   return {
@@ -17,7 +18,16 @@ function orderListInclude() {
     notes: { orderBy: { createdAt: "asc" as const } },
     // A list is continuous and accumulates one Order per checkout round, so
     // this is no longer a single row — newest first, so [0] is "last time".
-    orders: { orderBy: { createdAt: "desc" as const }, include: { items: true } },
+    orders: {
+      orderBy: { createdAt: "desc" as const },
+      include: {
+        items: true,
+        businessCancellationRequests: {
+          orderBy: { createdAt: "desc" as const },
+          include: { items: true },
+        },
+      },
+    },
   };
 }
 
@@ -53,8 +63,8 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
   const { country, vatRegime, vatRatePercent, vatNumber, peppolConfigured, peppolParticipantId } = session.businessAccount;
   const orderLists = await loadOrderLists(session.businessAccountId);
   const serialized = orderLists.map((list) => {
-    const completedOrders = list.orders.filter((order) => COMPLETED_ORDER_STATUSES.includes(order.status as (typeof COMPLETED_ORDER_STATUSES)[number]));
-    const lastCompletedOrder = completedOrders[0] ?? null;
+    const historyOrders = list.orders.filter((order) => ORDER_HISTORY_STATUSES.includes(order.status as (typeof ORDER_HISTORY_STATUSES)[number]));
+    const lastCompletedOrder = historyOrders.find((order) => SUCCESSFUL_ORDER_STATUSES.includes(order.status as (typeof SUCCESSFUL_ORDER_STATUSES)[number])) ?? null;
     return {
       id: list.id,
       title: list.title,
@@ -91,8 +101,9 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
         text: note.text,
         createdAt: note.createdAt.toISOString(),
       })),
-      orderHistory: completedOrders.map((order) => ({
+      orderHistory: historyOrders.map((order) => ({
         id: order.id,
+        status: order.status as "PAID" | "FULFILLED" | "REFUNDED" | "CANCELLED",
         date: (order.paidAt ?? order.createdAt).toISOString(),
         totalCents: order.totalCents,
         items: order.items.map((item) => ({
@@ -102,6 +113,16 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
           quantity: item.quantity,
           unitPriceCents: item.unitPriceCents,
         })),
+        cancellationRequests: order.businessCancellationRequests.map((request) => ({
+          id: request.id,
+          status: request.status,
+          reason: request.reason,
+          createdAt: request.createdAt.toISOString(),
+          items: request.items.map((item) => ({
+            orderItemId: item.orderItemId,
+            quantity: item.quantity,
+          })),
+        })),
       })),
     };
   });
@@ -110,6 +131,7 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
       <header className="border-b border-border bg-surface"><div className="mx-auto flex min-h-20 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6"><Logo alt={{ mark: "De Notenman beeldmerk", wordmark: "De Notenman" }} parts="wordmark" size="nav" /><span className="rounded-button bg-background px-3 py-2 text-xs font-bold text-muted">Zakelijk</span></div></header>
       <BusinessPortalClient
         locale={locale}
+        currentTime={new Date().toISOString()}
         account={{
           companyName: session.businessAccount.companyName,
           contactName: session.businessAccount.contactName,

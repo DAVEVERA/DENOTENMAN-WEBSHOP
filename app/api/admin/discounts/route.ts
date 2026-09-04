@@ -18,6 +18,11 @@ const discountInputSchema = z
     status: z.enum(["DRAFT", "ACTIVE", "SCHEDULED", "EXPIRED"]),
     percentOff: z.number().int().nullable().optional(),
     amountOffCents: z.number().int().nullable().optional(),
+    minimumOrderCents: z.number().int().min(0).max(100_000_000),
+    maximumDiscountCents: z.number().int().min(1).max(100_000_000).nullable(),
+    redemptionMode: z.enum(["SINGLE_USE", "MULTIPLE_USE"]),
+    identityScope: z.enum(["EMAIL", "CUSTOMER", "EMAIL_AND_CUSTOMER"]),
+    maxUsesPerIdentity: z.number().int().min(1).max(100_000).nullable(),
     startsAt: z.string().trim().nullable().optional(),
     endsAt: z.string().trim().nullable().optional(),
   })
@@ -73,6 +78,9 @@ export async function POST(request: NextRequest) {
   if (hasAmountOffCents && input.amountOffCents! < 1) {
     return NextResponse.json({ error: "INVALID_AMOUNT_OFF_CENTS" }, { status: 400 });
   }
+  if (input.redemptionMode === "SINGLE_USE" && input.maxUsesPerIdentity !== 1) {
+    return NextResponse.json({ error: "SINGLE_USE_REQUIRES_ONE_USE" }, { status: 400 });
+  }
 
   const startsAt = parseDate(input.startsAt);
   if (startsAt && "error" in startsAt) {
@@ -96,6 +104,11 @@ export async function POST(request: NextRequest) {
           status: input.status,
           percentOff: hasPercentOff ? input.percentOff! : null,
           amountOffCents: hasAmountOffCents ? input.amountOffCents! : null,
+          minimumOrderCents: input.minimumOrderCents,
+          maximumDiscountCents: hasPercentOff ? input.maximumDiscountCents : null,
+          redemptionMode: input.redemptionMode,
+          identityScope: input.identityScope,
+          maxUsesPerIdentity: input.redemptionMode === "SINGLE_USE" ? 1 : input.maxUsesPerIdentity,
           startsAt: startsAt as Date | null,
           endsAt: endsAt as Date | null,
         },

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Download, LogOut, PackageCheck, Save, Send, Clock, RefreshCw, Sparkles } from "lucide-react";
+import { CreditCard, Download, LogOut, PackageCheck, Save, Send, Clock, RefreshCw, Sparkles, Undo2 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { calculateVat } from "@/lib/business-vat";
 import { BusinessPasswordSettings } from "./BusinessPasswordSettings";
@@ -22,7 +22,21 @@ type PortalItem = {
 };
 type PortalNote = { id: string; actorType: string; authorName: string; text: string; createdAt: string };
 type PortalOrderHistoryItem = { id: string; productName: string; variantLabel: string | null; quantity: number; unitPriceCents: number };
-type PortalOrderHistoryEntry = { id: string; date: string; totalCents: number; items: PortalOrderHistoryItem[] };
+type PortalCancellationRequest = {
+  id: string;
+  status: "PENDING" | "PROCESSED" | "REJECTED";
+  reason: string | null;
+  createdAt: string;
+  items: { orderItemId: string; quantity: number }[];
+};
+type PortalOrderHistoryEntry = {
+  id: string;
+  status: "PAID" | "FULFILLED" | "REFUNDED" | "CANCELLED";
+  date: string;
+  totalCents: number;
+  items: PortalOrderHistoryItem[];
+  cancellationRequests: PortalCancellationRequest[];
+};
 type PortalList = {
   id: string;
   title: string;
@@ -63,7 +77,7 @@ type PortalAccount = {
   hasPassword: boolean;
 };
 
-export function BusinessPortalClient({ locale, account, initialOrderLists }: { locale: string; account: PortalAccount; initialOrderLists: PortalList[] }) {
+export function BusinessPortalClient({ locale, account, initialOrderLists, currentTime }: { locale: string; account: PortalAccount; initialOrderLists: PortalList[]; currentTime: string }) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
@@ -105,16 +119,15 @@ export function BusinessPortalClient({ locale, account, initialOrderLists }: { l
           <p className="mt-1 text-body-sm text-muted">Zodra Fedor een voorstel verstuurt, verschijnt het hier automatisch.</p>
         </div>
       ) : (
-        <div className="mt-8 grid gap-6">{initialOrderLists.map((list) => <OrderListReview key={list.id} list={list} account={account} />)}</div>
+        <div className="mt-8 grid gap-6">{initialOrderLists.map((list) => <OrderListReview key={`${list.id}:${list.version}`} list={list} account={account} currentTime={currentTime} />)}</div>
       )}
     </main>
   );
 }
 
-function OrderListReview({ list, account }: { list: PortalList; account: PortalAccount }) {
+function OrderListReview({ list, account, currentTime }: { list: PortalList; account: PortalAccount; currentTime: string }) {
   const router = useRouter();
   const [quantities, setQuantities] = useState<Record<string, number>>(() => Object.fromEntries(list.items.map((item) => [item.id, item.quantity])));
-  const [syncedVersion, setSyncedVersion] = useState(list.version);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -124,16 +137,8 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
   const [pickupDay, setPickupDay] = useState<Date | null>(list.pickupDay ? new Date(list.pickupDay) : null);
   const [pickupDayBusy, setPickupDayBusy] = useState(false);
 
-  // A newer version means the server state moved on (our own save, Fedor's
-  // edit, or a payment resetting the list) — resync local inputs to match.
-  // Unsaved local edits are only ever discarded together with the version
-  // bump that made them stale, never silently by an unrelated re-render.
-  useEffect(() => {
-    if (list.version === syncedVersion) return;
-    setQuantities(Object.fromEntries(list.items.map((item) => [item.id, item.quantity])));
-    setSyncedVersion(list.version);
-  }, [list.version, list.items, syncedVersion]);
-
+  // The parent keys this component by the server version. A confirmed save,
+  // admin edit or payment therefore remounts these inputs from current data.
   const dirty = useMemo(
     () => list.items.some((item) => (quantities[item.id] ?? item.quantity) !== item.quantity),
     [list.items, quantities]
@@ -152,16 +157,16 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
     [list.items, quantities]
   );
 
-  const expired = list.validUntil ? new Date(list.validUntil).getTime() <= Date.now() : false;
-  const listActive = list.status === "SENT" && !expired && !list.paymentPending;
-  const payable = listActive && !dirty && liveTotalCents > 0 && !hasUnresolvedPriceRequest;
+  const expired = list.validUntil ? new Date(list.validUntil).getTime() <= new Date(currentTime).getTime() : false;
+  const listActive = list.status === "SENT" && !expired;
+  const payable = listActive && !list.paymentPending && !dirty && liveTotalCents > 0 && !hasUnresolvedPriceRequest;
   const { vatAmountCents, totalCents: payableTotalCents } = calculateVat(liveTotalCents, account.vatRatePercent);
   const isReverseCharge = account.vatRegime === "REVERSE_CHARGE";
 
   // The customer may have just returned from Mollie before the webhook has
   // confirmed payment. Poll the server truth rather than trusting anything
-  // from the redirect URL, and stop as soon as this list is no longer
-  // pending (the payment succeeded and the list reset, or it failed).
+  // from the redirect URL, and stop as soon as this checkout round is no
+  // longer pending. The fixed list itself remains reusable in either case.
   useEffect(() => {
     if (!list.paymentPending) return;
     const interval = setInterval(() => router.refresh(), 4000);
@@ -302,6 +307,7 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
                         max={100_000}
                         step={1}
                         value={quantities[item.id] ?? item.quantity}
+                        disabled={list.paymentPending}
                         onChange={(event) => setQuantity(item.id, Number(event.target.value))}
                         className="min-h-11 w-20 rounded-button border border-border bg-background px-2 text-right text-body-md text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
                       />
@@ -322,6 +328,7 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
                 );
               })}
             </ul>
+            <p className="mt-2 text-xs text-muted">Aantal 0 betekent: wel bewaren op mijn vaste lijst, niet meenemen in deze bestelling.</p>
             <div className="mt-6">
               <h3 className="font-heading font-bold text-text">Voorkeursdag ophalen (optioneel)</h3>
               <div className="mt-2">
@@ -346,7 +353,7 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
 
             <div className="mt-6 flex flex-wrap gap-3">
               {dirty ? (
-                <button type="button" disabled={saving} onClick={saveQuantities} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-button border border-accent bg-surface px-5 font-heading font-bold text-accent-hover shadow-button disabled:opacity-60">
+                <button type="button" disabled={saving || list.paymentPending} onClick={saveQuantities} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-button border border-accent bg-surface px-5 font-heading font-bold text-accent-hover shadow-button disabled:opacity-60">
                   <Save className="h-5 w-5" aria-hidden="true" /> {saving ? "Bezig…" : "Wijzigingen opslaan"}
                 </button>
               ) : (
@@ -410,9 +417,64 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
 }
 
 function OrderHistoryEntry({ order, account }: { order: PortalOrderHistoryEntry; account: PortalAccount }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [peppolBusy, setPeppolBusy] = useState(false);
   const [peppolResult, setPeppolResult] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [cancellationOpen, setCancellationOpen] = useState(false);
+  const [cancellationQuantities, setCancellationQuantities] = useState<Record<string, string>>({});
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancellationBusy, setCancellationBusy] = useState(false);
+  const [cancellationResult, setCancellationResult] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const activeRequestedByItem = useMemo(() => {
+    const result = new Map<string, number>();
+    for (const request of order.cancellationRequests) {
+      if (request.status === "REJECTED") continue;
+      for (const item of request.items) {
+        result.set(item.orderItemId, (result.get(item.orderItemId) ?? 0) + item.quantity);
+      }
+    }
+    return result;
+  }, [order.cancellationRequests]);
+  const cancellable = order.status === "PAID" || order.status === "FULFILLED";
+
+  async function requestCancellation() {
+    const items = order.items.flatMap((item) => {
+      const quantity = Number(cancellationQuantities[item.id] || 0);
+      return Number.isInteger(quantity) && quantity > 0 ? [{ orderItemId: item.id, quantity }] : [];
+    });
+    if (items.length === 0) {
+      setCancellationResult({ type: "error", text: "Kies bij minimaal één product een aantal." });
+      return;
+    }
+    setCancellationBusy(true);
+    setCancellationResult(null);
+    try {
+      const response = await fetch(`/api/business/orders/${order.id}/cancellations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, reason: cancellationReason.trim() || null }),
+      });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        const text = data?.error === "QUANTITY_EXCEEDS_REMAINING"
+          ? "De bestelling is intussen gewijzigd. Controleer de actuele aantallen en probeer opnieuw."
+          : data?.error === "ORDER_NOT_CANCELLABLE"
+            ? "Deze bestelling kan niet meer via de portal worden geannuleerd. Neem contact op met Fedor."
+            : "De annuleringsaanvraag kon niet worden opgeslagen. Probeer het opnieuw.";
+        setCancellationResult({ type: "error", text });
+        return;
+      }
+      setCancellationQuantities({});
+      setCancellationReason("");
+      setCancellationResult({ type: "ok", text: "Je aanvraag is ontvangen. De producten blijven op je vaste bestellijst staan." });
+      router.refresh();
+    } catch {
+      setCancellationResult({ type: "error", text: "De verbinding viel weg. Probeer het opnieuw." });
+    } finally {
+      setCancellationBusy(false);
+    }
+  }
 
   async function sendPeppol() {
     setPeppolBusy(true);
@@ -436,7 +498,10 @@ function OrderHistoryEntry({ order, account }: { order: PortalOrderHistoryEntry;
     <div className="rounded-card border border-border bg-background p-4">
       <button type="button" onClick={() => setOpen((value) => !value)} className="flex w-full flex-wrap items-center justify-between gap-2 text-left">
         <span className="text-body-sm text-text"><strong className="font-heading">{formatDate(order.date)}</strong> · {order.items.length} {order.items.length === 1 ? "product" : "producten"}</span>
-        <span className="font-heading font-bold text-text">{formatPrice(order.totalCents, "nl")}</span>
+        <span className="flex flex-wrap items-center justify-end gap-2">
+          <span className="rounded-button bg-surface px-2 py-1 text-xs font-bold text-muted">{orderStatusLabel(order.status)}</span>
+          <span className="font-heading font-bold text-text">{formatPrice(order.totalCents, "nl")}</span>
+        </span>
       </button>
       {open ? (
         <>
@@ -448,6 +513,23 @@ function OrderHistoryEntry({ order, account }: { order: PortalOrderHistoryEntry;
               </li>
             ))}
           </ul>
+          {order.cancellationRequests.length > 0 ? (
+            <div className="mt-3 grid gap-2" aria-label="Annuleringsaanvragen">
+              {order.cancellationRequests.map((request) => {
+                const quantity = request.items.reduce((sum, item) => sum + item.quantity, 0);
+                return (
+                  <div key={request.id} className="rounded-card border border-border bg-surface px-3 py-2 text-body-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <strong className="text-text">Annulering van {quantity} {quantity === 1 ? "artikel" : "artikelen"}</strong>
+                      <span className="text-xs font-bold text-muted">{cancellationStatusLabel(request.status)}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted">Aangevraagd op {formatDateTime(request.createdAt)}</p>
+                    {request.reason ? <p className="mt-1 whitespace-pre-wrap text-muted">{request.reason}</p> : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-3">
             <a
               href={`/api/business/orders/${order.id}/invoice`}
@@ -466,10 +548,79 @@ function OrderHistoryEntry({ order, account }: { order: PortalOrderHistoryEntry;
                 </span>
               )
             ) : null}
+            {cancellable ? (
+              <button
+                type="button"
+                onClick={() => setCancellationOpen((value) => !value)}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text hover:border-border-hover sm:w-auto"
+                aria-expanded={cancellationOpen}
+              >
+                <Undo2 className="h-4 w-4" aria-hidden="true" /> Bestelling aanpassen of annuleren
+              </button>
+            ) : null}
           </div>
           {peppolResult ? (
             <p role={peppolResult.type === "error" ? "alert" : "status"} className={`mt-3 text-body-sm font-semibold ${peppolResult.type === "error" ? "text-red-700" : "text-green-700"}`}>
               {peppolResult.text}
+            </p>
+          ) : null}
+          {cancellationOpen && cancellable ? (
+            <div className="mt-4 rounded-card border border-border bg-surface p-4">
+              <h4 className="font-heading font-bold text-text">Annulering aanvragen</h4>
+              <p className="mt-1 text-body-sm text-muted">Kies per product wat je uit deze bestelling wilt annuleren. De vaste bestellijst verandert niet. Fedor controleert daarna het terug te betalen bedrag.</p>
+              <div className="mt-4 grid gap-3">
+                {order.items.map((item) => {
+                  const requested = activeRequestedByItem.get(item.id) ?? 0;
+                  const remaining = Math.max(0, item.quantity - requested);
+                  return (
+                    <label key={item.id} className="grid gap-2 rounded-card border border-border p-3 sm:grid-cols-[1fr_8rem] sm:items-center">
+                      <span className="min-w-0 text-body-sm">
+                        <strong className="block text-text">{item.productName}</strong>
+                        <span className="text-muted">{item.variantLabel ?? "Variant"} · nog {remaining} annuleerbaar</span>
+                      </span>
+                      <span>
+                        <span className="sr-only">Aantal van {item.productName}</span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={remaining}
+                          step={1}
+                          value={cancellationQuantities[item.id] ?? ""}
+                          disabled={remaining === 0 || cancellationBusy}
+                          onChange={(event) => setCancellationQuantities((current) => ({ ...current, [item.id]: event.target.value }))}
+                          placeholder="0"
+                          className="min-h-11 w-full rounded-button border border-border bg-background px-3 text-right text-base text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:opacity-50"
+                        />
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <label className="mt-4 block text-body-sm font-semibold text-text">
+                Toelichting (optioneel)
+                <textarea
+                  value={cancellationReason}
+                  onChange={(event) => setCancellationReason(event.target.value)}
+                  maxLength={1_000}
+                  rows={3}
+                  disabled={cancellationBusy}
+                  className="mt-2 w-full rounded-button border border-border bg-background px-3 py-2 text-base font-normal text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={cancellationBusy}
+                onClick={requestCancellation}
+                className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-button bg-accent px-5 font-heading font-bold text-contrast shadow-button disabled:opacity-60 sm:w-auto"
+              >
+                {cancellationBusy ? "Aanvraag opslaan…" : "Annulering aanvragen"}
+              </button>
+            </div>
+          ) : null}
+          {cancellationResult ? (
+            <p role={cancellationResult.type === "error" ? "alert" : "status"} className={`mt-3 text-body-sm font-semibold ${cancellationResult.type === "error" ? "text-red-700" : "text-green-700"}`}>
+              {cancellationResult.text}
             </p>
           ) : null}
         </>
@@ -480,3 +631,9 @@ function OrderHistoryEntry({ order, account }: { order: PortalOrderHistoryEntry;
 
 function formatDate(value: string) { return new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(value)); }
 function formatDateTime(value: string) { return new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value)); }
+function orderStatusLabel(status: PortalOrderHistoryEntry["status"]) {
+  return status === "PAID" ? "Betaald" : status === "FULFILLED" ? "Afgehandeld" : status === "REFUNDED" ? "Terugbetaald" : "Geannuleerd";
+}
+function cancellationStatusLabel(status: PortalCancellationRequest["status"]) {
+  return status === "PENDING" ? "In behandeling" : status === "PROCESSED" ? "Verwerkt" : "Afgewezen";
+}

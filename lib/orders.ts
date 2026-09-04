@@ -26,8 +26,14 @@ import { generateAndSendBusinessInvoice } from "@/lib/business-invoice";
 import {
   evaluateCheckoutDiscount,
   hasDiscountCode,
+  resolveDiscountUsagePolicy,
   resolvePaymentDisposition,
 } from "@/lib/discounts";
+import {
+  DiscountUsageLimitError,
+  reserveDiscountUsage,
+  settleDiscountRedemption,
+} from "@/lib/discount-usage";
 
 export class CheckoutError extends Error {
   constructor(
@@ -241,6 +247,11 @@ export async function priceCartLines(
           amountOffCents: true,
           startsAt: true,
           endsAt: true,
+          minimumOrderCents: true,
+          maximumDiscountCents: true,
+          redemptionMode: true,
+          identityScope: true,
+          maxUsesPerIdentity: true,
         },
       })
     : null;
@@ -265,6 +276,9 @@ export async function priceCartLines(
   const discount = discountEvaluation.status === "applied" ? discountEvaluation.discount : null;
   const discountCents = discount?.discountCents ?? 0;
   const isTest = discountEvaluation.status === "applied" && discountEvaluation.isTest;
+  const discountUsagePolicy = discount && !isTest
+    ? resolveDiscountUsagePolicy(discount.code, configuredDiscount)
+    : null;
   const shippingCents = isTest ? 0 : regularShippingCents;
 
   return {
@@ -276,6 +290,7 @@ export async function priceCartLines(
     totalWeightGrams,
     totalCents: subtotalCents - discountCents + shippingCents,
     isTest,
+    discountUsagePolicy,
   };
 }
 
@@ -291,20 +306,6 @@ export async function createOrderWithPayment(
     where: { email: { equals: normalizedEmail, mode: "insensitive" } },
     select: { id: true },
   });
-  const previousPaidOrder = hasDiscountCode(discountCode)
-    ? await prisma.order.findFirst({
-        where: {
-          isTest: false,
-          status: { in: ["PAID", "FULFILLED"] },
-          OR: [
-            ...(existingUser ? [{ userId: existingUser.id }] : []),
-            { contactEmail: { equals: normalizedEmail, mode: "insensitive" as const } },
-          ],
-        },
-        select: { id: true },
-      })
-    : null;
-
   const {
     lines,
     subtotalCents,
@@ -313,11 +314,12 @@ export async function createOrderWithPayment(
     shippingCents,
     totalCents,
     isTest,
+    discountUsagePolicy,
   } = await priceCartLines(
     cartLines,
     locale,
     discountCode,
-    Boolean(previousPaidOrder),
+    false,
     contact.deliveryMethod,
     isShippingCountryCode(contact.country) ? contact.country : "NL"
   );
@@ -333,8 +335,11 @@ export async function createOrderWithPayment(
         create: { email: normalizedEmail, name: contact.name },
       });
 
-  const order = await prisma.order.create({
-    data: {
+  let order;
+  try {
+    order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
       userId: user.id,
       status: isTest ? "PAID" : "PENDING",
       isTest,
@@ -365,9 +370,25 @@ export async function createOrderWithPayment(
           unitPriceCents: line.unitPriceCents,
         })),
       },
-    },
-    include: { items: true },
-  });
+        },
+        include: { items: true },
+      });
+      if (discountUsagePolicy) {
+        await reserveDiscountUsage(
+          tx,
+          discountUsagePolicy,
+          { email: normalizedEmail, userId: user.id },
+          created.id
+        );
+      }
+      return created;
+    });
+  } catch (error) {
+    if (error instanceof DiscountUsageLimitError) {
+      throw new CheckoutError("DISCOUNT_NOT_ELIGIBLE", "Discount code has already been used by this customer");
+    }
+    throw error;
+  }
 
   if (resolvePaymentDisposition(isTest, totalCents) === "TEST_COMPLETE") {
     await sendCompletedTestOrderConfirmation(order);
@@ -404,7 +425,10 @@ export async function createOrderWithPayment(
 
     return { orderId: order.id, checkoutUrl };
   } catch (error) {
-    await prisma.order.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
+      await settleDiscountRedemption(tx, order.id, "RELEASED");
+    });
     if (error instanceof CheckoutError) throw error;
     throw new CheckoutError(
       "PAYMENT_CREATE_FAILED",
@@ -553,6 +577,13 @@ export async function syncOrderPaymentStatus(
         : null;
     if (count === 1 && nextStatus === "PAID" && order.businessOrderListId) {
       await markBusinessOrderListPaid(transaction, order.businessOrderListId);
+    }
+    if (count === 1) {
+      await settleDiscountRedemption(
+        transaction,
+        order.id,
+        nextStatus === "PAID" ? "REDEEMED" : "RELEASED"
+      );
     }
     const updated = await transaction.order.findUniqueOrThrow({
       where: { id: order.id },

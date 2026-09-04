@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminSession } from "@/lib/admin-api-auth";
+import { prisma } from "@/lib/prisma";
 import {
   createOrderRefund,
   OrderRefundError,
@@ -11,6 +12,7 @@ import {
 const requestSchema = z
   .object({
     requestId: z.string().uuid(),
+    businessCancellationRequestId: z.string().trim().min(1).nullable().optional(),
     reason: z.string().trim().max(500).nullable().optional(),
     includeShipping: z.boolean().default(false),
     items: z
@@ -56,8 +58,19 @@ export async function POST(
       },
       admin
     );
+    if (parsed.data.businessCancellationRequestId) {
+      await prisma.businessOrderCancellationRequest.updateMany({
+        where: {
+          id: parsed.data.businessCancellationRequestId,
+          orderId: id,
+          status: "PENDING",
+        },
+        data: { status: "PROCESSED" },
+      });
+    }
     revalidatePath(`/admin/bestellingen/${id}`);
     revalidatePath("/admin/bestellingen");
+    revalidatePath("/nl/zakelijk");
     return NextResponse.json({
       refund: {
         id: refund.id,

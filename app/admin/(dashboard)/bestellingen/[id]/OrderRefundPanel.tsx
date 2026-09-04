@@ -24,6 +24,14 @@ type RefundHistoryItem = ExistingRefundReservation & {
   createdAt: string;
 };
 
+type CustomerCancellationRequest = {
+  id: string;
+  status: "PENDING" | "PROCESSED" | "REJECTED";
+  reason: string | null;
+  createdAt: string;
+  items: { orderItemId: string; quantity: number }[];
+};
+
 const STATUS_LABELS: Record<string, string> = {
   CREATING: "Wordt aangemaakt",
   QUEUED: "In wachtrij bij Mollie",
@@ -66,6 +74,7 @@ export function OrderRefundPanel({
   totalCents,
   items,
   refunds,
+  cancellationRequests,
   canRefund,
 }: {
   orderId: string;
@@ -75,6 +84,7 @@ export function OrderRefundPanel({
   totalCents: number;
   items: RefundableItem[];
   refunds: RefundHistoryItem[];
+  cancellationRequests: CustomerCancellationRequest[];
   canRefund: boolean;
 }) {
   const router = useRouter();
@@ -82,6 +92,7 @@ export function OrderRefundPanel({
   const [includeShipping, setIncludeShipping] = useState(false);
   const [reason, setReason] = useState("");
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [customerRequestId, setCustomerRequestId] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -121,6 +132,19 @@ export function OrderRefundPanel({
     }
   }, [discountCents, includeShipping, items, refunds, selections, shippingCents, subtotalCents, totalCents]);
 
+  function loadCustomerRequest(request: CustomerCancellationRequest) {
+    const requested = new Map(request.items.map((item) => [item.orderItemId, item.quantity]));
+    setQuantities(Object.fromEntries(items.map((item) => {
+      const remaining = Math.max(0, item.quantity - (canceledByItem.get(item.id) ?? 0));
+      return [item.id, Math.min(remaining, requested.get(item.id) ?? 0)];
+    })));
+    setReason(request.reason ?? "");
+    setCustomerRequestId(request.id);
+    setRequestId(null);
+    setState("idle");
+    setMessage("De aangevraagde aantallen zijn overgenomen. Controleer het terug te betalen bedrag.");
+  }
+
   async function submitRefund() {
     if (!calculation || state === "saving") return;
     const confirmed = window.confirm(
@@ -141,6 +165,7 @@ export function OrderRefundPanel({
           reason: reason.trim() || null,
           includeShipping,
           items: selections,
+          businessCancellationRequestId: customerRequestId,
         }),
       });
       const body = (await response.json().catch(() => null)) as {
@@ -161,6 +186,7 @@ export function OrderRefundPanel({
       setIncludeShipping(false);
       setReason("");
       setRequestId(null);
+      setCustomerRequestId(null);
       router.refresh();
     } catch {
       setState("error");
@@ -176,6 +202,30 @@ export function OrderRefundPanel({
           Kies per orderregel hoeveel stuks worden geannuleerd. Het bedrag wordt server-side berekend en idempotent via Mollie uitgevoerd.
         </p>
       </div>
+
+      {cancellationRequests.length > 0 ? (
+        <div className="mt-5 rounded-card border border-amber-200 bg-amber-50 p-4">
+          <h3 className="font-heading font-bold text-amber-950">Aanvragen van de zakelijke klant</h3>
+          <div className="mt-3 grid gap-2">
+            {cancellationRequests.map((request) => {
+              const requestedQuantity = request.items.reduce((sum, item) => sum + item.quantity, 0);
+              return (
+                <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-surface px-3 py-2 text-body-sm">
+                  <div>
+                    <p className="font-semibold text-text">{requestedQuantity} artikel(en) · {request.status === "PENDING" ? "In behandeling" : request.status === "PROCESSED" ? "Verwerkt" : "Afgewezen"}</p>
+                    <p className="text-muted">{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(request.createdAt))}{request.reason ? ` · ${request.reason}` : ""}</p>
+                  </div>
+                  {request.status === "PENDING" && canRefund ? (
+                    <button type="button" onClick={() => loadCustomerRequest(request)} className="inline-flex min-h-11 items-center rounded-button border border-amber-300 px-4 font-heading font-bold text-amber-900">
+                      Aanvraag overnemen
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {canRefund ? (
         <div className="mt-5 space-y-4">

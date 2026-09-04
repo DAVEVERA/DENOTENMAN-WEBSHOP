@@ -131,6 +131,9 @@ export default async function AdminProductEditPage({
     "nutrition.fiber": attributeValues.get("nutrition.fiber") ?? "",
     "nutrition.protein": attributeValues.get("nutrition.protein") ?? "",
     "nutrition.salt": attributeValues.get("nutrition.salt") ?? "",
+    ingredients: attributeValues.get("ingredients") ?? "",
+    allergens: attributeValues.get("allergens") ?? "",
+    mayContainTraces: attributeValues.get("mayContainTraces") ?? "",
   };
   const categoryAssignments = product.productCategories.map((link) => ({
     categoryId: link.categoryId,

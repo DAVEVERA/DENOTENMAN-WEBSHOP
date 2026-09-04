@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { isSameOriginMutation } from "@/lib/admin-request-security";
 import { recordAudit } from "@/lib/admin-audit";
-import { recordBusinessEvent, sendBusinessOrderListChangedEmail } from "@/lib/business-portal";
+import { recordBusinessEvent } from "@/lib/business-portal";
 import { businessOrderListItemInputSchema, resolveBusinessOrderListItems } from "@/lib/business-order-list-items";
 
 const inputSchema = z.object({
@@ -13,8 +13,6 @@ const inputSchema = z.object({
   validUntil: z.string().datetime().nullable().optional(),
   items: z.array(businessOrderListItemInputSchema).min(1).max(200),
 }).strict();
-
-const EDITABLE_STATUSES = new Set(["DRAFT", "SENT"]);
 
 class VersionConflictError extends Error {}
 
@@ -37,15 +35,6 @@ export async function PATCH(
   });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
-  // PAID and CANCELLED lists are frozen: a paid list must match the invoice
-  // exactly, and a cancelled one has no reason to change. CHANGES_REQUESTED
-  // and APPROVED are legacy customer-approval states we no longer produce,
-  // but existing rows in those states stay editable via the same DRAFT/SENT
-  // path once touched, since there is no meaningful distinction left now
-  // that the customer can no longer act on them.
-  if (!EDITABLE_STATUSES.has(existing.status) && existing.status !== "CHANGES_REQUESTED" && existing.status !== "APPROVED") {
-    return NextResponse.json({ error: "INVALID_STATUS_TRANSITION" }, { status: 409 });
-  }
   if (existing.version !== parsed.data.version) {
     return NextResponse.json({ error: "VERSION_CONFLICT" }, { status: 409 });
   }
@@ -84,6 +73,9 @@ export async function PATCH(
           title: parsed.data.title ?? existing.title,
           validUntil,
           totalCents: resolved.totalCents,
+          status: existing.status === "DRAFT" ? "DRAFT" : "SENT",
+          deliveryStatus: existing.status === "DRAFT" ? existing.deliveryStatus : "CHANGES_PENDING",
+          deliveryError: null,
           version: { increment: 1 },
         },
       });
@@ -136,24 +128,7 @@ export async function PATCH(
       return orderList;
     });
 
-    let emailWarning: string | undefined;
-    if (wasAlreadySent) {
-      try {
-        await sendBusinessOrderListChangedEmail({
-          orderListId,
-          version: updated.version,
-          title: updated.title,
-          items: updated.items,
-          totalCents: updated.totalCents,
-          account: existing.businessAccount,
-        });
-      } catch (error) {
-        console.error("Business order-list changed email failed", { orderListId, error });
-        emailWarning = "ORDER_LIST_CHANGED_EMAIL_FAILED";
-      }
-    }
-
-    return NextResponse.json({ ok: true, orderList: updated, wasAlreadySent, warning: emailWarning });
+    return NextResponse.json({ ok: true, orderList: updated, wasAlreadySent, emailSent: false });
   } catch (error) {
     if (error instanceof VersionConflictError) {
       return NextResponse.json({ error: "VERSION_CONFLICT" }, { status: 409 });

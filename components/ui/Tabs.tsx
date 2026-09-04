@@ -56,7 +56,7 @@ export function Tabs({
             onClick={() => setActiveId(tab.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={cn(
-              "border-b-2 px-4 py-2 font-heading text-body-md transition-colors duration-hover-fast",
+              "min-h-11 shrink-0 border-b-2 px-4 py-2 font-heading text-body-md transition-colors duration-hover-fast",
               activeId === tab.id
                 ? "border-accent text-text"
                 : "border-transparent text-muted hover:text-text"

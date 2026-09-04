@@ -247,28 +247,36 @@ export function ProductDetailContent({
                           </div>
                         ))}
                       </dl>
-                    ) : null}
-                    {ingredients ? (
-                      <p className="mt-4 text-text">
-                        <span className="font-heading">{dictionary.product.ingredients}: </span>
-                        {ingredients}
-                      </p>
-                    ) : null}
-                    {allergens ? (
-                      <p className="mt-2 text-text">
-                        <span className="font-heading">{dictionary.product.allergens}: </span>
-                        {allergens}
-                      </p>
-                    ) : null}
+                    ) : (
+                      <p className="mt-3 text-muted">{dictionary.product.nutritionMissing}</p>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                id: "allergens",
+                label: dictionary.product.allergens,
+                content: allergens || mayContainTraces ? (
+                  <div className="space-y-3 text-text">
+                    {allergens ? <p>{allergens}</p> : null}
                     {mayContainTraces ? (
-                      <p className="mt-2 text-text">
-                        <span className="font-heading">
-                          {dictionary.product.mayContainTraces}:{" "}
-                        </span>
+                      <p>
+                        <span className="font-heading font-semibold">{dictionary.product.mayContainTraces}: </span>
                         {mayContainTraces}
                       </p>
                     ) : null}
                   </div>
+                ) : (
+                  <p className="text-muted">{dictionary.product.allergensMissing}</p>
+                ),
+              },
+              {
+                id: "ingredients",
+                label: dictionary.product.ingredients,
+                content: ingredients ? (
+                  <p className="whitespace-pre-wrap text-text">{ingredients}</p>
+                ) : (
+                  <p className="text-muted">{dictionary.product.ingredientsMissing}</p>
                 ),
               },
             ]}

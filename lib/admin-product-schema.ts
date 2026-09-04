@@ -25,6 +25,9 @@ export const productNutritionKeys = [
   "nutrition.fiber",
   "nutrition.protein",
   "nutrition.salt",
+  "ingredients",
+  "allergens",
+  "mayContainTraces",
 ] as const;
 
 const nutritionValueSchema = z
@@ -32,6 +35,13 @@ const nutritionValueSchema = z
   .trim()
   .max(12)
   .regex(/^(?:\d+(?:[.,]\d{1,3})?)?$/, "Gebruik een positief getal met maximaal drie decimalen.")
+  .transform((value) => value || null)
+  .or(z.null());
+
+const productInformationValueSchema = z
+  .string()
+  .trim()
+  .max(10_000)
   .transform((value) => value || null)
   .or(z.null());
 
@@ -46,6 +56,9 @@ export const productNutritionInputSchema = z
     "nutrition.fiber": nutritionValueSchema.optional(),
     "nutrition.protein": nutritionValueSchema.optional(),
     "nutrition.salt": nutritionValueSchema.optional(),
+    ingredients: productInformationValueSchema.optional(),
+    allergens: productInformationValueSchema.optional(),
+    mayContainTraces: productInformationValueSchema.optional(),
   })
   .strict();
 

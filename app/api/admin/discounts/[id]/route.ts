@@ -17,6 +17,11 @@ const discountPatchSchema = z
     status: z.enum(["DRAFT", "ACTIVE", "SCHEDULED", "EXPIRED"]).optional(),
     percentOff: z.number().int().nullable().optional(),
     amountOffCents: z.number().int().nullable().optional(),
+    minimumOrderCents: z.number().int().min(0).max(100_000_000).optional(),
+    maximumDiscountCents: z.number().int().min(1).max(100_000_000).nullable().optional(),
+    redemptionMode: z.enum(["SINGLE_USE", "MULTIPLE_USE"]).optional(),
+    identityScope: z.enum(["EMAIL", "CUSTOMER", "EMAIL_AND_CUSTOMER"]).optional(),
+    maxUsesPerIdentity: z.number().int().min(1).max(100_000).nullable().optional(),
     startsAt: z.string().trim().nullable().optional(),
     endsAt: z.string().trim().nullable().optional(),
   })
@@ -60,6 +65,11 @@ export async function PATCH(
     amountOffCents?: number | null;
     startsAt?: Date | null;
     endsAt?: Date | null;
+    minimumOrderCents?: number;
+    maximumDiscountCents?: number | null;
+    redemptionMode?: "SINGLE_USE" | "MULTIPLE_USE";
+    identityScope?: "EMAIL" | "CUSTOMER" | "EMAIL_AND_CUSTOMER";
+    maxUsesPerIdentity?: number | null;
   } = {};
 
   if (input.code !== undefined) {
@@ -67,12 +77,28 @@ export async function PATCH(
     if (!CODE_PATTERN.test(code)) {
       return NextResponse.json({ error: "INVALID_CODE_FORMAT" }, { status: 400 });
     }
+    if (code !== existing.code) {
+      return NextResponse.json({ error: "CODE_IMMUTABLE" }, { status: 409 });
+    }
     data.code = code;
   }
 
   if (input.title !== undefined) data.title = input.title;
   if (input.subtitle !== undefined) data.subtitle = input.subtitle?.trim() ? input.subtitle.trim() : null;
   if (input.status !== undefined) data.status = input.status;
+  if (input.minimumOrderCents !== undefined) data.minimumOrderCents = input.minimumOrderCents;
+  if (input.maximumDiscountCents !== undefined) data.maximumDiscountCents = input.maximumDiscountCents;
+  if (input.redemptionMode !== undefined) data.redemptionMode = input.redemptionMode;
+  if (input.identityScope !== undefined) data.identityScope = input.identityScope;
+  if (input.maxUsesPerIdentity !== undefined) data.maxUsesPerIdentity = input.maxUsesPerIdentity;
+
+  const nextRedemptionMode = input.redemptionMode ?? existing.redemptionMode;
+  const nextMaxUses = input.maxUsesPerIdentity !== undefined ? input.maxUsesPerIdentity : existing.maxUsesPerIdentity;
+  if (nextRedemptionMode === "SINGLE_USE") {
+    data.maxUsesPerIdentity = 1;
+  } else if (nextMaxUses !== null && nextMaxUses < 1) {
+    return NextResponse.json({ error: "INVALID_MAX_USES" }, { status: 400 });
+  }
 
   const percentOffProvided = input.percentOff !== undefined;
   const amountOffCentsProvided = input.amountOffCents !== undefined;
@@ -95,7 +121,10 @@ export async function PATCH(
     }
     // Ensure the non-selected field is explicitly cleared.
     if (hasPercentOff) data.amountOffCents = null;
-    if (hasAmountOffCents) data.percentOff = null;
+    if (hasAmountOffCents) {
+      data.percentOff = null;
+      data.maximumDiscountCents = null;
+    }
   }
 
   if (input.startsAt !== undefined) {

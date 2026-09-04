@@ -735,11 +735,13 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items                OrderItem[]
-  refunds              OrderRefund[]
-  aftersalesDeliveries AftersalesDelivery[]
-  emailDeliveryLogs    EmailDeliveryLog[]
-  invoices             Invoice[]
+  items                        OrderItem[]
+  refunds                      OrderRefund[]
+  aftersalesDeliveries         AftersalesDelivery[]
+  emailDeliveryLogs            EmailDeliveryLog[]
+  invoices                     Invoice[]
+  discountRedemption           DiscountRedemption?
+  businessCancellationRequests BusinessOrderCancellationRequest[]
 
   @@index([userId])
   @@index([status])
@@ -871,17 +873,18 @@ model EmailDeliveryEvent {
 }
 
 model OrderItem {
-  id             String            @id @default(cuid())
-  orderId        String
-  order          Order             @relation(fields: [orderId], references: [id])
-  variantId      String?
-  variant        ProductVariant?   @relation(fields: [variantId], references: [id])
-  sku            String?
-  productName    String
-  variantLabel   String
-  quantity       Int
-  unitPriceCents Int
-  refundItems    OrderRefundItem[]
+  id                               String                                 @id @default(cuid())
+  orderId                          String
+  order                            Order                                  @relation(fields: [orderId], references: [id])
+  variantId                        String?
+  variant                          ProductVariant?                        @relation(fields: [variantId], references: [id])
+  sku                              String?
+  productName                      String
+  variantLabel                     String
+  quantity                         Int
+  unitPriceCents                   Int
+  refundItems                      OrderRefundItem[]
+  businessCancellationRequestItems BusinessOrderCancellationRequestItem[]
 
   @@index([orderId])
   @@index([variantId])
@@ -1368,18 +1371,67 @@ enum DiscountStatus {
   EXPIRED
 }
 
+enum DiscountRedemptionMode {
+  SINGLE_USE
+  MULTIPLE_USE
+}
+
+enum DiscountIdentityScope {
+  EMAIL
+  CUSTOMER
+  EMAIL_AND_CUSTOMER
+}
+
+enum DiscountRedemptionStatus {
+  RESERVED
+  REDEEMED
+  RELEASED
+}
+
 model Discount {
-  id             String         @id @default(cuid())
-  code           String         @unique
-  title          String
-  subtitle       String?
-  status         DiscountStatus @default(DRAFT)
-  percentOff     Int?
-  amountOffCents Int?
-  startsAt       DateTime?
-  endsAt         DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                   String                 @id @default(cuid())
+  code                 String                 @unique
+  title                String
+  subtitle             String?
+  status               DiscountStatus         @default(DRAFT)
+  percentOff           Int?
+  amountOffCents       Int?
+  minimumOrderCents    Int                    @default(0)
+  maximumDiscountCents Int?
+  redemptionMode       DiscountRedemptionMode @default(SINGLE_USE)
+  identityScope        DiscountIdentityScope  @default(EMAIL)
+  maxUsesPerIdentity   Int?                   @default(1)
+  startsAt             DateTime?
+  endsAt               DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+}
+
+model DiscountUsageCounter {
+  id          String   @id @default(cuid())
+  code        String
+  identityKey String
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  redemptions DiscountRedemption[]
+
+  @@unique([code, identityKey])
+  @@index([code, usageCount])
+}
+
+model DiscountRedemption {
+  id        String                   @id @default(cuid())
+  counterId String
+  counter   DiscountUsageCounter     @relation(fields: [counterId], references: [id], onDelete: Cascade)
+  orderId   String                   @unique
+  order     Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    DiscountRedemptionStatus @default(RESERVED)
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+
+  @@index([counterId, status])
 }
 
 enum MarketingBannerPlacement {
@@ -1519,11 +1571,12 @@ model BusinessAccount {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
-  invitations BusinessInvitation[]
-  sessions    BusinessSession[]
-  orderLists  BusinessOrderList[]
-  events      BusinessEvent[]
-  invoices    Invoice[]
+  invitations          BusinessInvitation[]
+  sessions             BusinessSession[]
+  orderLists           BusinessOrderList[]
+  events               BusinessEvent[]
+  invoices             Invoice[]
+  cancellationRequests BusinessOrderCancellationRequest[]
 }
 
 model BusinessLoginLinkRateLimit {
@@ -1570,6 +1623,7 @@ enum BusinessEventType {
   ORDER_LIST_DELETED
   ORDER_LIST_CHECKOUT_STARTED
   ORDER_LIST_PAID
+  ORDER_CANCELLATION_REQUESTED
   INVOICE_GENERATED
   INVOICE_SENT
   INVOICE_PEPPOL_SENT
@@ -1635,12 +1689,13 @@ model BusinessOrderList {
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
 
-  items  BusinessOrderListItem[]
-  notes  BusinessOrderListNote[]
-  events BusinessEvent[]
+  items                BusinessOrderListItem[]
+  notes                BusinessOrderListNote[]
+  events               BusinessEvent[]
   // A list is continuous/reusable: it accumulates one Order per checkout
   // round instead of being retired by its first payment.
-  orders Order[]
+  orders               Order[]
+  cancellationRequests BusinessOrderCancellationRequest[]
 
   @@index([businessAccountId, createdAt])
   @@index([status, updatedAt])
@@ -1675,6 +1730,43 @@ model BusinessOrderListItem {
 
   @@index([orderListId, sortOrder])
   @@index([productVariantId])
+}
+
+enum BusinessCancellationRequestStatus {
+  PENDING
+  PROCESSED
+  REJECTED
+}
+
+model BusinessOrderCancellationRequest {
+  id                String                            @id @default(cuid())
+  businessAccountId String
+  businessAccount   BusinessAccount                   @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  orderListId       String
+  orderList         BusinessOrderList                 @relation(fields: [orderListId], references: [id], onDelete: Cascade)
+  orderId           String
+  order             Order                             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status            BusinessCancellationRequestStatus @default(PENDING)
+  reason            String?
+  createdAt         DateTime                          @default(now())
+  updatedAt         DateTime                          @updatedAt
+
+  items BusinessOrderCancellationRequestItem[]
+
+  @@index([businessAccountId, createdAt])
+  @@index([orderListId, createdAt])
+  @@index([orderId, status])
+}
+
+model BusinessOrderCancellationRequestItem {
+  requestId   String
+  request     BusinessOrderCancellationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  orderItemId String
+  orderItem   OrderItem                        @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  quantity    Int
+
+  @@id([requestId, orderItemId])
+  @@index([orderItemId])
 }
 
 model BusinessOrderListNote {

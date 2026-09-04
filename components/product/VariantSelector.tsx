@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Minus, Plus, ShoppingCart } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Minus, Plus, ShoppingCart } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 import type { ProductVariantDto } from "@/lib/queries";
 import { addCartItem } from "@/lib/storefront-state";
@@ -10,6 +10,7 @@ import { VariantRows } from "@/components/product/VariantRows";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
+import { ProductQuickViewAddedActions } from "@/components/product/ProductQuickView";
 
 const dictionaries = { nl, en, fr };
 
@@ -42,12 +43,19 @@ export function VariantSelector({
   const [selectedId, setSelectedId] = useState(initialVariant?.id);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const cartActionRef = useRef<HTMLAnchorElement>(null);
   const selected = variants.find((variant) => variant.id === selectedId) ?? firstVariant;
 
   useEffect(() => {
     const requestedVariant = variants.find((variant) => variant.sku === initialVariantSku);
     if (requestedVariant) setSelectedId(requestedVariant.id);
   }, [initialVariantSku, variants]);
+
+  useEffect(() => {
+    if (!added) return;
+    const frame = window.requestAnimationFrame(() => cartActionRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [added]);
 
   if (!selected) {
     return null;
@@ -96,6 +104,22 @@ export function VariantSelector({
         ariaLabel={dictionary.product.selectQuantity}
       />
 
+      {added ? (
+        <div className="mt-5">
+          <ProductQuickViewAddedActions
+            locale={locale}
+            productName={product.name}
+            quantity={quantity}
+            labels={{
+              added: dictionary.product.addedToCart,
+              goToCart: dictionary.product.goToCart,
+              continueShopping: dictionary.product.continueShopping,
+            }}
+            onContinue={() => setAdded(false)}
+            primaryActionRef={cartActionRef}
+          />
+        </div>
+      ) : (
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-stretch">
         <div className="grid h-12 shrink-0 grid-cols-3 overflow-hidden rounded border border-[#A8A8A8] bg-white sm:w-[132px]">
           <button
@@ -134,20 +158,11 @@ export function VariantSelector({
           onClick={addSelectedToCart}
           className={`${productActionButtonClass} h-12 flex-1`}
         >
-          {added ? (
-            <Check className="h-5 w-5" aria-hidden="true" />
-          ) : (
-            <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-          )}
-          <span aria-live="polite">
-            {added
-              ? dictionary.product.addedToCart
-              : isActive
-                ? dictionary.product.order
-                : dictionary.product.outOfStock}
-          </span>
+          <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+          <span>{isActive ? dictionary.product.order : dictionary.product.outOfStock}</span>
         </button>
       </div>
+      )}
     </div>
   );
 }

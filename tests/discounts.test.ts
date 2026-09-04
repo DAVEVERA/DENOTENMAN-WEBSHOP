@@ -6,6 +6,7 @@ import {
   evaluateFirstOrderDiscount,
   hasDiscountCode,
   MARKET_DISCOUNT_CODES,
+  resolveDiscountUsagePolicy,
   resolvePaymentDisposition,
 } from "../lib/discounts";
 
@@ -37,6 +38,10 @@ const activeFixedDiscount = {
   startsAt: null,
   endsAt: null,
 };
+assert.equal(
+  calculateConfiguredDiscount(1_999, "ZOMER5", { ...activeFixedDiscount, minimumOrderCents: 2_000 }),
+  null
+);
 assert.deepEqual(calculateConfiguredDiscount(2_000, " zomer5 ", activeFixedDiscount), {
   code: "ZOMER5",
   amountOffCents: 500,
@@ -59,6 +64,10 @@ const scheduledPercentDiscount = {
   startsAt: new Date("2026-08-17T00:00:00.000Z"),
   endsAt: new Date("2026-08-18T23:59:59.999Z"),
 };
+assert.deepEqual(
+  calculateConfiguredDiscount(10_000, "WEEKEND20", { ...scheduledPercentDiscount, maximumDiscountCents: 1_250 }, new Date("2026-08-17T12:00:00.000Z")),
+  { code: "WEEKEND20", percent: 20, discountCents: 1_250 }
+);
 assert.deepEqual(
   calculateConfiguredDiscount(
     10_000,
@@ -137,5 +146,39 @@ assert.deepEqual(
 assert.equal(resolvePaymentDisposition(true, 0), "TEST_COMPLETE");
 assert.equal(resolvePaymentDisposition(false, 0), "MOLLIE");
 assert.equal(resolvePaymentDisposition(true, 1), "MOLLIE");
+
+assert.deepEqual(resolveDiscountUsagePolicy("marktactie10"), {
+  code: "marktactie10",
+  identityScope: "EMAIL",
+  maxUsesPerIdentity: 1,
+});
+assert.deepEqual(resolveDiscountUsagePolicy("SINGLE", {
+  ...activeFixedDiscount,
+  code: "SINGLE",
+  redemptionMode: "SINGLE_USE",
+  identityScope: "EMAIL_AND_CUSTOMER",
+  maxUsesPerIdentity: 99,
+}), {
+  code: "SINGLE",
+  identityScope: "EMAIL_AND_CUSTOMER",
+  maxUsesPerIdentity: 1,
+});
+assert.deepEqual(resolveDiscountUsagePolicy("LOYAL", {
+  ...activeFixedDiscount,
+  code: "LOYAL",
+  redemptionMode: "MULTIPLE_USE",
+  identityScope: "CUSTOMER",
+  maxUsesPerIdentity: 3,
+}), {
+  code: "LOYAL",
+  identityScope: "CUSTOMER",
+  maxUsesPerIdentity: 3,
+});
+assert.equal(resolveDiscountUsagePolicy("UNLIMITED", {
+  ...activeFixedDiscount,
+  code: "UNLIMITED",
+  redemptionMode: "MULTIPLE_USE",
+  maxUsesPerIdentity: null,
+}).maxUsesPerIdentity, null);
 
 console.log("discount tests passed");

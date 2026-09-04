@@ -78,7 +78,16 @@ export default async function ZakelijkDetailPage({
         include: {
           items: { orderBy: { sortOrder: "asc" } },
           notes: { orderBy: { createdAt: "desc" } },
-          orders: { orderBy: { createdAt: "desc" }, where: { status: { in: ["PAID", "FULFILLED"] } }, take: 10 },
+          orders: {
+            orderBy: { createdAt: "desc" },
+            take: 10,
+            include: {
+              businessCancellationRequests: {
+                orderBy: { createdAt: "desc" },
+                include: { items: true },
+              },
+            },
+          },
         },
       },
       invitations: { orderBy: { createdAt: "desc" }, take: 5 },
@@ -212,14 +221,29 @@ export default async function ZakelijkDetailPage({
                       })}
                     </ul>
                     {orderList.notes.length > 0 ? <div className="mt-3 rounded-card bg-[#FFF9DA] p-3 text-body-sm"><strong className="text-text">Laatste notitie van {orderList.notes[0].authorName}</strong><p className="mt-1 whitespace-pre-wrap text-muted">{orderList.notes[0].text}</p></div> : null}
-                    {orderList.orders.length > 0 ? (
+                    {orderList.orders.some((order) => ["PAID", "FULFILLED", "REFUNDED", "CANCELLED"].includes(order.status)) ? (
                       <div className="mt-3 rounded-card border border-border bg-background p-3">
-                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Eerdere bestellingen ({orderList.orders.length})</p>
-                        <ul className="mt-2 grid gap-1 text-body-sm">
-                          {orderList.orders.map((order) => (
-                            <li key={order.id} className="flex items-center justify-between gap-2">
-                              <span className="text-muted">{order.paidAt ? formatDateTime(order.paidAt) : formatDateTime(order.createdAt)}</span>
-                              <span className="font-semibold text-text">{formatPrice(order.totalCents, "nl")}</span>
+                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Eerdere bestellingen</p>
+                        <ul className="mt-2 grid gap-2 text-body-sm">
+                          {orderList.orders.filter((order) => ["PAID", "FULFILLED", "REFUNDED", "CANCELLED"].includes(order.status)).map((order) => (
+                            <li key={order.id} className="rounded-card border border-border bg-surface px-3 py-2">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="text-muted">{order.paidAt ? formatDateTime(order.paidAt) : formatDateTime(order.createdAt)}</span>
+                                <span className="font-semibold text-text">{formatPrice(order.totalCents, "nl")}</span>
+                              </div>
+                              {order.businessCancellationRequests.some((request) => request.status === "PENDING") ? (
+                                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-card bg-amber-50 px-3 py-2 text-amber-900">
+                                  <strong>
+                                    Annuleringsaanvraag voor {order.businessCancellationRequests
+                                      .filter((request) => request.status === "PENDING")
+                                      .flatMap((request) => request.items)
+                                      .reduce((sum, item) => sum + item.quantity, 0)} artikel(en)
+                                  </strong>
+                                  <Link href={`/admin/bestellingen/${order.id}`} className="font-heading font-bold underline underline-offset-4">
+                                    Bestelling beoordelen
+                                  </Link>
+                                </div>
+                              ) : null}
                             </li>
                           ))}
                         </ul>
@@ -227,13 +251,11 @@ export default async function ZakelijkDetailPage({
                     ) : null}
                     {orderList.deliveryStatus === "FAILED" ? <p className="mt-3 rounded-card bg-red-50 p-3 text-body-sm font-semibold text-red-700">De klantmail is niet verzonden. Probeer opnieuw.</p> : null}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {orderList.status !== "PAID" && orderList.status !== "CANCELLED" ? (
-                        <Link href={`/admin/zakelijk/${businessAccount.id}/bestellijsten/${orderList.id}/bewerken`} className="inline-flex min-h-11 items-center rounded-button border border-border px-4 font-heading text-body-sm font-bold text-text">
-                          Bewerken
-                        </Link>
-                      ) : null}
+                      <Link href={`/admin/zakelijk/${businessAccount.id}/bestellijsten/${orderList.id}/bewerken`} className="inline-flex min-h-11 items-center rounded-button border border-border px-4 font-heading text-body-sm font-bold text-text">
+                        Bewerken
+                      </Link>
                     </div>
-                    <BusinessOrderListActions accountId={businessAccount.id} orderListId={orderList.id} status={orderList.status} deliveryStatus={orderList.deliveryStatus} updatedAt={orderList.updatedAt.toISOString()} />
+                    <BusinessOrderListActions accountId={businessAccount.id} orderListId={orderList.id} status={orderList.status} deliveryStatus={orderList.deliveryStatus} updatedAt={orderList.updatedAt.toISOString()} hasPendingOrder={orderList.orders.some((order) => order.status === "PENDING")} />
                   </article>
                 ))}
               </div>

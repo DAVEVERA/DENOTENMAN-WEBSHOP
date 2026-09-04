@@ -15,6 +15,17 @@ export type ConfiguredDiscount = {
   amountOffCents: number | null;
   startsAt: Date | null;
   endsAt: Date | null;
+  minimumOrderCents?: number;
+  maximumDiscountCents?: number | null;
+  redemptionMode?: "SINGLE_USE" | "MULTIPLE_USE";
+  identityScope?: "EMAIL" | "CUSTOMER" | "EMAIL_AND_CUSTOMER";
+  maxUsesPerIdentity?: number | null;
+};
+
+export type DiscountUsagePolicy = {
+  code: string;
+  identityScope: "EMAIL" | "CUSTOMER" | "EMAIL_AND_CUSTOMER";
+  maxUsesPerIdentity: number | null;
 };
 
 export type FirstOrderDiscountEvaluation =
@@ -51,14 +62,13 @@ export function calculateConfiguredDiscount(
   if (!activeByStatus || !hasStarted || !hasNotEnded) return null;
 
   const safeSubtotal = Math.max(0, subtotalCents);
+  if (safeSubtotal < (configured.minimumOrderCents ?? 0)) return null;
   if (configured.percentOff !== null) {
+    const calculated = Math.round((safeSubtotal * configured.percentOff) / 100);
     return {
       code: configured.code,
       percent: configured.percentOff,
-      discountCents: Math.min(
-        safeSubtotal,
-        Math.round((safeSubtotal * configured.percentOff) / 100)
-      ),
+      discountCents: Math.min(safeSubtotal, configured.maximumDiscountCents ?? calculated, calculated),
     };
   }
   if (configured.amountOffCents !== null) {
@@ -70,6 +80,23 @@ export function calculateConfiguredDiscount(
   }
 
   return null;
+}
+
+export function resolveDiscountUsagePolicy(
+  code: string,
+  configured?: ConfiguredDiscount | null
+): DiscountUsagePolicy {
+  if (!configured) {
+    return { code, identityScope: "EMAIL", maxUsesPerIdentity: 1 };
+  }
+  return {
+    code: configured.code,
+    identityScope: configured.identityScope ?? "EMAIL",
+    maxUsesPerIdentity:
+      configured.redemptionMode === "MULTIPLE_USE"
+        ? configured.maxUsesPerIdentity ?? null
+        : 1,
+  };
 }
 
 export function calculateDiscount(
@@ -145,6 +172,9 @@ export function evaluateCheckoutDiscount(
   }
 
   if (configuredDiscount) {
+    if (subtotalCents < (configuredDiscount.minimumOrderCents ?? 0)) {
+      return { status: "ineligible" };
+    }
     const discount = calculateConfiguredDiscount(
       subtotalCents,
       submittedCode,

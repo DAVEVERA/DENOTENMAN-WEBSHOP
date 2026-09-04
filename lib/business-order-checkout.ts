@@ -18,22 +18,17 @@ import type { BusinessAccount, BusinessOrderListItem } from "@prisma/client";
  * idempotency check.
  *
  * The order list itself is continuous — it is never "used up" by a
- * payment. Quantities reset to a clean slate for the next ordering round;
- * the completed round remains visible to the customer via the Order row
- * itself (see the orders relation), not via the list's own state.
+ * payment. Products, agreed prices and current quantities remain available
+ * for a next round; the immutable completed round lives on its own Order row.
  */
 export async function markBusinessOrderListPaid(
   tx: Prisma.TransactionClient,
   businessOrderListId: string
 ): Promise<void> {
   const orderList = await tx.businessOrderList.findUniqueOrThrow({ where: { id: businessOrderListId } });
-  await tx.businessOrderListItem.updateMany({
-    where: { orderListId: businessOrderListId, quantity: { gt: 0 } },
-    data: { quantity: 0 },
-  });
   await tx.businessOrderList.update({
     where: { id: businessOrderListId },
-    data: { totalCents: 0, version: { increment: 1 } },
+    data: { version: { increment: 1 } },
   });
   await recordBusinessEvent(tx, {
     businessAccountId: orderList.businessAccountId,

@@ -68,6 +68,14 @@ export function ProductQuickViewAddedActions({
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
+        <button
+          type="button"
+          onClick={onContinue}
+          className="inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded border-2 border-black bg-white px-4 font-heading font-semibold text-black transition-colors hover:bg-[#F6F3EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 active:bg-[#EDE7DE]"
+        >
+          <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span>{labels.continueShopping}</span>
+        </button>
         <Link
           ref={primaryActionRef}
           href={cartPath(locale)}
@@ -77,14 +85,6 @@ export function ProductQuickViewAddedActions({
           <ShoppingCart className="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>{labels.goToCart}</span>
         </Link>
-        <button
-          type="button"
-          onClick={onContinue}
-          className="inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded border-2 border-black bg-white px-4 font-heading font-semibold text-black transition-colors hover:bg-[#F6F3EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 active:bg-[#EDE7DE]"
-        >
-          <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
-          <span>{labels.continueShopping}</span>
-        </button>
       </div>
     </div>
   );
@@ -97,7 +97,7 @@ const quickViewCopies: Record<Locale, ProductQuickViewCopy> = {
     outOfStock: "Niet op voorraad",
     inStock: "Op voorraad",
     quantity: "Aantal",
-    added: "Toegevoegd aan je winkelwagen",
+    added: "Toegevoegd!",
     goToCart: "Naar winkelwagen",
     continueShopping: "Verder winkelen",
     order: "Bestellen",
@@ -112,7 +112,7 @@ const quickViewCopies: Record<Locale, ProductQuickViewCopy> = {
     outOfStock: "Out of stock",
     inStock: "In stock",
     quantity: "Quantity",
-    added: "Added to your cart",
+    added: "Added!",
     goToCart: "Go to cart",
     continueShopping: "Continue shopping",
     order: "Order",
@@ -127,7 +127,7 @@ const quickViewCopies: Record<Locale, ProductQuickViewCopy> = {
     outOfStock: "Rupture de stock",
     inStock: "En stock",
     quantity: "Quantit\u00e9",
-    added: "Ajout\u00e9 \u00e0 votre panier",
+    added: "Ajout\u00e9 !",
     goToCart: "Voir le panier",
     continueShopping: "Continuer mes achats",
     order: "Commander",
