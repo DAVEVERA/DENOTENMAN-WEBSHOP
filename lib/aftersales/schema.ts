@@ -23,7 +23,7 @@ export type AftersalesLocaleContent = {
 
 export type AftersalesContent = Record<Locale, AftersalesLocaleContent>;
 
-export const AFTERSALES_LAYOUTS = ["CLASSIC", "IMAGE_TOP", "IMAGE_SIDE", "IMAGE_BOTTOM"] as const;
+export const AFTERSALES_LAYOUTS = ["CLASSIC", "IMAGE_TOP", "IMAGE_SIDE", "IMAGE_BOTTOM", "GRID_2COL", "TABLE"] as const;
 export type AftersalesLayout = (typeof AFTERSALES_LAYOUTS)[number];
 
 export const AFTERSALES_FONTS = ["SANS", "SERIF", "MODERN"] as const;
@@ -32,12 +32,29 @@ export type AftersalesFont = (typeof AFTERSALES_FONTS)[number];
 export const AFTERSALES_FONT_SIZES = ["COMPACT", "STANDAARD", "GROOT"] as const;
 export type AftersalesFontSize = (typeof AFTERSALES_FONT_SIZES)[number];
 
+export type AftersalesGridItem = {
+  imageUrl: string | null;
+  imageAlt: string;
+  heading: string;
+  body: string;
+};
+
+export type AftersalesTableRow = { cells: string[] };
+
 export type AftersalesDesign = {
   layout: AftersalesLayout;
   font: AftersalesFont;
   fontSize: AftersalesFontSize;
   mediaUrl: string | null;
   mediaAlt: string;
+  // Only rendered when layout is GRID_2COL - up to 4 image+text cards laid
+  // out two per row (a real HTML table under the hood, for email-client
+  // compatibility, not CSS grid).
+  gridItems: AftersalesGridItem[];
+  // Only rendered when layout is TABLE - a simple data table (e.g. a price
+  // list) below the main text.
+  tableHeaders: string[];
+  tableRows: AftersalesTableRow[];
 };
 
 export const defaultAftersalesDesign: AftersalesDesign = {
@@ -46,7 +63,25 @@ export const defaultAftersalesDesign: AftersalesDesign = {
   fontSize: "STANDAARD",
   mediaUrl: null,
   mediaAlt: "",
+  gridItems: [],
+  tableHeaders: [],
+  tableRows: [],
 };
+
+const MAX_GRID_ITEMS = 4;
+const MAX_TABLE_ROWS = 20;
+const MAX_TABLE_COLUMNS = 6;
+
+const aftersalesGridItemSchema = z.object({
+  imageUrl: z.string().trim().url().nullable().default(null),
+  imageAlt: z.string().trim().max(200).default(""),
+  heading: z.string().trim().max(120).default(""),
+  body: z.string().trim().max(400).default(""),
+}).strict();
+
+const aftersalesTableRowSchema = z.object({
+  cells: z.array(z.string().trim().max(200)).max(MAX_TABLE_COLUMNS),
+}).strict();
 
 export const aftersalesDesignSchema = z.object({
   layout: z.enum(AFTERSALES_LAYOUTS).default("CLASSIC"),
@@ -54,6 +89,9 @@ export const aftersalesDesignSchema = z.object({
   fontSize: z.enum(AFTERSALES_FONT_SIZES).default("STANDAARD"),
   mediaUrl: z.string().trim().url().nullable().default(null),
   mediaAlt: z.string().trim().max(200).default(""),
+  gridItems: z.array(aftersalesGridItemSchema).max(MAX_GRID_ITEMS).default([]),
+  tableHeaders: z.array(z.string().trim().max(80)).max(MAX_TABLE_COLUMNS).default([]),
+  tableRows: z.array(aftersalesTableRowSchema).max(MAX_TABLE_ROWS).default([]),
 }).strict();
 
 export type AftersalesStepContent = {

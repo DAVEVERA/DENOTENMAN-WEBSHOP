@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { Order, OrderItem } from "@prisma/client";
 import { renderAftersalesEmail } from "../lib/aftersales/template";
+import { defaultAftersalesDesign } from "../lib/aftersales/schema";
 
 const order = {
   id: "order-123",
@@ -48,4 +49,50 @@ test("shipping email links to PostNL when tracking data is available", () => {
   assert.match(rendered.actionUrl, /^https:\/\/jouw\.postnl\.nl\/track-and-trace\//);
   assert.match(rendered.html, /3SNOTEN123/);
   assert.doesNotMatch(rendered.html, /Cashews &amp; amandelen/);
+});
+
+test("GRID_2COL layout renders up to 4 items in a 2-per-row table, escaped", () => {
+  const design = {
+    ...defaultAftersalesDesign,
+    layout: "GRID_2COL" as const,
+    gridItems: [
+      { imageUrl: "https://cdn.example.com/a.jpg", imageAlt: "A", heading: "Amandelen <b>vers</b>", body: "Om te bakken" },
+      { imageUrl: null, imageAlt: "", heading: "Cashews", body: "Puur genot" },
+      { imageUrl: null, imageAlt: "", heading: "Walnoten", body: "" },
+    ],
+  };
+  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, design);
+  assert.match(rendered.html, /Amandelen &lt;b&gt;vers&lt;\/b&gt;/);
+  assert.match(rendered.html, /Cashews/);
+  assert.match(rendered.html, /Walnoten/);
+  assert.match(rendered.html, /<img src="https:\/\/cdn\.example\.com\/a\.jpg"/);
+  // 3 items -> 2 rows (2 + 1), never a single row with 3 cells.
+  const rowCount = (rendered.html.match(/<tr>/g) ?? []).length;
+  assert.ok(rowCount >= 2, `expected at least 2 <tr> rows for 3 grid items, got ${rowCount}`);
+});
+
+test("GRID_2COL layout omits empty items and renders nothing when all items are blank", () => {
+  const design = { ...defaultAftersalesDesign, layout: "GRID_2COL" as const, gridItems: [{ imageUrl: null, imageAlt: "", heading: "", body: "" }] };
+  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, design);
+  assert.doesNotMatch(rendered.html, /width="50%"/);
+});
+
+test("TABLE layout renders headers and rows, escaped", () => {
+  const design = {
+    ...defaultAftersalesDesign,
+    layout: "TABLE" as const,
+    tableHeaders: ["Product", "Prijs"],
+    tableRows: [{ cells: ["Amandelen 500g", "€ 6,95"] }, { cells: ["<script>x</script>", "€ 1,00"] }],
+  };
+  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, design);
+  assert.match(rendered.html, /<th[^>]*>Product<\/th>/);
+  assert.match(rendered.html, /<th[^>]*>Prijs<\/th>/);
+  assert.match(rendered.html, /Amandelen 500g/);
+  assert.doesNotMatch(rendered.html, /<script>x<\/script>/);
+});
+
+test("TABLE layout with no rows renders nothing extra", () => {
+  const design = { ...defaultAftersalesDesign, layout: "TABLE" as const };
+  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, design);
+  assert.doesNotMatch(rendered.html, /<thead>/);
 });

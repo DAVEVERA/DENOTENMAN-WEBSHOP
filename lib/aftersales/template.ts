@@ -28,6 +28,29 @@ function mediaBlockHtml(design: AftersalesDesign, altFallback: string): string {
   return `<img src="${escapeHtml(design.mediaUrl)}" alt="${alt}" width="544" style="display:block;width:100%;max-width:544px;height:auto;border-radius:8px;margin:0 0 18px" />`;
 }
 
+function gridBlockHtml(design: AftersalesDesign): string {
+  const items = design.gridItems.filter((item) => item.heading.trim() || item.body.trim() || item.imageUrl);
+  if (items.length === 0) return "";
+  const cells = items.map((item) => `
+    <td width="50%" valign="top" style="padding:0 8px 16px 0">
+      ${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.imageAlt || item.heading)}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border-radius:8px;margin:0 0 8px" />` : ""}
+      ${item.heading ? `<p style="margin:0 0 4px;color:#141414;font-size:15px;font-weight:700">${escapeHtml(item.heading)}</p>` : ""}
+      ${item.body ? `<p style="margin:0;color:#4f4a42;font-size:14px;line-height:1.5">${escapeHtml(item.body)}</p>` : ""}
+    </td>`);
+  const rows: string[] = [];
+  for (let i = 0; i < cells.length; i += 2) rows.push(`<tr>${cells.slice(i, i + 2).join("")}</tr>`);
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px"><tbody>${rows.join("")}</tbody></table>`;
+}
+
+function tableBlockHtml(design: AftersalesDesign): string {
+  if (design.tableRows.length === 0) return "";
+  const head = design.tableHeaders.length > 0
+    ? `<tr>${design.tableHeaders.map((header) => `<th style="padding:8px 10px;border-bottom:2px solid #e0b200;text-align:left;color:#141414;font-size:13px;font-weight:700">${escapeHtml(header)}</th>`).join("")}</tr>`
+    : "";
+  const body = design.tableRows.map((row) => `<tr>${row.cells.map((cell) => `<td style="padding:8px 10px;border-bottom:1px solid #e4dfd5;color:#333;font-size:14px">${escapeHtml(cell)}</td>`).join("")}</tr>`).join("");
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px">${head ? `<thead>${head}</thead>` : ""}<tbody>${body}</tbody></table>`;
+}
+
 type OrderWithItems = Order & { items: OrderItem[] };
 
 export type RenderedAftersalesEmail = {
@@ -136,7 +159,11 @@ export function renderAftersalesEmail(
       ? `${media}${textBlock}`
       : design.layout === "IMAGE_BOTTOM" && media
         ? `${textBlock}${media}`
-        : textBlock;
+        : design.layout === "GRID_2COL"
+          ? `${textBlock}${gridBlockHtml(design)}`
+          : design.layout === "TABLE"
+            ? `${textBlock}${tableBlockHtml(design)}`
+            : textBlock;
 
   const html = `<!doctype html>
 <html lang="${locale}" dir="ltr">

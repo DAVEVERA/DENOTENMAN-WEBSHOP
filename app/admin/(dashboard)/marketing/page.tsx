@@ -14,13 +14,13 @@ export default async function MarketingHubPage() {
 
   const sections = [
     {
-      title: "Acties",
+      title: "Kortingsacties",
       href: "/admin/marketing/acties",
       description: "Campagnes, kanalen en tijdelijke commerciële acties.",
       count: campaignCount,
     },
     {
-      title: "Banners",
+      title: "Website banners",
       href: "/admin/marketing/banners",
       description: "Homepage-, categorie- en promotiebanners beheren.",
       count: bannerCount,

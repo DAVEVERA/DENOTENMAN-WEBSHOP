@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   Mail,
   PackageCheck,
+  Plus,
   Save,
   Send,
   Truck,
@@ -33,6 +34,8 @@ const layoutLabels: Record<AftersalesDesign["layout"], string> = {
   IMAGE_TOP: "Afbeelding boven tekst",
   IMAGE_SIDE: "Afbeelding naast tekst",
   IMAGE_BOTTOM: "Afbeelding onder tekst",
+  GRID_2COL: "Grid (2 kolommen)",
+  TABLE: "Tabel",
 };
 
 const fontLabels: Record<AftersalesDesign["font"], string> = {
@@ -131,13 +134,38 @@ function previewDocument(content: AftersalesContent[Locale], trigger: Aftersales
     ? `<img src="${escapeHtml(design.mediaUrl)}" alt="${escapeHtml(design.mediaAlt || heading)}" width="544" style="display:block;width:100%;max-width:544px;height:auto;border-radius:8px;margin:0 0 18px" />`
     : "";
   const textBlock = `<h1 style="margin:12px 0 10px;color:#141414;font-size:${sizes.heading}px;line-height:1.25">${escapeHtml(heading)}</h1><p style="color:#4f4a42;font-size:${sizes.body}px;line-height:1.65">${escapeHtml(body).replaceAll("\n", "<br>")}</p>`;
+  const gridBlock = (() => {
+    const items = design.gridItems.filter((item) => item.heading.trim() || item.body.trim() || item.imageUrl);
+    if (items.length === 0) return "";
+    const cells = items.map((item) => `
+      <td width="50%" valign="top" style="padding:0 8px 16px 0">
+        ${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.imageAlt || item.heading)}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border-radius:8px;margin:0 0 8px" />` : ""}
+        ${item.heading ? `<p style="margin:0 0 4px;color:#141414;font-size:15px;font-weight:700">${escapeHtml(item.heading)}</p>` : ""}
+        ${item.body ? `<p style="margin:0;color:#4f4a42;font-size:14px;line-height:1.5">${escapeHtml(item.body)}</p>` : ""}
+      </td>`);
+    const rows: string[] = [];
+    for (let i = 0; i < cells.length; i += 2) rows.push(`<tr>${cells.slice(i, i + 2).join("")}</tr>`);
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px"><tbody>${rows.join("")}</tbody></table>`;
+  })();
+  const tableBlock = (() => {
+    if (design.tableRows.length === 0) return "";
+    const head = design.tableHeaders.length > 0
+      ? `<tr>${design.tableHeaders.map((header) => `<th style="padding:8px 10px;border-bottom:2px solid #e0b200;text-align:left;color:#141414;font-size:13px;font-weight:700">${escapeHtml(header)}</th>`).join("")}</tr>`
+      : "";
+    const rowsHtml = design.tableRows.map((row) => `<tr>${row.cells.map((cell) => `<td style="padding:8px 10px;border-bottom:1px solid #e4dfd5;color:#333;font-size:14px">${escapeHtml(cell)}</td>`).join("")}</tr>`).join("");
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px">${head ? `<thead>${head}</thead>` : ""}<tbody>${rowsHtml}</tbody></table>`;
+  })();
   const contentBlock = design.layout === "IMAGE_SIDE" && media
     ? `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td width="200" valign="top" style="padding:0 16px 0 0">${media}</td><td valign="top">${textBlock}</td></tr></table>`
     : design.layout === "IMAGE_TOP" && media
       ? `${media}${textBlock}`
       : design.layout === "IMAGE_BOTTOM" && media
         ? `${textBlock}${media}`
-        : textBlock;
+        : design.layout === "GRID_2COL"
+          ? `${textBlock}${gridBlock}`
+          : design.layout === "TABLE"
+            ? `${textBlock}${tableBlock}`
+            : textBlock;
   return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head><body style="margin:0;background:#f6f3ee;font-family:${fontStack}"><div style="padding:18px 10px"><div style="max-width:600px;margin:auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff"><div style="height:5px;background:#e0b200"></div><div style="padding:28px">${brandBlock}${contentBlock}<div style="margin:18px 0;padding:14px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;font-size:14px"><strong>Bestelnummer:</strong> DN-2026-1842</div>${detail}<a href="#" style="display:block;margin-top:26px;min-height:44px;box-sizing:border-box;padding:14px;border-radius:8px;background:#e0b200;color:#141414;font-size:16px;font-weight:700;text-align:center;text-decoration:none">${escapeHtml(button)}</a></div><div style="padding:18px 28px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px">Vragen? Beantwoord deze e-mail; we helpen je graag.</div></div></div></body></html>`;
 }
 
@@ -162,7 +190,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [testEmail, setTestEmail] = useState("");
-  const [mediaPickerFor, setMediaPickerFor] = useState<"logo" | "step" | null>(null);
+  const [mediaPickerFor, setMediaPickerFor] = useState<"logo" | "step" | { gridIndex: number } | null>(null);
   const [mediaOptions, setMediaOptions] = useState<MediaOption[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
 
@@ -199,7 +227,63 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
     }));
   }
 
-  async function openMediaPicker(target: "logo" | "step") {
+  function addGridItem() {
+    if (!selectedStep || selectedStep.content.design.gridItems.length >= 4) return;
+    updateDesign({ gridItems: [...selectedStep.content.design.gridItems, { imageUrl: null, imageAlt: "", heading: "", body: "" }] });
+  }
+
+  function updateGridItem(index: number, patch: Partial<AftersalesDesign["gridItems"][number]>) {
+    if (!selectedStep) return;
+    updateDesign({ gridItems: selectedStep.content.design.gridItems.map((item, i) => (i === index ? { ...item, ...patch } : item)) });
+  }
+
+  function removeGridItem(index: number) {
+    if (!selectedStep) return;
+    updateDesign({ gridItems: selectedStep.content.design.gridItems.filter((_, i) => i !== index) });
+  }
+
+  function addTableColumn() {
+    if (!selectedStep || selectedStep.content.design.tableHeaders.length >= 6) return;
+    updateDesign({
+      tableHeaders: [...selectedStep.content.design.tableHeaders, ""],
+      tableRows: selectedStep.content.design.tableRows.map((row) => ({ cells: [...row.cells, ""] })),
+    });
+  }
+
+  function removeTableColumn(colIndex: number) {
+    if (!selectedStep) return;
+    updateDesign({
+      tableHeaders: selectedStep.content.design.tableHeaders.filter((_, i) => i !== colIndex),
+      tableRows: selectedStep.content.design.tableRows.map((row) => ({ cells: row.cells.filter((_, i) => i !== colIndex) })),
+    });
+  }
+
+  function updateTableHeader(colIndex: number, value: string) {
+    if (!selectedStep) return;
+    updateDesign({ tableHeaders: selectedStep.content.design.tableHeaders.map((header, i) => (i === colIndex ? value : header)) });
+  }
+
+  function addTableRow() {
+    if (!selectedStep || selectedStep.content.design.tableRows.length >= 20) return;
+    const columnCount = Math.max(selectedStep.content.design.tableHeaders.length, 1);
+    updateDesign({ tableRows: [...selectedStep.content.design.tableRows, { cells: Array.from({ length: columnCount }, () => "") }] });
+  }
+
+  function removeTableRow(rowIndex: number) {
+    if (!selectedStep) return;
+    updateDesign({ tableRows: selectedStep.content.design.tableRows.filter((_, i) => i !== rowIndex) });
+  }
+
+  function updateTableCell(rowIndex: number, colIndex: number, value: string) {
+    if (!selectedStep) return;
+    updateDesign({
+      tableRows: selectedStep.content.design.tableRows.map((row, i) =>
+        i === rowIndex ? { cells: row.cells.map((cell, j) => (j === colIndex ? value : cell)) } : row
+      ),
+    });
+  }
+
+  async function openMediaPicker(target: "logo" | "step" | { gridIndex: number }) {
     setMediaPickerFor(target);
     setMediaLoading(true);
     try {
@@ -216,6 +300,8 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
       markChanged({ ...flow, logoUrl: url });
     } else if (mediaPickerFor === "step") {
       updateDesign({ mediaUrl: url });
+    } else if (mediaPickerFor && typeof mediaPickerFor === "object") {
+      updateGridItem(mediaPickerFor.gridIndex, { imageUrl: url });
     }
     setMediaPickerFor(null);
   }
@@ -480,6 +566,78 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                   <div className="mt-3">
                     <label htmlFor="design-media-alt" className="font-heading text-body-sm font-semibold">Alt-tekst afbeelding</label>
                     <input id="design-media-alt" value={selectedStep.content.design.mediaAlt} maxLength={200} onChange={(event) => updateDesign({ mediaAlt: event.target.value })} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
+                  </div>
+                ) : null}
+
+                {selectedStep.content.design.layout === "GRID_2COL" ? (
+                  <div className="mt-4 border-t border-border pt-4">
+                    <div className="flex items-center justify-between">
+                      <p className="font-heading text-body-sm font-semibold">Grid-items (max 4)</p>
+                      <button type="button" onClick={addGridItem} disabled={selectedStep.content.design.gridItems.length >= 4} className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"><Plus size={14} />Item toevoegen</button>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {selectedStep.content.design.gridItems.map((item, index) => (
+                        <div key={index} className="rounded-button border border-border bg-white p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-12 w-16 rounded border border-border object-cover" /> : <span className="text-xs text-muted">Geen afbeelding</span>}
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => openMediaPicker({ gridIndex: index })} className="text-xs font-semibold text-accent-hover">Kies afbeelding</button>
+                              <button type="button" onClick={() => removeGridItem(index)} className="text-xs font-semibold text-red-700">Verwijder</button>
+                            </div>
+                          </div>
+                          <input value={item.heading} maxLength={120} onChange={(event) => updateGridItem(index, { heading: event.target.value })} placeholder="Kop" className="mt-2 min-h-9 w-full rounded-button border border-border bg-background px-2 text-body-sm" />
+                          <textarea value={item.body} maxLength={400} rows={2} onChange={(event) => updateGridItem(index, { body: event.target.value })} placeholder="Tekst" className="mt-2 w-full rounded-button border border-border bg-background px-2 py-1 text-body-sm" />
+                        </div>
+                      ))}
+                      {selectedStep.content.design.gridItems.length === 0 ? <p className="text-body-sm text-muted">Nog geen items. Voeg er een toe.</p> : null}
+                    </div>
+                  </div>
+                ) : null}
+
+                {selectedStep.content.design.layout === "TABLE" ? (
+                  <div className="mt-4 border-t border-border pt-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-heading text-body-sm font-semibold">Tabel (max 6 kolommen, 20 rijen)</p>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={addTableColumn} disabled={selectedStep.content.design.tableHeaders.length >= 6} className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"><Plus size={14} />Kolom</button>
+                        <button type="button" onClick={addTableRow} disabled={selectedStep.content.design.tableRows.length >= 20} className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"><Plus size={14} />Rij</button>
+                      </div>
+                    </div>
+                    {selectedStep.content.design.tableHeaders.length === 0 ? (
+                      <p className="mt-2 text-body-sm text-muted">Voeg eerst een kolom toe.</p>
+                    ) : (
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="w-full min-w-[480px] text-body-sm">
+                          <thead>
+                            <tr>
+                              {selectedStep.content.design.tableHeaders.map((header, colIndex) => (
+                                <th key={colIndex} className="px-1 pb-2 text-left">
+                                  <div className="flex items-center gap-1">
+                                    <input value={header} maxLength={80} onChange={(event) => updateTableHeader(colIndex, event.target.value)} placeholder={`Kolom ${colIndex + 1}`} className="min-h-9 w-full rounded-button border border-border bg-white px-2 text-xs font-bold" />
+                                    <button type="button" onClick={() => removeTableColumn(colIndex)} aria-label="Verwijder kolom" className="shrink-0 text-red-700"><X size={14} /></button>
+                                  </div>
+                                </th>
+                              ))}
+                              <th className="w-8" />
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedStep.content.design.tableRows.map((row, rowIndex) => (
+                              <tr key={rowIndex}>
+                                {selectedStep.content.design.tableHeaders.map((_, colIndex) => (
+                                  <td key={colIndex} className="px-1 py-1">
+                                    <input value={row.cells[colIndex] ?? ""} maxLength={200} onChange={(event) => updateTableCell(rowIndex, colIndex, event.target.value)} className="min-h-9 w-full rounded-button border border-border bg-white px-2 text-xs" />
+                                  </td>
+                                ))}
+                                <td className="px-1 py-1">
+                                  <button type="button" onClick={() => removeTableRow(rowIndex)} aria-label="Verwijder rij" className="text-red-700"><X size={14} /></button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 ) : null}
               </div>
