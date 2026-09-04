@@ -7,6 +7,7 @@ import { formatPrice } from "@/lib/format";
 import { calculateVat } from "@/lib/business-vat";
 import { BusinessPasswordSettings } from "./BusinessPasswordSettings";
 import { BusinessAccountSettings } from "./BusinessAccountSettings";
+import { PickupDayCalendar } from "@/components/business-portal/PickupDayCalendar";
 
 type PortalItem = {
   id: string;
@@ -28,6 +29,7 @@ type PortalList = {
   status: string;
   version: number;
   totalCents: number;
+  pickupDay: string | null;
   validUntil: string | null;
   sentAt: string | null;
   approvedAt: string | null;
@@ -119,6 +121,8 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [priceRequestBusyId, setPriceRequestBusyId] = useState<string | null>(null);
   const [priceRequestedIds, setPriceRequestedIds] = useState<Set<string>>(new Set());
+  const [pickupDay, setPickupDay] = useState<Date | null>(list.pickupDay ? new Date(list.pickupDay) : null);
+  const [pickupDayBusy, setPickupDayBusy] = useState(false);
 
   // A newer version means the server state moved on (our own save, Fedor's
   // edit, or a payment resetting the list) — resync local inputs to match.
@@ -216,6 +220,24 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
     }
   }
 
+  async function selectPickupDay(day: Date | null) {
+    const previous = pickupDay;
+    setPickupDay(day);
+    setPickupDayBusy(true);
+    try {
+      const response = await fetch(`/api/business/order-lists/${list.id}/pickup-day`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pickupDay: day ? day.toISOString() : null }),
+      });
+      if (!response.ok) setPickupDay(previous);
+    } catch {
+      setPickupDay(previous);
+    } finally {
+      setPickupDayBusy(false);
+    }
+  }
+
   async function startCheckout() {
     setCheckoutBusy(true);
     setCheckoutError(null);
@@ -300,6 +322,13 @@ function OrderListReview({ list, account }: { list: PortalList; account: PortalA
                 );
               })}
             </ul>
+            <div className="mt-6">
+              <h3 className="font-heading font-bold text-text">Voorkeursdag ophalen (optioneel)</h3>
+              <div className="mt-2">
+                <PickupDayCalendar selectedDay={pickupDay} onSelect={selectPickupDay} disabled={pickupDayBusy} />
+              </div>
+            </div>
+
             <div className="mt-5 space-y-1 border-t border-border pt-4 text-body-sm">
               <div className="flex items-center justify-between text-muted">
                 <span>Subtotaal (excl. BTW)</span>

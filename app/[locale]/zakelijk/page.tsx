@@ -61,6 +61,7 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
       status: list.status,
       version: list.version,
       totalCents: list.totalCents,
+      pickupDay: list.pickupDay?.toISOString() ?? null,
       validUntil: list.validUntil?.toISOString() ?? null,
       sentAt: list.sentAt?.toISOString() ?? null,
       approvedAt: list.approvedAt?.toISOString() ?? null,

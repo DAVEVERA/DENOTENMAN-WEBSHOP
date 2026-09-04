@@ -30,6 +30,16 @@ export const MARKET_STOPS = {
 export type MarketStopId = keyof typeof MARKET_STOPS;
 export type MarketStop = (typeof MARKET_STOPS)[MarketStopId];
 
+// Fixed brand colors per market stop, used to color-code pickup-day
+// calendars. Haaren is the home base rather than a market stand, so it
+// gets a neutral tone instead of one of the three requested market colors.
+export const MARKET_STOP_COLORS: Record<MarketStopId, { bg: string; text: string; dot: string }> = {
+  hilvarenbeek: { bg: "bg-blue-100", text: "text-blue-900", dot: "bg-blue-500" },
+  uden: { bg: "bg-emerald-100", text: "text-emerald-900", dot: "bg-emerald-500" },
+  antwerpen: { bg: "bg-orange-100", text: "text-orange-900", dot: "bg-orange-500" },
+  haaren: { bg: "bg-slate-100", text: "text-slate-700", dot: "bg-slate-400" },
+};
+
 export const MARKET_ROUTE_GROUPS: readonly {
   stopId: MarketStopId;
   weekdays: readonly number[];

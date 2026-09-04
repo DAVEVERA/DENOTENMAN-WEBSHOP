@@ -1563,6 +1563,7 @@ enum BusinessEventType {
   ORDER_LIST_QUANTITIES_CHANGED
   ORDER_LIST_NOTE_ADDED
   ORDER_LIST_PRICE_REQUESTED
+  ORDER_LIST_PICKUP_DAY_SET
   ORDER_LIST_APPROVED
   ORDER_LIST_CHANGES_REQUESTED
   ORDER_LIST_CANCELLED
@@ -1620,6 +1621,11 @@ model BusinessOrderList {
   validUntil        DateTime?
   sentAt            DateTime?
   approvedAt        DateTime?
+  // Customer's preferred pickup day for this round's order - a plain
+  // informational preference, not a hard gate on checkout. Day only, no
+  // time (midnight local); the actual market schedule/colors live in
+  // lib/market-schedule.ts.
+  pickupDay         DateTime?
   deliveryStatus    String                  @default("NONE")
   providerMessageId String?
   deliveryError     String?

@@ -180,7 +180,15 @@ export default async function ZakelijkDetailPage({
                 {businessAccount.orderLists.map((orderList) => (
                   <article key={orderList.id} className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div><h3 className="font-heading text-heading-sm text-text">{orderList.title}</h3><p className="mt-1 text-body-sm text-muted">{orderList.items.length} {orderList.items.length === 1 ? "regel" : "regels"} · {formatPrice(orderList.totalCents, "nl")}</p></div>
+                      <div>
+                        <h3 className="font-heading text-heading-sm text-text">{orderList.title}</h3>
+                        <p className="mt-1 text-body-sm text-muted">{orderList.items.length} {orderList.items.length === 1 ? "regel" : "regels"} · {formatPrice(orderList.totalCents, "nl")}</p>
+                        {orderList.pickupDay ? (
+                          <p className="mt-1 text-body-sm font-semibold text-accent-hover">
+                            Voorkeursdag ophalen: {new Intl.DateTimeFormat("nl-NL", { weekday: "long", day: "numeric", month: "long" }).format(orderList.pickupDay)}
+                          </p>
+                        ) : null}
+                      </div>
                       <span className={`rounded-button px-2 py-1 text-xs font-bold ${ORDER_LIST_STATUS_CLASSES[orderList.status]}`}>{ORDER_LIST_STATUS_LABELS[orderList.status]}</span>
                     </div>
                     <ul className="mt-4 divide-y divide-border rounded-card border border-border">
