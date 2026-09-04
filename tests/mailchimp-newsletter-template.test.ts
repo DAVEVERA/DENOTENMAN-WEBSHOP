@@ -11,6 +11,16 @@ assert.equal(sanitized.includes("<script"), false);
 assert.equal(sanitized.includes("javascript:"), false);
 assert.equal(sanitized.includes("Nieuwe noten"), true);
 
+const withImage = sanitizeNewsletterContent(
+  '<p>Kijk</p><img src="https://cdn.example.com/media-library/abc.jpg" alt="Test" style="display:block;width:100%;max-width:600px;height:auto;border-radius:8px" onerror="alert(1)" />'
+);
+assert.equal(withImage.includes('src="https://cdn.example.com/media-library/abc.jpg"'), true);
+assert.equal(withImage.includes("border-radius:8px"), true);
+assert.equal(withImage.includes("onerror"), false);
+
+const badImageScheme = sanitizeNewsletterContent('<img src="javascript:alert(1)" alt="bad" />');
+assert.equal(badImageScheme.includes("javascript:"), false);
+
 const html = buildNewsletterHtml({
   subject: "Proef & geniet",
   previewText: "Nieuwe producten",

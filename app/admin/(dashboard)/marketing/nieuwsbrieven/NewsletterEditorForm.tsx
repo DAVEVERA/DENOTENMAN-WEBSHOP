@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MediaPickerButton } from "@/components/admin-panel/MediaPickerButton";
 
 type NewsletterDraft = {
   subject: string;
@@ -62,6 +63,7 @@ export function NewsletterEditorForm({
   const [error, setError] = useState<string | null>(null);
   const [testEmail, setTestEmail] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
+  const contentRef = useRef<HTMLTextAreaElement>(null);
   const editable = mode === "create" || campaignStatus === "save";
   const preview = useMemo(() => previewDocument(draft), [draft]);
 
@@ -69,6 +71,19 @@ export function NewsletterEditorForm({
     setDraft((current) => ({ ...current, [field]: value }));
     setDirty(true);
     setMessage(null);
+  }
+
+  function insertImage(url: string) {
+    const textarea = contentRef.current;
+    const tag = `<img src="${url}" alt="" style="display:block;width:100%;max-width:600px;height:auto;border-radius:8px" />`;
+    const current = draft.contentHtml;
+    if (!textarea) {
+      update("contentHtml", `${current}${tag}`);
+      return;
+    }
+    const start = textarea.selectionStart ?? current.length;
+    const end = textarea.selectionEnd ?? current.length;
+    update("contentHtml", `${current.slice(0, start)}${tag}${current.slice(end)}`);
   }
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
@@ -210,8 +225,11 @@ export function NewsletterEditorForm({
           </div>
 
           <div>
-            <label htmlFor="newsletter-content" className="font-heading text-body-sm font-semibold text-text">Inhoud (veilige HTML)</label>
-            <textarea id="newsletter-content" required rows={16} maxLength={100000} value={draft.contentHtml} onChange={(event) => update("contentHtml", event.target.value)} className="mt-1 w-full rounded-button border border-border bg-background px-3 py-2 font-mono text-body-sm" />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label htmlFor="newsletter-content" className="font-heading text-body-sm font-semibold text-text">Inhoud (veilige HTML)</label>
+              <MediaPickerButton onSelect={insertImage} label="Afbeelding invoegen" />
+            </div>
+            <textarea ref={contentRef} id="newsletter-content" required rows={16} maxLength={100000} value={draft.contentHtml} onChange={(event) => update("contentHtml", event.target.value)} className="mt-1 w-full rounded-button border border-border bg-background px-3 py-2 font-mono text-body-sm" />
             <p className="mt-1 text-xs text-muted">Scripts, trackingcode en onveilige links worden vóór opslag verwijderd.</p>
           </div>
         </fieldset>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { MediaPickerButton } from "@/components/admin-panel/MediaPickerButton";
 
 type SaveState = "idle" | "saving" | "error";
 
@@ -107,15 +108,21 @@ export function BannerCreateForm() {
           <label htmlFor="banner-image-url" className="font-heading text-body-sm font-semibold text-text">
             Afbeelding-URL of storage key
           </label>
-          <input
-            id="banner-image-url"
-            type="text"
-            value={imageUrl}
-            onChange={(event) => setImageUrl(event.target.value)}
-            required
-            placeholder="https://… of banners/homepage-1.jpg"
-            className="mt-1 w-full rounded-button border border-border bg-background px-3 py-2 text-body-md text-text focus:outline-none focus:ring-2 focus:ring-accent"
-          />
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <input
+              id="banner-image-url"
+              type="text"
+              value={imageUrl}
+              onChange={(event) => setImageUrl(event.target.value)}
+              required
+              placeholder="https://… of banners/homepage-1.jpg"
+              className="min-w-0 flex-1 rounded-button border border-border bg-background px-3 py-2 text-body-md text-text focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+            <MediaPickerButton onSelect={(url) => setImageUrl(url)} />
+          </div>
+          {imageUrl.trim() ? (
+            <img src={imageUrl} alt="" className="mt-2 h-20 w-32 rounded-button border border-border object-cover" />
+          ) : null}
         </div>
 
         <div>

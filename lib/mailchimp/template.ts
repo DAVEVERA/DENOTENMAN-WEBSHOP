@@ -29,9 +29,12 @@ export function sanitizeNewsletterContent(contentHtml: string): string {
       "br",
       "blockquote",
       "hr",
+      "img",
     ],
-    allowedAttributes: { a: ["href", "title", "target"] },
+    allowedAttributes: { a: ["href", "title", "target"], img: ["src", "alt", "width", "style"] },
     allowedSchemes: ["http", "https", "mailto"],
+    allowedSchemesByTag: { img: ["https"] },
+    allowedStyles: { img: { width: [/^\d+(?:px|%)$/], "max-width": [/^\d+(?:px|%)$/], height: [/^auto$/], display: [/^block$/], "border-radius": [/^\d+px$/] } },
     transformTags: {
       a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer" }, true),
     },
