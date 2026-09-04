@@ -3,6 +3,9 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MediaPickerButton } from "@/components/admin-panel/MediaPickerButton";
+import { buildGridBlockHtml, buildTableBlockHtml } from "@/lib/mailchimp/blocks";
+import { InsertGridDialog, type GridItemDraft } from "./InsertGridDialog";
+import { InsertTableDialog } from "./InsertTableDialog";
 
 type NewsletterDraft = {
   subject: string;
@@ -63,6 +66,8 @@ export function NewsletterEditorForm({
   const [error, setError] = useState<string | null>(null);
   const [testEmail, setTestEmail] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
+  const [gridDialogOpen, setGridDialogOpen] = useState(false);
+  const [tableDialogOpen, setTableDialogOpen] = useState(false);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const editable = mode === "create" || campaignStatus === "save";
   const preview = useMemo(() => previewDocument(draft), [draft]);
@@ -73,17 +78,33 @@ export function NewsletterEditorForm({
     setMessage(null);
   }
 
-  function insertImage(url: string) {
+  function insertHtml(html: string) {
     const textarea = contentRef.current;
-    const tag = `<img src="${url}" alt="" style="display:block;width:100%;max-width:600px;height:auto;border-radius:8px" />`;
     const current = draft.contentHtml;
     if (!textarea) {
-      update("contentHtml", `${current}${tag}`);
+      update("contentHtml", `${current}${html}`);
       return;
     }
     const start = textarea.selectionStart ?? current.length;
     const end = textarea.selectionEnd ?? current.length;
-    update("contentHtml", `${current.slice(0, start)}${tag}${current.slice(end)}`);
+    update("contentHtml", `${current.slice(0, start)}${html}${current.slice(end)}`);
+  }
+
+  function insertImage(url: string) {
+    const tag = `<img src="${url}" alt="" style="display:block;width:100%;max-width:600px;height:auto;border-radius:8px" />`;
+    insertHtml(tag);
+  }
+
+  function insertGrid(items: GridItemDraft[]) {
+    const html = buildGridBlockHtml(items);
+    if (html) insertHtml(html);
+    setGridDialogOpen(false);
+  }
+
+  function insertTable(headers: string[], rows: string[][]) {
+    const html = buildTableBlockHtml(headers, rows);
+    if (html) insertHtml(html);
+    setTableDialogOpen(false);
   }
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
@@ -227,7 +248,23 @@ export function NewsletterEditorForm({
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label htmlFor="newsletter-content" className="font-heading text-body-sm font-semibold text-text">Inhoud (veilige HTML)</label>
-              <MediaPickerButton onSelect={insertImage} label="Afbeelding invoegen" />
+              <div className="flex flex-wrap gap-2">
+                <MediaPickerButton onSelect={insertImage} label="Afbeelding invoegen" />
+                <button
+                  type="button"
+                  onClick={() => setGridDialogOpen(true)}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-button border border-border bg-background px-3 text-xs font-semibold"
+                >
+                  Grid toevoegen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTableDialogOpen(true)}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-button border border-border bg-background px-3 text-xs font-semibold"
+                >
+                  Tabel toevoegen
+                </button>
+              </div>
             </div>
             <textarea ref={contentRef} id="newsletter-content" required rows={16} maxLength={100000} value={draft.contentHtml} onChange={(event) => update("contentHtml", event.target.value)} className="mt-1 w-full rounded-button border border-border bg-background px-3 py-2 font-mono text-body-sm" />
             <p className="mt-1 text-xs text-muted">Scripts, trackingcode en onveilige links worden vóór opslag verwijderd.</p>
@@ -276,6 +313,9 @@ export function NewsletterEditorForm({
           <iframe title="Mobiel voorbeeld nieuwsbrief" sandbox="" srcDoc={preview} className="h-[520px] w-full rounded-[18px] border border-border bg-white" />
         </div>
       </aside>
+
+      <InsertGridDialog open={gridDialogOpen} onClose={() => setGridDialogOpen(false)} onInsert={insertGrid} />
+      <InsertTableDialog open={tableDialogOpen} onClose={() => setTableDialogOpen(false)} onInsert={insertTable} />
     </div>
   );
 }

@@ -30,11 +30,62 @@ export function sanitizeNewsletterContent(contentHtml: string): string {
       "blockquote",
       "hr",
       "img",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
     ],
-    allowedAttributes: { a: ["href", "title", "target"], img: ["src", "alt", "width", "style"] },
+    allowedAttributes: {
+      a: ["href", "title", "target"],
+      img: ["src", "alt", "width", "style"],
+      table: ["width", "cellpadding", "cellspacing", "style"],
+      td: ["width", "valign", "style"],
+      th: ["style"],
+      // sanitize-html only consults allowedStyles for a tag once "style" is
+      // itself an allowed attribute on that tag - p had no attribute entry
+      // before this feature, so its allowedStyles.p rule below was a silent
+      // no-op without this.
+      p: ["style"],
+    },
     allowedSchemes: ["http", "https", "mailto"],
     allowedSchemesByTag: { img: ["https"] },
-    allowedStyles: { img: { width: [/^\d+(?:px|%)$/], "max-width": [/^\d+(?:px|%)$/], height: [/^auto$/], display: [/^block$/], "border-radius": [/^\d+px$/] } },
+    allowedStyles: {
+      img: {
+        width: [/^\d+(?:px|%)$/],
+        "max-width": [/^\d+(?:px|%)$/],
+        height: [/^auto$/],
+        display: [/^block$/],
+        "border-radius": [/^\d+px$/],
+        margin: [/^0 0 8px$/],
+      },
+      table: {
+        "border-collapse": [/^collapse$/],
+        margin: [/^0 0 18px$/],
+      },
+      td: {
+        padding: [/^0 8px 16px 0$/, /^8px 10px$/],
+        "border-bottom": [/^1px solid #e4dfd5$/],
+        color: [/^#4f4a42$/, /^#333$/],
+        "font-size": [/^14px$/],
+      },
+      th: {
+        padding: [/^8px 10px$/],
+        "border-bottom": [/^2px solid #e0b200$/],
+        "text-align": [/^left$/],
+        color: [/^#141414$/],
+        "font-size": [/^13px$/],
+        "font-weight": [/^700$/],
+      },
+      p: {
+        margin: [/^0 0 4px$/, /^0$/],
+        color: [/^#141414$/, /^#4f4a42$/],
+        "font-size": [/^15px$/, /^14px$/],
+        "font-weight": [/^700$/],
+        "line-height": [/^1\.5$/],
+      },
+    },
     transformTags: {
       a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer" }, true),
     },
