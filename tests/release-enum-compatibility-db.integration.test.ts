@@ -11,6 +11,17 @@ import { backfillAftersalesSteps } from "../lib/aftersales/defaults";
 // snapshot whatever's there, delete it, run the scenario on a fresh
 // throwaway flow of that same type, then restore the original flow and its
 // steps exactly as they were.
+//
+// Concurrency invariant: the release-QA runner uses --test-concurrency=3
+// (scripts/run-release-tests.cjs), so this borrow window genuinely overlaps
+// other test files against the same database. This is safe only because no
+// other real-database test currently touches AftersalesFlow/AftersalesStep -
+// every other Aftersales test mocks the Prisma delegate instead. If a future
+// test needs real-database access to these tables, either make it share this
+// same borrowed-slot pattern (never a second independent borrow) or wrap
+// this test's snapshot->delete->scenario->restore in a single
+// prisma.$transaction so the borrow becomes atomic and invisible to
+// concurrent readers.
 test("compatibility release defers new stock enum writes until activation and preserves them on rollback", async () => {
   const url = new URL(process.env.DATABASE_URL ?? "");
   assert.equal(url.hostname, "127.0.0.1");
@@ -26,11 +37,11 @@ test("compatibility release defers new stock enum writes until activation and pr
     const liveDeliveries = await prisma.aftersalesDelivery.count({
       where: { stepId: { in: original.steps.map((step) => step.id) } },
     });
-    assert.equal(
-      liveDeliveries,
-      0,
-      "refusing to delete the ZAKELIJK flow's steps: real AftersalesDelivery rows reference them (onDelete: Cascade would destroy delivery history)"
-    );
+    if (liveDeliveries > 0) {
+      throw new Error(
+        "refusing to delete the ZAKELIJK flow's steps: real AftersalesDelivery rows reference them (onDelete: Cascade would destroy delivery history)"
+      );
+    }
     await prisma.aftersalesFlow.delete({ where: { id: original.id } });
   }
 
@@ -75,6 +86,8 @@ test("compatibility release defers new stock enum writes until activation and pr
               position: step.position,
               enabled: step.enabled,
               delayMinutes: step.delayMinutes,
+              // Widen JsonValue -> InputJsonValue; the column is non-nullable
+              // and every producer writes a plain object, so JsonNull can't occur.
               content: step.content as object,
               createdAt: step.createdAt,
               updatedAt: step.updatedAt,
