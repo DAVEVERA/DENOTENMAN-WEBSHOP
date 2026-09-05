@@ -82,7 +82,21 @@ export async function POST(request: NextRequest) {
       return created;
     });
     return NextResponse.json(
-      { ok: true, asset: { ...asset, url: publicImageUrl(asset.storageKey), createdAt: asset.createdAt.toISOString() } },
+      {
+        ok: true,
+        asset: {
+          id: asset.id,
+          url: publicImageUrl(asset.storageKey),
+          originalFilename: asset.originalFilename,
+          contentType: asset.contentType,
+          sizeBytes: asset.sizeBytes,
+          width: asset.width,
+          height: asset.height,
+          altText: asset.altText,
+          uploadedByName: admin.name ?? null,
+          createdAt: asset.createdAt.toISOString(),
+        },
+      },
       { status: 201 }
     );
   } catch (error) {
