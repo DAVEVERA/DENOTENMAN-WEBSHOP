@@ -2,7 +2,11 @@
 
 import { Children, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import type { BusinessAccountStatus, BusinessVatRegime } from "@prisma/client";
+import type {
+  BusinessAccountStatus,
+  BusinessPickupFrequency,
+  BusinessVatRegime,
+} from "@prisma/client";
 import { cn } from "@/lib/cn";
 import { resolveVat, type BusinessVatCountry } from "@/lib/business-vat";
 
@@ -64,6 +68,13 @@ const STATUS_ACTIONS: {
       "border-border bg-background text-text hover:border-border-hover",
   },
 ];
+
+const PICKUP_LOCATION_OPTIONS = [
+  { value: "hilvarenbeek", label: "Hilvarenbeek" },
+  { value: "uden", label: "Uden" },
+  { value: "antwerpen", label: "Antwerpen" },
+  { value: "haaren", label: "Haaren (NB)" },
+] as const;
 
 const inputClass =
   "mt-1 min-h-12 w-full rounded-button border border-border bg-surface px-3 text-body-md text-text focus:border-accent focus:outline-none";
@@ -246,6 +257,8 @@ export function BusinessAccountSections({
   currentVatRatePercent,
   currentPeppolParticipantId,
   currentShippingEnabled,
+  currentFixedPickupLocationId,
+  currentPickupFrequency,
   currentBillingAddress,
   currentShippingAddress,
   contactCompanyOverview,
@@ -271,6 +284,8 @@ export function BusinessAccountSections({
   currentVatRatePercent: number;
   currentPeppolParticipantId: string;
   currentShippingEnabled: boolean;
+  currentFixedPickupLocationId: string | null;
+  currentPickupFrequency: BusinessPickupFrequency | null;
   currentBillingAddress: AddressFields;
   currentShippingAddress: AddressFields;
   contactCompanyOverview: ReactNode;
@@ -311,6 +326,11 @@ export function BusinessAccountSections({
   const [shippingEnabled, setShippingEnabled] = useState(
     currentShippingEnabled,
   );
+  const [fixedPickupLocationId, setFixedPickupLocationId] = useState(
+    currentFixedPickupLocationId ?? "",
+  );
+  const [pickupFrequency, setPickupFrequency] =
+    useState<BusinessPickupFrequency | "">(currentPickupFrequency ?? "");
   const [shippingAddress, setShippingAddress] = useState(
     currentShippingAddress,
   );
@@ -335,6 +355,8 @@ export function BusinessAccountSections({
     peppolParticipantId === currentPeppolParticipantId;
   const shippingUnchanged =
     shippingEnabled === currentShippingEnabled &&
+    fixedPickupLocationId === (currentFixedPickupLocationId ?? "") &&
+    pickupFrequency === (currentPickupFrequency ?? "") &&
     addressUnchanged(shippingAddress, currentShippingAddress);
   const billingUnchanged = addressUnchanged(
     billingAddress,
@@ -403,6 +425,8 @@ export function BusinessAccountSections({
     try {
       await patchBusinessAccount(businessAccountId, {
         shippingEnabled,
+        fixedPickupLocationId: fixedPickupLocationId || null,
+        pickupFrequency: pickupFrequency || null,
         shippingStreet:
           shippingAddress.street.trim().length > 0
             ? shippingAddress.street.trim()
@@ -802,7 +826,44 @@ export function BusinessAccountSections({
       <BusinessAccountSection title="Levering & adressen" eyebrow="Levering">
         <div key="delivery-overview">{deliveryOverview}</div>
         <div className="mt-6 border-t border-border pt-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className={labelClass}>
+              Vaste afhaallocatie
+              <select
+                value={fixedPickupLocationId}
+                onChange={(event) => {
+                  setFixedPickupLocationId(event.target.value);
+                  setShippingState("idle");
+                }}
+                className={inputClass}
+              >
+                <option value="">Geen vaste locatie</option>
+                {PICKUP_LOCATION_OPTIONS.map((location) => (
+                  <option key={location.value} value={location.value}>
+                    {location.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={labelClass}>
+              Afhaalfrequentie
+              <select
+                value={pickupFrequency}
+                onChange={(event) => {
+                  setPickupFrequency(event.target.value as BusinessPickupFrequency | "");
+                  setShippingState("idle");
+                }}
+                className={inputClass}
+              >
+                <option value="">Geen vast ritme</option>
+                <option value="WEEKLY">Wekelijks</option>
+                <option value="BIWEEKLY">Om de week</option>
+                <option value="MONTHLY">Maandelijks</option>
+                <option value="ON_REQUEST">Op aanvraag</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-heading text-heading-sm text-text">
               Verzendadres
             </h3>

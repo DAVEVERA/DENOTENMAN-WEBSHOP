@@ -22,7 +22,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     id,
     parsed.data.pickupDay ? new Date(parsed.data.pickupDay) : null
   );
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 404 });
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.error },
+      { status: result.error === "NOT_FOUND" ? 404 : 409 },
+    );
+  }
 
   return NextResponse.json({ ok: true, pickupDay: result.pickupDay });
 }

@@ -10,6 +10,7 @@ import { BusinessAccountSettings } from "./BusinessAccountSettings";
 import { BusinessLogoSettings } from "./BusinessLogoSettings";
 import { PickupDayCalendar } from "@/components/business-portal/PickupDayCalendar";
 import { BusinessPortalSection } from "./BusinessPortalSection";
+import { MARKET_STOPS, isMarketStopId } from "@/lib/market-schedule";
 
 type PortalItem = {
   id: string;
@@ -76,7 +77,16 @@ type PortalAccount = {
   vatNumber: string | null;
   peppolConfigured: boolean;
   peppolParticipantId: string | null;
+  fixedPickupLocationId: string | null;
+  pickupFrequency: string | null;
   hasPassword: boolean;
+};
+
+const PICKUP_FREQUENCY_LABELS: Record<string, string> = {
+  WEEKLY: "wekelijks",
+  BIWEEKLY: "om de week",
+  MONTHLY: "maandelijks",
+  ON_REQUEST: "op aanvraag",
 };
 
 export function BusinessPortalClient({ locale, account, initialOrderLists, currentTime }: { locale: string; account: PortalAccount; initialOrderLists: PortalList[]; currentTime: string }) {
@@ -180,6 +190,12 @@ function OrderListReview({ list, account, currentTime }: { list: PortalList; acc
   const payable = listActive && !list.paymentPending && !dirty && liveTotalCents > 0 && !hasUnresolvedPriceRequest;
   const { vatAmountCents, totalCents: payableTotalCents } = calculateVat(liveTotalCents, account.vatRatePercent);
   const isReverseCharge = account.vatRegime === "REVERSE_CHARGE";
+  const fixedPickupLocation = account.fixedPickupLocationId && isMarketStopId(account.fixedPickupLocationId)
+    ? MARKET_STOPS[account.fixedPickupLocationId]
+    : null;
+  const pickupFrequencyLabel = account.pickupFrequency
+    ? PICKUP_FREQUENCY_LABELS[account.pickupFrequency]
+    : null;
 
   // The customer may have just returned from Mollie before the webhook has
   // confirmed payment. Poll the server truth rather than trusting anything
@@ -350,9 +366,21 @@ function OrderListReview({ list, account, currentTime }: { list: PortalList; acc
             </ul>
             <p className="mt-2 text-xs text-muted">Aantal 0 betekent: wel bewaren op mijn vaste lijst, niet meenemen in deze bestelling.</p>
             <div className="mt-6">
-              <h3 className="font-heading font-bold text-text">Voorkeursdag ophalen (optioneel)</h3>
+              <h3 className="font-heading font-bold text-text">
+                {fixedPickupLocation ? `Afhaaldag bij ${fixedPickupLocation.name}` : "Voorkeursdag ophalen (optioneel)"}
+              </h3>
+              {fixedPickupLocation ? (
+                <p className="mt-1 text-xs text-muted">
+                  Je ziet alleen de afhaaldagen voor {fixedPickupLocation.name}{pickupFrequencyLabel ? `; afgesproken ritme: ${pickupFrequencyLabel}` : ""}.
+                </p>
+              ) : null}
               <div className="mt-2">
-                <PickupDayCalendar selectedDay={pickupDay} onSelect={selectPickupDay} disabled={pickupDayBusy} />
+                <PickupDayCalendar
+                  selectedDay={pickupDay}
+                  onSelect={selectPickupDay}
+                  disabled={pickupDayBusy}
+                  fixedPickupLocationId={account.fixedPickupLocationId}
+                />
               </div>
             </div>
 

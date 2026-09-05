@@ -141,6 +141,8 @@ export default async function BusinessPortalPage({ params }: { params: Promise<{
           vatNumber,
           peppolConfigured,
           peppolParticipantId,
+          fixedPickupLocationId: session.businessAccount.fixedPickupLocationId,
+          pickupFrequency: session.businessAccount.pickupFrequency,
           hasPassword: Boolean(session.businessAccount.passwordHash),
         }}
         initialOrderLists={serialized}

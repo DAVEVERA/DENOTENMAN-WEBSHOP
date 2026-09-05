@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { MARKET_STOPS, MARKET_STOP_COLORS, getMarketStopForDate } from "@/lib/market-schedule";
+import {
+  MARKET_STOPS,
+  MARKET_STOP_COLORS,
+  getMarketStopForDate,
+  isMarketStopId,
+  isPickupDayAllowedForLocation,
+  type MarketStopId,
+} from "@/lib/market-schedule";
 
 const WEEKDAY_LABELS = ["Zo", "Ma", "Di", "Wo", "Do", "Vr", "Za"];
 
@@ -20,10 +27,12 @@ export function PickupDayCalendar({
   selectedDay,
   onSelect,
   disabled = false,
+  fixedPickupLocationId = null,
 }: {
   selectedDay: Date | null;
   onSelect: (day: Date | null) => void;
   disabled?: boolean;
+  fixedPickupLocationId?: string | null;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const [visibleMonth, setVisibleMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -46,6 +55,9 @@ export function PickupDayCalendar({
   }, [visibleMonth]);
 
   const monthLabel = new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric" }).format(visibleMonth);
+  const legendIds: MarketStopId[] = fixedPickupLocationId && isMarketStopId(fixedPickupLocationId)
+    ? [fixedPickupLocationId]
+    : ["antwerpen", "uden", "hilvarenbeek", "haaren"];
 
   return (
     <div className="rounded-panel border border-border bg-surface p-4">
@@ -84,15 +96,18 @@ export function PickupDayCalendar({
           const stop = getMarketStopForDate(day);
           const colors = MARKET_STOP_COLORS[stop.id];
           const selected = selectedDay ? isSameDay(day, selectedDay) : false;
+          const allowedForLocation = isPickupDayAllowedForLocation(day, fixedPickupLocationId);
           return (
             <button
               key={day.toISOString()}
               type="button"
-              disabled={disabled || isPast || !inMonth}
+              disabled={disabled || isPast || !inMonth || !allowedForLocation}
               onClick={() => onSelect(selected ? null : day)}
-              title={stop.name}
+              title={allowedForLocation ? stop.name : undefined}
+              aria-label={allowedForLocation ? `${day.getDate()} ${monthLabel}, ${stop.name}` : undefined}
+              aria-hidden={!allowedForLocation || !inMonth ? true : undefined}
               className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-button text-xs font-semibold transition-colors duration-hover-fast ${
-                !inMonth ? "opacity-0" : isPast ? "cursor-not-allowed opacity-30" : ""
+                !inMonth || !allowedForLocation ? "pointer-events-none opacity-0" : isPast ? "cursor-not-allowed opacity-30" : ""
               } ${selected ? "ring-2 ring-accent ring-offset-1" : ""} ${colors.bg} ${colors.text}`}
             >
               <span>{day.getDate()}</span>
@@ -103,7 +118,7 @@ export function PickupDayCalendar({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted">
-        {(["antwerpen", "uden", "hilvarenbeek"] as const).map((id) => (
+        {legendIds.map((id) => (
           <span key={id} className="inline-flex items-center gap-1.5">
             <span className={`h-2.5 w-2.5 rounded-full ${MARKET_STOP_COLORS[id].dot}`} aria-hidden="true" />
             {MARKET_STOPS[id].name}
@@ -111,7 +126,7 @@ export function PickupDayCalendar({
         ))}
       </div>
 
-      {selectedDay ? (
+      {selectedDay && isPickupDayAllowedForLocation(selectedDay, fixedPickupLocationId) ? (
         <p className="mt-3 text-body-sm text-text">
           Voorkeursdag: <strong>{new Intl.DateTimeFormat("nl-NL", { weekday: "long", day: "numeric", month: "long" }).format(selectedDay)}</strong>
           {" · "}

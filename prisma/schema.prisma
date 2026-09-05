@@ -1532,48 +1532,59 @@ enum BusinessVatRegime {
   REVERSE_CHARGE
 }
 
+enum BusinessPickupFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  ON_REQUEST
+}
+
 model BusinessAccount {
-  id                   String                @id @default(cuid())
-  customerNumber       String?               @unique
-  companyName          String
-  contactName          String
-  email                String                @unique
-  phone                String?
-  vatNumber            String?
-  kvkNumber            String?
-  country              String                @default("NL")
-  vatRegime            BusinessVatRegime     @default(STANDARD)
-  vatRatePercent       Decimal               @default(9.00) @db.Decimal(5, 2)
-  peppolConfigured     Boolean               @default(false)
-  peppolParticipantId  String?
-  status               BusinessAccountStatus @default(PENDING)
-  notes                String?
-  loginLinkRequestedAt DateTime?
-  passwordHash         String?
+  id                          String                   @id @default(cuid())
+  customerNumber              String?                  @unique
+  companyName                 String
+  contactName                 String
+  email                       String                   @unique
+  phone                       String?
+  vatNumber                   String?
+  kvkNumber                   String?
+  country                     String                   @default("NL")
+  vatRegime                   BusinessVatRegime        @default(STANDARD)
+  vatRatePercent              Decimal                  @default(9.00) @db.Decimal(5, 2)
+  peppolConfigured            Boolean                  @default(false)
+  peppolParticipantId         String?
+  fixedPickupLocationId       String?
+  pickupFrequency             BusinessPickupFrequency?
+  businessNewsletterOptIn     Boolean                  @default(false)
+  businessNewsletterConsentAt DateTime?
+  status                      BusinessAccountStatus    @default(PENDING)
+  notes                       String?
+  loginLinkRequestedAt        DateTime?
+  passwordHash                String?
   // Immutable, account-scoped GCS object key. Public URLs are derived at
   // read time so a CDN hostname change does not invalidate stored data.
-  logoStorageKey       String?               @unique
-  shadowUserId         String?               @unique
-  shadowUser           User?                 @relation(fields: [shadowUserId], references: [id])
+  logoStorageKey              String?                  @unique
+  shadowUserId                String?                  @unique
+  shadowUser                  User?                    @relation(fields: [shadowUserId], references: [id])
   // Shipping is opt-in per account, toggled by an admin — until enabled the
   // customer only sees pickup at the market stall as an option.
-  shippingEnabled      Boolean               @default(false)
-  billingStreet        String?
-  billingHouseNumber   String?
-  billingPostalCode    String?
-  billingCity          String?
-  billingCountry       String?
-  shippingStreet       String?
-  shippingHouseNumber  String?
-  shippingPostalCode   String?
-  shippingCity         String?
-  shippingCountry      String?
+  shippingEnabled             Boolean                  @default(false)
+  billingStreet               String?
+  billingHouseNumber          String?
+  billingPostalCode           String?
+  billingCity                 String?
+  billingCountry              String?
+  shippingStreet              String?
+  shippingHouseNumber         String?
+  shippingPostalCode          String?
+  shippingCity                String?
+  shippingCountry             String?
   // Soft delete: an account can reference paid Orders/Invoices that must
   // remain valid historical records, so admin "delete" hides it instead of
   // removing the row.
-  deletedAt            DateTime?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  deletedAt                   DateTime?
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
 
   invitations          BusinessInvitation[]
   sessions             BusinessSession[]

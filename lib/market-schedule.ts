@@ -30,6 +30,10 @@ export const MARKET_STOPS = {
 export type MarketStopId = keyof typeof MARKET_STOPS;
 export type MarketStop = (typeof MARKET_STOPS)[MarketStopId];
 
+export function isMarketStopId(value: string): value is MarketStopId {
+  return Object.prototype.hasOwnProperty.call(MARKET_STOPS, value);
+}
+
 // Fixed brand colors per market stop, used to color-code pickup-day
 // calendars. Haaren is the home base rather than a market stand, so it
 // gets a neutral tone instead of one of the three requested market colors.
@@ -88,4 +92,13 @@ export function getMarketStopForWeekday(weekdayIndex: number): MarketStop {
 
 export function getMarketStopForDate(date: Date): MarketStop {
   return getMarketStopForWeekday(getAmsterdamWeekdayIndex(date));
+}
+
+export function isPickupDayAllowedForLocation(
+  date: Date,
+  fixedPickupLocationId: string | null | undefined,
+): boolean {
+  if (!fixedPickupLocationId) return true;
+  if (!isMarketStopId(fixedPickupLocationId)) return false;
+  return getMarketStopForDate(date).id === fixedPickupLocationId;
 }

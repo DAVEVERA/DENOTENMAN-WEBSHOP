@@ -20,7 +20,11 @@ const businessAccountPatchSchema = z
     country: z.enum(["NL", "BE"]).optional(),
     vatRegime: z.enum(["STANDARD", "REVERSE_CHARGE"]).optional(),
     vatRatePercent: z.coerce.number().min(0).max(100).optional(),
+    peppolConfigured: z.boolean().optional(),
     peppolParticipantId: z.string().trim().nullable().optional(),
+    fixedPickupLocationId: z.enum(["hilvarenbeek", "uden", "antwerpen", "haaren"]).nullable().optional(),
+    pickupFrequency: z.enum(["WEEKLY", "BIWEEKLY", "MONTHLY", "ON_REQUEST"]).nullable().optional(),
+    businessNewsletterOptIn: z.boolean().optional(),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "SUSPENDED"]).optional(),
     notes: z.string().trim().nullable().optional(),
     shippingEnabled: z.boolean().optional(),
@@ -94,6 +98,10 @@ export async function PATCH(
     vatRatePercent?: number;
     peppolParticipantId?: string | null;
     peppolConfigured?: boolean;
+    fixedPickupLocationId?: string | null;
+    pickupFrequency?: "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "ON_REQUEST" | null;
+    businessNewsletterOptIn?: boolean;
+    businessNewsletterConsentAt?: Date | null;
     status?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
     notes?: string | null;
     shippingEnabled?: boolean;
@@ -119,10 +127,19 @@ export async function PATCH(
   if (input.country !== undefined) data.country = input.country;
   if (input.vatRegime !== undefined) data.vatRegime = input.vatRegime;
   if (input.vatRatePercent !== undefined) data.vatRatePercent = input.vatRatePercent;
+  if (input.peppolConfigured !== undefined) data.peppolConfigured = input.peppolConfigured;
   if (input.peppolParticipantId !== undefined) {
     const trimmed = input.peppolParticipantId?.trim() || null;
     data.peppolParticipantId = trimmed;
-    data.peppolConfigured = Boolean(trimmed);
+    if (input.peppolConfigured === undefined) data.peppolConfigured = Boolean(trimmed);
+  }
+  if (input.fixedPickupLocationId !== undefined) data.fixedPickupLocationId = input.fixedPickupLocationId;
+  if (input.pickupFrequency !== undefined) data.pickupFrequency = input.pickupFrequency;
+  if (input.businessNewsletterOptIn !== undefined) {
+    data.businessNewsletterOptIn = input.businessNewsletterOptIn;
+    data.businessNewsletterConsentAt = input.businessNewsletterOptIn
+      ? existing.businessNewsletterConsentAt ?? new Date()
+      : null;
   }
   if (input.status !== undefined) data.status = input.status;
   if (input.notes !== undefined) data.notes = input.notes?.trim() ? input.notes.trim() : null;

@@ -26,6 +26,20 @@ const ORDER_LIST_STATUS_CLASSES: Record<BusinessOrderListStatus, string> = {
   CANCELLED: "bg-red-50 text-red-700",
 };
 
+const PICKUP_LOCATION_LABELS: Record<string, string> = {
+  hilvarenbeek: "Hilvarenbeek",
+  uden: "Uden",
+  antwerpen: "Antwerpen",
+  haaren: "Haaren (NB)",
+};
+
+const PICKUP_FREQUENCY_LABELS: Record<string, string> = {
+  WEEKLY: "Wekelijks",
+  BIWEEKLY: "Om de week",
+  MONTHLY: "Maandelijks",
+  ON_REQUEST: "Op aanvraag",
+};
+
 function formatAddress(
   street: string | null,
   houseNumber: string | null,
@@ -124,6 +138,8 @@ export default async function ZakelijkDetailPage({
         currentVatRatePercent={Number(businessAccount.vatRatePercent)}
         currentPeppolParticipantId={businessAccount.peppolParticipantId ?? ""}
         currentShippingEnabled={businessAccount.shippingEnabled}
+        currentFixedPickupLocationId={businessAccount.fixedPickupLocationId}
+        currentPickupFrequency={businessAccount.pickupFrequency}
         currentBillingAddress={{
           street: businessAccount.billingStreet ?? "",
           houseNumber: businessAccount.billingHouseNumber ?? "",
@@ -450,6 +466,22 @@ export default async function ZakelijkDetailPage({
                     </span>
                   </dd>
                 </div>
+                <div>
+                  <dt className="text-muted">Peppol</dt>
+                  <dd className="text-text">
+                    {businessAccount.peppolConfigured
+                      ? businessAccount.peppolParticipantId ?? "Geregistreerd, ID nog niet ingevuld"
+                      : "Niet geregistreerd"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted">Zakelijke nieuwsbrief</dt>
+                  <dd className="text-text">
+                    {businessAccount.businessNewsletterOptIn
+                      ? `Toestemming vastgelegd${businessAccount.businessNewsletterConsentAt ? ` op ${formatDateTime(businessAccount.businessNewsletterConsentAt)}` : ""}`
+                      : "Niet aangemeld"}
+                  </dd>
+                </div>
               </dl>
             </div>
           </div>
@@ -460,6 +492,22 @@ export default async function ZakelijkDetailPage({
               Levering &amp; adressen
             </h3>
             <dl className="mt-3 space-y-3 text-body-sm">
+              <div>
+                <dt className="text-muted">Vaste afhaallocatie</dt>
+                <dd className="text-text">
+                  {businessAccount.fixedPickupLocationId
+                    ? PICKUP_LOCATION_LABELS[businessAccount.fixedPickupLocationId] ?? businessAccount.fixedPickupLocationId
+                    : "Geen vaste locatie"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted">Afhaalfrequentie</dt>
+                <dd className="text-text">
+                  {businessAccount.pickupFrequency
+                    ? PICKUP_FREQUENCY_LABELS[businessAccount.pickupFrequency]
+                    : "Geen vast ritme"}
+                </dd>
+              </div>
               <div>
                 <dt className="text-muted">Verzending</dt>
                 <dd>

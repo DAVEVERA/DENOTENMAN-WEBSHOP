@@ -2,10 +2,11 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { recordBusinessEvent } from "@/lib/business-portal";
+import { isPickupDayAllowedForLocation } from "@/lib/market-schedule";
 
 export type SetPickupDayResult =
   | { ok: true; pickupDay: string | null }
-  | { ok: false; error: "NOT_FOUND" };
+  | { ok: false; error: "NOT_FOUND" | "PICKUP_LOCATION_MISMATCH" };
 
 /**
  * Optional customer preference, not a checkout gate: which day the business
@@ -20,9 +21,12 @@ export async function setBusinessOrderListPickupDay(
 ): Promise<SetPickupDayResult> {
   const orderList = await prisma.businessOrderList.findFirst({
     where: { id: orderListId, businessAccountId },
-    include: { businessAccount: { select: { contactName: true } } },
+    include: { businessAccount: { select: { contactName: true, fixedPickupLocationId: true } } },
   });
   if (!orderList) return { ok: false, error: "NOT_FOUND" };
+  if (pickupDay && !isPickupDayAllowedForLocation(pickupDay, orderList.businessAccount.fixedPickupLocationId)) {
+    return { ok: false, error: "PICKUP_LOCATION_MISMATCH" };
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.businessOrderList.update({ where: { id: orderListId }, data: { pickupDay } });
