@@ -1,8 +1,15 @@
 import { z } from "zod";
 import { locales, type Locale } from "@/lib/i18n";
 
-export const AFTERSALES_TRIGGERS = ["ORDER_PAID", "ORDER_FULFILLED", "BACK_IN_STOCK"] as const;
+export const PARTICULIER_TRIGGERS = ["ORDER_PAID", "ORDER_FULFILLED", "BACK_IN_STOCK"] as const;
+export const BUSINESS_TRIGGERS = ["BUSINESS_ORDER_PAID", "BUSINESS_ORDER_FULFILLED"] as const;
+export const AFTERSALES_TRIGGERS = [...PARTICULIER_TRIGGERS, ...BUSINESS_TRIGGERS] as const;
 export type AftersalesTriggerValue = (typeof AFTERSALES_TRIGGERS)[number];
+
+export const AFTERSALES_TRIGGERS_BY_FLOW_TYPE: Record<"PARTICULIER" | "ZAKELIJK", readonly AftersalesTriggerValue[]> = {
+  PARTICULIER: PARTICULIER_TRIGGERS,
+  ZAKELIJK: BUSINESS_TRIGGERS,
+};
 
 export const AFTERSALES_TOKENS = [
   "first_name",
@@ -13,12 +20,16 @@ export const AFTERSALES_TOKENS = [
   "order_url",
   "product_name",
   "product_url",
+  "business_name",
+  "contact_name",
 ] as const;
 
 export const AFTERSALES_TOKENS_BY_TRIGGER: Record<AftersalesTriggerValue, readonly string[]> = {
-  ORDER_PAID: AFTERSALES_TOKENS.filter((token) => !token.startsWith("product_")),
-  ORDER_FULFILLED: AFTERSALES_TOKENS.filter((token) => !token.startsWith("product_")),
+  ORDER_PAID: AFTERSALES_TOKENS.filter((token) => !token.startsWith("product_") && token !== "business_name" && token !== "contact_name"),
+  ORDER_FULFILLED: AFTERSALES_TOKENS.filter((token) => !token.startsWith("product_") && token !== "business_name" && token !== "contact_name"),
   BACK_IN_STOCK: ["product_name", "product_url"],
+  BUSINESS_ORDER_PAID: ["business_name", "contact_name", "order_number", "order_total", "order_url"],
+  BUSINESS_ORDER_FULFILLED: ["business_name", "contact_name", "order_number", "tracking_code", "order_url"],
 };
 
 export type AftersalesLocaleContent = {
@@ -167,22 +178,33 @@ export const aftersalesStepInputSchema = z.object({
 export const aftersalesFlowInputSchema = z.object({
   id: z.string().trim().min(1).max(100),
   name: z.string().trim().min(1, "Flownaam is verplicht").max(120),
+  flowType: z.enum(["PARTICULIER", "ZAKELIJK"]),
   isActive: z.boolean(),
   logoUrl: z.string().trim().url().nullable(),
   version: z.string().datetime(),
-  steps: z.array(aftersalesStepInputSchema).length(AFTERSALES_TRIGGERS.length),
+  steps: z.array(aftersalesStepInputSchema).min(1).max(AFTERSALES_TRIGGERS.length),
 }).strict().superRefine((input, context) => {
+  const expectedTriggers = AFTERSALES_TRIGGERS_BY_FLOW_TYPE[input.flowType];
   const ids = new Set(input.steps.map((step) => step.id));
   const triggers = new Set(input.steps.map((step) => step.trigger));
   if (ids.size !== input.steps.length) {
     context.addIssue({ code: "custom", path: ["steps"], message: "Stap-ID's moeten uniek zijn." });
   }
-  if (triggers.size !== AFTERSALES_TRIGGERS.length) {
+  if (input.steps.length !== expectedTriggers.length || triggers.size !== expectedTriggers.length) {
     context.addIssue({
       code: "custom",
       path: ["steps"],
-      message: "De flow moet precies één stap per triggertype bevatten.",
+      message: "De flow moet precies één stap per triggertype van dit flowtype bevatten.",
     });
+  }
+  for (const step of input.steps) {
+    if (!expectedTriggers.includes(step.trigger)) {
+      context.addIssue({
+        code: "custom",
+        path: ["steps"],
+        message: `Trigger ${step.trigger} hoort niet bij flowtype ${input.flowType}.`,
+      });
+    }
   }
 });
 

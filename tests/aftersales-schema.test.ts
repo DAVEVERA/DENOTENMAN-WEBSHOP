@@ -29,6 +29,7 @@ function validFlow() {
   return {
     id: "flow-1",
     name: "Bestelling en verzending",
+    flowType: "PARTICULIER" as const,
     isActive: true,
     logoUrl: null,
     version: "2026-08-19T08:00:00.000Z",
