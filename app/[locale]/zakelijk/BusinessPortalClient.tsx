@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Download, LogOut, PackageCheck, Save, Send, Clock, RefreshCw, Sparkles, Undo2 } from "lucide-react";
+import { ChevronDown, CreditCard, Download, LogOut, PackageCheck, Save, Send, Clock, RefreshCw, Sparkles, Undo2 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { calculateVat } from "@/lib/business-vat";
 import { BusinessPasswordSettings } from "./BusinessPasswordSettings";
 import { BusinessAccountSettings } from "./BusinessAccountSettings";
+import { BusinessLogoSettings } from "./BusinessLogoSettings";
 import { PickupDayCalendar } from "@/components/business-portal/PickupDayCalendar";
+import { BusinessPortalSection } from "./BusinessPortalSection";
 
 type PortalItem = {
   id: string;
@@ -108,19 +110,35 @@ export function BusinessPortalClient({ locale, account, initialOrderLists, curre
           {logoutError ? <p role="alert" className="mt-2 max-w-xs text-body-sm font-semibold text-red-700">{logoutError}</p> : null}
         </div>
       </div>
-      <div className="mt-4 grid max-w-sm gap-4">
-        <BusinessAccountSettings vatNumber={account.vatNumber} peppolParticipantId={account.peppolParticipantId} country={account.country} />
-        <BusinessPasswordSettings hasPassword={account.hasPassword} />
+      <div className="mt-6 grid gap-4">
+        <BusinessPortalSection title="Bedrijfs- en factuurgegevens" description="Beheer je btw-nummer en Peppol-gegevens.">
+          <div className="grid max-w-sm gap-4">
+            <BusinessAccountSettings vatNumber={account.vatNumber} peppolParticipantId={account.peppolParticipantId} country={account.country} />
+            <BusinessLogoSettings />
+          </div>
+        </BusinessPortalSection>
+        <BusinessPortalSection title="Wachtwoord en beveiliging" description="Wijzig het wachtwoord van je zakelijke account.">
+          <div className="max-w-sm">
+            <BusinessPasswordSettings hasPassword={account.hasPassword} />
+          </div>
+        </BusinessPortalSection>
       </div>
-      {initialOrderLists.length === 0 ? (
-        <div className="mt-8 rounded-panel border border-dashed border-border bg-surface p-6 text-center">
-          <PackageCheck className="mx-auto h-8 w-8 text-accent" aria-hidden="true" />
-          <h2 className="mt-3 font-heading text-heading-sm text-text">Nog geen bestellijst</h2>
-          <p className="mt-1 text-body-sm text-muted">Zodra Fedor een voorstel verstuurt, verschijnt het hier automatisch.</p>
+
+      <section className="mt-8" aria-labelledby="business-order-lists-heading">
+        <div className="mb-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-ink">Bestellen</p>
+          <h2 id="business-order-lists-heading" className="mt-1 font-heading text-heading-sm text-text">Mijn bestellijsten</h2>
         </div>
-      ) : (
-        <div className="mt-8 grid gap-6">{initialOrderLists.map((list) => <OrderListReview key={`${list.id}:${list.version}`} list={list} account={account} currentTime={currentTime} />)}</div>
-      )}
+        {initialOrderLists.length === 0 ? (
+          <div className="rounded-panel border border-dashed border-border bg-surface p-6 text-center">
+            <PackageCheck className="mx-auto h-8 w-8 text-accent" aria-hidden="true" />
+            <h3 className="mt-3 font-heading text-heading-sm text-text">Nog geen bestellijst</h3>
+            <p className="mt-1 text-body-sm text-muted">Zodra Fedor een voorstel verstuurt, verschijnt het hier automatisch.</p>
+          </div>
+        ) : (
+          <div className="grid gap-6">{initialOrderLists.map((list) => <OrderListReview key={`${list.id}:${list.version}`} list={list} account={account} currentTime={currentTime} />)}</div>
+        )}
+      </section>
     </main>
   );
 }
@@ -271,17 +289,19 @@ function OrderListReview({ list, account, currentTime }: { list: PortalList; acc
 
   return (
     <article className="overflow-hidden rounded-panel border border-border bg-surface shadow-card">
-      <div className="border-b border-border bg-[#FFF9DA] p-4 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-ink">Bestellijst</p>
-            <h2 className="mt-1 font-heading text-heading-sm text-text">{list.title}</h2>
-            <p className="mt-1 text-body-sm text-muted">{list.validUntil ? `Geldig tot ${formatDate(list.validUntil)}` : "Geen einddatum ingesteld"}</p>
-          </div>
-          <span className="rounded-button bg-surface px-3 py-2 text-xs font-bold text-text">{STATUS[list.status] ?? list.status}</span>
-        </div>
-      </div>
-      <div className="p-4 sm:p-6">
+      <details open={listActive || list.paymentPending} className="group/order-list">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 bg-[#FFF9DA] p-4 text-left outline-none marker:content-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent sm:p-6 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0">
+            <span className="text-xs font-bold uppercase tracking-[0.14em] text-accent-ink">Bestellijst</span>
+            <span className="mt-1 block font-heading text-heading-sm text-text">{list.title}</span>
+            <span className="mt-1 block text-body-sm text-muted">{list.validUntil ? `Geldig tot ${formatDate(list.validUntil)}` : "Geen einddatum ingesteld"}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
+            <span className="rounded-button bg-surface px-3 py-2 text-xs font-bold text-text">{STATUS[list.status] ?? list.status}</span>
+            <ChevronDown className="h-5 w-5 text-muted transition-transform duration-200 group-open/order-list:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+          </span>
+        </summary>
+        <div className="border-t border-border p-4 sm:p-6">
         {listActive ? (
           <>
             <ul className="divide-y divide-border rounded-card border border-border">
@@ -391,34 +411,36 @@ function OrderListReview({ list, account, currentTime }: { list: PortalList; acc
 
         {list.notes.length > 0 ? (
           <div className="mt-6">
-            <h3 className="font-heading font-bold text-text">Notities</h3>
-            <ol className="mt-2 grid gap-2">
-              {list.notes.map((item) => (
-                <li key={item.id} className="rounded-card border border-border p-3 text-body-sm">
-                  <div className="flex flex-wrap justify-between gap-2"><strong className="text-text">{item.authorName}</strong><time className="text-xs text-muted">{formatDateTime(item.createdAt)}</time></div>
-                  <p className="mt-1 whitespace-pre-wrap text-muted">{item.text}</p>
-                </li>
-              ))}
-            </ol>
+            <BusinessPortalSection compact title="Notities" description={`${list.notes.length} ${list.notes.length === 1 ? "bericht" : "berichten"}`}>
+              <ol className="grid gap-2">
+                {list.notes.map((item) => (
+                  <li key={item.id} className="rounded-card border border-border p-3 text-body-sm">
+                    <div className="flex flex-wrap justify-between gap-2"><strong className="text-text">{item.authorName}</strong><time className="text-xs text-muted">{formatDateTime(item.createdAt)}</time></div>
+                    <p className="mt-1 whitespace-pre-wrap text-muted">{item.text}</p>
+                  </li>
+                ))}
+              </ol>
+            </BusinessPortalSection>
           </div>
         ) : null}
 
         {list.orderHistory.length > 0 ? (
-          <div className="mt-6">
-            <h3 className="font-heading font-bold text-text">Eerdere bestellingen</h3>
-            <div className="mt-2 grid gap-3">
-              {list.orderHistory.map((order) => <OrderHistoryEntry key={order.id} order={order} account={account} />)}
-            </div>
+          <div className="mt-4">
+            <BusinessPortalSection compact title="Eerdere bestellingen" description={`${list.orderHistory.length} ${list.orderHistory.length === 1 ? "bestelling" : "bestellingen"}`}>
+              <div className="grid gap-3">
+                {list.orderHistory.map((order) => <OrderHistoryEntry key={order.id} order={order} account={account} />)}
+              </div>
+            </BusinessPortalSection>
           </div>
         ) : null}
-      </div>
+        </div>
+      </details>
     </article>
   );
 }
 
 function OrderHistoryEntry({ order, account }: { order: PortalOrderHistoryEntry; account: PortalAccount }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [peppolBusy, setPeppolBusy] = useState(false);
   const [peppolResult, setPeppolResult] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [cancellationOpen, setCancellationOpen] = useState(false);
@@ -495,16 +517,16 @@ function OrderHistoryEntry({ order, account }: { order: PortalOrderHistoryEntry;
   }
 
   return (
-    <div className="rounded-card border border-border bg-background p-4">
-      <button type="button" onClick={() => setOpen((value) => !value)} className="flex w-full flex-wrap items-center justify-between gap-2 text-left">
+    <details className="group/order-history rounded-card border border-border bg-background">
+      <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-center justify-between gap-2 p-4 text-left outline-none marker:content-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent [&::-webkit-details-marker]:hidden">
         <span className="text-body-sm text-text"><strong className="font-heading">{formatDate(order.date)}</strong> · {order.items.length} {order.items.length === 1 ? "product" : "producten"}</span>
-        <span className="flex flex-wrap items-center justify-end gap-2">
+        <span className="flex flex-wrap items-center justify-end gap-2 pl-2">
           <span className="rounded-button bg-surface px-2 py-1 text-xs font-bold text-muted">{orderStatusLabel(order.status)}</span>
           <span className="font-heading font-bold text-text">{formatPrice(order.totalCents, "nl")}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted transition-transform duration-200 group-open/order-history:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
         </span>
-      </button>
-      {open ? (
-        <>
+      </summary>
+      <div className="border-t border-border px-4 pb-4">
           <ul className="mt-3 divide-y divide-border border-t border-border pt-2 text-body-sm">
             {order.items.map((item) => (
               <li key={item.id} className="flex items-start justify-between gap-3 py-2">
@@ -623,9 +645,8 @@ function OrderHistoryEntry({ order, account }: { order: PortalOrderHistoryEntry;
               {cancellationResult.text}
             </p>
           ) : null}
-        </>
-      ) : null}
-    </div>
+      </div>
+    </details>
   );
 }
 

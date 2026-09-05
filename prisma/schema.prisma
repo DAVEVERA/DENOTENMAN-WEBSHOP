@@ -1550,6 +1550,9 @@ model BusinessAccount {
   notes                String?
   loginLinkRequestedAt DateTime?
   passwordHash         String?
+  // Immutable, account-scoped GCS object key. Public URLs are derived at
+  // read time so a CDN hostname change does not invalidate stored data.
+  logoStorageKey       String?               @unique
   shadowUserId         String?               @unique
   shadowUser           User?                 @relation(fields: [shadowUserId], references: [id])
   // Shipping is opt-in per account, toggled by an admin — until enabled the

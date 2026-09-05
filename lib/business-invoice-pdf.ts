@@ -6,6 +6,8 @@ import { LEGAL_IDENTITY } from "@/lib/legal";
 import { formatPrice } from "@/lib/format";
 
 const LOGO_SIZE = 28;
+const CUSTOMER_LOGO_MAX_WIDTH = 112;
+const CUSTOMER_LOGO_MAX_HEIGHT = 34;
 
 async function loadLogoPng(): Promise<Buffer> {
   const svgPath = path.join(process.cwd(), "public", "brand", "logo-mark.svg");
@@ -36,6 +38,8 @@ export type InvoicePdfInput = {
   totalCents: number;
   /** e.g. the "BTW verlegd" explanation for a reverse-charge (BE) invoice. */
   vatNote: string | null;
+  /** Immutable bytes read at invoice creation time; never a live URL. */
+  customerLogoBytes?: Uint8Array | null;
 };
 
 const PAGE_WIDTH = 595.28; // A4 at 72dpi
@@ -79,6 +83,41 @@ export async function renderInvoicePdfBase64(input: InvoicePdfInput): Promise<st
   page.drawText(LEGAL_IDENTITY.address, { x: brandTextX, y, size: 9, font: regular, color: MUTED });
   y -= 12;
   page.drawText(`KVK ${LEGAL_IDENTITY.registrationNumber} · BTW ${LEGAL_IDENTITY.vatNumber}`, { x: brandTextX, y, size: 9, font: regular, color: MUTED });
+
+  if (input.customerLogoBytes?.byteLength) {
+    try {
+      const normalized = await sharp(Buffer.from(input.customerLogoBytes), {
+        failOn: "error",
+        limitInputPixels: 16_000_000,
+      })
+        .rotate()
+        .resize({
+          width: CUSTOMER_LOGO_MAX_WIDTH * 4,
+          height: CUSTOMER_LOGO_MAX_HEIGHT * 4,
+          fit: "inside",
+          withoutEnlargement: false,
+        })
+        .png()
+        .toBuffer({ resolveWithObject: true });
+      const image = await doc.embedPng(normalized.data);
+      const scale = Math.min(
+        CUSTOMER_LOGO_MAX_WIDTH / normalized.info.width,
+        CUSTOMER_LOGO_MAX_HEIGHT / normalized.info.height,
+      );
+      const width = normalized.info.width * scale;
+      const height = normalized.info.height * scale;
+      page.drawImage(image, {
+        x: PAGE_WIDTH - MARGIN - width,
+        y: y - height + 6,
+        width,
+        height,
+      });
+    } catch (error) {
+      // The invoice is the source of truth. A missing/corrupt optional logo
+      // must never prevent that invoice from being issued.
+      console.error("Could not embed customer logo in invoice", error);
+    }
+  }
 
   y -= 40;
   const columnGap = 260;
