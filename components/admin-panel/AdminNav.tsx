@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { LogoutButton } from "@/components/admin-panel/LogoutButton";
+import { BusinessNotificationsDropdown } from "@/components/admin-panel/BusinessNotificationsDropdown";
 
 type NavItem = { href: string; label: string };
 type NavGroup = { label: string; items: NavItem[] };
@@ -51,7 +52,6 @@ export function AdminNav() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [businessUnread, setBusinessUnread] = useState(0);
   const mobileButtonRef = useRef<HTMLButtonElement>(null);
   const mobilePanelRef = useRef<HTMLDivElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
@@ -102,19 +102,6 @@ export function AdminNav() {
     };
   }, [mobileOpen, moreOpen]);
 
-  useEffect(() => {
-    let active = true;
-    async function refreshUnread() {
-      const response = await fetch("/api/admin/business-events", { cache: "no-store" }).catch(() => null);
-      if (!active || !response?.ok) return;
-      const data = (await response.json().catch(() => null)) as { unreadCount?: number } | null;
-      if (typeof data?.unreadCount === "number") setBusinessUnread(data.unreadCount);
-    }
-    void refreshUnread();
-    const interval = window.setInterval(refreshUnread, 60_000);
-    return () => { active = false; window.clearInterval(interval); };
-  }, [pathname]);
-
   const secondaryActive = secondaryAdminGroups.some((group) => group.items.some((item) => isActivePath(pathname, item.href)));
 
   return (
@@ -154,13 +141,9 @@ export function AdminNav() {
           </div>
         </nav>
 
-        <div className="hidden shrink-0 items-center gap-2 lg:flex">
-          <Link href="/admin/zakelijk#meldingen" aria-label={businessUnread > 0 ? `${businessUnread} ongelezen zakelijke meldingen` : "Zakelijke meldingen"} className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-button border border-border bg-surface text-text hover:bg-background">
-            <Bell className="h-5 w-5" aria-hidden="true" />
-            {businessUnread > 0 ? <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-700 px-1.5 py-0.5 text-center text-[10px] font-bold leading-4 text-white">{businessUnread > 99 ? "99+" : businessUnread}</span> : null}
-          </Link>
-          <LogoutButton />
-        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <BusinessNotificationsDropdown key={pathname} />
+          <div className="hidden lg:block"><LogoutButton /></div>
         <button
           ref={mobileButtonRef}
           type="button"
@@ -173,6 +156,7 @@ export function AdminNav() {
           {mobileOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
           <span className="hidden sm:inline">Menu</span>
         </button>
+        </div>
       </div>
 
       {mobileOpen ? (
@@ -185,10 +169,6 @@ export function AdminNav() {
                 <div className="mt-1 grid sm:grid-cols-2">{group.items.map((item) => <AdminLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />)}</div>
               </div>
             ))}
-            <Link href="/admin/zakelijk#meldingen" onClick={() => setMobileOpen(false)} className="mt-3 inline-flex min-h-12 items-center justify-between rounded-button border border-border px-3 font-heading font-semibold text-text">
-              <span className="inline-flex items-center gap-2"><Bell className="h-5 w-5" aria-hidden="true" /> Zakelijke meldingen</span>
-              {businessUnread > 0 ? <span className="rounded-full bg-red-700 px-2 py-1 text-xs font-bold text-white">{businessUnread}</span> : null}
-            </Link>
             <div className="mt-3 border-t border-border px-3 pt-3"><LogoutButton /></div>
           </nav>
         </div>

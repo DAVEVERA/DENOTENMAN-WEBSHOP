@@ -23,6 +23,7 @@ export function MarkBusinessEventsReadButton({ unreadCount, eventIds }: { unread
               body: JSON.stringify({ eventIds }),
             });
             if (!response.ok) throw new Error("MARK_READ_FAILED");
+            window.dispatchEvent(new Event("business-events-read"));
             router.refresh();
           } catch {
             setError("Meldingen bijwerken is niet gelukt. Probeer het opnieuw.");
