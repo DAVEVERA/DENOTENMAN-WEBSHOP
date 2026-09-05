@@ -75,3 +75,24 @@ export async function backfillAftersalesSteps(
   });
   return true;
 }
+
+/**
+ * Creates the ZAKELIJK flow row (with no steps yet - the caller must
+ * follow up with backfillAftersalesSteps for that flow's id) the first
+ * time it's missing. Same reader-first rollout gate and idempotent
+ * createMany+skipDuplicates pattern as backfillAftersalesSteps, so a
+ * race between two admins loading the page at once is a no-op, never
+ * a duplicate flow.
+ */
+export async function backfillAftersalesFlows(): Promise<boolean> {
+  if (process.env.RELEASE_EXPANDED_ENUM_WRITES !== "true") return false;
+  const existing = await prisma.aftersalesFlow.findMany({ select: { flowType: true } });
+  const existingTypes = new Set(existing.map((flow) => flow.flowType));
+  if (existingTypes.has("ZAKELIJK")) return false;
+
+  await prisma.aftersalesFlow.createMany({
+    data: [{ name: "Zakelijk", flowType: "ZAKELIJK", isActive: false }],
+    skipDuplicates: true,
+  });
+  return true;
+}
