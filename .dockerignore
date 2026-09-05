@@ -13,6 +13,7 @@ node_modules
 gcp-credentials.json
 
 components/admin
+everything-claude-code
 
 *.md
 tree.txt

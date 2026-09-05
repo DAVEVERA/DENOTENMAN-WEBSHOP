@@ -7,6 +7,7 @@ import {
   checkTransactionalProviderReadiness,
 } from "@/lib/aftersales/provider";
 import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
+import { backfillAftersalesSteps } from "@/lib/aftersales/defaults";
 import { AftersalesFlowEditor } from "./AftersalesFlowEditor";
 
 export default async function AftersalesPage() {
@@ -60,6 +61,14 @@ export default async function AftersalesPage() {
         </div>
       </div>
     );
+  }
+
+  const backfilled = await backfillAftersalesSteps(flow.id, flow.steps.map((step) => step.trigger));
+  if (backfilled) {
+    flow = await prisma.aftersalesFlow.findUniqueOrThrow({
+      where: { id: flow.id },
+      include: { steps: { orderBy: { position: "asc" } } },
+    });
   }
 
   const initialFlow = {

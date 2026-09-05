@@ -2,10 +2,9 @@ import "server-only";
 import {
   EmailDeliveryKind,
   Prisma,
-  type AftersalesTrigger,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { parseAftersalesContent } from "@/lib/aftersales/schema";
+import { parseAftersalesContent, type AftersalesStepContent, type AftersalesTriggerValue } from "@/lib/aftersales/schema";
 import { renderAftersalesEmail } from "@/lib/aftersales/template";
 import {
   deliverTransactionalEmail,
@@ -13,8 +12,9 @@ import {
   type TransactionalEmailResult,
 } from "@/lib/transactional-email";
 import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
+import type { OrderAftersalesTrigger } from "@/lib/aftersales/events";
 
-const FALLBACK_STEP_IDS: Record<AftersalesTrigger, string> = {
+const FALLBACK_STEP_IDS: Record<OrderAftersalesTrigger, string> = {
   ORDER_PAID: "order-paid-email",
   ORDER_FULFILLED: "order-fulfilled-email",
 };
@@ -41,7 +41,7 @@ export type DispatchAftersalesResult =
  * safe fallback instead of silently dropping the transactional event.
  */
 export async function prepareAftersalesEvent(
-  trigger: AftersalesTrigger
+  trigger: OrderAftersalesTrigger
 ): Promise<PreparedAftersalesEvent | null> {
   try {
     const activeFlow = await prisma.aftersalesFlow.findFirst({
@@ -77,7 +77,7 @@ export async function prepareAftersalesEvent(
 export async function queueAftersalesEvent(
   transaction: Prisma.TransactionClient,
   orderId: string,
-  trigger: AftersalesTrigger,
+  trigger: OrderAftersalesTrigger,
   prepared: PreparedAftersalesEvent
 ): Promise<QueueAftersalesResult> {
   try {
@@ -242,6 +242,42 @@ export async function processAftersalesDelivery(
   }
 }
 
+/**
+ * Fetches the enabled step content for a trigger that has no Order to
+ * queue through the durable outbox (back-in-stock, business emails, admin
+ * notifications). Returns null when the schema isn't installed yet, no
+ * active flow exists. An explicitly disabled step is returned separately:
+ * it must never fall through to the hardcoded copy. Missing configuration
+ * keeps the pre-existing fallback, exactly like the
+ * order-based flow already falls back when its schema is missing.
+ */
+export async function getEnabledGenericStepContent(
+  trigger: Exclude<AftersalesTriggerValue, OrderAftersalesTrigger>
+): Promise<{ disabled: true } | { disabled: false; content: AftersalesStepContent; logoUrl: string | null } | null> {
+  try {
+    const activeFlow = await prisma.aftersalesFlow.findFirst({
+      where: { isActive: true },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        logoUrl: true,
+        steps: {
+          where: { trigger },
+          orderBy: { position: "asc" },
+          take: 1,
+          select: { enabled: true, content: true },
+        },
+      },
+    });
+    const step = activeFlow?.steps[0];
+    if (!step) return null;
+    if (!step.enabled) return { disabled: true };
+    return { disabled: false, content: parseAftersalesContent(step.content), logoUrl: activeFlow!.logoUrl };
+  } catch (error) {
+    if (isAftersalesSchemaUnavailable(error)) return null;
+    throw error;
+  }
+}
+
 export async function processPendingAftersalesForOrder(
   orderId: string
 ): Promise<DispatchAftersalesResult[]> {
@@ -269,7 +305,7 @@ export async function processPendingAftersalesForOrder(
 
 export async function dispatchAftersalesEvent(
   orderId: string,
-  trigger: AftersalesTrigger
+  trigger: OrderAftersalesTrigger
 ): Promise<DispatchAftersalesResult> {
   const prepared = await prepareAftersalesEvent(trigger);
   if (!prepared) return { status: "disabled" };

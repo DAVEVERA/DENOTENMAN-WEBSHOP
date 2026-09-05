@@ -78,11 +78,14 @@ export async function POST(
         await recordBusinessEvent(tx, {
           businessAccountId: session.businessAccountId,
           orderListId: order.businessOrderList.id,
-          type: "ORDER_CANCELLATION_REQUESTED",
+          // Preserve the request and its summary while older readers still serve traffic.
+          type: process.env.RELEASE_EXPANDED_ENUM_WRITES === "true"
+            ? "ORDER_CANCELLATION_REQUESTED"
+            : "ORDER_LIST_NOTE_ADDED",
           actorType: "CUSTOMER",
           actorName: session.businessAccount.contactName,
           summary: `${session.businessAccount.contactName} vraagt annulering aan voor ${totalQuantity} artikel(en) uit bestelling ${order.id}`,
-          metadata: { cancellationRequestId: cancellation.id, orderId: order.id },
+          metadata: { eventType: "ORDER_CANCELLATION_REQUESTED", cancellationRequestId: cancellation.id, orderId: order.id },
         });
         return { cancellation };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

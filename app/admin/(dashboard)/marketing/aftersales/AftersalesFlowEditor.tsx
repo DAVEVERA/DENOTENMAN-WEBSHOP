@@ -6,6 +6,7 @@ import {
   Activity,
   ArrowDown,
   ArrowUp,
+  Bell,
   CheckCircle2,
   Eye,
   GripVertical,
@@ -24,7 +25,7 @@ import type {
   AftersalesFlowInput,
   AftersalesTriggerValue,
 } from "@/lib/aftersales/schema";
-import { AFTERSALES_FONTS, AFTERSALES_FONT_SIZES, AFTERSALES_LAYOUTS, AFTERSALES_TOKENS } from "@/lib/aftersales/schema";
+import { AFTERSALES_FONTS, AFTERSALES_FONT_SIZES, AFTERSALES_LAYOUTS, AFTERSALES_TOKENS_BY_TRIGGER } from "@/lib/aftersales/schema";
 import type { Locale } from "@/lib/i18n";
 
 type MediaOption = { id: string; url: string; originalFilename: string };
@@ -81,6 +82,16 @@ const triggerCopy: Record<AftersalesTriggerValue, {
     event: "Bestelling verzonden",
     description: "Start bij de status Verzonden en gebruikt de track-en-tracecode.",
   },
+  BACK_IN_STOCK: {
+    event: "Product weer op voorraad",
+    description: "Start zodra een klant zich had aangemeld en het product weer bestelbaar is.",
+  },
+};
+
+const triggerIcons: Record<AftersalesTriggerValue, typeof PackageCheck> = {
+  ORDER_PAID: PackageCheck,
+  ORDER_FULFILLED: Truck,
+  BACK_IN_STOCK: Bell,
 };
 
 const localeLabels: Record<Locale, string> = { nl: "Nederlands", en: "Engels", fr: "Frans" };
@@ -102,6 +113,8 @@ function sampleValue(value: string): string {
     order_total: "€ 42,95",
     tracking_code: "3SNOTEN1234567",
     order_url: "https://denotenman.com/nl/order/DN-2026-1842",
+    product_name: "Cashewnoten gebrand",
+    product_url: "https://denotenman.com/nl/producten/cashewnoten-gebrand",
   }[token] ?? ""));
 }
 
@@ -124,7 +137,9 @@ function previewDocument(content: AftersalesContent[Locale], trigger: Aftersales
   const subject = sampleValue(content.subject);
   const detail = trigger === "ORDER_FULFILLED"
     ? "<p style=\"margin:18px 0 0;font-size:14px\"><strong>Track &amp; trace:</strong> 3SNOTEN1234567</p>"
-    : "<div style=\"margin-top:20px;border-top:1px solid #e4dfd5;padding-top:16px;font-size:14px\"><p><strong>2× Cashewnoten gebrand</strong><span style=\"float:right\">€ 13,90</span></p><p><strong>Totaal</strong><span style=\"float:right\">€ 42,95</span></p></div>";
+    : trigger === "ORDER_PAID"
+      ? "<div style=\"margin-top:20px;border-top:1px solid #e4dfd5;padding-top:16px;font-size:14px\"><p><strong>2× Cashewnoten gebrand</strong><span style=\"float:right\">€ 13,90</span></p><p><strong>Totaal</strong><span style=\"float:right\">€ 42,95</span></p></div>"
+      : "";
   const fontStack = PREVIEW_FONT_STACKS[design.font];
   const sizes = PREVIEW_FONT_SIZES[design.fontSize];
   const brandBlock = logoUrl
@@ -166,7 +181,8 @@ function previewDocument(content: AftersalesContent[Locale], trigger: Aftersales
           : design.layout === "TABLE"
             ? `${textBlock}${tableBlock}`
             : textBlock;
-  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head><body style="margin:0;background:#f6f3ee;font-family:${fontStack}"><div style="padding:18px 10px"><div style="max-width:600px;margin:auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff"><div style="height:5px;background:#e0b200"></div><div style="padding:28px">${brandBlock}${contentBlock}<div style="margin:18px 0;padding:14px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;font-size:14px"><strong>Bestelnummer:</strong> DN-2026-1842</div>${detail}<a href="#" style="display:block;margin-top:26px;min-height:44px;box-sizing:border-box;padding:14px;border-radius:8px;background:#e0b200;color:#141414;font-size:16px;font-weight:700;text-align:center;text-decoration:none">${escapeHtml(button)}</a></div><div style="padding:18px 28px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px">Vragen? Beantwoord deze e-mail; we helpen je graag.</div></div></div></body></html>`;
+  const orderNumberBox = trigger === "BACK_IN_STOCK" ? "" : "<div style=\"margin:18px 0;padding:14px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;font-size:14px\"><strong>Bestelnummer:</strong> DN-2026-1842</div>";
+  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head><body style="margin:0;background:#f6f3ee;font-family:${fontStack}"><div style="padding:18px 10px"><div style="max-width:600px;margin:auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff"><div style="height:5px;background:#e0b200"></div><div style="padding:28px">${brandBlock}${contentBlock}${orderNumberBox}${detail}<a href="#" style="display:block;margin-top:26px;min-height:44px;box-sizing:border-box;padding:14px;border-radius:8px;background:#e0b200;color:#141414;font-size:16px;font-weight:700;text-align:center;text-decoration:none">${escapeHtml(button)}</a></div><div style="padding:18px 28px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px">Vragen? Beantwoord deze e-mail; we helpen je graag.</div></div></div></body></html>`;
 }
 
 function formatDate(value: string): string {
@@ -456,7 +472,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                   >
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-contrast text-accent">
-                        {step.trigger === "ORDER_PAID" ? <PackageCheck size={22} /> : <Truck size={22} />}
+                        {(() => { const TriggerIcon = triggerIcons[step.trigger]; return <TriggerIcon size={22} />; })()}
                       </div>
                       <button type="button" onClick={() => setSelectedStepId(step.id)} className="min-w-0 flex-1 text-left">
                         <span className="text-xs font-bold uppercase tracking-heading text-muted">Trigger {index + 1}</span>
@@ -645,7 +661,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
               <div className="mt-5 rounded-panel border border-border bg-background p-4">
                 <p className="text-xs font-bold uppercase tracking-heading text-muted">Personalisatievelden</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {AFTERSALES_TOKENS.map((token) => <code key={token} className="rounded bg-white px-2 py-1 text-xs text-text">{`{{${token}}}`}</code>)}
+                  {AFTERSALES_TOKENS_BY_TRIGGER[selectedStep.trigger].map((token) => <code key={token} className="rounded bg-white px-2 py-1 text-xs text-text">{`{{${token}}}`}</code>)}
                 </div>
               </div>
             </div>

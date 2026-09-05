@@ -20,7 +20,9 @@ const schema = (() => {
 const enabled = process.env.RUN_FAQ_DB_INTEGRATION === "1";
 
 test("FAQ DAL preserves published revisions and enforces aggregate, item and pointer guards", { skip: !enabled }, async () => {
-  assert.match(schema, /^qa_product_faq_[a-z0-9_]+$/, "Integration test refuses a non-QA database schema");
+  const url = new URL(databaseUrl);
+  const isolatedLocalRelease = url.hostname === "127.0.0.1" && url.port === "55435" && url.pathname === "/notenman_release_qa";
+  assert.ok(isolatedLocalRelease || /^qa_product_faq_[a-z0-9_]+$/.test(schema), "Integration test refuses a non-QA database target");
   const suffix = randomUUID().replaceAll("-", "");
   const admin = await prisma.adminUser.create({
     data: { username: `faq-qa-${suffix}`, passwordHash: "not-used", name: "FAQ QA", role: "OWNER" },

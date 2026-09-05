@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { locales, type Locale } from "@/lib/i18n";
 
-export const AFTERSALES_TRIGGERS = ["ORDER_PAID", "ORDER_FULFILLED"] as const;
+export const AFTERSALES_TRIGGERS = ["ORDER_PAID", "ORDER_FULFILLED", "BACK_IN_STOCK"] as const;
 export type AftersalesTriggerValue = (typeof AFTERSALES_TRIGGERS)[number];
 
 export const AFTERSALES_TOKENS = [
@@ -11,7 +11,15 @@ export const AFTERSALES_TOKENS = [
   "order_total",
   "tracking_code",
   "order_url",
+  "product_name",
+  "product_url",
 ] as const;
+
+export const AFTERSALES_TOKENS_BY_TRIGGER: Record<AftersalesTriggerValue, readonly string[]> = {
+  ORDER_PAID: AFTERSALES_TOKENS.filter((token) => !token.startsWith("product_")),
+  ORDER_FULFILLED: AFTERSALES_TOKENS.filter((token) => !token.startsWith("product_")),
+  BACK_IN_STOCK: ["product_name", "product_url"],
+};
 
 export type AftersalesLocaleContent = {
   subject: string;
@@ -141,7 +149,20 @@ export const aftersalesStepInputSchema = z.object({
   enabled: z.boolean(),
   delayMinutes: z.literal(0),
   content: aftersalesStepContentSchema,
-}).strict();
+}).strict().superRefine((step, context) => {
+  const allowed = new Set(AFTERSALES_TOKENS_BY_TRIGGER[step.trigger]);
+  for (const locale of locales) {
+    for (const [field, value] of Object.entries(step.content.locales[locale])) {
+      for (const match of value.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)) {
+        if (!allowed.has(match[1])) context.addIssue({
+          code: "custom",
+          path: ["content", "locales", locale, field],
+          message: `Personalisatieveld {{${match[1]}}} is niet beschikbaar voor deze mailstap.`,
+        });
+      }
+    }
+  }
+});
 
 export const aftersalesFlowInputSchema = z.object({
   id: z.string().trim().min(1).max(100),
@@ -149,7 +170,7 @@ export const aftersalesFlowInputSchema = z.object({
   isActive: z.boolean(),
   logoUrl: z.string().trim().url().nullable(),
   version: z.string().datetime(),
-  steps: z.array(aftersalesStepInputSchema).length(2),
+  steps: z.array(aftersalesStepInputSchema).length(AFTERSALES_TRIGGERS.length),
 }).strict().superRefine((input, context) => {
   const ids = new Set(input.steps.map((step) => step.id));
   const triggers = new Set(input.steps.map((step) => step.trigger));
@@ -160,7 +181,7 @@ export const aftersalesFlowInputSchema = z.object({
     context.addIssue({
       code: "custom",
       path: ["steps"],
-      message: "De flow moet precies één bestel- en één verzendstap bevatten.",
+      message: "De flow moet precies één stap per triggertype bevatten.",
     });
   }
 });

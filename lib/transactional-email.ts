@@ -13,6 +13,7 @@ import {
   sendAftersalesMail,
   TransactionalProviderError,
 } from "@/lib/aftersales/provider";
+import { AFTERSALES_TRIGGERS } from "@/lib/aftersales/schema";
 
 const transactionalEmailInputSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(200),
@@ -23,7 +24,7 @@ const transactionalEmailInputSchema = z.object({
   html: z.string().min(1).max(500_000),
   text: z.string().min(1).max(200_000),
   orderId: z.string().trim().min(1).max(100).optional(),
-  trigger: z.enum(["ORDER_PAID", "ORDER_FULFILLED"]).optional(),
+  trigger: z.enum(AFTERSALES_TRIGGERS).optional(),
 }).strict();
 
 export type TransactionalEmailInput = z.infer<typeof transactionalEmailInputSchema>;

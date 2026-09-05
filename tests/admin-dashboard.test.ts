@@ -216,8 +216,8 @@ test("a failed client refresh keeps the last valid GA4 values and timestamp", ()
   assert.equal(retainAnalyticsAfterRefreshFailure(EMPTY_DASHBOARD_ANALYTICS), EMPTY_DASHBOARD_ANALYTICS);
 });
 
-test("GA4 property configuration survives both Cloud Run deployment paths", () => {
-  for (const path of ["cloudbuild.yaml", "cloudbuild-trigger.yaml"]) {
+test("GA4 property configuration survives the committed Cloud Run deployment path", () => {
+  for (const path of ["cloudbuild-trigger.yaml"]) {
     const build = readFileSync(path, "utf8");
     assert.match(build, /--update-env-vars=GA4_PROPERTY_ID=\$\{_GA4_PROPERTY_ID\}/);
     assert.match(build, /_GA4_PROPERTY_ID:\s*"549991816"/);

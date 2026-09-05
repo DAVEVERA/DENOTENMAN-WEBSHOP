@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Order, OrderItem } from "@prisma/client";
-import { renderAftersalesEmail } from "../lib/aftersales/template";
+import { renderAftersalesEmail, renderGenericFlowEmail } from "../lib/aftersales/template";
 import { defaultAftersalesDesign } from "../lib/aftersales/schema";
 
 const order = {
@@ -95,4 +95,39 @@ test("TABLE layout with no rows renders nothing extra", () => {
   const design = { ...defaultAftersalesDesign, layout: "TABLE" as const };
   const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, design);
   assert.doesNotMatch(rendered.html, /<thead>/);
+});
+
+test("renderGenericFlowEmail personalizes non-order triggers and never mentions an order", () => {
+  const rendered = renderGenericFlowEmail({
+    locale: "nl",
+    content: {
+      subject: "{{product_name}} is weer verkrijgbaar",
+      previewText: "{{product_name}} kan weer besteld worden",
+      heading: "Weer op voorraad",
+      body: "Je vroeg om een seintje.\n\n{{product_name}}",
+      buttonLabel: "Bekijk product",
+    },
+    tokens: { product_name: "Amandelen <b>vers</b>", product_url: "https://denotenman.com/nl/producten/amandelen" },
+    actionUrl: "https://denotenman.com/nl/producten/amandelen",
+  });
+  assert.match(rendered.subject, /Amandelen/);
+  assert.match(rendered.html, /Amandelen &lt;b&gt;vers&lt;\/b&gt;/);
+  assert.doesNotMatch(rendered.html, /Bestelnummer/);
+  assert.match(rendered.html, /Vragen\? Beantwoord deze e-mail/);
+});
+
+test("renderGenericFlowEmail uses per-locale footer text", () => {
+  const rendered = renderGenericFlowEmail({
+    locale: "en",
+    content: {
+      subject: "{{product_name}} is back",
+      previewText: "back in stock",
+      heading: "Back in stock",
+      body: "{{product_name}}",
+      buttonLabel: "View",
+    },
+    tokens: { product_name: "Almonds", product_url: "https://denotenman.com/en/products/almonds" },
+    actionUrl: "https://denotenman.com/en/products/almonds",
+  });
+  assert.match(rendered.html, /Questions\? Reply to this email/);
 });

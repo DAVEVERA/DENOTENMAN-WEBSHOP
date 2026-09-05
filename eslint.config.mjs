@@ -48,6 +48,7 @@ export default defineConfig([
     rules: { "react-hooks/set-state-in-effect": "off" },
   },
   globalIgnores([
+    "everything-claude-code/**",
     ".next/**",
     "out/**",
     "build/**",

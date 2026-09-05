@@ -38,6 +38,7 @@
   ],
   "exclude": [
     "node_modules",
+    "everything-claude-code",
     "components/admin",
     "components/ai-elements/het-notenplan"
   ]

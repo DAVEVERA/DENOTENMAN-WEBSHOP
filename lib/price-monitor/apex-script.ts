@@ -10,7 +10,7 @@ const APEX_SCRIPT_FILE = "app/admin/(dashboard)/prijsmonitor/apex.py";
 const MAX_SCRIPT_BYTES = 100_000;
 
 export function getApexScriptInfo(): PriceMonitorApexScriptInfo {
-  const scriptPath = join(process.cwd(), ...APEX_SCRIPT_FILE.split("/"));
+  const scriptPath = join(process.cwd(), "app/admin/(dashboard)/prijsmonitor/apex.py");
   const content = readFileSync(scriptPath, "utf8");
   if (Buffer.byteLength(content, "utf8") > MAX_SCRIPT_BYTES) {
     throw new Error("APEX_SCRIPT_TOO_LARGE");

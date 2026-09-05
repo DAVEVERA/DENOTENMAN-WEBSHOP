@@ -65,9 +65,9 @@ test("the consent banner is in server markup while optional scripts remain gated
     readFile("app/[locale]/layout.tsx", "utf8"),
     readFile("components/privacy/CookieConsent.tsx", "utf8"),
   ]);
-  const bootstrapMarkup = '<script dangerouslySetInnerHTML={{ __html: COOKIE_CONSENT_BOOTSTRAP_SCRIPT }} />';
-
-  assert.ok(layout.indexOf(bootstrapMarkup) < layout.indexOf("<CookieConsent locale={locale}"));
+  assert.match(layout, /import Script from "next\/script"/);
+  assert.match(layout, /<Script\s+id="cookie-consent-bootstrap"\s+strategy="beforeInteractive"\s+dangerouslySetInnerHTML=\{\{ __html: COOKIE_CONSENT_BOOTSTRAP_SCRIPT \}\}/);
+  assert.doesNotMatch(layout, /<script[^>]*COOKIE_CONSENT_BOOTSTRAP_SCRIPT/);
   assert.match(component, /const \[open, setOpen\] = useState\(true\)/);
   assert.match(component, /data-cookie-consent-banner/);
   assert.doesNotMatch(component, /\[ready, setReady\]|ready && open/);

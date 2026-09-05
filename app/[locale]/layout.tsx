@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Script from "next/script";
 import type { Metadata } from "next";
 import { Dosis, Montserrat } from "next/font/google";
 import { locales, isLocale } from "@/lib/i18n";
@@ -60,7 +61,11 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <body className="bg-background font-body text-text">
-        <script dangerouslySetInnerHTML={{ __html: COOKIE_CONSENT_BOOTSTRAP_SCRIPT }} />
+        <Script
+          id="cookie-consent-bootstrap"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: COOKIE_CONSENT_BOOTSTRAP_SCRIPT }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

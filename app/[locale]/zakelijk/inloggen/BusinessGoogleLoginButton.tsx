@@ -1,5 +1,7 @@
 export function BusinessGoogleLoginButton() {
   return (
+    // OAuth starts a full-document redirect and sets state cookies; never prefetch it.
+    // eslint-disable-next-line @next/next/no-html-link-for-pages
     <a
       href="/api/business/auth/google/start"
       className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-button border border-border bg-surface px-5 font-heading text-body-sm font-bold text-text hover:border-border-hover"

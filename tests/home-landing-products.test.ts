@@ -91,8 +91,7 @@ test("homepage renders the alternating sequence in one compact responsive produc
   assert.match(section, /md:hidden/);
   assert.match(section, /compact/);
   assert.match(section, /fullWidth/);
-  assert.match(section, /from-craft/);
-  assert.match(section, /from-honey/);
-  assert.match(section, /from-nut-butter/);
+  assert.match(section, /bg-transparent/);
+  assert.doesNotMatch(section, /from-craft|from-honey|from-nut-butter/);
   assert.doesNotMatch(section, /overflow-x-auto|snap-x|scroll-px-4|overscroll-x-contain/);
 });

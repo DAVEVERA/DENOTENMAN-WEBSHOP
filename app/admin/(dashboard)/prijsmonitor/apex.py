@@ -10,6 +10,8 @@ import json
 import re
 import time
 import csv
+import argparse
+from typing import Optional
 import requests
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
@@ -42,12 +44,91 @@ SITES = [
 ]
 
 OUTPUT_DIR = "ultimate_output"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
 TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36"
 REQUEST_DELAY = 0.3
 MAX_RETRIES = 3
+MAX_PRODUCTS_PER_SITE = 25
+MAX_PAGES_PER_SITE = 40
+ACTIVE_DOMAIN = None
+
+
+def allowed_product_url(url):
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    domains = [ACTIVE_DOMAIN] if ACTIVE_DOMAIN else SITES
+    return (parsed.scheme == "https" and parsed.port in (None, 443)
+            and not parsed.username and not parsed.password
+            and any(host == domain or host == "www." + domain for domain in domains))
+
+
+def bounded_response(url, accept="text/html"):
+    # Do not follow a competitor link to another host or download an unlimited body.
+    for _ in range(4):
+        if not allowed_product_url(url):
+            return None
+        with requests.get(url, headers={"User-Agent": USER_AGENT, "Accept": accept},
+                          timeout=15, allow_redirects=False, stream=True) as response:
+            if response.status_code in (301, 302, 303, 307, 308):
+                url = urljoin(url, response.headers.get("Location", ""))
+                continue
+            response.raise_for_status()
+            chunks = []
+            size = 0
+            for chunk in response.iter_content(65536):
+                size += len(chunk)
+                if size > 2_000_000:
+                    return None
+                chunks.append(chunk)
+            return b"".join(chunks).decode(response.encoding or "utf-8", errors="replace")
+    return None
+
+
+def extract_unit(text):
+    match = re.search(r"\b(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gram|ml|l|liter)\b", text, re.I)
+    return match.group(0) if match else None
+
+
+def calc_unit_price(price, unit):
+    if not unit:
+        return None
+    match = re.fullmatch(r"\s*(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gram|ml|l|liter)\s*", unit, re.I)
+    if not match:
+        return None
+    quantity = float(match.group(1).replace(",", "."))
+    if quantity <= 0:
+        return None
+    if match.group(2).lower() in ("g", "gram", "ml"):
+        quantity /= 1000
+    return round(price / quantity, 4)
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="Lokale prijscontrole; automatisch inladen is begrensd op maximaal 25 producten.")
+    parser.add_argument("--domain", choices=[domain for domain in SITES if "." in domain])
+    parser.add_argument("--limit", type=int, default=25, choices=range(1, 26))
+    parser.add_argument("--max-pages", type=int, default=40, choices=range(1, 201))
+    parser.add_argument("--upload-url")
+    parser.add_argument("--upload-token")
+    args = parser.parse_args(argv)
+    if bool(args.upload_url) != bool(args.upload_token):
+        parser.error("upload-url en upload-token zijn samen verplicht")
+    if args.upload_url:
+        destination = urlparse(args.upload_url)
+        if (not args.domain or destination.scheme != "https"
+                or destination.hostname not in ("denotenman.com", "www.denotenman.com")
+                or destination.port not in (None, 443) or destination.username or destination.password
+                or not re.fullmatch(r"/api/price-monitor/apex-local/[A-Za-z0-9_-]+", destination.path)):
+            parser.error("Upload vereist een gekozen domein en de veilige De Notenman uploadroute")
+    return args
+
+
+def upload_results(url, upload_token, domain, products):
+    response = requests.post(url, headers={"Authorization": f"Bearer {upload_token}"},
+                             json={"domain": domain, "products": products}, timeout=30, allow_redirects=False)
+    if response.status_code not in (200, 201, 202):
+        raise RuntimeError(f"Upload mislukt (HTTP {response.status_code}); lokale resultaten zijn bewaard")
 
 # =============================================================================
 # PRIJSNORMALISATIE – ROBUUST
@@ -140,35 +221,22 @@ def normalize_price(price_text: str) -> Optional[float]:
 
 def fetch(url):
     """Haal HTML op met retry."""
-    headers = {"User-Agent": USER_AGENT}
     for attempt in range(MAX_RETRIES):
         try:
-            resp = requests.get(url, headers=headers, timeout=15)
-            if resp.status_code == 200:
-                return resp.text
-            elif resp.status_code == 429:
-                time.sleep(2**attempt)
-            else:
-                return None
-        except:
-            time.sleep(1)
+            return bounded_response(url)
+        except requests.RequestException:
+            time.sleep(2**attempt)
     return None
 
 
 def fetch_json(url):
     """Haal JSON op met retry."""
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     for attempt in range(MAX_RETRIES):
         try:
-            resp = requests.get(url, headers=headers, timeout=15)
-            if resp.status_code == 200:
-                return resp.json()
-            elif resp.status_code == 429:
-                time.sleep(2**attempt)
-            else:
-                return None
-        except:
-            time.sleep(1)
+            body = bounded_response(url, "application/json")
+            return json.loads(body) if body else None
+        except (requests.RequestException, ValueError):
+            time.sleep(2**attempt)
     return None
 
 
@@ -310,7 +378,7 @@ def get_products_by_crawling(base_url):
     ]:
         to_visit.append(urljoin(base_url, path))
 
-    max_pages = 500
+    max_pages = MAX_PAGES_PER_SITE
     while to_visit and len(visited) < max_pages:
         url = to_visit.pop()
         if url in visited:
@@ -331,7 +399,7 @@ def get_products_by_crawling(base_url):
             ):
                 continue
             full_url = urljoin(base_url, href)
-            if not full_url.startswith(base_url):
+            if not allowed_product_url(full_url):
                 continue
             if full_url in visited:
                 continue
@@ -419,7 +487,9 @@ def scrape_product(url):
     if price is None:
         return None
 
-    return {"url": url, "name": name, "price": price}
+    unit = extract_unit(name)
+    return {"url": url, "name": name, "price": price,
+            "variants": [{"title": name, "price": price, "unit": unit, "unit_price": calc_unit_price(price, unit)}]}
 
 
 # =============================================================================
@@ -428,6 +498,12 @@ def scrape_product(url):
 
 
 def main():
+    global MAX_PRODUCTS_PER_SITE, MAX_PAGES_PER_SITE, ACTIVE_DOMAIN
+    args = parse_args()
+    MAX_PRODUCTS_PER_SITE = args.limit
+    MAX_PAGES_PER_SITE = args.max_pages
+    selected_sites = [args.domain] if args.domain else [domain for domain in SITES if "." in domain]
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     print("""
     ╔═══════════════════════════════════════════════════════════════════╗
     ║  🦈 ULTIMATE SCRAPER v2 – ROBUUSTE PRIJSNORMALISATIE           ║
@@ -439,7 +515,8 @@ def main():
 
     all_results = {}
 
-    for domain in SITES:
+    for domain in selected_sites:
+        ACTIVE_DOMAIN = domain
         print(f"\n{'='*60}")
         print(f"🔄 Verwerken: {domain}")
         print(f"{'='*60}")
@@ -476,10 +553,9 @@ def main():
 
         # Scrape producten
         products = []
-        for i, url in enumerate(product_urls, 1):
-            if i > 500:
-                break
-            print(f"   [{i}/{min(len(product_urls), 500)}] {url[:60]}...")
+        product_urls = {url for url in product_urls if allowed_product_url(url)}
+        for i, url in enumerate(sorted(product_urls)[:MAX_PRODUCTS_PER_SITE], 1):
+            print(f"   [{i}/{min(len(product_urls), MAX_PRODUCTS_PER_SITE)}] {url[:60]}...")
             try:
                 product = scrape_product(url)
                 if product:
@@ -509,6 +585,8 @@ def main():
     print(f"📄 CSV: {csv_file}")
 
     total = sum(len(p) for p in all_results.values())
+    if args.upload_url:
+        upload_results(args.upload_url, args.upload_token, args.domain, all_results.get(args.domain, []))
     print(f"\n✅ Klaar! Totaal {total} producten opgehaald.")
 
 

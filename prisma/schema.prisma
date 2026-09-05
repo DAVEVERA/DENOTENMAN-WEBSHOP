@@ -58,6 +58,7 @@ enum OrderStatus {
 enum AftersalesTrigger {
   ORDER_PAID
   ORDER_FULFILLED
+  BACK_IN_STOCK
 }
 
 enum AftersalesDeliveryStatus {

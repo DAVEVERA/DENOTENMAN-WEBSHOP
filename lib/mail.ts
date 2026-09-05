@@ -282,33 +282,58 @@ export async function sendBackInStockEmail(input: {
   productUrl: string;
 }): Promise<boolean> {
   const { deliverTransactionalEmail } = await import("@/lib/transactional-email");
-  const copy = stockCopy[input.locale];
-  const html = await render(createElement(BackInStockEmail, {
-    locale: input.locale,
-    preview: copy.preview(input.productName),
-    heading: copy.heading,
-    intro: copy.intro,
-    productName: input.productName,
-    buttonLabel: copy.button,
-    productUrl: input.productUrl,
-    footer: copy.footer,
-  }));
-  const text = [
-    copy.heading,
-    "",
-    copy.intro,
-    input.productName,
-    "",
-    `${copy.button}: ${input.productUrl}`,
-    "",
-    copy.footer,
-  ].join("\n");
+  const { getEnabledGenericStepContent } = await import("@/lib/aftersales/service");
+  const { renderGenericFlowEmail } = await import("@/lib/aftersales/template");
+  const flowStep = await getEnabledGenericStepContent("BACK_IN_STOCK");
+  if (flowStep?.disabled) return false;
+
+  let subject: string;
+  let html: string;
+  let text: string;
+  if (flowStep) {
+    const rendered = renderGenericFlowEmail({
+      locale: input.locale,
+      content: flowStep.content.locales[input.locale],
+      design: flowStep.content.design,
+      logoUrl: flowStep.logoUrl,
+      tokens: { product_name: input.productName, product_url: input.productUrl },
+      actionUrl: input.productUrl,
+    });
+    subject = rendered.subject;
+    html = rendered.html;
+    text = rendered.text;
+  } else {
+    // Compatibility fallback for when the mail-flow schema/step isn't
+    // installed yet - the pre-existing hardcoded component and copy.
+    const copy = stockCopy[input.locale];
+    subject = copy.subject(input.productName);
+    html = await render(createElement(BackInStockEmail, {
+      locale: input.locale,
+      preview: copy.preview(input.productName),
+      heading: copy.heading,
+      intro: copy.intro,
+      productName: input.productName,
+      buttonLabel: copy.button,
+      productUrl: input.productUrl,
+      footer: copy.footer,
+    }));
+    text = [
+      copy.heading,
+      "",
+      copy.intro,
+      input.productName,
+      "",
+      `${copy.button}: ${input.productUrl}`,
+      "",
+      copy.footer,
+    ].join("\n");
+  }
 
   const result = await deliverTransactionalEmail({
     idempotencyKey: `stock-alert-${input.notificationId}`,
     kind: EmailDeliveryKind.BACK_IN_STOCK,
     recipientEmail: input.email,
-    subject: copy.subject(input.productName),
+    subject,
     html,
     text,
   });

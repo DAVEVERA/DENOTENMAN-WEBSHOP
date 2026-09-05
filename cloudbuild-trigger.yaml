@@ -17,8 +17,9 @@ steps:
         git checkout --detach "${_COMMIT_SHA}"
 
   # The build statically reads product data. Apply only committed expand-only
-  # migrations before Docker invokes `next build`; a later build failure leaves
-  # the currently serving revision compatible with the additive schema.
+  # migrations before Docker invokes `next build`. Review data backfills and
+  # reader compatibility separately; additive enum values alone do not make
+  # newly written rows readable by the currently serving revision.
   - id: "migrate-database"
     name: "docker.io/library/node:22-bookworm"
     entrypoint: "bash"
@@ -27,6 +28,9 @@ steps:
       - |
         set -euo pipefail
         npm ci --ignore-scripts --no-audit --no-fund
+        export DATABASE_ACCESS_CONTEXT=release
+        export DEPLOYMENT_VERSION="${_COMMIT_SHA}"
+        node scripts/check-database-access.cjs migrate-release
         npx prisma migrate deploy && exit 0
         echo "Prisma migrate deploy failed; retrying in 10s (attempt 2/5)"
         sleep 10
@@ -62,6 +66,7 @@ steps:
           --build-arg SITE_URL="${_SITE_URL}" \
           --build-arg UNLIMITED_STOCK="${_UNLIMITED_STOCK}" \
           --build-arg DEPLOYMENT_VERSION="${_COMMIT_SHA}" \
+          --build-arg DATABASE_ACCESS_CONTEXT=release \
           -t "${_IMAGE_BASE}:${_COMMIT_SHA}" \
           .
     secretEnv: ["DATABASE_URL"]
@@ -79,7 +84,7 @@ steps:
       - "--image=${_IMAGE_BASE}:${_COMMIT_SHA}"
       - "--region=europe-west4"
       - "--platform=managed"
-      - "--update-env-vars=GA4_PROPERTY_ID=${_GA4_PROPERTY_ID}"
+      - "--update-env-vars=GA4_PROPERTY_ID=${_GA4_PROPERTY_ID},RELEASE_EXPANDED_ENUM_WRITES=false"
       - "--no-traffic"
       - "--quiet"
 

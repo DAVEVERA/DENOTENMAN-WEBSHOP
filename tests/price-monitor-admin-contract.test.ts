@@ -88,7 +88,7 @@ test("scrapers use separate adapters and cannot redirect outside approved hosts"
   assert.match(basBoerScraper, /AbortSignal\.timeout/);
   assert.match(basBoerScraper, /HTTP 429/);
   assert.match(basBoerReference, /MAX_PRODUCTS = 25/);
-  assert.match(apexReference, /APEX PREDATOR ULTIMATE v9\.1/);
+  assert.match(apexReference, /ULTIMATE SCRAPER v2/);
   assert.match(apexReference, /basboernoten\.nl/);
   assert.match(apexReference, /nootje\.eu/);
   assert.match(apexReference, /noototheek\.nl/);
@@ -104,7 +104,9 @@ test("scrapers use separate adapters and cannot redirect outside approved hosts"
   assert.match(apexReference, /automatisch inladen is begrensd op maximaal 25 producten/);
   assert.match(apexReference, /extract_unit/);
   assert.match(apexReference, /calc_unit_price/);
-  assert.match(apexReference, /selected_sites = \[args\.domain\] if args\.domain else SITES/);
+  assert.match(apexReference, /selected_sites = \[args\.domain\] if args\.domain else/);
+  assert.match(apexReference, /allow_redirects=False/);
+  assert.match(apexReference, /size > 2_000_000/);
   assert.match(apexLoader, /apex_scan_20260830_210808\.json/);
   assert.match(apexLoader, /app\/admin\/\(dashboard\)\/prijsmonitor\/apex\.py/);
   assert.doesNotMatch(runRoute, /child_process|spawn\(|exec\(/);

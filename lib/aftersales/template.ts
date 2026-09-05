@@ -53,14 +53,16 @@ function tableBlockHtml(design: AftersalesDesign): string {
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
-export type RenderedAftersalesEmail = {
+export type RenderedFlowEmail = {
   subject: string;
   html: string;
   text: string;
   actionUrl: string;
 };
 
-function escapeHtml(value: string): string {
+export type RenderedAftersalesEmail = RenderedFlowEmail;
+
+export function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -88,7 +90,7 @@ function actionUrlFor(order: Order, trigger: AftersalesTriggerValue, locale: Loc
   return `${BASE_URL}${orderConfirmation(locale, order.id)}`;
 }
 
-function replaceTokens(value: string, values: Record<string, string>): string {
+export function replaceTokens(value: string, values: Record<string, string>): string {
   return value.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, token: string) => values[token] ?? "");
 }
 
@@ -99,13 +101,97 @@ function bodyHtml(value: string, bodyFontPx: number): string {
     .join("");
 }
 
+function contentBlockHtml(design: AftersalesDesign, textBlock: string, altFallback: string): string {
+  const media = mediaBlockHtml(design, altFallback);
+  return design.layout === "IMAGE_SIDE" && media
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+        <td width="200" valign="top" style="padding:0 16px 0 0">${media}</td>
+        <td valign="top">${textBlock}</td>
+      </tr></table>`
+    : design.layout === "IMAGE_TOP" && media
+      ? `${media}${textBlock}`
+      : design.layout === "IMAGE_BOTTOM" && media
+        ? `${textBlock}${media}`
+        : design.layout === "GRID_2COL"
+          ? `${textBlock}${gridBlockHtml(design)}`
+          : design.layout === "TABLE"
+            ? `${textBlock}${tableBlockHtml(design)}`
+            : textBlock;
+}
+
+/**
+ * Shared shell for every mail-flow email regardless of trigger: brand/logo,
+ * heading+body in the chosen layout (including grid/table blocks), and the
+ * call-to-action button. Order-specific extras (bestelnummer box, item
+ * table, tracking line) are the caller's job - see renderAftersalesEmail.
+ */
+function renderEmailShell(input: {
+  locale: Locale;
+  subject: string;
+  previewText: string;
+  heading: string;
+  body: string;
+  buttonLabel: string;
+  actionUrl: string;
+  design: AftersalesDesign;
+  logoUrl: string | null;
+  extraHtml?: string;
+  extraText?: string[];
+  footerText: string;
+}): RenderedFlowEmail {
+  const { locale, subject, previewText, heading, body, buttonLabel, actionUrl, design, logoUrl, extraHtml, extraText, footerText } = input;
+  const fontStack = FONT_STACKS[design.font];
+  const sizes = FONT_SIZES[design.fontSize];
+  const brandBlock = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
+    : `<p style="margin:0;color:#806600;font-size:13px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
+  const headingBlock = `<h1 style="margin:12px 0 10px;color:#141414;font-size:${sizes.heading}px;line-height:1.25">${escapeHtml(heading)}</h1>`;
+  const textBlock = `${headingBlock}${bodyHtml(body, sizes.body)}`;
+  const contentBlock = contentBlockHtml(design, textBlock, heading);
+
+  const html = `<!doctype html>
+<html lang="${locale}" dir="ltr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;background:#f6f3ee;font-family:${fontStack}">
+  <div lang="${locale}" dir="ltr" style="display:none;max-height:0;overflow:hidden">${escapeHtml(previewText)}</div>
+  <div lang="${locale}" dir="ltr" style="padding:24px 12px">
+    <div style="max-width:600px;margin:0 auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff">
+      <div style="height:5px;background:#e0b200"></div>
+      <div style="padding:28px">
+        ${brandBlock}
+        ${contentBlock}
+        ${extraHtml ?? ""}
+        <div style="padding-top:26px">
+          <a href="${escapeHtml(actionUrl)}" style="display:block;min-height:44px;box-sizing:border-box;padding:14px 20px;border-radius:8px;background:#e0b200;color:#141414;font-size:16px;font-weight:700;text-align:center;text-decoration:none">${escapeHtml(buttonLabel)}</a>
+        </div>
+      </div>
+      <div style="padding:18px 28px 24px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px;line-height:1.5">${escapeHtml(footerText)}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const text = [
+    heading,
+    "",
+    body,
+    ...(extraText && extraText.length > 0 ? ["", ...extraText] : []),
+    "",
+    `${buttonLabel}: ${actionUrl}`,
+    "",
+    footerText,
+  ].join("\n");
+
+  return { subject, html, text, actionUrl };
+}
+
 export function renderAftersalesEmail(
   order: OrderWithItems,
   trigger: AftersalesTriggerValue,
   content: AftersalesLocaleContent,
   design: AftersalesDesign = defaultAftersalesDesign,
   logoUrl: string | null = null
-): RenderedAftersalesEmail {
+): RenderedFlowEmail {
   const locale: Locale = isLocale(order.locale) ? order.locale : "nl";
   const actionUrl = actionUrlFor(order, trigger, locale);
   const tokens = {
@@ -140,76 +226,70 @@ export function renderAftersalesEmail(
   const tracking = trigger === "ORDER_FULFILLED" && order.postnlTrackingCode
     ? `<p style="margin:18px 0 0;color:#333;font-size:14px"><strong>Track &amp; trace:</strong> ${escapeHtml(order.postnlTrackingCode)}</p>`
     : "";
+  const orderNumberBox = `<div style="margin:18px 0;padding:14px 16px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;color:#333;font-size:14px"><strong>Bestelnummer:</strong> ${escapeHtml(order.id)}</div>`;
 
-  const fontStack = FONT_STACKS[design.font];
-  const sizes = FONT_SIZES[design.fontSize];
-  const brandBlock = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
-    : `<p style="margin:0;color:#806600;font-size:13px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
-  const headingBlock = `<h1 style="margin:12px 0 10px;color:#141414;font-size:${sizes.heading}px;line-height:1.25">${escapeHtml(heading)}</h1>`;
-  const textBlock = `${headingBlock}${bodyHtml(message, sizes.body)}`;
-  const media = mediaBlockHtml(design, heading);
-
-  const contentBlock = design.layout === "IMAGE_SIDE" && media
-    ? `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
-        <td width="200" valign="top" style="padding:0 16px 0 0">${media}</td>
-        <td valign="top">${textBlock}</td>
-      </tr></table>`
-    : design.layout === "IMAGE_TOP" && media
-      ? `${media}${textBlock}`
-      : design.layout === "IMAGE_BOTTOM" && media
-        ? `${textBlock}${media}`
-        : design.layout === "GRID_2COL"
-          ? `${textBlock}${gridBlockHtml(design)}`
-          : design.layout === "TABLE"
-            ? `${textBlock}${tableBlockHtml(design)}`
-            : textBlock;
-
-  const html = `<!doctype html>
-<html lang="${locale}" dir="ltr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;background:#f6f3ee;font-family:${fontStack}">
-  <div lang="${locale}" dir="ltr" style="display:none;max-height:0;overflow:hidden">${escapeHtml(preview)}</div>
-  <div lang="${locale}" dir="ltr" style="padding:24px 12px">
-    <div style="max-width:600px;margin:0 auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff">
-      <div style="height:5px;background:#e0b200"></div>
-      <div style="padding:28px">
-        ${brandBlock}
-        ${contentBlock}
-        <div style="margin:18px 0;padding:14px 16px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;color:#333;font-size:14px">
-          <strong>Bestelnummer:</strong> ${escapeHtml(order.id)}
-        </div>
-        ${itemsSection}
-        ${tracking}
-        <div style="padding-top:26px">
-          <a href="${escapeHtml(actionUrl)}" style="display:block;min-height:44px;box-sizing:border-box;padding:14px 20px;border-radius:8px;background:#e0b200;color:#141414;font-size:16px;font-weight:700;text-align:center;text-decoration:none">${escapeHtml(buttonLabel)}</a>
-        </div>
-      </div>
-      <div style="padding:18px 28px 24px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px;line-height:1.5">Vragen? Beantwoord deze e-mail; we helpen je graag.</div>
-    </div>
-  </div>
-</body>
-</html>`;
-
-  const text = [
+  return renderEmailShell({
+    locale,
+    subject,
+    previewText: preview,
     heading,
-    "",
-    message,
-    "",
-    `Bestelnummer: ${order.id}`,
-    ...(trigger === "ORDER_PAID"
-      ? [
-          "",
-          ...order.items.map((item) => `${item.quantity}× ${item.productName} (${item.variantLabel}) — ${formatPrice(item.unitPriceCents * item.quantity, locale)}`),
-          `Totaal: ${formatPrice(order.totalCents, locale)}`,
-        ]
-      : []),
-    ...(order.postnlTrackingCode ? [`Track & trace: ${order.postnlTrackingCode}`] : []),
-    "",
-    `${buttonLabel}: ${actionUrl}`,
-    "",
-    "Vragen? Beantwoord deze e-mail; we helpen je graag.",
-  ].join("\n");
+    body: message,
+    buttonLabel,
+    actionUrl,
+    design,
+    logoUrl,
+    extraHtml: `${orderNumberBox}${itemsSection}${tracking}`,
+    extraText: [
+      `Bestelnummer: ${order.id}`,
+      ...(trigger === "ORDER_PAID"
+        ? [
+            ...order.items.map((item) => `${item.quantity}× ${item.productName} (${item.variantLabel}) — ${formatPrice(item.unitPriceCents * item.quantity, locale)}`),
+            `Totaal: ${formatPrice(order.totalCents, locale)}`,
+          ]
+        : []),
+      ...(order.postnlTrackingCode ? [`Track & trace: ${order.postnlTrackingCode}`] : []),
+    ],
+    footerText: "Vragen? Beantwoord deze e-mail; we helpen je graag.",
+  });
+}
 
-  return { subject, html, text, actionUrl };
+const GENERIC_FOOTER: Record<Locale, string> = {
+  nl: "Vragen? Beantwoord deze e-mail; we helpen je graag.",
+  en: "Questions? Reply to this email and we'll help you out.",
+  fr: "Des questions ? Répondez à cet e-mail, nous serons ravis de vous aider.",
+};
+
+/**
+ * Renders a mail-flow step for triggers that have no Order to draw context
+ * from (back-in-stock, business invitations, admin notifications, etc).
+ * Same shell/design system as renderAftersalesEmail, generic token map
+ * instead of order fields.
+ */
+export function renderGenericFlowEmail(input: {
+  locale: Locale;
+  content: AftersalesLocaleContent;
+  design?: AftersalesDesign;
+  logoUrl?: string | null;
+  tokens: Record<string, string>;
+  actionUrl: string;
+}): RenderedFlowEmail {
+  const { locale, content, design = defaultAftersalesDesign, logoUrl = null, tokens, actionUrl } = input;
+  const subject = replaceTokens(content.subject, tokens);
+  const preview = replaceTokens(content.previewText, tokens);
+  const heading = replaceTokens(content.heading, tokens);
+  const message = replaceTokens(content.body, tokens);
+  const buttonLabel = replaceTokens(content.buttonLabel, tokens);
+
+  return renderEmailShell({
+    locale,
+    subject,
+    previewText: preview,
+    heading,
+    body: message,
+    buttonLabel,
+    actionUrl,
+    design,
+    logoUrl,
+    footerText: GENERIC_FOOTER[locale] ?? GENERIC_FOOTER.nl,
+  });
 }

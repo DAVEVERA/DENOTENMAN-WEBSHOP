@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { assertDatabaseAccess } from "./database-access.cjs";
+
+assertDatabaseAccess(process.env);
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

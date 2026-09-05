@@ -20,7 +20,7 @@ const defaultDesign = {
 
 function stepContent() {
   return {
-    locales: { nl: localeContent, en: localeContent, fr: localeContent },
+    locales: { nl: { ...localeContent }, en: { ...localeContent }, fr: { ...localeContent } },
     design: defaultDesign,
   };
 }
@@ -51,11 +51,29 @@ function validFlow() {
         delayMinutes: 0,
         content: stepContent(),
       },
+      {
+        id: "stock",
+        trigger: "BACK_IN_STOCK",
+        name: "Voorraadmelding",
+        position: 2,
+        enabled: true,
+        delayMinutes: 0,
+        content: {
+          ...stepContent(),
+          locales: Object.fromEntries(["nl", "en", "fr"].map((locale) => [locale, {
+            subject: "{{product_name}} is weer op voorraad",
+            previewText: "Bekijk {{product_name}}",
+            heading: "Weer op voorraad",
+            body: "Bestel via {{product_url}}",
+            buttonLabel: "Bekijk product",
+          }])) as ReturnType<typeof stepContent>["locales"],
+        },
+      },
     ],
   };
 }
 
-test("aftersales flow accepts the two required transaction events and supported tokens", () => {
+test("aftersales flow accepts the three required trigger types and supported tokens", () => {
   assert.equal(aftersalesFlowInputSchema.safeParse(validFlow()).success, true);
 });
 
@@ -67,10 +85,19 @@ test("aftersales flow rejects unknown personalization fields", () => {
   assert.match(JSON.stringify(parsed.error?.flatten()), /ondersteunde personalisatievelden/);
 });
 
-test("aftersales flow cannot lose or duplicate a required event", () => {
+test("aftersales flow cannot lose or duplicate a required trigger type", () => {
   const input = validFlow();
   input.steps[1].trigger = "ORDER_PAID";
   const parsed = aftersalesFlowInputSchema.safeParse(input);
   assert.equal(parsed.success, false);
-  assert.match(JSON.stringify(parsed.error?.flatten()), /precies één bestel- en één verzendstap/);
+  assert.match(JSON.stringify(parsed.error?.flatten()), /precies één stap per triggertype/);
+});
+
+test("stock messages reject order-only fields and order messages reject stock-only fields", () => {
+  const stock = validFlow();
+  stock.steps[2].content.locales.nl.subject = "Hallo {{first_name}}";
+  assert.equal(aftersalesFlowInputSchema.safeParse(stock).success, false);
+  const order = validFlow();
+  order.steps[0].content.locales.nl.subject = "Hallo {{product_name}}";
+  assert.equal(aftersalesFlowInputSchema.safeParse(order).success, false);
 });
