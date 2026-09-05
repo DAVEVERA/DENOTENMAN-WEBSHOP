@@ -551,8 +551,9 @@ export async function syncOrderPaymentStatus(
   }
 
   const isBusinessOrder = Boolean(order.businessOrderListId);
-  const prepared = nextStatus === "PAID" && !order.isTest && !isBusinessOrder
-    ? await prepareAftersalesEvent("ORDER_PAID")
+  const paidTrigger = isBusinessOrder ? "BUSINESS_ORDER_PAID" : "ORDER_PAID";
+  const prepared = nextStatus === "PAID" && !order.isTest
+    ? await prepareAftersalesEvent(paidTrigger)
     : null;
 
   // Persist the status transition and its e-mail event in one transaction.
@@ -571,7 +572,7 @@ export async function syncOrderPaymentStatus(
         ? await queueAftersalesEvent(
             transaction,
             order.id,
-            "ORDER_PAID",
+            paidTrigger,
             prepared
           )
         : null;
