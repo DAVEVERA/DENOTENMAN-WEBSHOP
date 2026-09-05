@@ -19,7 +19,10 @@ import {
 import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
 import type { OrderAftersalesTrigger } from "@/lib/aftersales/events";
 
-const FALLBACK_STEP_IDS: Record<OrderAftersalesTrigger, string> = {
+// Business triggers have no seeded fallback step yet: the business flow row
+// is auto-created empty (see lib/aftersales/defaults.ts) and only ever
+// relies on its own enabled steps, never a hardcoded fallback template.
+const FALLBACK_STEP_IDS: Partial<Record<OrderAftersalesTrigger, string>> = {
   ORDER_PAID: "order-paid-email",
   ORDER_FULFILLED: "order-fulfilled-email",
 };
@@ -67,8 +70,11 @@ export async function prepareAftersalesEvent(
     const activeStep = activeFlow?.steps[0];
     if (activeStep) return { stepId: activeStep.id, usesFallback: false };
 
+    const fallbackStepId = FALLBACK_STEP_IDS[trigger];
+    if (!fallbackStepId) return null;
+
     const fallback = await prisma.aftersalesStep.findUnique({
-      where: { id: FALLBACK_STEP_IDS[trigger] },
+      where: { id: fallbackStepId },
       select: { id: true },
     });
     return fallback ? { stepId: fallback.id, usesFallback: true } : null;
