@@ -68,7 +68,7 @@ export function BusinessNotificationsDropdown() {
         <div ref={panelRef} id={panelId} role="dialog" aria-label="Zakelijke meldingen" tabIndex={-1}
           className="fixed left-4 right-4 top-[4.5rem] z-50 flex max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-panel border border-border bg-surface shadow-card-hover outline-none sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:w-96">
           <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <div><h2 className="font-heading text-body-base font-bold text-text">Zakelijke meldingen</h2><p className="text-body-sm text-muted">{inbox ? `${inbox.unreadCount} ongelezen` : "Meldingen ophalen…"}</p></div>
+            <div><h2 className="font-heading text-heading-sm font-bold text-text">Zakelijke meldingen</h2><p className="text-body-sm text-muted">{inbox ? `${inbox.unreadCount} ongelezen` : "Meldingen ophalen…"}</p></div>
             <button type="button" onClick={close} aria-label="Meldingen sluiten" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-button hover:bg-background"><X className="h-5 w-5" aria-hidden="true" /></button>
           </div>
           {error ? <div className="px-4 py-3"><p role="alert" className="text-body-sm text-red-700">{error}</p><button type="button" onClick={() => setRefresh((value) => value + 1)} className="min-h-11 text-body-sm font-bold underline">Opnieuw proberen</button></div> : null}
