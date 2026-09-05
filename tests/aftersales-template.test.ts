@@ -131,3 +131,26 @@ test("renderGenericFlowEmail uses per-locale footer text", () => {
   });
   assert.match(rendered.html, /Questions\? Reply to this email/);
 });
+
+test("renders business_name and contact_name for a business trigger", () => {
+  const order = {
+    id: "order-1",
+    contactName: "Jan Jansen",
+    contactEmail: "jan@example.invalid",
+    locale: "nl",
+    items: [],
+    businessOrderList: {
+      businessAccount: { companyName: "Restaurant De Notenboom", contactName: "Jan Jansen" },
+    },
+  } as unknown as Parameters<typeof renderAftersalesEmail>[0];
+  const locale = {
+    subject: "Betaald",
+    previewText: "Betaald",
+    heading: "Betaald",
+    body: "Beste {{contact_name}} van {{business_name}}, je zakelijke bestelling is betaald.",
+    buttonLabel: "Bekijk",
+  };
+  const rendered = renderAftersalesEmail(order, "BUSINESS_ORDER_PAID", locale, defaultAftersalesDesign, null);
+  assert.match(rendered.html, /Jan Jansen/);
+  assert.match(rendered.html, /Restaurant De Notenboom/);
+});

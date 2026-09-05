@@ -1,4 +1,4 @@
-import type { Order, OrderItem } from "@prisma/client";
+import type { BusinessAccount, Order, OrderItem } from "@prisma/client";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { formatPrice } from "@/lib/format";
 import { BASE_URL, orderConfirmation } from "@/lib/routes";
@@ -51,7 +51,10 @@ function tableBlockHtml(design: AftersalesDesign): string {
   return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px">${head ? `<thead>${head}</thead>` : ""}<tbody>${body}</tbody></table>`;
 }
 
-type OrderWithItems = Order & { items: OrderItem[] };
+type OrderWithItems = Order & {
+  items: OrderItem[];
+  businessOrderList?: { businessAccount: BusinessAccount | null } | null;
+};
 
 export type RenderedFlowEmail = {
   subject: string;
@@ -201,6 +204,8 @@ export function renderAftersalesEmail(
     order_total: formatPrice(order.totalCents, locale),
     tracking_code: order.postnlTrackingCode ?? "",
     order_url: actionUrl,
+    business_name: order.businessOrderList?.businessAccount?.companyName ?? "",
+    contact_name: order.businessOrderList?.businessAccount?.contactName ?? order.contactName,
   };
   const subject = replaceTokens(content.subject, tokens);
   const preview = replaceTokens(content.previewText, tokens);

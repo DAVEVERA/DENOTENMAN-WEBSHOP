@@ -190,7 +190,7 @@ export async function processAftersalesDelivery(
     where: { id: deliveryId },
     include: {
       step: { include: { flow: { select: { logoUrl: true } } } },
-      order: { include: { items: true } },
+      order: { include: { items: true, businessOrderList: { include: { businessAccount: true } } } },
     },
   });
   if (!delivery) throw new Error(`Aftersales-opdracht ${deliveryId} bestaat niet`);
