@@ -12,7 +12,8 @@ test("creates the ZAKELIJK flow with both business steps when only PARTICULIER e
   const originalCreateMany = flowDelegate.createMany;
   let createdFlows: unknown;
   flowDelegate.findMany = async () => [{ flowType: "PARTICULIER" }];
-  flowDelegate.createMany = async ({ data }: { data: unknown }) => {
+  flowDelegate.createMany = async (...args: unknown[]) => {
+    const { data } = args[0] as { data: unknown };
     createdFlows = data;
     return { count: Array.isArray(data) ? data.length : 1 };
   };
