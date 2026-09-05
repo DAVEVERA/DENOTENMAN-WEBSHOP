@@ -4,7 +4,12 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { parseAftersalesContent, type AftersalesStepContent, type AftersalesTriggerValue } from "@/lib/aftersales/schema";
+import {
+  parseAftersalesContent,
+  PARTICULIER_TRIGGERS,
+  type AftersalesStepContent,
+  type AftersalesTriggerValue,
+} from "@/lib/aftersales/schema";
 import { renderAftersalesEmail } from "@/lib/aftersales/template";
 import {
   deliverTransactionalEmail,
@@ -20,6 +25,10 @@ const FALLBACK_STEP_IDS: Record<OrderAftersalesTrigger, string> = {
 };
 
 const MAX_DELIVERY_ATTEMPTS = 5;
+
+function flowTypeForTrigger(trigger: AftersalesTriggerValue): "PARTICULIER" | "ZAKELIJK" {
+  return (PARTICULIER_TRIGGERS as readonly string[]).includes(trigger) ? "PARTICULIER" : "ZAKELIJK";
+}
 
 export type PreparedAftersalesEvent = {
   stepId: string;
@@ -45,7 +54,7 @@ export async function prepareAftersalesEvent(
 ): Promise<PreparedAftersalesEvent | null> {
   try {
     const activeFlow = await prisma.aftersalesFlow.findFirst({
-      where: { isActive: true },
+      where: { isActive: true, flowType: flowTypeForTrigger(trigger) },
       orderBy: { updatedAt: "desc" },
       include: {
         steps: {
@@ -256,7 +265,7 @@ export async function getEnabledGenericStepContent(
 ): Promise<{ disabled: true } | { disabled: false; content: AftersalesStepContent; logoUrl: string | null } | null> {
   try {
     const activeFlow = await prisma.aftersalesFlow.findFirst({
-      where: { isActive: true },
+      where: { isActive: true, flowType: flowTypeForTrigger(trigger) },
       orderBy: { updatedAt: "desc" },
       select: {
         logoUrl: true,

@@ -38,6 +38,31 @@ test("disabled active step resolves to the seeded transactional fallback", async
   }
 });
 
+test("prepareAftersalesEvent resolves the ZAKELIJK flow for a business trigger even when a PARTICULIER flow was edited more recently", async () => {
+  const flowDelegate = prisma.aftersalesFlow as unknown as { findFirst: (...args: unknown[]) => unknown };
+  const original = flowDelegate.findFirst;
+  let capturedWhere: unknown;
+  flowDelegate.findFirst = async (...args: unknown[]) => {
+    capturedWhere = (args[0] as { where: unknown }).where;
+    return {
+      id: "zakelijk-flow",
+      name: "Zakelijk",
+      isActive: true,
+      flowType: "ZAKELIJK",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      steps: [{ id: "business-order-paid-step" }],
+    };
+  };
+  try {
+    const result = await prepareAftersalesEvent("BUSINESS_ORDER_PAID");
+    assert.deepEqual(result, { stepId: "business-order-paid-step", usesFallback: false });
+    assert.deepEqual(capturedWhere, { isActive: true, flowType: "ZAKELIJK" });
+  } finally {
+    flowDelegate.findFirst = original;
+  }
+});
+
 test("queue writes a pending outbox record through the supplied transaction", async () => {
   let capturedData: unknown;
   const transaction = {
