@@ -44,6 +44,7 @@ export async function PATCH(request: NextRequest) {
       });
       if (!existing) throw new Error("FLOW_NOT_FOUND");
       if (existing.updatedAt.toISOString() !== input.version) throw new Error("STALE_FLOW");
+      if (existing.flowType !== input.flowType) throw new Error("FLOW_TYPE_MISMATCH");
       const existingStepIds = new Set(existing.steps.map((step) => step.id));
       if (input.steps.some((step) => !existingStepIds.has(step.id))) {
         throw new Error("STEP_NOT_FOUND");
@@ -82,6 +83,7 @@ export async function PATCH(request: NextRequest) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     revalidatePath("/admin/marketing/aftersales");
+    revalidatePath(`/admin/marketing/aftersales/${input.id}`);
     return NextResponse.json({
       flow: {
         ...updated,
@@ -110,6 +112,9 @@ export async function PATCH(request: NextRequest) {
     }
     if (error instanceof Error && error.message === "STALE_FLOW") {
       return NextResponse.json({ error: "STALE_FLOW" }, { status: 409 });
+    }
+    if (error instanceof Error && error.message === "FLOW_TYPE_MISMATCH") {
+      return NextResponse.json({ error: "FLOW_TYPE_MISMATCH" }, { status: 409 });
     }
     if (error instanceof Error && error.message === "STEP_NOT_FOUND") {
       return NextResponse.json({ error: "STEP_NOT_FOUND" }, { status: 400 });

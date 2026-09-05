@@ -15,7 +15,7 @@ export default async function AftersalesListPage() {
       include: { steps: { select: { trigger: true } } },
     });
     for (const flow of flows) {
-      await backfillAftersalesSteps(flow.id, flow.steps.map((step) => step.trigger));
+      await backfillAftersalesSteps(flow.id, flow.flowType, flow.steps.map((step) => step.trigger));
     }
     if (flows.some((flow) => flow.steps.length === 0)) {
       flows = await prisma.aftersalesFlow.findMany({

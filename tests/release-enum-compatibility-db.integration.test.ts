@@ -52,16 +52,19 @@ test("compatibility release defers new stock enum writes until activation and pr
     for (const flag of [undefined, "false", "TRUE", "1"]) {
       if (flag === undefined) delete process.env.RELEASE_EXPANDED_ENUM_WRITES;
       else process.env.RELEASE_EXPANDED_ENUM_WRITES = flag;
-      assert.equal(await backfillAftersalesSteps(flow.id, []), false);
+      assert.equal(await backfillAftersalesSteps(flow.id, "ZAKELIJK", []), false);
       assert.equal(await prisma.aftersalesStep.count({ where: { flowId: flow.id } }), 0);
     }
     process.env.RELEASE_EXPANDED_ENUM_WRITES = "true";
-    assert.equal(await backfillAftersalesSteps(flow.id, []), true);
+    assert.equal(await backfillAftersalesSteps(flow.id, "ZAKELIJK", []), true);
     const active = await prisma.aftersalesFlow.findUniqueOrThrow({ where: { id: flow.id }, include: { steps: true } });
-    assert.equal(active.steps.length, 1);
-    assert.equal(active.steps[0].trigger, "BACK_IN_STOCK");
+    assert.equal(active.steps.length, 2);
+    assert.deepEqual(
+      active.steps.map((step) => step.trigger).sort(),
+      ["BUSINESS_ORDER_FULFILLED", "BUSINESS_ORDER_PAID"]
+    );
     process.env.RELEASE_EXPANDED_ENUM_WRITES = "false";
-    assert.equal(await backfillAftersalesSteps(flow.id, []), false);
+    assert.equal(await backfillAftersalesSteps(flow.id, "ZAKELIJK", []), false);
     const rollback = await prisma.aftersalesFlow.findUniqueOrThrow({ where: { id: flow.id }, include: { steps: true } });
     assert.deepEqual(rollback.steps, active.steps, "rollback keeps existing configured mail content readable and unchanged");
   } finally {

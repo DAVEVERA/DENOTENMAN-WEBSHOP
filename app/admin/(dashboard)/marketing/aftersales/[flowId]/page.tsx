@@ -64,7 +64,7 @@ export default async function AftersalesFlowPage({ params }: { params: Promise<{
     );
   }
 
-  const backfilled = await backfillAftersalesSteps(flow.id, flow.steps.map((step) => step.trigger));
+  const backfilled = await backfillAftersalesSteps(flow.id, flow.flowType, flow.steps.map((step) => step.trigger));
   if (backfilled) {
     flow = await prisma.aftersalesFlow.findUniqueOrThrow({
       where: { id: flow.id },
