@@ -29,6 +29,7 @@ function validFlow() {
   return {
     id: "flow-1",
     name: "Bestelling en verzending",
+    flowType: "PARTICULIER" as const,
     isActive: true,
     logoUrl: null,
     version: "2026-08-19T08:00:00.000Z",
@@ -100,4 +101,20 @@ test("stock messages reject order-only fields and order messages reject stock-on
   const order = validFlow();
   order.steps[0].content.locales.nl.subject = "Hallo {{product_name}}";
   assert.equal(aftersalesFlowInputSchema.safeParse(order).success, false);
+});
+
+import { AFTERSALES_TRIGGERS, PARTICULIER_TRIGGERS, BUSINESS_TRIGGERS, AFTERSALES_TRIGGERS_BY_FLOW_TYPE } from "../lib/aftersales/schema";
+
+test("business triggers are disjoint from particuliere triggers and both are covered", () => {
+  const overlap = PARTICULIER_TRIGGERS.filter((t) => (BUSINESS_TRIGGERS as readonly string[]).includes(t));
+  assert.deepEqual(overlap, []);
+  assert.deepEqual(
+    [...PARTICULIER_TRIGGERS, ...BUSINESS_TRIGGERS].sort(),
+    [...AFTERSALES_TRIGGERS].sort()
+  );
+});
+
+test("AFTERSALES_TRIGGERS_BY_FLOW_TYPE maps each flow type to its own trigger set", () => {
+  assert.deepEqual(AFTERSALES_TRIGGERS_BY_FLOW_TYPE.PARTICULIER, PARTICULIER_TRIGGERS);
+  assert.deepEqual(AFTERSALES_TRIGGERS_BY_FLOW_TYPE.ZAKELIJK, BUSINESS_TRIGGERS);
 });

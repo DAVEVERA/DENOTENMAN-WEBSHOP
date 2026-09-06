@@ -303,7 +303,10 @@
   font-family: var(--font-heading), sans-serif;
   font-size: clamp(1.25rem, 5vw, 1.6rem);
   font-weight: 700;
+  hyphens: none;
   line-height: 1.05;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .description {

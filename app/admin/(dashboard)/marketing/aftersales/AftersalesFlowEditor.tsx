@@ -86,12 +86,22 @@ const triggerCopy: Record<AftersalesTriggerValue, {
     event: "Product weer op voorraad",
     description: "Start zodra een klant zich had aangemeld en het product weer bestelbaar is.",
   },
+  BUSINESS_ORDER_PAID: {
+    event: "Zakelijke betaling ontvangen",
+    description: "Start zodra Mollie de betaling van een zakelijke bestelling definitief als betaald bevestigt.",
+  },
+  BUSINESS_ORDER_FULFILLED: {
+    event: "Zakelijke bestelling verzonden",
+    description: "Start bij de status Verzonden voor een zakelijke bestelling en gebruikt de track-en-tracecode.",
+  },
 };
 
 const triggerIcons: Record<AftersalesTriggerValue, typeof PackageCheck> = {
   ORDER_PAID: PackageCheck,
   ORDER_FULFILLED: Truck,
   BACK_IN_STOCK: Bell,
+  BUSINESS_ORDER_PAID: PackageCheck,
+  BUSINESS_ORDER_FULFILLED: Truck,
 };
 
 const localeLabels: Record<Locale, string> = { nl: "Nederlands", en: "Engels", fr: "Frans" };
@@ -115,6 +125,8 @@ function sampleValue(value: string): string {
     order_url: "https://denotenman.com/nl/order/DN-2026-1842",
     product_name: "Cashewnoten gebrand",
     product_url: "https://denotenman.com/nl/producten/cashewnoten-gebrand",
+    business_name: "Restaurant De Notenboom",
+    contact_name: "Jan Jansen",
   }[token] ?? ""));
 }
 

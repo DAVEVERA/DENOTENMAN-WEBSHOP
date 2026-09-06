@@ -59,6 +59,8 @@ enum AftersalesTrigger {
   ORDER_PAID
   ORDER_FULFILLED
   BACK_IN_STOCK
+  BUSINESS_ORDER_PAID
+  BUSINESS_ORDER_FULFILLED
 }
 
 enum AftersalesDeliveryStatus {
@@ -749,15 +751,23 @@ model Order {
   @@index([businessOrderListId])
 }
 
+enum AftersalesFlowType {
+  PARTICULIER
+  ZAKELIJK
+}
+
 model AftersalesFlow {
-  id        String   @id @default(cuid())
+  id        String             @id @default(cuid())
   name      String
-  isActive  Boolean  @default(false)
+  flowType  AftersalesFlowType @default(PARTICULIER)
+  isActive  Boolean            @default(false)
   logoUrl   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
   steps AftersalesStep[]
+
+  @@unique([flowType])
 }
 
 model AftersalesStep {

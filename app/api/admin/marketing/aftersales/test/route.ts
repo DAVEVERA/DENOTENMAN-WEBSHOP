@@ -51,13 +51,13 @@ export async function POST(request: NextRequest) {
   let order = await prisma.order.findFirst({
     where: realOrderFilter,
     orderBy: { createdAt: "desc" },
-    include: { items: true },
+    include: { items: true, businessOrderList: { include: { businessAccount: true } } },
   });
   if (!order) {
     order = await prisma.order.findFirst({
       where: testOrderFilter,
       orderBy: { createdAt: "desc" },
-      include: { items: true },
+      include: { items: true, businessOrderList: { include: { businessAccount: true } } },
     });
   }
   if (!order) return NextResponse.json({ error: "NO_SAMPLE_ORDER" }, { status: 409 });

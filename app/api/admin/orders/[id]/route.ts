@@ -116,7 +116,12 @@ export async function PATCH(
   }
 
   const trigger = data.status
-    ? aftersalesTriggerForOrderTransition(existing.status, data.status, existing.isTest)
+    ? aftersalesTriggerForOrderTransition(
+        existing.status,
+        data.status,
+        existing.isTest,
+        Boolean(existing.businessOrderListId)
+      )
     : null;
   const prepared = trigger ? await prepareAftersalesEvent(trigger) : null;
 

@@ -4,7 +4,12 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { parseAftersalesContent, type AftersalesStepContent, type AftersalesTriggerValue } from "@/lib/aftersales/schema";
+import {
+  parseAftersalesContent,
+  PARTICULIER_TRIGGERS,
+  type AftersalesStepContent,
+  type AftersalesTriggerValue,
+} from "@/lib/aftersales/schema";
 import { renderAftersalesEmail } from "@/lib/aftersales/template";
 import {
   deliverTransactionalEmail,
@@ -14,12 +19,28 @@ import {
 import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
 import type { OrderAftersalesTrigger } from "@/lib/aftersales/events";
 
-const FALLBACK_STEP_IDS: Record<OrderAftersalesTrigger, string> = {
+// Business triggers have no seeded fallback step yet: the business flow row
+// is auto-created empty (see lib/aftersales/defaults.ts) and only ever
+// relies on its own enabled steps, never a hardcoded fallback template.
+const FALLBACK_STEP_IDS: Partial<Record<OrderAftersalesTrigger, string>> = {
   ORDER_PAID: "order-paid-email",
   ORDER_FULFILLED: "order-fulfilled-email",
 };
 
 const MAX_DELIVERY_ATTEMPTS = 5;
+
+export function aftersalesEmailDeliveryKind(
+  trigger: AftersalesTriggerValue
+): EmailDeliveryKind {
+  if (trigger === "BACK_IN_STOCK") return EmailDeliveryKind.BACK_IN_STOCK;
+  return trigger === "ORDER_PAID" || trigger === "BUSINESS_ORDER_PAID"
+    ? EmailDeliveryKind.ORDER_CONFIRMATION
+    : EmailDeliveryKind.ORDER_FULFILLED;
+}
+
+function flowTypeForTrigger(trigger: AftersalesTriggerValue): "PARTICULIER" | "ZAKELIJK" {
+  return (PARTICULIER_TRIGGERS as readonly string[]).includes(trigger) ? "PARTICULIER" : "ZAKELIJK";
+}
 
 export type PreparedAftersalesEvent = {
   stepId: string;
@@ -45,7 +66,7 @@ export async function prepareAftersalesEvent(
 ): Promise<PreparedAftersalesEvent | null> {
   try {
     const activeFlow = await prisma.aftersalesFlow.findFirst({
-      where: { isActive: true },
+      where: { isActive: true, flowType: flowTypeForTrigger(trigger) },
       orderBy: { updatedAt: "desc" },
       include: {
         steps: {
@@ -58,8 +79,11 @@ export async function prepareAftersalesEvent(
     const activeStep = activeFlow?.steps[0];
     if (activeStep) return { stepId: activeStep.id, usesFallback: false };
 
+    const fallbackStepId = FALLBACK_STEP_IDS[trigger];
+    if (!fallbackStepId) return null;
+
     const fallback = await prisma.aftersalesStep.findUnique({
-      where: { id: FALLBACK_STEP_IDS[trigger] },
+      where: { id: fallbackStepId },
       select: { id: true },
     });
     return fallback ? { stepId: fallback.id, usesFallback: true } : null;
@@ -175,7 +199,7 @@ export async function processAftersalesDelivery(
     where: { id: deliveryId },
     include: {
       step: { include: { flow: { select: { logoUrl: true } } } },
-      order: { include: { items: true } },
+      order: { include: { items: true, businessOrderList: { include: { businessAccount: true } } } },
     },
   });
   if (!delivery) throw new Error(`Aftersales-opdracht ${deliveryId} bestaat niet`);
@@ -217,10 +241,7 @@ export async function processAftersalesDelivery(
       ? await retryTransactionalEmail(existingLog.id)
       : await deliverTransactionalEmail({
           idempotencyKey,
-          kind:
-            delivery.trigger === "ORDER_PAID"
-              ? EmailDeliveryKind.ORDER_CONFIRMATION
-              : EmailDeliveryKind.ORDER_FULFILLED,
+          kind: aftersalesEmailDeliveryKind(delivery.trigger),
           recipientEmail: delivery.order.contactEmail,
           recipientName: delivery.order.contactName,
           orderId: delivery.orderId,
@@ -256,7 +277,7 @@ export async function getEnabledGenericStepContent(
 ): Promise<{ disabled: true } | { disabled: false; content: AftersalesStepContent; logoUrl: string | null } | null> {
   try {
     const activeFlow = await prisma.aftersalesFlow.findFirst({
-      where: { isActive: true },
+      where: { isActive: true, flowType: flowTypeForTrigger(trigger) },
       orderBy: { updatedAt: "desc" },
       select: {
         logoUrl: true,

@@ -204,7 +204,7 @@ test("marks a paid Mailchimp account with an authenticated domain as ready", asy
 
 test("quota-zero admin guidance leads to billing before the Transactional dashboard", () => {
   const source = readFileSync(
-    new URL("../app/admin/(dashboard)/marketing/aftersales/page.tsx", import.meta.url),
+    new URL("../app/admin/(dashboard)/marketing/aftersales/[flowId]/page.tsx", import.meta.url),
     "utf8",
   );
 

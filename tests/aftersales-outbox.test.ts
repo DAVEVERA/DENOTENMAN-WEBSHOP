@@ -3,10 +3,19 @@ import test from "node:test";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import {
+  aftersalesEmailDeliveryKind,
   prepareAftersalesEvent,
   queueAftersalesEvent,
   reconcileAftersalesDeliveryForEmailLog,
 } from "../lib/aftersales/service";
+
+test("paid aftersales triggers use the order-confirmation delivery kind", () => {
+  assert.equal(aftersalesEmailDeliveryKind("ORDER_PAID"), "ORDER_CONFIRMATION");
+  assert.equal(aftersalesEmailDeliveryKind("BUSINESS_ORDER_PAID"), "ORDER_CONFIRMATION");
+  assert.equal(aftersalesEmailDeliveryKind("ORDER_FULFILLED"), "ORDER_FULFILLED");
+  assert.equal(aftersalesEmailDeliveryKind("BUSINESS_ORDER_FULFILLED"), "ORDER_FULFILLED");
+  assert.equal(aftersalesEmailDeliveryKind("BACK_IN_STOCK"), "BACK_IN_STOCK");
+});
 
 test("disabled active step resolves to the seeded transactional fallback", async () => {
   const flowDelegate = prisma.aftersalesFlow as unknown as {
@@ -35,6 +44,31 @@ test("disabled active step resolves to the seeded transactional fallback", async
   } finally {
     flowDelegate.findFirst = originalFindFlow;
     stepDelegate.findUnique = originalFindStep;
+  }
+});
+
+test("prepareAftersalesEvent resolves the ZAKELIJK flow for a business trigger even when a PARTICULIER flow was edited more recently", async () => {
+  const flowDelegate = prisma.aftersalesFlow as unknown as { findFirst: (...args: unknown[]) => unknown };
+  const original = flowDelegate.findFirst;
+  let capturedWhere: unknown;
+  flowDelegate.findFirst = async (...args: unknown[]) => {
+    capturedWhere = (args[0] as { where: unknown }).where;
+    return {
+      id: "zakelijk-flow",
+      name: "Zakelijk",
+      isActive: true,
+      flowType: "ZAKELIJK",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      steps: [{ id: "business-order-paid-step" }],
+    };
+  };
+  try {
+    const result = await prepareAftersalesEvent("BUSINESS_ORDER_PAID");
+    assert.deepEqual(result, { stepId: "business-order-paid-step", usesFallback: false });
+    assert.deepEqual(capturedWhere, { isActive: true, flowType: "ZAKELIJK" });
+  } finally {
+    flowDelegate.findFirst = original;
   }
 });
 

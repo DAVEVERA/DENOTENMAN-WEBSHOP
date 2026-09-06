@@ -1,4 +1,4 @@
-import type { Order, OrderItem } from "@prisma/client";
+import type { BusinessAccount, Order, OrderItem } from "@prisma/client";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { formatPrice } from "@/lib/format";
 import { BASE_URL, orderConfirmation } from "@/lib/routes";
@@ -51,7 +51,10 @@ function tableBlockHtml(design: AftersalesDesign): string {
   return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px">${head ? `<thead>${head}</thead>` : ""}<tbody>${body}</tbody></table>`;
 }
 
-type OrderWithItems = Order & { items: OrderItem[] };
+type OrderWithItems = Order & {
+  items: OrderItem[];
+  businessOrderList?: { businessAccount: BusinessAccount | null } | null;
+};
 
 export type RenderedFlowEmail = {
   subject: string;
@@ -77,7 +80,7 @@ function firstName(name: string): string {
 
 function actionUrlFor(order: Order, trigger: AftersalesTriggerValue, locale: Locale): string {
   if (
-    trigger === "ORDER_FULFILLED" &&
+    (trigger === "ORDER_FULFILLED" || trigger === "BUSINESS_ORDER_FULFILLED") &&
     order.postnlTrackingCode &&
     order.shippingPostalCode
   ) {
@@ -201,6 +204,8 @@ export function renderAftersalesEmail(
     order_total: formatPrice(order.totalCents, locale),
     tracking_code: order.postnlTrackingCode ?? "",
     order_url: actionUrl,
+    business_name: order.businessOrderList?.businessAccount?.companyName ?? "",
+    contact_name: order.businessOrderList?.businessAccount?.contactName ?? order.contactName,
   };
   const subject = replaceTokens(content.subject, tokens);
   const preview = replaceTokens(content.previewText, tokens);
@@ -223,7 +228,7 @@ export function renderAftersalesEmail(
       <tbody>${itemRows}</tbody>
       <tfoot><tr><td style="padding-top:12px;color:#141414;font-weight:700">Totaal</td><td style="padding-top:12px;color:#141414;font-weight:700;text-align:right">${escapeHtml(formatPrice(order.totalCents, locale))}</td></tr></tfoot>
     </table>` : "";
-  const tracking = trigger === "ORDER_FULFILLED" && order.postnlTrackingCode
+  const tracking = (trigger === "ORDER_FULFILLED" || trigger === "BUSINESS_ORDER_FULFILLED") && order.postnlTrackingCode
     ? `<p style="margin:18px 0 0;color:#333;font-size:14px"><strong>Track &amp; trace:</strong> ${escapeHtml(order.postnlTrackingCode)}</p>`
     : "";
   const orderNumberBox = `<div style="margin:18px 0;padding:14px 16px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;color:#333;font-size:14px"><strong>Bestelnummer:</strong> ${escapeHtml(order.id)}</div>`;
