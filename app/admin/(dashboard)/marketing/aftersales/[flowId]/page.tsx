@@ -15,36 +15,30 @@ export default async function AftersalesFlowPage({ params }: { params: Promise<{
   await connection();
   let flow;
   let deliveries;
+  let schemaUnavailable = false;
   try {
     flow = await prisma.aftersalesFlow.findUnique({
       where: { id: flowId },
       include: { steps: { orderBy: { position: "asc" } } },
     });
 
-    if (!flow) {
-      return (
-        <div>
-          <Link href="/admin/marketing" className="text-body-sm text-accent-hover underline underline-offset-4">← Terug naar marketing</Link>
-          <h1 className="mt-3 text-heading-xl text-text">Aftersales</h1>
-          <div className="mt-6 rounded-panel border border-red-200 bg-red-50 p-5 text-body-sm text-red-800">
-            De mail flow ontbreekt. Voer eerst de database-migratie uit.
-          </div>
-        </div>
-      );
-    }
-
-    deliveries = await prisma.aftersalesDelivery.findMany({
-      where: { trigger: { in: [...AFTERSALES_TRIGGERS_BY_FLOW_TYPE[flow.flowType]] } },
-      orderBy: { createdAt: "desc" },
-      take: 12,
-      include: {
-        order: { select: { id: true, contactName: true, contactEmail: true } },
-        step: { select: { name: true } },
-      },
-    });
+    deliveries = flow
+      ? await prisma.aftersalesDelivery.findMany({
+          where: { trigger: { in: [...AFTERSALES_TRIGGERS_BY_FLOW_TYPE[flow.flowType]] } },
+          orderBy: { createdAt: "desc" },
+          take: 12,
+          include: {
+            order: { select: { id: true, contactName: true, contactEmail: true } },
+            step: { select: { name: true } },
+          },
+        })
+      : [];
   } catch (error) {
     if (!isAftersalesSchemaUnavailable(error)) throw error;
+    schemaUnavailable = true;
+  }
 
+  if (schemaUnavailable) {
     return (
       <div>
         <Link href="/admin/marketing" className="text-body-sm text-accent-hover underline underline-offset-4">
@@ -62,6 +56,22 @@ export default async function AftersalesFlowPage({ params }: { params: Promise<{
         </div>
       </div>
     );
+  }
+
+  if (!flow) {
+    return (
+      <div>
+        <Link href="/admin/marketing" className="text-body-sm text-accent-hover underline underline-offset-4">← Terug naar marketing</Link>
+        <h1 className="mt-3 text-heading-xl text-text">Aftersales</h1>
+        <div className="mt-6 rounded-panel border border-red-200 bg-red-50 p-5 text-body-sm text-red-800">
+          De mail flow ontbreekt. Voer eerst de database-migratie uit.
+        </div>
+      </div>
+    );
+  }
+
+  if (!deliveries) {
+    throw new Error("Aftersales-afleveringen konden niet worden geladen.");
   }
 
   const backfilled = await backfillAftersalesSteps(flow.id, flow.flowType, flow.steps.map((step) => step.trigger));
