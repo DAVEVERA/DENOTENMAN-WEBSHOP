@@ -54,4 +54,12 @@ test("production builds embed the immutable commit as the Next deployment identi
     /Connected source does not match trigger commit/,
   );
   assert.doesNotMatch(cloudBuildSource, /git clone/);
+  assert.match(
+    cloudBuildSource,
+    /migration_database_url="\$\$\{DATABASE_URL\/-pooler\.\/\.\}"/,
+  );
+  assert.match(
+    cloudBuildSource,
+    /DATABASE_URL="\$\$\{migration_database_url\}" npx prisma migrate deploy/,
+  );
 });
