@@ -3,10 +3,18 @@ import test from "node:test";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import {
+  aftersalesEmailDeliveryKind,
   prepareAftersalesEvent,
   queueAftersalesEvent,
   reconcileAftersalesDeliveryForEmailLog,
 } from "../lib/aftersales/service";
+
+test("paid aftersales triggers use the order-confirmation delivery kind", () => {
+  assert.equal(aftersalesEmailDeliveryKind("ORDER_PAID"), "ORDER_CONFIRMATION");
+  assert.equal(aftersalesEmailDeliveryKind("BUSINESS_ORDER_PAID"), "ORDER_CONFIRMATION");
+  assert.equal(aftersalesEmailDeliveryKind("ORDER_FULFILLED"), "ORDER_FULFILLED");
+  assert.equal(aftersalesEmailDeliveryKind("BUSINESS_ORDER_FULFILLED"), "ORDER_FULFILLED");
+});
 
 test("disabled active step resolves to the seeded transactional fallback", async () => {
   const flowDelegate = prisma.aftersalesFlow as unknown as {

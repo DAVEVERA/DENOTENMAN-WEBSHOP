@@ -29,6 +29,14 @@ const FALLBACK_STEP_IDS: Partial<Record<OrderAftersalesTrigger, string>> = {
 
 const MAX_DELIVERY_ATTEMPTS = 5;
 
+export function aftersalesEmailDeliveryKind(
+  trigger: OrderAftersalesTrigger
+): EmailDeliveryKind {
+  return trigger === "ORDER_PAID" || trigger === "BUSINESS_ORDER_PAID"
+    ? EmailDeliveryKind.ORDER_CONFIRMATION
+    : EmailDeliveryKind.ORDER_FULFILLED;
+}
+
 function flowTypeForTrigger(trigger: AftersalesTriggerValue): "PARTICULIER" | "ZAKELIJK" {
   return (PARTICULIER_TRIGGERS as readonly string[]).includes(trigger) ? "PARTICULIER" : "ZAKELIJK";
 }
@@ -232,10 +240,7 @@ export async function processAftersalesDelivery(
       ? await retryTransactionalEmail(existingLog.id)
       : await deliverTransactionalEmail({
           idempotencyKey,
-          kind:
-            delivery.trigger === "ORDER_PAID"
-              ? EmailDeliveryKind.ORDER_CONFIRMATION
-              : EmailDeliveryKind.ORDER_FULFILLED,
+          kind: aftersalesEmailDeliveryKind(delivery.trigger),
           recipientEmail: delivery.order.contactEmail,
           recipientName: delivery.order.contactName,
           orderId: delivery.orderId,
