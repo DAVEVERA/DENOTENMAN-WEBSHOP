@@ -1,20 +1,22 @@
 steps:
-  - name: "gcr.io/cloud-builders/git"
+  # This trigger uses the existing Cloud Build GitHub App connection. Cloud
+  # Build checks out the private repository in /workspace before this runs.
+  - id: "verify-connected-source"
+    name: "gcr.io/cloud-builders/git"
     entrypoint: "bash"
     args:
       - "-c"
       - |
         set -euo pipefail
-        if [[ "${_REF}" != "refs/heads/feature/mailchimp-newsletters" ]]; then
-          echo "Ignoring unexpected ref: ${_REF}"
-          exit 2
-        fi
-        if [[ ! "${_COMMIT_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+        if [[ ! "${COMMIT_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
           echo "Invalid commit SHA"
           exit 2
         fi
-        git clone --no-checkout https://github.com/DAVEVERA/DENOTENMAN-WEBSHOP.git .
-        git checkout --detach "${_COMMIT_SHA}"
+        actual_commit="$$(git rev-parse HEAD)"
+        if [[ "$${actual_commit}" != "${COMMIT_SHA}" ]]; then
+          echo "Connected source does not match trigger commit"
+          exit 2
+        fi
 
   # The build statically reads product data. Apply only committed expand-only
   # migrations before Docker invokes `next build`. Review data backfills and
@@ -29,7 +31,7 @@ steps:
         set -euo pipefail
         npm ci --ignore-scripts --no-audit --no-fund
         export DATABASE_ACCESS_CONTEXT=release
-        export DEPLOYMENT_VERSION="${_COMMIT_SHA}"
+        export DEPLOYMENT_VERSION="${COMMIT_SHA}"
         node scripts/check-database-access.cjs migrate-release
         npx prisma migrate deploy && exit 0
         echo "Prisma migrate deploy failed; retrying in 10s (attempt 2/5)"
@@ -65,14 +67,14 @@ steps:
           --build-arg CDN_BASE_URL="${_CDN_BASE_URL}" \
           --build-arg SITE_URL="${_SITE_URL}" \
           --build-arg UNLIMITED_STOCK="${_UNLIMITED_STOCK}" \
-          --build-arg DEPLOYMENT_VERSION="${_COMMIT_SHA}" \
+          --build-arg DEPLOYMENT_VERSION="${COMMIT_SHA}" \
           --build-arg DATABASE_ACCESS_CONTEXT=release \
-          -t "${_IMAGE_BASE}:${_COMMIT_SHA}" \
+          -t "${_IMAGE_BASE}:${COMMIT_SHA}" \
           .
     secretEnv: ["DATABASE_URL"]
 
   - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "${_IMAGE_BASE}:${_COMMIT_SHA}"]
+    args: ["push", "${_IMAGE_BASE}:${COMMIT_SHA}"]
 
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     entrypoint: "gcloud"
@@ -81,7 +83,7 @@ steps:
       - "services"
       - "update"
       - "denotenman-webshop"
-      - "--image=${_IMAGE_BASE}:${_COMMIT_SHA}"
+      - "--image=${_IMAGE_BASE}:${COMMIT_SHA}"
       - "--region=europe-west4"
       - "--platform=managed"
       - "--update-env-vars=GA4_PROPERTY_ID=${_GA4_PROPERTY_ID},RELEASE_EXPANDED_ENUM_WRITES=false"
@@ -89,15 +91,13 @@ steps:
       - "--quiet"
 
 images:
-  - "${_IMAGE_BASE}:${_COMMIT_SHA}"
+  - "${_IMAGE_BASE}:${COMMIT_SHA}"
 
 options:
   dynamicSubstitutions: true
   logging: CLOUD_LOGGING_ONLY
 
 substitutions:
-  _COMMIT_SHA: "0000000000000000000000000000000000000000"
-  _REF: "refs/heads/feature/mailchimp-newsletters"
   _IMAGE_BASE: "europe-west4-docker.pkg.dev/project-5dc79156-4200-4528-bfc/denotenman-webshop/storefront"
   _CDN_BASE_URL: "https://storage.googleapis.com/notenbucket"
   _SITE_URL: "https://denotenman.com"

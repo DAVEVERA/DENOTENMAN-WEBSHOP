@@ -46,6 +46,12 @@ test("production builds embed the immutable commit as the Next deployment identi
   );
   assert.match(
     cloudBuildSource,
-    /--build-arg DEPLOYMENT_VERSION="\$\{_COMMIT_SHA\}"/,
+    /--build-arg DEPLOYMENT_VERSION="\$\{COMMIT_SHA\}"/,
   );
+  assert.match(cloudBuildSource, /actual_commit="\$\$\(git rev-parse HEAD\)"/);
+  assert.match(
+    cloudBuildSource,
+    /Connected source does not match trigger commit/,
+  );
+  assert.doesNotMatch(cloudBuildSource, /git clone/);
 });
