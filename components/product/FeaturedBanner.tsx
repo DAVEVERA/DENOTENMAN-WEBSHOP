@@ -57,7 +57,7 @@ export function FeaturedBanner({
                       />
                     ) : null}
                   </span>
-                  <span className="line-clamp-2 max-w-24 text-center text-body-sm font-semibold text-text">
+                  <span className="line-clamp-2 max-w-24 text-center text-body-sm font-semibold text-text [hyphens:none] [overflow-wrap:normal] [word-break:normal]">
                     {product.name}
                   </span>
                 </Link>

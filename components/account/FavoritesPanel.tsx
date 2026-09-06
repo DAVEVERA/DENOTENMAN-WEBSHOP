@@ -61,7 +61,7 @@ export function FavoritesPanel({
                     />
                   ) : null}
                 </span>
-                <h3 className="mt-3 line-clamp-3 text-base leading-tight [overflow-wrap:anywhere] sm:text-heading-sm">
+                <h3 className="mt-3 line-clamp-3 text-base leading-tight [hyphens:none] [overflow-wrap:normal] [word-break:normal] sm:text-heading-sm">
                   {item.name}
                 </h3>
                 <p className="mt-1 text-sm font-semibold text-text">

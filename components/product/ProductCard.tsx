@@ -149,7 +149,7 @@ export function ProductCard({
           ) : null}
           <span
             className={cn(
-              "min-w-0 font-heading font-semibold leading-[1.15] tracking-heading text-text [hyphens:auto] [overflow-wrap:break-word] sm:text-heading-sm",
+              "min-w-0 font-heading font-semibold leading-[1.15] tracking-heading text-text [hyphens:none] [overflow-wrap:normal] [word-break:normal] sm:text-heading-sm",
               compact
                 ? "mt-2 line-clamp-2 text-[clamp(0.78rem,3.5vw,1rem)]"
                 : "mt-3 line-clamp-3 text-[clamp(0.82rem,3.8vw,1.125rem)]",

@@ -31,6 +31,23 @@ test("storefront product cards use responsive Next images and unique link names"
   assert.doesNotMatch(source, /<img\b/);
 });
 
+test("storefront product card titles only wrap between whole words", async () => {
+  const sources = await Promise.all([
+    projectFile("components/product/ProductCard.tsx"),
+    projectFile("components/account/FavoritesPanel.tsx"),
+    projectFile("components/product/FeaturedBanner.tsx"),
+    projectFile("components/product/ProductRecommendations.tsx"),
+    projectFile("components/home/HomeProductSlider.module.css"),
+  ]);
+
+  for (const source of sources) {
+    assert.match(source, /hyphens\s*:\s*none|\[hyphens:none\]/);
+    assert.match(source, /overflow-wrap\s*:\s*normal|\[overflow-wrap:normal\]/);
+    assert.match(source, /word-break\s*:\s*normal|\[word-break:normal\]/);
+  }
+  assert.doesNotMatch(sources[0], /\[hyphens:auto\]|\[overflow-wrap:break-word\]/);
+});
+
 test("featured products use optimized images and an accessible accent color", async () => {
   const [component, styles] = await Promise.all([
     projectFile("components/product/FeaturedBanner.tsx"),
