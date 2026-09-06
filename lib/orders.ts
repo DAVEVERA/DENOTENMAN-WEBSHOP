@@ -504,17 +504,19 @@ export async function syncOrderPaymentStatus(
 ): Promise<Order> {
   if (order.status === "PAID" || order.status === "FULFILLED") {
     let emailFailure: Error | null = null;
-    if (!order.isTest && !order.businessOrderListId) {
+    if (!order.isTest) {
       const results = await processPendingAftersalesForOrder(order.id);
       const failure = results.find((result) => result.status === "failed");
       if (failure?.status === "failed") {
         emailFailure = new Error(`AFTERSALES_DELIVERY_FAILED: ${failure.error}`);
       }
-      try {
-        await sendMerchantNewOrderNotification(order.id);
-      } catch (error) {
-        console.error(`Failed to send merchant new-order notification for order ${order.id}`, error);
-        emailFailure ??= error instanceof Error ? error : new Error(String(error));
+      if (!order.businessOrderListId) {
+        try {
+          await sendMerchantNewOrderNotification(order.id);
+        } catch (error) {
+          console.error(`Failed to send merchant new-order notification for order ${order.id}`, error);
+          emailFailure ??= error instanceof Error ? error : new Error(String(error));
+        }
       }
     }
     if (emailFailure && options.failOnAftersalesError) throw emailFailure;
@@ -593,7 +595,7 @@ export async function syncOrderPaymentStatus(
     return { count, queued, updated };
   });
 
-  if (transition.count === 1 && nextStatus === "PAID" && !isBusinessOrder) {
+  if (transition.count === 1 && nextStatus === "PAID") {
     let emailFailure: Error | null = null;
     try {
       if (transition.queued) {
@@ -601,17 +603,17 @@ export async function syncOrderPaymentStatus(
         if (result.status === "failed" && options.failOnAftersalesError) {
           throw new Error(`AFTERSALES_DELIVERY_FAILED: ${result.error}`);
         }
-      } else {
+      } else if (!isBusinessOrder) {
         // Compatibility fallback for a database on which the aftersales
         // migration is not installed yet. The normal production path above
         // always uses the durable outbox.
         await sendOrderConfirmationEmail(transition.updated, transition.updated.items);
       }
     } catch (error) {
-      console.error(`Failed to send order confirmation email for order ${order.id}`, error);
+      console.error(`Failed to process aftersales email for order ${order.id}`, error);
       emailFailure = error instanceof Error ? error : new Error(String(error));
     }
-    if (!transition.updated.isTest) {
+    if (!isBusinessOrder && !transition.updated.isTest) {
       try {
         await sendMerchantNewOrderNotification(transition.updated.id);
       } catch (error) {
@@ -622,14 +624,15 @@ export async function syncOrderPaymentStatus(
         emailFailure ??= error instanceof Error ? error : new Error(String(error));
       }
     }
-    if (emailFailure && options.failOnAftersalesError) throw emailFailure;
-  } else if (transition.count === 1 && nextStatus === "PAID" && isBusinessOrder && order.businessOrderListId) {
-    try {
-      await generateAndSendBusinessInvoice(transition.updated, order.businessOrderListId);
-    } catch (error) {
-      console.error(`Failed to generate/send business invoice for order ${order.id}`, error);
-      if (options.failOnAftersalesError) throw error instanceof Error ? error : new Error(String(error));
+    if (isBusinessOrder && order.businessOrderListId) {
+      try {
+        await generateAndSendBusinessInvoice(transition.updated, order.businessOrderListId);
+      } catch (error) {
+        console.error(`Failed to generate/send business invoice for order ${order.id}`, error);
+        emailFailure ??= error instanceof Error ? error : new Error(String(error));
+      }
     }
+    if (emailFailure && options.failOnAftersalesError) throw emailFailure;
   }
 
   return transition.updated;
