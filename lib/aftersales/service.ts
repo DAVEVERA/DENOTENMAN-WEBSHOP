@@ -30,8 +30,9 @@ const FALLBACK_STEP_IDS: Partial<Record<OrderAftersalesTrigger, string>> = {
 const MAX_DELIVERY_ATTEMPTS = 5;
 
 export function aftersalesEmailDeliveryKind(
-  trigger: OrderAftersalesTrigger
+  trigger: AftersalesTriggerValue
 ): EmailDeliveryKind {
+  if (trigger === "BACK_IN_STOCK") return EmailDeliveryKind.BACK_IN_STOCK;
   return trigger === "ORDER_PAID" || trigger === "BUSINESS_ORDER_PAID"
     ? EmailDeliveryKind.ORDER_CONFIRMATION
     : EmailDeliveryKind.ORDER_FULFILLED;

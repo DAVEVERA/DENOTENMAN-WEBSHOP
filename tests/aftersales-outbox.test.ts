@@ -14,6 +14,7 @@ test("paid aftersales triggers use the order-confirmation delivery kind", () => 
   assert.equal(aftersalesEmailDeliveryKind("BUSINESS_ORDER_PAID"), "ORDER_CONFIRMATION");
   assert.equal(aftersalesEmailDeliveryKind("ORDER_FULFILLED"), "ORDER_FULFILLED");
   assert.equal(aftersalesEmailDeliveryKind("BUSINESS_ORDER_FULFILLED"), "ORDER_FULFILLED");
+  assert.equal(aftersalesEmailDeliveryKind("BACK_IN_STOCK"), "BACK_IN_STOCK");
 });
 
 test("disabled active step resolves to the seeded transactional fallback", async () => {
