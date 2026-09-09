@@ -48,7 +48,7 @@ export const copywriterSourceInputSchema = z.object({
   variants: z.array(z.object({
     id: z.string().trim().min(1),
     sku: z.string().trim().min(1),
-    weightGrams: z.number().int().positive(),
+    weightGrams: z.number().int().nonnegative(),
     preparation: z.string().trim().min(1).max(80),
     salting: z.string().trim().min(1).max(80),
     coating: z.string().trim().min(1).max(80),
@@ -174,7 +174,7 @@ export const copywriterSourceSnapshotSchema = z.object({
   variants: z.array(z.object({
     id: z.string().min(1),
     sku: z.string().min(1),
-    weightGrams: z.number().int().positive(),
+    weightGrams: z.number().int().nonnegative(),
     preparation: z.string().min(1).max(80),
     salting: z.string().min(1).max(80),
     coating: z.string().min(1).max(80),
