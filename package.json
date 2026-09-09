@@ -31,6 +31,7 @@
     "@ai-sdk/google": "^4.0.44",
     "@google-cloud/storage": "5.18.3",
     "@google-cloud/translate": "^9.4.2",
+    "@google/genai": "2.17.1",
     "@mailchimp/mailchimp_marketing": "^3.0.80",
     "@mollie/api-client": "^4.6.0",
     "@prisma/adapter-pg": "^7.10.0",

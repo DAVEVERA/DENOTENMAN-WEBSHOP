@@ -137,6 +137,13 @@ enum ProductImageProcessingStatus {
   FAILED
 }
 
+enum ProductCopyProposalStatus {
+  GENERATING
+  DRAFT
+  APPLIED
+  FAILED
+}
+
 enum ProductFaqStatus {
   DRAFT
   PUBLISHED
@@ -251,6 +258,7 @@ model Product {
   faqMediaAssets         ProductFaqMediaAsset[]
   designJobs             DesignJob[]
   designAssets           DesignAsset[]
+  productCopyProposals   ProductCopyProposal[]
   viewMetric             ProductViewMetric?
 }
 
@@ -575,6 +583,38 @@ model DesignProviderUsage {
   updatedAt DateTime       @updatedAt
 
   @@unique([dayKey, provider])
+}
+
+model ProductCopyProposal {
+  id                       String                    @id @default(cuid())
+  productId                String
+  product                  Product                   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  locale                   Locale                    @default(nl)
+  requestedByAdminUserId   String
+  requestedBy              AdminUser                 @relation("ProductCopyProposalRequestedBy", fields: [requestedByAdminUserId], references: [id])
+  appliedByAdminUserId     String?
+  appliedBy                AdminUser?                @relation("ProductCopyProposalAppliedBy", fields: [appliedByAdminUserId], references: [id])
+  status                   ProductCopyProposalStatus @default(GENERATING)
+  schemaVersion            Int                       @default(1)
+  generationIdempotencyKey String                    @unique
+  generationRequestHash    String
+  sourceProductVersion     DateTime
+  sourceHash               String
+  sourceSnapshot           Json
+  proposedFields           Json?
+  provider                 String                    @default("GOOGLE_GEMINI")
+  model                    String?
+  generatedAt              DateTime?
+  errorCode                String?
+  applyIdempotencyKey      String?                   @unique
+  applyRequestHash         String?
+  appliedFields            Json?
+  appliedAt                DateTime?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  @@index([productId, status, createdAt])
+  @@index([requestedByAdminUserId, createdAt])
 }
 
 model ProductImageProcessing {
@@ -997,6 +1037,8 @@ model AdminUser {
   appliedPriceAdvice   PricingRecommendation[]      @relation("PricingRecommendationAppliedBy")
   priceReportSchedules PriceMonitorReportSchedule[] @relation("PriceMonitorReportScheduleCreatedBy")
   uploadedMedia        MediaAsset[]
+  requestedProductCopyProposals ProductCopyProposal[] @relation("ProductCopyProposalRequestedBy")
+  appliedProductCopyProposals   ProductCopyProposal[] @relation("ProductCopyProposalAppliedBy")
 }
 
 /**

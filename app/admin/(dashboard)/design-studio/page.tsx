@@ -1,8 +1,13 @@
 import Link from "next/link";
-import { ArrowRight, ImageIcon, LockKeyhole, WandSparkles } from "lucide-react";
+import { ArrowRight, FilePenLine, ImageIcon, LockKeyhole, WandSparkles } from "lucide-react";
 import { designStudioModules } from "@/lib/design-studio/modules";
 
-const moduleIcons = { "product-photos": ImageIcon, "campaign-assets": WandSparkles, labels: LockKeyhole } as const;
+const moduleIcons = {
+  "product-photos": ImageIcon,
+  "campaign-assets": WandSparkles,
+  labels: LockKeyhole,
+  copywriter: FilePenLine,
+} as const;
 
 export default function DesignStudioPage() {
   return (

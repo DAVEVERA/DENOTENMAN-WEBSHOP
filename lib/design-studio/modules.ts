@@ -4,7 +4,7 @@ export type DesignStudioModule = {
   description: string;
   href: string;
   status: "ACTIVE" | "PLANNED";
-  provider?: "PhotoRoom" | "VModel";
+  provider?: "PhotoRoom" | "VModel" | "Gemini";
 };
 
 export const designStudioModules: readonly DesignStudioModule[] = [
@@ -30,5 +30,13 @@ export const designStudioModules: readonly DesignStudioModule[] = [
     description: "Vaste merktemplates voor labels, kaarten en verpakkingen.",
     href: "/admin/design-studio/labels",
     status: "PLANNED",
+  },
+  {
+    id: "copywriter",
+    title: "De Notenman CopyWriter",
+    description: "Controleer productteksten en pas alleen expliciet gekozen verbeteringen toe.",
+    href: "/admin/design-studio/copywriter",
+    status: "ACTIVE",
+    provider: "Gemini",
   },
 ] as const;
