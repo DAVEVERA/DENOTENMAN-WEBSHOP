@@ -29,7 +29,7 @@ async function main() {
         translations: { create: ['nl', 'en', 'fr'].map(locale => ({ locale: locale as 'nl' | 'en' | 'fr', label: '500 gram' })) } } },
     } });
   }
-  const account = await prisma.businessAccount.upsert({ where: { email: 'release-qa@example.invalid' }, update: {}, create: {
+  const account = await prisma.businessAccount.upsert({ where: { id: 'release-qa-business' }, update: { deletedAt: null }, create: {
     id: 'release-qa-business', companyName: 'Synthetisch testbedrijf', contactName: 'Testklant', email: 'release-qa@example.invalid', status: 'APPROVED',
     passwordHash: await hashPassword('local-only-release-qa'),
   } });

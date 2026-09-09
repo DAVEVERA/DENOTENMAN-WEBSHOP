@@ -1554,7 +1554,10 @@ model BusinessAccount {
   customerNumber              String?                  @unique
   companyName                 String
   contactName                 String
-  email                       String                   @unique
+  // The raw partial unique index BusinessAccount_active_email_key keeps
+  // active emails unique while allowing reuse after a soft delete. Prisma's
+  // schema DSL cannot express this WHERE-scoped, case-insensitive index.
+  email                       String
   phone                       String?
   vatNumber                   String?
   kvkNumber                   String?

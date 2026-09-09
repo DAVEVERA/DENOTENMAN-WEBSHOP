@@ -36,7 +36,11 @@ export async function GET(request: NextRequest) {
   }
 
   const account = await prisma.businessAccount.findFirst({
-    where: { email: { equals: email, mode: "insensitive" }, status: "APPROVED" },
+    where: {
+      email: { equals: email, mode: "insensitive" },
+      status: "APPROVED",
+      deletedAt: null,
+    },
   });
   if (!account) return loginPageError(request, "google_no_account");
 

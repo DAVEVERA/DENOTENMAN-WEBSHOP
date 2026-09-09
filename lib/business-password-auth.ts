@@ -46,7 +46,11 @@ export async function verifyBusinessPasswordLogin(emailCandidate: string, passwo
   if (!email || email.length > 320) return null;
 
   const account = await prisma.businessAccount.findFirst({
-    where: { email: { equals: email, mode: "insensitive" }, status: "APPROVED" },
+    where: {
+      email: { equals: email, mode: "insensitive" },
+      status: "APPROVED",
+      deletedAt: null,
+    },
   });
   if (!account?.passwordHash) return null;
 

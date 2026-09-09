@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
@@ -27,21 +28,28 @@ export async function POST(
     return NextResponse.json({ error: "NOT_DELETED" }, { status: 409 });
   }
 
-  const restored = await prisma.$transaction(async (tx) => {
-    const businessAccount = await tx.businessAccount.update({
-      where: { id },
-      data: { deletedAt: null },
+  try {
+    const restored = await prisma.$transaction(async (tx) => {
+      const businessAccount = await tx.businessAccount.update({
+        where: { id },
+        data: { deletedAt: null },
+      });
+      await recordAudit(tx, admin, "BusinessAccount", id, "RESTORE", existing, businessAccount);
+      await recordBusinessEvent(tx, {
+        businessAccountId: id,
+        type: "ACCOUNT_UPDATED",
+        actorType: "ADMIN",
+        actorName: admin.name,
+        summary: `Zakelijk account voor ${businessAccount.companyName} hersteld`,
+      });
+      return businessAccount;
     });
-    await recordAudit(tx, admin, "BusinessAccount", id, "RESTORE", existing, businessAccount);
-    await recordBusinessEvent(tx, {
-      businessAccountId: id,
-      type: "ACCOUNT_UPDATED",
-      actorType: "ADMIN",
-      actorName: admin.name,
-      summary: `Zakelijk account voor ${businessAccount.companyName} hersteld`,
-    });
-    return businessAccount;
-  });
 
-  return NextResponse.json({ ok: true, businessAccount: restored });
+    return NextResponse.json({ ok: true, businessAccount: restored });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "EMAIL_ALREADY_EXISTS" }, { status: 409 });
+    }
+    throw error;
+  }
 }

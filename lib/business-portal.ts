@@ -195,7 +195,11 @@ export async function requestBusinessLoginLink(emailCandidate: string): Promise<
   const email = emailCandidate.trim().toLowerCase();
   if (!email || email.length > 320) return;
   const account = await prisma.businessAccount.findFirst({
-    where: { email: { equals: email, mode: "insensitive" }, status: "APPROVED" },
+    where: {
+      email: { equals: email, mode: "insensitive" },
+      status: "APPROVED",
+      deletedAt: null,
+    },
   });
   if (!account) return;
 
