@@ -1,9 +1,11 @@
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { isLocale } from "@/lib/i18n";
 import { Container } from "@/components/ui/Container";
 import { CheckoutBackLink } from "@/components/checkout/CheckoutBackLink";
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
+import { COUNTRY_PREFERENCE_COOKIE, parseCountryPreference } from "@/lib/country-preference";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
@@ -36,6 +38,9 @@ export default async function CheckoutPage({
   }
 
   const dictionary = dictionaries[locale];
+  const cookieStore = await cookies();
+  const initialCountry =
+    parseCountryPreference(cookieStore.get(COUNTRY_PREFERENCE_COOKIE)?.value) ?? "NL";
 
   return (
     <main id="main-content">
@@ -43,7 +48,7 @@ export default async function CheckoutPage({
         <CheckoutBackLink locale={locale} label={dictionary.checkout.backToCart} />
         <h1 className="mt-4 text-heading-xl">{dictionary.checkout.title}</h1>
         <div className="mt-8">
-          <CheckoutForm locale={locale} dictionary={dictionary.checkout} />
+          <CheckoutForm locale={locale} dictionary={dictionary.checkout} initialCountry={initialCountry} />
         </div>
       </Container>
     </main>

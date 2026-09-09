@@ -119,7 +119,9 @@
     "total": "Totaal",
     "remove": "Verwijderen",
     "decrease": "Verlaag aantal",
-    "increase": "Verhoog aantal"
+    "increase": "Verhoog aantal",
+    "freeShippingProgress": "Nog {amount} tot gratis verzenden",
+    "freeShippingReached": "Je krijgt gratis verzending!"
   },
   "checkout": {
     "title": "Afrekenen",

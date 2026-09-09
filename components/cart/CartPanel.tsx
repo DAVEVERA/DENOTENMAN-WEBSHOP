@@ -14,6 +14,7 @@ import {
 export function CartPanel({
   locale,
   labels,
+  freeShippingThresholdCents,
 }: {
   locale: Locale;
   labels: {
@@ -23,10 +24,18 @@ export function CartPanel({
     remove: string;
     decrease: string;
     increase: string;
+    freeShippingProgress: string;
+    freeShippingReached: string;
   };
+  freeShippingThresholdCents: number;
 }) {
   const { cart } = useStorefrontState();
   const total = cart.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
+  const remainingCents = Math.max(0, freeShippingThresholdCents - total);
+  const progressPercent = Math.min(
+    100,
+    Math.round((total / freeShippingThresholdCents) * 100)
+  );
 
   if (cart.length === 0) {
     return (
@@ -104,7 +113,20 @@ export function CartPanel({
           </li>
         ))}
       </ul>
-      <div className="mt-6 flex items-center justify-between rounded-card bg-contrast px-5 py-4 text-surface">
+      <div className="mt-6 rounded-card border border-border bg-surface p-4 shadow-card" aria-live="polite">
+        <p className="text-sm font-semibold text-text">
+          {remainingCents > 0
+            ? labels.freeShippingProgress.replace("{amount}", formatPrice(remainingCents, locale))
+            : labels.freeShippingReached}
+        </p>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-border">
+          <div
+            className="h-full rounded-full bg-accent transition-all duration-hover-fast"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between rounded-card bg-contrast px-5 py-4 text-surface">
         <span className="font-heading text-lg font-semibold">{labels.total}</span>
         <span className="font-heading text-xl font-semibold">{formatPrice(total, locale)}</span>
       </div>

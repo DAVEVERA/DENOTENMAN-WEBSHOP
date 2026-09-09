@@ -63,9 +63,11 @@ function checkoutCartWeightGrams(cart: CartItem[]): number | null {
 export function CheckoutForm({
   locale,
   dictionary,
+  initialCountry = "NL",
 }: {
   locale: Locale;
   dictionary: CheckoutDictionary;
+  initialCountry?: CountryCode;
 }) {
   const { cart } = useStorefrontState();
   const [submitting, setSubmitting] = useState(false);
@@ -76,7 +78,7 @@ export function CheckoutForm({
   const [discountError, setDiscountError] = useState<string | null>(null);
   const [contactEmail, setContactEmail] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("SHIPPING");
-  const [country, setCountry] = useState<CountryCode>("NL");
+  const [country, setCountry] = useState<CountryCode>(initialCountry);
   const [pickupLocationId, setPickupLocationId] = useState<string>("");
   const [pickupPostalCode, setPickupPostalCode] = useState("");
   const trackedCheckoutKey = useRef<string | null>(null);

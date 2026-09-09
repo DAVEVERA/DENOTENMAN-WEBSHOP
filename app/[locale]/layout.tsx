@@ -9,6 +9,7 @@ import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 import { CookieConsent } from "@/components/privacy/CookieConsent";
+import { CountrySelectModal } from "@/components/storefront/CountrySelectModal";
 import { COOKIE_CONSENT_BOOTSTRAP_SCRIPT } from "@/lib/cookie-consent-bootstrap";
 import "@/app/globals.css";
 
@@ -73,6 +74,7 @@ export default async function LocaleLayout({
           }}
         />
         <CookieConsent locale={locale} />
+        <CountrySelectModal locale={locale} />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded focus:bg-accent focus:px-4 focus:py-2 focus:text-text"

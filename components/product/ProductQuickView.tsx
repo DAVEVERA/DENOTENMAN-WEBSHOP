@@ -161,9 +161,14 @@ export function ProductQuickView({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const cartActionRef = useRef<HTMLAnchorElement>(null);
+  const onCloseRef = useRef(onClose);
   const primaryImage = product.images.find((image) => image.isPrimary) ?? product.images[0];
   const selected =
     product.variants.find((variant) => variant.id === selectedId) ?? firstVariant;
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -177,7 +182,7 @@ export function ProductQuickView({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || !dialogRef.current) return;
@@ -202,7 +207,7 @@ export function ProductQuickView({
       document.removeEventListener("keydown", handleKeyDown);
       window.requestAnimationFrame(() => previouslyFocused?.focus());
     };
-  }, [firstVariant?.id, onClose, open]);
+  }, [firstVariant?.id, open]);
 
   useEffect(() => {
     if (!added) return;

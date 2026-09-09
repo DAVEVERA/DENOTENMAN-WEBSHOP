@@ -119,7 +119,9 @@
     "total": "Total",
     "remove": "Remove",
     "decrease": "Decrease quantity",
-    "increase": "Increase quantity"
+    "increase": "Increase quantity",
+    "freeShippingProgress": "{amount} away from free shipping",
+    "freeShippingReached": "You've unlocked free shipping!"
   },
   "checkout": {
     "title": "Checkout",

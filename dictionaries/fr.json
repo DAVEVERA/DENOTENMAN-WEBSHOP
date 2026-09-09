@@ -119,7 +119,9 @@
     "total": "Total",
     "remove": "Supprimer",
     "decrease": "Diminuer la quantité",
-    "increase": "Augmenter la quantité"
+    "increase": "Augmenter la quantité",
+    "freeShippingProgress": "Encore {amount} pour la livraison gratuite",
+    "freeShippingReached": "Livraison gratuite débloquée !"
   },
   "checkout": {
     "title": "Commander",
