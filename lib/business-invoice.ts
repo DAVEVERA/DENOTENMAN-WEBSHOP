@@ -13,6 +13,7 @@ import { recordBusinessEvent } from "@/lib/business-portal";
 import { deliverTransactionalEmail } from "@/lib/transactional-email";
 import { merchantOrderNotificationRecipient } from "@/lib/merchant-order-notification";
 import { BusinessInvoiceEmail } from "@/emails/BusinessInvoiceEmail";
+import { getBusinessLifecycleEmailContent, substituteBusinessLifecycleTokens } from "@/lib/business-lifecycle-email-content";
 
 const REVERSE_CHARGE_NOTE =
   "BTW verlegd naar de afnemer (intracommunautaire levering, art. 138 Btw-richtlijn / art. 39bis Belgisch Btw-Wetboek).";
@@ -124,6 +125,11 @@ async function sendInvoiceEmailTo(
 ): Promise<void> {
   const vatLabel = invoice.vatRegime === "REVERSE_CHARGE" ? "BTW verlegd" : `BTW (${Number(invoice.vatRatePercent)}%)`;
   const invoiceDate = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric" }).format(invoice.createdAt);
+  const tokens = { invoiceNumber: invoice.invoiceNumber, recipientName, companyName };
+  const content = await getBusinessLifecycleEmailContent("INVOICE");
+  const subject = substituteBusinessLifecycleTokens(content.subject, tokens);
+  const heading = substituteBusinessLifecycleTokens(content.heading, tokens);
+  const bodyText = substituteBusinessLifecycleTokens(content.bodyText, tokens);
   const html = await render(createElement(BusinessInvoiceEmail, {
     preview: `Factuur ${invoice.invoiceNumber} van De Notenman`,
     recipientName,
@@ -135,6 +141,9 @@ async function sendInvoiceEmailTo(
     vatAmount: formatPrice(invoice.vatAmountCents, "nl"),
     total: formatPrice(invoice.totalCents, "nl"),
     downloadUrl,
+    heading,
+    bodyText,
+    buttonLabel: content.buttonLabel,
   }));
   const text = [
     `Factuur ${invoice.invoiceNumber}`,
@@ -153,7 +162,7 @@ async function sendInvoiceEmailTo(
     recipientName,
     orderId: invoice.orderId,
     trigger: "ORDER_PAID",
-    subject: `Factuur ${invoice.invoiceNumber} - De Notenman`,
+    subject,
     html,
     text,
   });

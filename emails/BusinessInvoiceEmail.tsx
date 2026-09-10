@@ -12,12 +12,13 @@ export type BusinessInvoiceEmailProps = {
   vatAmount: string;
   total: string;
   downloadUrl: string;
+  heading: string;
+  bodyText: string;
+  buttonLabel: string;
 };
 
 export function BusinessInvoiceEmail({
   preview,
-  recipientName,
-  companyName,
   invoiceNumber,
   invoiceDate,
   subtotal,
@@ -25,6 +26,9 @@ export function BusinessInvoiceEmail({
   vatAmount,
   total,
   downloadUrl,
+  heading,
+  bodyText,
+  buttonLabel,
 }: BusinessInvoiceEmailProps) {
   return (
     <Html lang="nl" dir="ltr">
@@ -36,10 +40,8 @@ export function BusinessInvoiceEmail({
             <Section style={styles.brandBar} />
             <Section style={styles.content}>
               <Text style={styles.brand}>DE NOTENMAN</Text>
-              <Heading as="h1" style={styles.heading}>Factuur {invoiceNumber}</Heading>
-              <Text style={styles.intro}>
-                Beste {recipientName}, hierbij de factuur voor de betaalde bestelling van {companyName}.
-              </Text>
+              <Heading as="h1" style={styles.heading}>{heading}</Heading>
+              <Text style={styles.intro}>{bodyText}</Text>
 
               <Section style={styles.summary}>
                 <Text style={styles.summaryLine}><strong>Factuurnummer:</strong> {invoiceNumber}</Text>
@@ -49,7 +51,7 @@ export function BusinessInvoiceEmail({
                 <Text style={styles.summaryLine}><strong>Totaal:</strong> {total}</Text>
               </Section>
 
-              <Button href={downloadUrl} style={styles.button}>Factuur downloaden (PDF)</Button>
+              <Button href={downloadUrl} style={styles.button}>{buttonLabel}</Button>
               <Text style={styles.footer}>
                 Bewaar deze e-mail voor je administratie. Vragen over deze factuur? Beantwoord deze e-mail
                 of neem contact op met Fedor.

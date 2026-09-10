@@ -6,9 +6,12 @@ export type BusinessInvitationEmailProps = {
   contactName: string;
   companyName: string;
   invitationUrl: string;
+  heading: string;
+  bodyText: string;
+  buttonLabel: string;
 };
 
-export function BusinessInvitationEmail({ preview, contactName, companyName, invitationUrl }: BusinessInvitationEmailProps) {
+export function BusinessInvitationEmail({ preview, invitationUrl, heading, bodyText, buttonLabel }: BusinessInvitationEmailProps) {
   return (
     <Html lang="nl" dir="ltr">
       <Head />
@@ -19,12 +22,9 @@ export function BusinessInvitationEmail({ preview, contactName, companyName, inv
             <Section style={styles.brandBar} />
             <Section style={styles.content}>
               <Text style={styles.brand}>DE NOTENMAN</Text>
-              <Heading as="h1" style={styles.heading}>Welkom bij De Notenman zakelijk, {contactName}</Heading>
-              <Text style={styles.intro}>
-                Fedor heeft een zakelijke omgeving voor {companyName} klaargezet. Hier vind je straks je
-                bestellijsten, facturen en betaalstatus.
-              </Text>
-              <Button href={invitationUrl} style={styles.button}>Activeer mijn zakelijke omgeving</Button>
+              <Heading as="h1" style={styles.heading}>{heading}</Heading>
+              <Text style={styles.intro}>{bodyText}</Text>
+              <Button href={invitationUrl} style={styles.button}>{buttonLabel}</Button>
               <Text style={styles.small}>
                 Werkt de knop niet? Kopieer deze link: {invitationUrl}
               </Text>

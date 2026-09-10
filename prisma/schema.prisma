@@ -1720,6 +1720,26 @@ model BusinessInvitation {
   @@index([email, expiresAt])
 }
 
+enum BusinessLifecycleEmailKind {
+  INVITATION
+  INVOICE
+}
+
+// Editable content for the account-lifecycle emails (invitation, order-list
+// ready, invoice) that are sent outside the order-triggered aftersales flow
+// system. One row per kind; a missing row means the hardcoded default
+// content in lib/business-lifecycle-email-content.ts is still in effect.
+model BusinessLifecycleEmailContent {
+  id          String                     @id @default(cuid())
+  kind        BusinessLifecycleEmailKind @unique
+  subject     String
+  heading     String
+  bodyText    String
+  buttonLabel String?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+}
+
 model BusinessSession {
   id                String          @id @default(cuid())
   businessAccountId String

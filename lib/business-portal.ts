@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { BASE_URL } from "@/lib/routes";
 import { deliverTransactionalEmail, type TransactionalEmailResult } from "@/lib/transactional-email";
 import { BusinessInvitationEmail } from "@/emails/BusinessInvitationEmail";
+import { getBusinessLifecycleEmailContent, substituteBusinessLifecycleTokens } from "@/lib/business-lifecycle-email-content";
 import { BusinessOrderListReadyEmail } from "@/emails/BusinessOrderListReadyEmail";
 import { BusinessOrderListChangedEmail } from "@/emails/BusinessOrderListChangedEmail";
 import { BusinessPriceRequestedEmail } from "@/emails/BusinessPriceRequestedEmail";
@@ -141,11 +142,20 @@ export async function sendBusinessInvitationEmail(input: {
   const url = invitationUrl.toString();
   const preview = `${input.adminName} heeft een zakelijke omgeving voor ${input.account.companyName} klaargezet`;
   try {
+    const tokens = { contactName: input.account.contactName, companyName: input.account.companyName };
+    const content = await getBusinessLifecycleEmailContent("INVITATION");
+    const subject = substituteBusinessLifecycleTokens(content.subject, tokens);
+    const heading = substituteBusinessLifecycleTokens(content.heading, tokens);
+    const bodyText = substituteBusinessLifecycleTokens(content.bodyText, tokens);
+
     const html = await render(createElement(BusinessInvitationEmail, {
       preview,
       contactName: input.account.contactName,
       companyName: input.account.companyName,
       invitationUrl: url,
+      heading,
+      bodyText,
+      buttonLabel: content.buttonLabel,
     }));
     const text = [
       `Beste ${input.account.contactName},`,
@@ -162,7 +172,7 @@ export async function sendBusinessInvitationEmail(input: {
       kind: EmailDeliveryKind.BUSINESS_INVITATION,
       recipientEmail: input.account.email,
       recipientName: input.account.contactName,
-      subject: "Uitnodiging voor de zakelijke omgeving van De Notenman",
+      subject,
       html,
       text,
     });
