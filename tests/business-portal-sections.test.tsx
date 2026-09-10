@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { BusinessPortalSection } from "../app/[locale]/zakelijk/BusinessPortalSection";
+import { BusinessAccountOverview } from "../app/[locale]/zakelijk/BusinessAccountOverview";
 
 test("business portal sections use native accessible disclosure controls", () => {
   const markup = renderToStaticMarkup(
@@ -63,4 +64,58 @@ test("the pickup-day calendar is width-constrained so it stays readable on wide 
   const source = readFileSync("components/business-portal/PickupDayCalendar.tsx", "utf8");
 
   assert.match(source, /className="max-w-sm rounded-panel border border-border bg-surface p-4"/);
+});
+
+test("business customers can no longer self-edit their profile — the self-service route and form are gone", () => {
+  assert.equal(existsSync("app/api/business/account/route.ts"), false, "the customer self-edit PATCH route must be removed");
+  assert.equal(existsSync("app/[locale]/zakelijk/BusinessAccountSettings.tsx"), false, "the old editable settings form must be removed");
+
+  const source = readFileSync("app/[locale]/zakelijk/BusinessPortalClient.tsx", "utf8");
+  assert.match(source, /<BusinessAccountOverview/);
+  assert.doesNotMatch(source, /fetch\("\/api\/business\/account"/);
+});
+
+test("the read-only business account overview shows the full customer profile, admin-managed only", () => {
+  const nlMarkup = renderToStaticMarkup(
+    <BusinessAccountOverview
+      companyName="Testbedrijf BV"
+      contactName="Dave Vera"
+      customerNumber="NL0002"
+      email="dave@testbedrijf.nl"
+      phone="0612345678"
+      kvkNumber="12345678"
+      vatNumber="NL123456789B01"
+      peppolParticipantId={null}
+      country="NL"
+    />,
+  );
+  assert.match(nlMarkup, /Testbedrijf BV/);
+  assert.match(nlMarkup, /Dave Vera/);
+  assert.match(nlMarkup, /NL0002/);
+  assert.match(nlMarkup, /dave@testbedrijf\.nl/);
+  assert.match(nlMarkup, /0612345678/);
+  assert.match(nlMarkup, /12345678/);
+  assert.match(nlMarkup, /NL123456789B01/);
+  // No self-edit affordance: no <form>, <input>, or submit button anywhere in the markup.
+  assert.doesNotMatch(nlMarkup, /<form|<input|<button/);
+  // Peppol only applies to Belgian accounts — omitted entirely for NL.
+  assert.doesNotMatch(nlMarkup, /Peppol-ID/);
+
+  const beMarkup = renderToStaticMarkup(
+    <BusinessAccountOverview
+      companyName="Testbedrijf BV"
+      contactName="Dave Vera"
+      customerNumber={null}
+      email="dave@testbedrijf.be"
+      phone={null}
+      kvkNumber={null}
+      vatNumber="BE0123456789"
+      peppolParticipantId="0208:0123456789"
+      country="BE"
+    />,
+  );
+  assert.match(beMarkup, /Peppol-ID/);
+  assert.match(beMarkup, /0208:0123456789/);
+  // Missing optional fields render as an explicit placeholder, not blank/undefined.
+  assert.match(beMarkup, /—/);
 });

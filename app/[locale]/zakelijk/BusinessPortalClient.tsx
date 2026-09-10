@@ -6,7 +6,7 @@ import { ChevronDown, CreditCard, Download, LogOut, PackageCheck, Save, Send, Cl
 import { formatPrice } from "@/lib/format";
 import { calculateVat } from "@/lib/business-vat";
 import { BusinessPasswordSettings } from "./BusinessPasswordSettings";
-import { BusinessAccountSettings } from "./BusinessAccountSettings";
+import { BusinessAccountOverview } from "./BusinessAccountOverview";
 import { BusinessLogoSettings } from "./BusinessLogoSettings";
 import { PickupDayCalendar } from "@/components/business-portal/PickupDayCalendar";
 import { BusinessPortalSection } from "./BusinessPortalSection";
@@ -71,6 +71,10 @@ const STATUS: Record<string, string> = {
 type PortalAccount = {
   companyName: string;
   contactName: string;
+  customerNumber: string | null;
+  email: string;
+  phone: string | null;
+  kvkNumber: string | null;
   country: string;
   vatRegime: string;
   vatRatePercent: number;
@@ -138,9 +142,19 @@ export function BusinessPortalClient({ locale, account, initialOrderLists, curre
       </section>
 
       <div className="mt-8 grid gap-4">
-        <BusinessPortalSection title="Bedrijfs- en factuurgegevens" description="Beheer je btw-nummer en Peppol-gegevens.">
-          <div className="grid max-w-sm gap-4">
-            <BusinessAccountSettings vatNumber={account.vatNumber} peppolParticipantId={account.peppolParticipantId} country={account.country} />
+        <BusinessPortalSection title="Bedrijfs- en factuurgegevens" description="Je gegevens zoals Fedor ze voor je bijhoudt. Klopt er iets niet? Neem contact op, dan past hij het aan.">
+          <div className="grid max-w-xl gap-4">
+            <BusinessAccountOverview
+              companyName={account.companyName}
+              contactName={account.contactName}
+              customerNumber={account.customerNumber}
+              email={account.email}
+              phone={account.phone}
+              kvkNumber={account.kvkNumber}
+              vatNumber={account.vatNumber}
+              peppolParticipantId={account.peppolParticipantId}
+              country={account.country}
+            />
             <BusinessLogoSettings />
           </div>
         </BusinessPortalSection>
