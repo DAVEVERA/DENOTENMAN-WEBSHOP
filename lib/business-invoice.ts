@@ -12,7 +12,6 @@ import { renderInvoicePdfBase64 } from "@/lib/business-invoice-pdf";
 import { recordBusinessEvent } from "@/lib/business-portal";
 import { deliverTransactionalEmail } from "@/lib/transactional-email";
 import { merchantOrderNotificationRecipient } from "@/lib/merchant-order-notification";
-import { readProductAsset } from "@/lib/storage";
 import { BusinessInvoiceEmail } from "@/emails/BusinessInvoiceEmail";
 
 const REVERSE_CHARGE_NOTE =
@@ -50,22 +49,6 @@ export async function generateInvoiceForOrder(
   const vatNote = businessAccount.vatRegime === "REVERSE_CHARGE" ? REVERSE_CHARGE_NOTE : null;
   const createdAt = new Date();
 
-  // Read the current pointer immediately before issuing the invoice. The
-  // bytes are embedded in pdfBase64, so later replacement/deletion cannot
-  // change an existing invoice. Storage failure degrades to a logo-less PDF.
-  let customerLogoBytes: Buffer | null = null;
-  try {
-    const logo = await prisma.businessAccount.findUnique({
-      where: { id: businessAccount.id },
-      select: { logoStorageKey: true },
-    });
-    if (logo?.logoStorageKey) {
-      customerLogoBytes = await readProductAsset(logo.logoStorageKey, 2 * 1024 * 1024);
-    }
-  } catch (error) {
-    console.error("Could not snapshot business logo for invoice", { businessAccountId: businessAccount.id, error });
-  }
-
   return prisma.$transaction(async (tx) => {
     const alreadyCreated = await tx.invoice.findUnique({ where: { orderId: order.id } });
     if (alreadyCreated) return alreadyCreated;
@@ -80,6 +63,11 @@ export async function generateInvoiceForOrder(
       kvkNumber: businessAccount.kvkNumber,
       vatNumber: businessAccount.vatNumber,
       country: businessAccount.country,
+      billingStreet: businessAccount.billingStreet,
+      billingHouseNumber: businessAccount.billingHouseNumber,
+      billingPostalCode: businessAccount.billingPostalCode,
+      billingCity: businessAccount.billingCity,
+      billingCountry: businessAccount.billingCountry,
       items: order.items.map((item) => ({
         productName: item.productName,
         variantLabel: item.variantLabel || null,
@@ -90,8 +78,8 @@ export async function generateInvoiceForOrder(
       vatRatePercent,
       vatAmountCents,
       totalCents,
+      paidCents: order.totalCents,
       vatNote,
-      customerLogoBytes,
     });
 
     const invoice = await tx.invoice.create({
