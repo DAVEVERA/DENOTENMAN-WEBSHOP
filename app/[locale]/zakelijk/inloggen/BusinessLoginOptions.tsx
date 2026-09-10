@@ -13,7 +13,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 
 export function BusinessLoginOptions({ locale, googleConfigured, oauthError }: { locale: string; googleConfigured: boolean; oauthError?: string }) {
-  const [showLinkRequest, setShowLinkRequest] = useState(false);
+  const [showPasswordLogin, setShowPasswordLogin] = useState(false);
 
   return (
     <div>
@@ -30,15 +30,16 @@ export function BusinessLoginOptions({ locale, googleConfigured, oauthError }: {
         </>
       ) : null}
 
-      <BusinessPasswordLoginForm locale={locale} />
+      <p className="mt-6 text-body-sm leading-relaxed text-muted">Vul het e-mailadres in waarop je de uitnodiging van Fedor kreeg. Je ontvangt een link waarmee je inlogt en in één keer je eigen wachtwoord instelt.</p>
+      <BusinessLoginLinkRequestForm />
 
-      {showLinkRequest ? (
-        <div className="mt-4">
-          <BusinessLoginLinkRequestForm />
-        </div>
+      <div className="my-4 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-muted"><span className="h-px flex-1 bg-border" />of<span className="h-px flex-1 bg-border" /></div>
+
+      {showPasswordLogin ? (
+        <BusinessPasswordLoginForm locale={locale} />
       ) : (
-        <button type="button" onClick={() => setShowLinkRequest(true)} className="mt-4 text-body-sm font-semibold text-accent-hover underline underline-offset-4">
-          Nog geen wachtwoord? Vraag een inloglink aan
+        <button type="button" onClick={() => setShowPasswordLogin(true)} className="text-body-sm font-semibold text-accent-hover underline underline-offset-4">
+          Ik heb al een wachtwoord
         </button>
       )}
     </div>
