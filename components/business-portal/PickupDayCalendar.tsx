@@ -60,7 +60,7 @@ export function PickupDayCalendar({
     : ["antwerpen", "uden", "hilvarenbeek", "haaren"];
 
   return (
-    <div className="rounded-panel border border-border bg-surface p-4">
+    <div className="max-w-sm rounded-panel border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"

@@ -111,30 +111,17 @@ export function BusinessPortalClient({ locale, account, initialOrderLists, curre
     <main id="main-content" className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">Welkom {account.contactName}</p>
+          <p className="text-2xl font-bold uppercase tracking-[0.15em] text-accent-ink">Welkom {account.contactName}</p>
           <h1 className="mt-1 font-heading text-heading-lg text-text">Bestellijst voor {account.companyName}</h1>
-          <p className="mt-2 max-w-2xl text-body-sm text-muted">Dit is de doorlopende lijst die Fedor voor je bijhoudt. Je past zelf de aantallen aan — de producten, eenheden en prijzen stelt Fedor in.</p>
+          <p className="mt-2 max-w-2xl text-body-sm text-muted">Dit is jouw vaste bestellijst. Pas de aantallen aan zoals het jou uitkomt; de producten, eenheden en prijzen regelt Fedor.</p>
         </div>
         <div>
           <button type="button" onClick={logout} disabled={loggingOut} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text"><LogOut className="h-4 w-4" aria-hidden="true" /> {loggingOut ? "Uitloggen…" : "Uitloggen"}</button>
           {logoutError ? <p role="alert" className="mt-2 max-w-xs text-body-sm font-semibold text-red-700">{logoutError}</p> : null}
         </div>
       </div>
-      <div className="mt-6 grid gap-4">
-        <BusinessPortalSection title="Bedrijfs- en factuurgegevens" description="Beheer je btw-nummer en Peppol-gegevens.">
-          <div className="grid max-w-sm gap-4">
-            <BusinessAccountSettings vatNumber={account.vatNumber} peppolParticipantId={account.peppolParticipantId} country={account.country} />
-            <BusinessLogoSettings />
-          </div>
-        </BusinessPortalSection>
-        <BusinessPortalSection title="Wachtwoord en beveiliging" description="Wijzig het wachtwoord van je zakelijke account.">
-          <div className="max-w-sm">
-            <BusinessPasswordSettings hasPassword={account.hasPassword} />
-          </div>
-        </BusinessPortalSection>
-      </div>
 
-      <section className="mt-8" aria-labelledby="business-order-lists-heading">
+      <section className="mt-6" aria-labelledby="business-order-lists-heading">
         <div className="mb-4">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-ink">Bestellen</p>
           <h2 id="business-order-lists-heading" className="mt-1 font-heading text-heading-sm text-text">Mijn bestellijsten</h2>
@@ -149,6 +136,20 @@ export function BusinessPortalClient({ locale, account, initialOrderLists, curre
           <div className="grid gap-6">{initialOrderLists.map((list) => <OrderListReview key={`${list.id}:${list.version}`} list={list} account={account} currentTime={currentTime} />)}</div>
         )}
       </section>
+
+      <div className="mt-8 grid gap-4">
+        <BusinessPortalSection title="Bedrijfs- en factuurgegevens" description="Beheer je btw-nummer en Peppol-gegevens.">
+          <div className="grid max-w-sm gap-4">
+            <BusinessAccountSettings vatNumber={account.vatNumber} peppolParticipantId={account.peppolParticipantId} country={account.country} />
+            <BusinessLogoSettings />
+          </div>
+        </BusinessPortalSection>
+        <BusinessPortalSection title="Wachtwoord en beveiliging" description="Wijzig het wachtwoord van je zakelijke account.">
+          <div className="max-w-sm">
+            <BusinessPasswordSettings hasPassword={account.hasPassword} />
+          </div>
+        </BusinessPortalSection>
+      </div>
     </main>
   );
 }
@@ -304,13 +305,14 @@ function OrderListReview({ list, account, currentTime }: { list: PortalList; acc
   }
 
   return (
+    <div className="grid gap-4">
     <article className="overflow-hidden rounded-panel border border-border bg-surface shadow-card">
       <details open={listActive || list.paymentPending} className="group/order-list">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 bg-[#FFF9DA] p-4 text-left outline-none marker:content-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent sm:p-6 [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 bg-accent p-4 text-left outline-none marker:content-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent sm:p-6 [&::-webkit-details-marker]:hidden">
           <span className="min-w-0">
-            <span className="text-xs font-bold uppercase tracking-[0.14em] text-accent-ink">Bestellijst</span>
-            <span className="mt-1 block font-heading text-heading-sm text-text">{list.title}</span>
-            <span className="mt-1 block text-body-sm text-muted">{list.validUntil ? `Geldig tot ${formatDate(list.validUntil)}` : "Geen einddatum ingesteld"}</span>
+            <span className="text-xs font-bold uppercase tracking-[0.14em] text-contrast">Bestellijst</span>
+            <span className="mt-1 block font-heading text-heading-sm text-contrast">{list.title}</span>
+            <span className="mt-1 block text-body-sm text-contrast">{list.validUntil ? `Geldig tot ${formatDate(list.validUntil)}` : "Geen einddatum ingesteld"}</span>
           </span>
           <span className="flex shrink-0 items-center gap-2">
             <span className="rounded-button bg-surface px-3 py-2 text-xs font-bold text-text">{STATUS[list.status] ?? list.status}</span>
@@ -365,24 +367,6 @@ function OrderListReview({ list, account, currentTime }: { list: PortalList; acc
               })}
             </ul>
             <p className="mt-2 text-xs text-muted">Aantal 0 betekent: wel bewaren op mijn vaste lijst, niet meenemen in deze bestelling.</p>
-            <div className="mt-6">
-              <h3 className="font-heading font-bold text-text">
-                {fixedPickupLocation ? `Afhaaldag bij ${fixedPickupLocation.name}` : "Voorkeursdag ophalen (optioneel)"}
-              </h3>
-              {fixedPickupLocation ? (
-                <p className="mt-1 text-xs text-muted">
-                  Je ziet alleen de afhaaldagen voor {fixedPickupLocation.name}{pickupFrequencyLabel ? `; afgesproken ritme: ${pickupFrequencyLabel}` : ""}.
-                </p>
-              ) : null}
-              <div className="mt-2">
-                <PickupDayCalendar
-                  selectedDay={pickupDay}
-                  onSelect={selectPickupDay}
-                  disabled={pickupDayBusy}
-                  fixedPickupLocationId={account.fixedPickupLocationId}
-                />
-              </div>
-            </div>
 
             <div className="mt-5 space-y-1 border-t border-border pt-4 text-body-sm">
               <div className="flex items-center justify-between text-muted">
@@ -464,6 +448,27 @@ function OrderListReview({ list, account, currentTime }: { list: PortalList; acc
         </div>
       </details>
     </article>
+    {listActive ? (
+      <div className="rounded-panel border border-border bg-surface p-4 sm:p-6">
+        <h3 className="font-heading font-bold text-text">
+          {fixedPickupLocation ? `Afhaaldag bij ${fixedPickupLocation.name}` : "Voorkeursdag ophalen (optioneel)"}
+        </h3>
+        <p className="mt-1 text-xs text-muted">
+          {fixedPickupLocation
+            ? `Je ziet alleen de afhaaldagen voor ${fixedPickupLocation.name}${pickupFrequencyLabel ? `; afgesproken ritme: ${pickupFrequencyLabel}` : ""}.`
+            : "Handig als je meer dan anderhalve week vooruit bestelt, zodat je bestelling vers en op tijd klaarstaat."}
+        </p>
+        <div className="mt-2">
+          <PickupDayCalendar
+            selectedDay={pickupDay}
+            onSelect={selectPickupDay}
+            disabled={pickupDayBusy}
+            fixedPickupLocationId={account.fixedPickupLocationId}
+          />
+        </div>
+      </div>
+    ) : null}
+    </div>
   );
 }
 
