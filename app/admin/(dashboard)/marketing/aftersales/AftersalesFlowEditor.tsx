@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -20,38 +20,73 @@ import {
   X,
 } from "lucide-react";
 import type {
+  AftersalesBlock,
+  AftersalesBlockType,
   AftersalesCanvas,
+  AftersalesColumn,
   AftersalesContent,
-  AftersalesDesign,
   AftersalesFlowInput,
+  AftersalesRow,
   AftersalesTriggerValue,
 } from "@/lib/aftersales/schema";
-import { AFTERSALES_FONTS, AFTERSALES_FONT_SIZES, AFTERSALES_LAYOUTS, AFTERSALES_TOKENS_BY_TRIGGER } from "@/lib/aftersales/schema";
+import { AFTERSALES_BLOCK_TYPES, AFTERSALES_TOKENS_BY_TRIGGER } from "@/lib/aftersales/schema";
 import { renderAftersalesCanvas } from "@/lib/aftersales/canvas-renderer";
 import type { Locale } from "@/lib/i18n";
 
 type MediaOption = { id: string; url: string; originalFilename: string };
 
-const layoutLabels: Record<AftersalesDesign["layout"], string> = {
-  CLASSIC: "Alleen tekst",
-  IMAGE_TOP: "Afbeelding boven tekst",
-  IMAGE_SIDE: "Afbeelding naast tekst",
-  IMAGE_BOTTOM: "Afbeelding onder tekst",
-  GRID_2COL: "Grid (2 kolommen)",
-  TABLE: "Tabel",
+let blockIdCounter = 0;
+function newBlockId(prefix: string): string {
+  blockIdCounter += 1;
+  return `${prefix}-${Date.now().toString(36)}-${blockIdCounter}`;
+}
+
+const BLOCK_TYPE_LABELS: Record<AftersalesBlockType, string> = {
+  text: "Tekst",
+  image: "Afbeelding",
+  hero: "Hero",
+  banner: "Banner",
+  button: "Knop",
+  table: "Tabel",
+  grid: "Grid",
+  footer: "Footer",
+  spacer: "Spacer",
+  customHtml: "Custom HTML",
 };
 
-const fontLabels: Record<AftersalesDesign["font"], string> = {
-  SANS: "Standaard (Arial)",
-  SERIF: "Serif (Georgia)",
-  MODERN: "Modern (Segoe UI)",
-};
+function createBlock(type: AftersalesBlockType): AftersalesBlock {
+  const id = newBlockId(type);
+  switch (type) {
+    case "text":
+      return { id, type, font: "SANS", size: "STANDAARD", color: "#141414", align: "left", bold: false, italic: false };
+    case "image":
+      return { id, type, mediaUrl: null, alt: "", width: 544, align: "center", linkUrl: null };
+    case "hero":
+      return { id, type, backgroundUrl: null, backgroundColor: "#333333", buttonColor: "#e0b200", buttonTextColor: "#141414" };
+    case "banner":
+      return { id, type, backgroundUrl: null, backgroundColor: "#fbe9a0", textColor: "#141414" };
+    case "button":
+      return { id, type, backgroundColor: "#e0b200", textColor: "#141414", borderRadius: 8, linkUrl: null };
+    case "table":
+      return { id, type, headerCount: 0, rowIds: [] };
+    case "grid":
+      return { id, type, items: [] };
+    case "footer":
+      return { id, type };
+    case "spacer":
+      return { id, type, heightPx: 24, showDivider: false };
+    case "customHtml":
+      return { id, type };
+  }
+}
 
-const fontSizeLabels: Record<AftersalesDesign["fontSize"], string> = {
-  COMPACT: "Compact",
-  STANDAARD: "Standaard",
-  GROOT: "Groot",
-};
+function newColumn(widthFraction: number): AftersalesColumn {
+  return { id: newBlockId("col"), widthFraction, backgroundColor: "#ffffff", padding: 16, blocks: [] };
+}
+
+function newRow(): AftersalesRow {
+  return { id: newBlockId("row"), backgroundColor: "#ffffff", padding: 24, columns: [newColumn(1)] };
+}
 
 type Delivery = {
   id: string;
@@ -181,6 +216,8 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
   const [mediaPickerFor, setMediaPickerFor] = useState<"logo" | "step" | { gridIndex: number } | null>(null);
   const [mediaOptions, setMediaOptions] = useState<MediaOption[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const selectedColumnRef = useRef<{ rowId: string; columnId: string } | null>(null);
 
   const selectedStep = flow.steps.find((step) => step.id === selectedStepId) ?? flow.steps[0];
   const preview = useMemo(
@@ -207,68 +244,62 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
     }));
   }
 
-  function updateDesign(patch: Partial<AftersalesDesign>) {
+  function updateCanvas(stepId: string, updater: (canvas: AftersalesRow[]) => AftersalesRow[]) {
+    updateStep(stepId, (step) => ({ ...step, content: { ...step.content, canvas: { rows: updater(step.content.canvas.rows) } } }));
+  }
+
+  function addRow() {
     if (!selectedStep) return;
-    updateStep(selectedStep.id, (step) => ({
-      ...step,
-      content: { ...step.content, design: { ...step.content.design, ...patch } },
+    updateCanvas(selectedStep.id, (rows) => [...rows, newRow()]);
+  }
+
+  function removeRow(rowId: string) {
+    if (!selectedStep) return;
+    updateCanvas(selectedStep.id, (rows) => rows.length > 1 ? rows.filter((row) => row.id !== rowId) : rows);
+  }
+
+  function addColumn(rowId: string) {
+    if (!selectedStep) return;
+    updateCanvas(selectedStep.id, (rows) => rows.map((row) => row.id === rowId && row.columns.length < 4
+      ? { ...row, columns: [...row.columns, newColumn(1 / (row.columns.length + 1))] }
+      : row));
+  }
+
+  function removeColumn(rowId: string, columnId: string) {
+    if (!selectedStep) return;
+    updateCanvas(selectedStep.id, (rows) => rows.map((row) => row.id === rowId && row.columns.length > 1
+      ? { ...row, columns: row.columns.filter((column) => column.id !== columnId) }
+      : row));
+  }
+
+  function addBlock(rowId: string, columnId: string, type: AftersalesBlockType) {
+    if (!selectedStep) return;
+    const block = createBlock(type);
+    updateCanvas(selectedStep.id, (rows) => rows.map((row) => row.id !== rowId ? row : {
+      ...row,
+      columns: row.columns.map((column) => column.id !== columnId ? column : { ...column, blocks: [...column.blocks, block] }),
     }));
+    setSelectedBlockId(block.id);
   }
 
-  function addGridItem() {
-    if (!selectedStep || selectedStep.content.design.gridItems.length >= 4) return;
-    updateDesign({ gridItems: [...selectedStep.content.design.gridItems, { imageUrl: null, imageAlt: "", heading: "", body: "" }] });
-  }
-
-  function updateGridItem(index: number, patch: Partial<AftersalesDesign["gridItems"][number]>) {
+  function removeBlock(rowId: string, columnId: string, blockId: string) {
     if (!selectedStep) return;
-    updateDesign({ gridItems: selectedStep.content.design.gridItems.map((item, i) => (i === index ? { ...item, ...patch } : item)) });
+    updateCanvas(selectedStep.id, (rows) => rows.map((row) => row.id !== rowId ? row : {
+      ...row,
+      columns: row.columns.map((column) => column.id !== columnId ? column : { ...column, blocks: column.blocks.filter((block) => block.id !== blockId) }),
+    }));
+    if (selectedBlockId === blockId) setSelectedBlockId(null);
   }
 
-  function removeGridItem(index: number) {
+  function updateBlock(rowId: string, columnId: string, blockId: string, updater: (block: AftersalesBlock) => AftersalesBlock) {
     if (!selectedStep) return;
-    updateDesign({ gridItems: selectedStep.content.design.gridItems.filter((_, i) => i !== index) });
-  }
-
-  function addTableColumn() {
-    if (!selectedStep || selectedStep.content.design.tableHeaders.length >= 6) return;
-    updateDesign({
-      tableHeaders: [...selectedStep.content.design.tableHeaders, ""],
-      tableRows: selectedStep.content.design.tableRows.map((row) => ({ cells: [...row.cells, ""] })),
-    });
-  }
-
-  function removeTableColumn(colIndex: number) {
-    if (!selectedStep) return;
-    updateDesign({
-      tableHeaders: selectedStep.content.design.tableHeaders.filter((_, i) => i !== colIndex),
-      tableRows: selectedStep.content.design.tableRows.map((row) => ({ cells: row.cells.filter((_, i) => i !== colIndex) })),
-    });
-  }
-
-  function updateTableHeader(colIndex: number, value: string) {
-    if (!selectedStep) return;
-    updateDesign({ tableHeaders: selectedStep.content.design.tableHeaders.map((header, i) => (i === colIndex ? value : header)) });
-  }
-
-  function addTableRow() {
-    if (!selectedStep || selectedStep.content.design.tableRows.length >= 20) return;
-    const columnCount = Math.max(selectedStep.content.design.tableHeaders.length, 1);
-    updateDesign({ tableRows: [...selectedStep.content.design.tableRows, { cells: Array.from({ length: columnCount }, () => "") }] });
-  }
-
-  function removeTableRow(rowIndex: number) {
-    if (!selectedStep) return;
-    updateDesign({ tableRows: selectedStep.content.design.tableRows.filter((_, i) => i !== rowIndex) });
-  }
-
-  function updateTableCell(rowIndex: number, colIndex: number, value: string) {
-    if (!selectedStep) return;
-    updateDesign({
-      tableRows: selectedStep.content.design.tableRows.map((row, i) =>
-        i === rowIndex ? { cells: row.cells.map((cell, j) => (j === colIndex ? value : cell)) } : row
-      ),
-    });
+    updateCanvas(selectedStep.id, (rows) => rows.map((row) => row.id !== rowId ? row : {
+      ...row,
+      columns: row.columns.map((column) => column.id !== columnId ? column : {
+        ...column,
+        blocks: column.blocks.map((block) => block.id !== blockId ? block : updater(block)),
+      }),
+    }));
   }
 
   async function openMediaPicker(target: "logo" | "step" | { gridIndex: number }) {
@@ -287,9 +318,23 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
     if (mediaPickerFor === "logo") {
       markChanged({ ...flow, logoUrl: url });
     } else if (mediaPickerFor === "step") {
-      updateDesign({ mediaUrl: url });
+      if (selectedStep) {
+        updateStep(selectedStep.id, (step) => ({ ...step, content: { ...step.content, design: { ...step.content.design, mediaUrl: url } } }));
+      }
     } else if (mediaPickerFor && typeof mediaPickerFor === "object") {
-      updateGridItem(mediaPickerFor.gridIndex, { imageUrl: url });
+      const { gridIndex } = mediaPickerFor;
+      if (selectedStep) {
+        updateStep(selectedStep.id, (step) => ({
+          ...step,
+          content: {
+            ...step.content,
+            design: {
+              ...step.content.design,
+              gridItems: step.content.design.gridItems.map((item, i) => (i === gridIndex ? { ...item, imageUrl: url } : item)),
+            },
+          },
+        }));
+      }
     }
     setMediaPickerFor(null);
   }
@@ -517,117 +562,66 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
               </div>
 
               <div className="mt-5 rounded-panel border border-border bg-background p-4">
-                <p className="text-xs font-bold uppercase tracking-heading text-muted">Opmaak en layout</p>
-                <p className="mt-1 text-xs text-muted">Deze instellingen gelden voor alle talen van deze stap.</p>
-                <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <div>
-                    <label htmlFor="design-layout" className="font-heading text-body-sm font-semibold">Layout</label>
-                    <select id="design-layout" value={selectedStep.content.design.layout} onChange={(event) => updateDesign({ layout: event.target.value as AftersalesDesign["layout"] })} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2">
-                      {AFTERSALES_LAYOUTS.map((layout) => <option key={layout} value={layout}>{layoutLabels[layout]}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="design-font" className="font-heading text-body-sm font-semibold">Lettertype</label>
-                    <select id="design-font" value={selectedStep.content.design.font} onChange={(event) => updateDesign({ font: event.target.value as AftersalesDesign["font"] })} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2">
-                      {AFTERSALES_FONTS.map((font) => <option key={font} value={font}>{fontLabels[font]}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="design-font-size" className="font-heading text-body-sm font-semibold">Tekstgrootte</label>
-                    <select id="design-font-size" value={selectedStep.content.design.fontSize} onChange={(event) => updateDesign({ fontSize: event.target.value as AftersalesDesign["fontSize"] })} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2">
-                      {AFTERSALES_FONT_SIZES.map((size) => <option key={size} value={size}>{fontSizeLabels[size]}</option>)}
-                    </select>
-                  </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-heading text-muted">Canvas</p>
+                  <button type="button" onClick={addRow} className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold"><Plus size={14} />Rij toevoegen</button>
                 </div>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  {selectedStep.content.design.mediaUrl ? (
-                    <img src={selectedStep.content.design.mediaUrl} alt="" className="h-14 w-20 rounded border border-border object-cover" />
-                  ) : (
-                    <span className="text-body-sm text-muted">Geen afbeelding gekozen voor deze stap</span>
-                  )}
-                  <button type="button" onClick={() => openMediaPicker("step")} className="inline-flex min-h-9 items-center gap-1.5 rounded-button border border-border bg-white px-3 text-xs font-semibold"><ImageIcon size={14} />Kies uit mediabibliotheek</button>
-                  {selectedStep.content.design.mediaUrl ? (
-                    <button type="button" onClick={() => updateDesign({ mediaUrl: null })} className="text-xs font-semibold text-red-700">Verwijder afbeelding</button>
-                  ) : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {AFTERSALES_BLOCK_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      disabled={!selectedColumnRef.current}
+                      onClick={() => selectedColumnRef.current && addBlock(selectedColumnRef.current.rowId, selectedColumnRef.current.columnId, type)}
+                      className="inline-flex min-h-9 items-center rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"
+                    >
+                      {BLOCK_TYPE_LABELS[type]}
+                    </button>
+                  ))}
                 </div>
-                {selectedStep.content.design.mediaUrl ? (
-                  <div className="mt-3">
-                    <label htmlFor="design-media-alt" className="font-heading text-body-sm font-semibold">Alt-tekst afbeelding</label>
-                    <input id="design-media-alt" value={selectedStep.content.design.mediaAlt} maxLength={200} onChange={(event) => updateDesign({ mediaAlt: event.target.value })} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
-                  </div>
-                ) : null}
+                <p className="mt-2 text-xs text-muted">Selecteer eerst een kolom hieronder, klik dan een bloktype om het toe te voegen.</p>
 
-                {selectedStep.content.design.layout === "GRID_2COL" ? (
-                  <div className="mt-4 border-t border-border pt-4">
-                    <div className="flex items-center justify-between">
-                      <p className="font-heading text-body-sm font-semibold">Grid-items (max 4)</p>
-                      <button type="button" onClick={addGridItem} disabled={selectedStep.content.design.gridItems.length >= 4} className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"><Plus size={14} />Item toevoegen</button>
-                    </div>
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {selectedStep.content.design.gridItems.map((item, index) => (
-                        <div key={index} className="rounded-button border border-border bg-white p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-12 w-16 rounded border border-border object-cover" /> : <span className="text-xs text-muted">Geen afbeelding</span>}
-                            <div className="flex gap-2">
-                              <button type="button" onClick={() => openMediaPicker({ gridIndex: index })} className="text-xs font-semibold text-accent-hover">Kies afbeelding</button>
-                              <button type="button" onClick={() => removeGridItem(index)} className="text-xs font-semibold text-red-700">Verwijder</button>
+                <div className="mt-4 space-y-3">
+                  {selectedStep.content.canvas.rows.map((row) => (
+                    <div key={row.id} className="rounded-button border border-border bg-white p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-muted">Rij</span>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => addColumn(row.id)} disabled={row.columns.length >= 4} className="text-xs font-semibold text-accent-hover disabled:opacity-40">Kolom toevoegen</button>
+                          <button type="button" onClick={() => removeRow(row.id)} disabled={selectedStep.content.canvas.rows.length <= 1} className="text-xs font-semibold text-red-700 disabled:opacity-40">Rij verwijderen</button>
+                        </div>
+                      </div>
+                      <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: row.columns.map((column) => `${Math.round(column.widthFraction * 100)}fr`).join(" ") }}>
+                        {row.columns.map((column) => (
+                          <div
+                            key={column.id}
+                            onClick={() => (selectedColumnRef.current = { rowId: row.id, columnId: column.id })}
+                            className="min-h-[60px] cursor-pointer rounded-button border border-dashed border-border p-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-semibold uppercase text-muted">Kolom</span>
+                              <button type="button" onClick={(event) => { event.stopPropagation(); removeColumn(row.id, column.id); }} disabled={row.columns.length <= 1} aria-label="Verwijder kolom" className="text-red-700 disabled:opacity-40"><X size={12} /></button>
+                            </div>
+                            <div className="mt-1 space-y-1">
+                              {column.blocks.map((block) => (
+                                <button
+                                  key={block.id}
+                                  type="button"
+                                  onClick={(event) => { event.stopPropagation(); setSelectedBlockId(block.id); selectedColumnRef.current = { rowId: row.id, columnId: column.id }; }}
+                                  className={`flex w-full items-center justify-between gap-1 rounded border px-2 py-1 text-left text-xs ${selectedBlockId === block.id ? "border-accent bg-accent/10" : "border-border bg-background"}`}
+                                >
+                                  <span>{BLOCK_TYPE_LABELS[block.type]}</span>
+                                  <span onClick={(event) => { event.stopPropagation(); removeBlock(row.id, column.id, block.id); }} role="button" aria-label="Verwijder blok" className="text-red-700"><X size={12} /></span>
+                                </button>
+                              ))}
+                              {column.blocks.length === 0 ? <p className="text-[11px] text-muted">Leeg</p> : null}
                             </div>
                           </div>
-                          <input value={item.heading} maxLength={120} onChange={(event) => updateGridItem(index, { heading: event.target.value })} placeholder="Kop" className="mt-2 min-h-9 w-full rounded-button border border-border bg-background px-2 text-body-sm" />
-                          <textarea value={item.body} maxLength={400} rows={2} onChange={(event) => updateGridItem(index, { body: event.target.value })} placeholder="Tekst" className="mt-2 w-full rounded-button border border-border bg-background px-2 py-1 text-body-sm" />
-                        </div>
-                      ))}
-                      {selectedStep.content.design.gridItems.length === 0 ? <p className="text-body-sm text-muted">Nog geen items. Voeg er een toe.</p> : null}
-                    </div>
-                  </div>
-                ) : null}
-
-                {selectedStep.content.design.layout === "TABLE" ? (
-                  <div className="mt-4 border-t border-border pt-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-heading text-body-sm font-semibold">Tabel (max 6 kolommen, 20 rijen)</p>
-                      <div className="flex gap-2">
-                        <button type="button" onClick={addTableColumn} disabled={selectedStep.content.design.tableHeaders.length >= 6} className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"><Plus size={14} />Kolom</button>
-                        <button type="button" onClick={addTableRow} disabled={selectedStep.content.design.tableRows.length >= 20} className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"><Plus size={14} />Rij</button>
+                        ))}
                       </div>
                     </div>
-                    {selectedStep.content.design.tableHeaders.length === 0 ? (
-                      <p className="mt-2 text-body-sm text-muted">Voeg eerst een kolom toe.</p>
-                    ) : (
-                      <div className="mt-3 overflow-x-auto">
-                        <table className="w-full min-w-[480px] text-body-sm">
-                          <thead>
-                            <tr>
-                              {selectedStep.content.design.tableHeaders.map((header, colIndex) => (
-                                <th key={colIndex} className="px-1 pb-2 text-left">
-                                  <div className="flex items-center gap-1">
-                                    <input value={header} maxLength={80} onChange={(event) => updateTableHeader(colIndex, event.target.value)} placeholder={`Kolom ${colIndex + 1}`} className="min-h-9 w-full rounded-button border border-border bg-white px-2 text-xs font-bold" />
-                                    <button type="button" onClick={() => removeTableColumn(colIndex)} aria-label="Verwijder kolom" className="shrink-0 text-red-700"><X size={14} /></button>
-                                  </div>
-                                </th>
-                              ))}
-                              <th className="w-8" />
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedStep.content.design.tableRows.map((row, rowIndex) => (
-                              <tr key={rowIndex}>
-                                {selectedStep.content.design.tableHeaders.map((_, colIndex) => (
-                                  <td key={colIndex} className="px-1 py-1">
-                                    <input value={row.cells[colIndex] ?? ""} maxLength={200} onChange={(event) => updateTableCell(rowIndex, colIndex, event.target.value)} className="min-h-9 w-full rounded-button border border-border bg-white px-2 text-xs" />
-                                  </td>
-                                ))}
-                                <td className="px-1 py-1">
-                                  <button type="button" onClick={() => removeTableRow(rowIndex)} aria-label="Verwijder rij" className="text-red-700"><X size={14} /></button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                ) : null}
+                  ))}
+                </div>
               </div>
 
               <div className="mt-5 rounded-panel border border-border bg-background p-4">
