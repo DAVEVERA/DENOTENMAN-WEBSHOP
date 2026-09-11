@@ -77,6 +77,54 @@ function renderSpacerBlock(block: Extract<AftersalesBlock, { type: "spacer" }>):
   return `<div style="height:${block.heightPx}px;box-sizing:border-box;padding-top:${Math.floor(block.heightPx / 2)}px"><div style="border-top:1px solid #ded7ca;font-size:0;line-height:0">&nbsp;</div></div>`;
 }
 
+function renderHeroBlock(block: Extract<AftersalesBlock, { type: "hero" }>, options: AftersalesCanvasRenderOptions): string {
+  const heading = options.escapeText(options.resolveText(blockTextKey(block.id, "heading")));
+  const body = options.escapeText(options.resolveText(blockTextKey(block.id, "body"))).replaceAll("\n", "<br>");
+  const buttonLabel = options.escapeText(options.resolveText(blockTextKey(block.id, "button")));
+  const containerStyle = [
+    `background:${block.backgroundColor}`,
+    block.backgroundUrl ? `background-image:url('${block.backgroundUrl}')` : "",
+    block.backgroundUrl ? "background-size:cover" : "",
+    block.backgroundUrl ? "background-position:center" : "",
+    "padding:40px 24px",
+    "text-align:center",
+  ].filter(Boolean).join(";");
+  const buttonStyle = [
+    "display:inline-block",
+    "min-height:44px",
+    "box-sizing:border-box",
+    "padding:14px 22px",
+    "border-radius:8px",
+    `background:${block.buttonColor}`,
+    `color:${block.buttonTextColor}`,
+    "font-size:16px",
+    "font-weight:700",
+    "text-align:center",
+    "text-decoration:none",
+    "margin-top:12px",
+  ].join(";");
+  return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse"><tbody><tr><td style="${containerStyle}"><h2 style="margin:0 0 10px;color:#ffffff;font-size:26px;line-height:1.3">${heading}</h2><p style="margin:0 0 16px;color:#ffffff;font-size:16px;line-height:1.5">${body}</p><a href="${options.defaultActionUrl}" style="${buttonStyle}">${buttonLabel}</a></td></tr></tbody></table>`;
+}
+
+function renderBannerBlock(block: Extract<AftersalesBlock, { type: "banner" }>, options: AftersalesCanvasRenderOptions): string {
+  const text = options.escapeText(options.resolveText(blockTextKey(block.id)));
+  const style = [
+    `background:${block.backgroundColor}`,
+    block.backgroundUrl ? `background-image:url('${block.backgroundUrl}')` : "",
+    block.backgroundUrl ? "background-size:cover" : "",
+    "padding:16px 20px",
+    "text-align:center",
+    `color:${block.textColor}`,
+    "font-size:15px",
+    "font-weight:700",
+  ].filter(Boolean).join(";");
+  return `<div style="${style}">${text}</div>`;
+}
+
+function renderCustomHtmlBlock(block: Extract<AftersalesBlock, { type: "customHtml" }>, options: AftersalesCanvasRenderOptions): string {
+  return options.resolveText(blockTextKey(block.id));
+}
+
 function renderBlock(block: AftersalesBlock, options: AftersalesCanvasRenderOptions): string {
   switch (block.type) {
     case "text":
@@ -90,10 +138,13 @@ function renderBlock(block: AftersalesBlock, options: AftersalesCanvasRenderOpti
     case "spacer":
       return renderSpacerBlock(block);
     case "hero":
+      return renderHeroBlock(block, options);
     case "banner":
+      return renderBannerBlock(block, options);
+    case "customHtml":
+      return renderCustomHtmlBlock(block, options);
     case "table":
     case "grid":
-    case "customHtml":
       // Implemented in a later task; an unrecognized block simply renders nothing yet.
       return "";
     default: {

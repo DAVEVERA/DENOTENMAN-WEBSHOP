@@ -77,3 +77,36 @@ test("a row with two columns renders them side by side in one HTML table row, wi
   assert.match(html, /width="30%"/);
   assert.match(html, /width="70%"/);
 });
+
+test("a hero block renders an overlay heading, body and button over its background", () => {
+  const canvas: AftersalesCanvas = {
+    rows: [{ id: "r1", backgroundColor: "#fff", padding: 0, columns: [{ id: "c1", widthFraction: 1, backgroundColor: "#fff", padding: 0, blocks: [{ id: "h1", type: "hero", backgroundUrl: "https://cdn.example/bg.jpg", backgroundColor: "#222222", buttonColor: "#e0b200", buttonTextColor: "#141414" }] }] }],
+  };
+  const text: Record<string, string> = { "h1:heading": "Welkom", "h1:body": "Fijn dat je er bent", "h1:button": "Ga verder" };
+  const html = renderAftersalesCanvas(canvas, text, { ...baseOptions, resolveText: (key) => text[key] ?? "" });
+  assert.match(html, /Welkom/);
+  assert.match(html, /Fijn dat je er bent/);
+  assert.match(html, /Ga verder/);
+  assert.match(html, /background:#222222/);
+  assert.match(html, /https:\/\/cdn\.example\/bg\.jpg/);
+});
+
+test("a hero block without a background image still renders on its backgroundColor", () => {
+  const canvas: AftersalesCanvas = { rows: [{ id: "r1", backgroundColor: "#fff", padding: 0, columns: [{ id: "c1", widthFraction: 1, backgroundColor: "#fff", padding: 0, blocks: [{ id: "h2", type: "hero", backgroundUrl: null, backgroundColor: "#333333", buttonColor: "#e0b200", buttonTextColor: "#141414" }] }] }] };
+  const html = renderAftersalesCanvas(canvas, { "h2:heading": "Kop", "h2:body": "Tekst", "h2:button": "Knop" }, { ...baseOptions, resolveText: (key) => ({ "h2:heading": "Kop", "h2:body": "Tekst", "h2:button": "Knop" } as Record<string, string>)[key] ?? "" });
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /background:#333333/);
+});
+
+test("a banner block renders its text on its background", () => {
+  const canvas: AftersalesCanvas = { rows: [{ id: "r1", backgroundColor: "#fff", padding: 0, columns: [{ id: "c1", widthFraction: 1, backgroundColor: "#fff", padding: 0, blocks: [{ id: "ban1", type: "banner", backgroundUrl: null, backgroundColor: "#fbe9a0", textColor: "#141414" }] }] }] };
+  const html = renderAftersalesCanvas(canvas, { ban1: "20% korting deze week" }, { ...baseOptions, resolveText: (key) => (key === "ban1" ? "20% korting deze week" : "") });
+  assert.match(html, /20% korting deze week/);
+  assert.match(html, /background:#fbe9a0/);
+});
+
+test("a customHtml block renders its resolved value verbatim, unescaped", () => {
+  const canvas: AftersalesCanvas = { rows: [{ id: "r1", backgroundColor: "#fff", padding: 0, columns: [{ id: "c1", widthFraction: 1, backgroundColor: "#fff", padding: 0, blocks: [{ id: "html1", type: "customHtml" }] }] }] };
+  const html = renderAftersalesCanvas(canvas, { html1: "<p style=\"color:red\">Vrij HTML</p>" }, { ...baseOptions, resolveText: (key) => (key === "html1" ? "<p style=\"color:red\">Vrij HTML</p>" : "") });
+  assert.match(html, /<p style="color:red">Vrij HTML<\/p>/);
+});
