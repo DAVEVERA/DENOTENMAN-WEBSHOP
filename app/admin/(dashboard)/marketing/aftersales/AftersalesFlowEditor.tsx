@@ -26,10 +26,12 @@ import type {
   AftersalesColumn,
   AftersalesContent,
   AftersalesFlowInput,
+  AftersalesFont,
+  AftersalesFontSize,
   AftersalesRow,
   AftersalesTriggerValue,
 } from "@/lib/aftersales/schema";
-import { AFTERSALES_BLOCK_TYPES, AFTERSALES_TOKENS_BY_TRIGGER } from "@/lib/aftersales/schema";
+import { AFTERSALES_BLOCK_TYPES, AFTERSALES_FONTS, AFTERSALES_FONT_SIZES, AFTERSALES_TOKENS_BY_TRIGGER, blockTextKey } from "@/lib/aftersales/schema";
 import { renderAftersalesCanvas } from "@/lib/aftersales/canvas-renderer";
 import type { Locale } from "@/lib/i18n";
 
@@ -52,6 +54,18 @@ const BLOCK_TYPE_LABELS: Record<AftersalesBlockType, string> = {
   footer: "Footer",
   spacer: "Spacer",
   customHtml: "Custom HTML",
+};
+
+const fontLabels: Record<AftersalesFont, string> = {
+  SANS: "Standaard (Arial)",
+  SERIF: "Serif (Georgia)",
+  MODERN: "Modern (Segoe UI)",
+};
+
+const fontSizeLabels: Record<AftersalesFontSize, string> = {
+  COMPACT: "Compact",
+  STANDAARD: "Standaard",
+  GROOT: "Groot",
 };
 
 function createBlock(type: AftersalesBlockType): AftersalesBlock {
@@ -167,6 +181,18 @@ function sampleValue(value: string): string {
   }[token] ?? ""));
 }
 
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <label className="font-heading text-body-sm font-semibold">{label}</label>
+      <div className="mt-1 flex items-center gap-2">
+        <input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-14 rounded-button border border-border bg-white" aria-label={label} />
+        <input type="text" value={value} onChange={(event) => onChange(event.target.value)} maxLength={7} className="min-h-11 w-28 rounded-button border border-border bg-white px-2 text-body-sm" />
+      </div>
+    </div>
+  );
+}
+
 function previewDocument(
   content: AftersalesContent[Locale],
   trigger: AftersalesTriggerValue,
@@ -213,7 +239,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [testEmail, setTestEmail] = useState("");
-  const [mediaPickerFor, setMediaPickerFor] = useState<"logo" | "step" | { gridIndex: number } | null>(null);
+  const [mediaPickerFor, setMediaPickerFor] = useState<"logo" | "step" | { gridIndex: number } | { blockId: string } | null>(null);
   const [mediaOptions, setMediaOptions] = useState<MediaOption[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -302,7 +328,32 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
     }));
   }
 
-  async function openMediaPicker(target: "logo" | "step" | { gridIndex: number }) {
+  function findSelectedBlockLocation(): { rowId: string; columnId: string; block: AftersalesBlock } | null {
+    if (!selectedStep || !selectedBlockId) return null;
+    for (const row of selectedStep.content.canvas.rows) {
+      for (const column of row.columns) {
+        const block = column.blocks.find((candidate) => candidate.id === selectedBlockId);
+        if (block) return { rowId: row.id, columnId: column.id, block };
+      }
+    }
+    return null;
+  }
+
+  function updateBlockText(blockId: string, value: string) {
+    if (!selectedStep) return;
+    updateStep(selectedStep.id, (step) => ({
+      ...step,
+      content: {
+        ...step.content,
+        locales: { ...step.content.locales, [locale]: { ...step.content.locales[locale], blockText: { ...step.content.locales[locale].blockText, [blockId]: value } } },
+      },
+    }));
+  }
+
+  const selectedBlockLocation = findSelectedBlockLocation();
+  const selectedBlock = selectedBlockLocation?.block ?? null;
+
+  async function openMediaPicker(target: "logo" | "step" | { gridIndex: number } | { blockId: string }) {
     setMediaPickerFor(target);
     setMediaLoading(true);
     try {
@@ -321,7 +372,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
       if (selectedStep) {
         updateStep(selectedStep.id, (step) => ({ ...step, content: { ...step.content, design: { ...step.content.design, mediaUrl: url } } }));
       }
-    } else if (mediaPickerFor && typeof mediaPickerFor === "object") {
+    } else if (mediaPickerFor && typeof mediaPickerFor === "object" && "gridIndex" in mediaPickerFor) {
       const { gridIndex } = mediaPickerFor;
       if (selectedStep) {
         updateStep(selectedStep.id, (step) => ({
@@ -335,6 +386,17 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
           },
         }));
       }
+    } else if (mediaPickerFor && typeof mediaPickerFor === "object" && "blockId" in mediaPickerFor) {
+      const location = (() => {
+        if (!selectedStep) return null;
+        for (const row of selectedStep.content.canvas.rows) {
+          for (const column of row.columns) {
+            if (column.blocks.some((block) => block.id === mediaPickerFor.blockId)) return { rowId: row.id, columnId: column.id };
+          }
+        }
+        return null;
+      })();
+      if (location) updateBlock(location.rowId, location.columnId, mediaPickerFor.blockId, (block) => block.type === "image" ? { ...block, mediaUrl: url } : block);
     }
     setMediaPickerFor(null);
   }
@@ -623,6 +685,90 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                   ))}
                 </div>
               </div>
+
+              {selectedBlock && selectedBlockLocation ? (
+                <div className="mt-5 rounded-panel border border-accent bg-background p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-heading text-accent-hover">Blokinstellingen — {BLOCK_TYPE_LABELS[selectedBlock.type]}</p>
+                    <button type="button" onClick={() => setSelectedBlockId(null)} aria-label="Sluiten" className="text-muted"><X size={16} /></button>
+                  </div>
+
+                  {selectedBlock.type === "text" ? (
+                    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label className="font-heading text-body-sm font-semibold">Tekst</label>
+                        <textarea rows={3} value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id)] ?? ""} onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id), event.target.value)} className="mt-1 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Lettertype</label>
+                        <select value={selectedBlock.font} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, font: event.target.value as AftersalesFont }))} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2">
+                          {AFTERSALES_FONTS.map((font) => <option key={font} value={font}>{fontLabels[font]}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Tekstgrootte</label>
+                        <select value={selectedBlock.size} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, size: event.target.value as AftersalesFontSize }))} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2">
+                          {AFTERSALES_FONT_SIZES.map((size) => <option key={size} value={size}>{fontSizeLabels[size]}</option>)}
+                        </select>
+                      </div>
+                      <ColorField label="Tekstkleur" value={selectedBlock.color} onChange={(value) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, color: value }))} />
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Uitlijning</label>
+                        <select value={selectedBlock.align} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, align: event.target.value as "left" | "center" | "right" }))} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2">
+                          <option value="left">Links</option>
+                          <option value="center">Midden</option>
+                          <option value="right">Rechts</option>
+                        </select>
+                      </div>
+                      <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={selectedBlock.bold} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, bold: event.target.checked }))} className="h-5 w-5 accent-amber-500" />Vet</label>
+                      <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={selectedBlock.italic} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, italic: event.target.checked }))} className="h-5 w-5 accent-amber-500" />Cursief</label>
+                    </div>
+                  ) : null}
+
+                  {selectedBlock.type === "image" ? (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        {selectedBlock.mediaUrl ? <img src={selectedBlock.mediaUrl} alt="" className="h-14 w-20 rounded border border-border object-cover" /> : <span className="text-body-sm text-muted">Geen afbeelding</span>}
+                        <button type="button" onClick={() => openMediaPicker({ blockId: selectedBlock.id })} className="inline-flex min-h-9 items-center gap-1.5 rounded-button border border-border bg-white px-3 text-xs font-semibold"><ImageIcon size={14} />Kies uit mediabibliotheek</button>
+                      </div>
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Alt-tekst</label>
+                        <input value={selectedBlock.alt} maxLength={200} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, alt: event.target.value }))} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Breedte (px)</label>
+                        <input type="number" min={20} max={600} value={selectedBlock.width} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, width: Number(event.target.value) }))} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedBlock.type === "button" ? (
+                    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label className="font-heading text-body-sm font-semibold">Knoptekst</label>
+                        <input value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id)] ?? ""} maxLength={80} onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id), event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                      <ColorField label="Achtergrondkleur" value={selectedBlock.backgroundColor} onChange={(value) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, backgroundColor: value }))} />
+                      <ColorField label="Tekstkleur" value={selectedBlock.textColor} onChange={(value) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, textColor: value }))} />
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Randradius (px)</label>
+                        <input type="number" min={0} max={40} value={selectedBlock.borderRadius} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, borderRadius: Number(event.target.value) }))} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                      <p className="sm:col-span-2 text-xs text-muted">Zonder eigen link gebruikt de knop automatisch de standaardbestemming van deze mail (bijvoorbeeld de bestelling of de tracking-pagina).</p>
+                    </div>
+                  ) : null}
+
+                  {selectedBlock.type === "spacer" ? (
+                    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Hoogte (px)</label>
+                        <input type="number" min={4} max={120} value={selectedBlock.heightPx} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, heightPx: Number(event.target.value) }))} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                      <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={selectedBlock.showDivider} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, showDivider: event.target.checked }))} className="h-5 w-5 accent-amber-500" />Scheidingslijn tonen</label>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="mt-5 rounded-panel border border-border bg-background p-4">
                 <p className="text-xs font-bold uppercase tracking-heading text-muted">Personalisatievelden</p>

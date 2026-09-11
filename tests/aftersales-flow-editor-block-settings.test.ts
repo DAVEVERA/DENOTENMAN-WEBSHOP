@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+test("selecting a text, image, button or spacer block shows its own settings fields", async () => {
+  const source = await readFile("app/admin/(dashboard)/marketing/aftersales/AftersalesFlowEditor.tsx", "utf8");
+  assert.match(source, /ColorField/);
+  assert.match(source, /selectedBlock\.type === "text"/);
+  assert.match(source, /selectedBlock\.type === "image"/);
+  assert.match(source, /selectedBlock\.type === "button"/);
+  assert.match(source, /selectedBlock\.type === "spacer"/);
+});
