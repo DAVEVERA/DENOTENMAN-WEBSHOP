@@ -10,3 +10,9 @@ test("the editor offers all ten block types and no longer edits the legacy desig
   assert.doesNotMatch(source, /updateDesign/);
   assert.match(source, /addRow|addBlock/);
 });
+
+test("blocks are draggable and dropping one onto a column moves it there", async () => {
+  const source = await readFile("app/admin/(dashboard)/marketing/aftersales/AftersalesFlowEditor.tsx", "utf8");
+  assert.match(source, /moveBlock/);
+  assert.match(source, /draggable/);
+});

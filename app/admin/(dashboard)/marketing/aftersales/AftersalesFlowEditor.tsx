@@ -243,6 +243,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
   const [mediaOptions, setMediaOptions] = useState<MediaOption[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const selectedColumnRef = useRef<{ rowId: string; columnId: string } | null>(null);
 
   const selectedStep = flow.steps.find((step) => step.id === selectedStepId) ?? flow.steps[0];
@@ -315,6 +316,27 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
       columns: row.columns.map((column) => column.id !== columnId ? column : { ...column, blocks: column.blocks.filter((block) => block.id !== blockId) }),
     }));
     if (selectedBlockId === blockId) setSelectedBlockId(null);
+  }
+
+  function moveBlock(fromRowId: string, fromColumnId: string, blockId: string, toRowId: string, toColumnId: string) {
+    if (!selectedStep) return;
+    updateCanvas(selectedStep.id, (rows) => {
+      let moved: AftersalesBlock | null = null;
+      const withoutBlock = rows.map((row) => row.id !== fromRowId ? row : {
+        ...row,
+        columns: row.columns.map((column) => {
+          if (column.id !== fromColumnId) return column;
+          const found = column.blocks.find((block) => block.id === blockId) ?? null;
+          if (found) moved = found;
+          return { ...column, blocks: column.blocks.filter((block) => block.id !== blockId) };
+        }),
+      });
+      if (!moved) return rows;
+      return withoutBlock.map((row) => row.id !== toRowId ? row : {
+        ...row,
+        columns: row.columns.map((column) => column.id !== toColumnId ? column : { ...column, blocks: [...column.blocks, moved as AftersalesBlock] }),
+      });
+    });
   }
 
   function updateBlock(rowId: string, columnId: string, blockId: string, updater: (block: AftersalesBlock) => AftersalesBlock) {
@@ -661,6 +683,13 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                           <div
                             key={column.id}
                             onClick={() => (selectedColumnRef.current = { rowId: row.id, columnId: column.id })}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              const [fromRowId, fromColumnId, blockId] = (event.dataTransfer.getData("text/plain") || "").split("|");
+                              if (blockId) moveBlock(fromRowId, fromColumnId, blockId, row.id, column.id);
+                              setDraggingBlockId(null);
+                            }}
                             className="min-h-[60px] cursor-pointer rounded-button border border-dashed border-border p-2"
                           >
                             <div className="flex items-center justify-between">
@@ -672,8 +701,15 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                                 <button
                                   key={block.id}
                                   type="button"
+                                  draggable
+                                  onDragStart={(event) => {
+                                    event.dataTransfer.effectAllowed = "move";
+                                    event.dataTransfer.setData("text/plain", `${row.id}|${column.id}|${block.id}`);
+                                    setDraggingBlockId(block.id);
+                                  }}
+                                  onDragEnd={() => setDraggingBlockId(null)}
                                   onClick={(event) => { event.stopPropagation(); setSelectedBlockId(block.id); selectedColumnRef.current = { rowId: row.id, columnId: column.id }; }}
-                                  className={`flex w-full items-center justify-between gap-1 rounded border px-2 py-1 text-left text-xs ${selectedBlockId === block.id ? "border-accent bg-accent/10" : "border-border bg-background"}`}
+                                  className={`flex w-full items-center justify-between gap-1 rounded border px-2 py-1 text-left text-xs ${selectedBlockId === block.id ? "border-accent bg-accent/10" : "border-border bg-background"} ${draggingBlockId === block.id ? "opacity-50" : "opacity-100"}`}
                                 >
                                   <span>{BLOCK_TYPE_LABELS[block.type]}</span>
                                   <span onClick={(event) => { event.stopPropagation(); removeBlock(row.id, column.id, block.id); }} role="button" aria-label="Verwijder blok" className="text-red-700"><X size={12} /></span>
