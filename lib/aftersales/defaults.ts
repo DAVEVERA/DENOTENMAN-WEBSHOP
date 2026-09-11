@@ -4,12 +4,13 @@ import { prisma } from "@/lib/prisma";
 import {
   defaultAftersalesDesign,
   AFTERSALES_TRIGGERS_BY_FLOW_TYPE,
-  type AftersalesLocaleContent,
-  type AftersalesStepContent,
+  resolveLegacyStepContent,
+  type AftersalesLegacyLocaleContent,
+  type AftersalesLegacyStepContent,
   type AftersalesTriggerValue,
 } from "@/lib/aftersales/schema";
 
-const backInStock: Record<"nl" | "en" | "fr", AftersalesLocaleContent> = {
+const backInStock: Record<"nl" | "en" | "fr", AftersalesLegacyLocaleContent> = {
   nl: {
     subject: "{{product_name}} is weer verkrijgbaar",
     previewText: "{{product_name}} kan weer besteld worden bij De Notenman.",
@@ -33,7 +34,7 @@ const backInStock: Record<"nl" | "en" | "fr", AftersalesLocaleContent> = {
   },
 };
 
-const businessOrderPaid: Record<"nl" | "en" | "fr", AftersalesLocaleContent> = {
+const businessOrderPaid: Record<"nl" | "en" | "fr", AftersalesLegacyLocaleContent> = {
   nl: {
     subject: "Betaling ontvangen voor {{business_name}}",
     previewText: "We hebben de betaling van bestelling {{order_number}} ontvangen.",
@@ -57,7 +58,7 @@ const businessOrderPaid: Record<"nl" | "en" | "fr", AftersalesLocaleContent> = {
   },
 };
 
-const businessOrderFulfilled: Record<"nl" | "en" | "fr", AftersalesLocaleContent> = {
+const businessOrderFulfilled: Record<"nl" | "en" | "fr", AftersalesLegacyLocaleContent> = {
   nl: {
     subject: "Bestelling {{order_number}} van {{business_name}} is verzonden",
     previewText: "De bestelling is onderweg. Trackingcode: {{tracking_code}}.",
@@ -94,7 +95,7 @@ const businessOrderFulfilled: Record<"nl" | "en" | "fr", AftersalesLocaleContent
  * trigger reachable through backfillAftersalesSteps without a preset here
  * would make that flow permanently unsavable from the admin UI.
  */
-export const AFTERSALES_STEP_DEFAULTS: Partial<Record<AftersalesTriggerValue, { name: string; content: AftersalesStepContent }>> = {
+export const AFTERSALES_STEP_DEFAULTS: Partial<Record<AftersalesTriggerValue, { name: string; content: AftersalesLegacyStepContent }>> = {
   BACK_IN_STOCK: {
     name: "Voorraadmelding",
     content: { locales: backInStock, design: defaultAftersalesDesign },
@@ -147,7 +148,7 @@ export async function backfillAftersalesSteps(
         name: preset.name,
         position: existing.size + index,
         enabled: true,
-        content: preset.content,
+        content: resolveLegacyStepContent(preset.content),
       };
     }),
     skipDuplicates: true,

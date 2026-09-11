@@ -18,10 +18,26 @@ const defaultDesign = {
   mediaAlt: "",
 };
 
+function minimalCanvas() {
+  return {
+    rows: [
+      {
+        id: "row-1",
+        backgroundColor: "#ffffff",
+        padding: 24,
+        columns: [
+          { id: "col-1", widthFraction: 1, backgroundColor: "#ffffff", padding: 0, blocks: [] },
+        ],
+      },
+    ],
+  };
+}
+
 function stepContent() {
   return {
     locales: { nl: { ...localeContent }, en: { ...localeContent }, fr: { ...localeContent } },
     design: defaultDesign,
+    canvas: minimalCanvas(),
   };
 }
 

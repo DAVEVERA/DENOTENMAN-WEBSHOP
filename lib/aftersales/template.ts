@@ -5,7 +5,7 @@ import { BASE_URL, orderConfirmation } from "@/lib/routes";
 import { postnlTrackingUrl } from "@/lib/shipping";
 import type {
   AftersalesDesign,
-  AftersalesLocaleContent,
+  AftersalesLegacyLocaleContent,
   AftersalesTriggerValue,
 } from "@/lib/aftersales/schema";
 import { defaultAftersalesDesign } from "@/lib/aftersales/schema";
@@ -191,7 +191,7 @@ function renderEmailShell(input: {
 export function renderAftersalesEmail(
   order: OrderWithItems,
   trigger: AftersalesTriggerValue,
-  content: AftersalesLocaleContent,
+  content: AftersalesLegacyLocaleContent,
   design: AftersalesDesign = defaultAftersalesDesign,
   logoUrl: string | null = null
 ): RenderedFlowEmail {
@@ -272,7 +272,7 @@ const GENERIC_FOOTER: Record<Locale, string> = {
  */
 export function renderGenericFlowEmail(input: {
   locale: Locale;
-  content: AftersalesLocaleContent;
+  content: AftersalesLegacyLocaleContent;
   design?: AftersalesDesign;
   logoUrl?: string | null;
   tokens: Record<string, string>;
