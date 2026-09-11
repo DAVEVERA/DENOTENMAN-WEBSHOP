@@ -110,3 +110,35 @@ test("a customHtml block renders its resolved value verbatim, unescaped", () => 
   const html = renderAftersalesCanvas(canvas, { html1: "<p style=\"color:red\">Vrij HTML</p>" }, { ...baseOptions, resolveText: (key) => (key === "html1" ? "<p style=\"color:red\">Vrij HTML</p>" : "") });
   assert.match(html, /<p style="color:red">Vrij HTML<\/p>/);
 });
+
+test("a table block renders its headers and, per row, each cell resolved through blockText", () => {
+  const canvas: AftersalesCanvas = {
+    rows: [{ id: "r1", backgroundColor: "#fff", padding: 0, columns: [{ id: "c1", widthFraction: 1, backgroundColor: "#fff", padding: 0, blocks: [{ id: "tbl1", type: "table", headerCount: 2, rowIds: ["row-a"] }] }] }],
+  };
+  const text: Record<string, string> = {
+    "tbl1:header:0": "Product",
+    "tbl1:header:1": "Prijs",
+    "tbl1:cell:row-a:0": "Amandelen",
+    "tbl1:cell:row-a:1": "€ 4,95",
+  };
+  const html = renderAftersalesCanvas(canvas, text, { ...baseOptions, resolveText: (key) => text[key] ?? "" });
+  assert.match(html, /<th[^>]*>Product<\/th>/);
+  assert.match(html, /<th[^>]*>Prijs<\/th>/);
+  assert.match(html, /Amandelen/);
+  assert.match(html, /€ 4,95/);
+});
+
+test("a grid block renders up to 4 items, each with its own image, heading and body", () => {
+  const canvas: AftersalesCanvas = {
+    rows: [{ id: "r1", backgroundColor: "#fff", padding: 0, columns: [{ id: "c1", widthFraction: 1, backgroundColor: "#fff", padding: 0, blocks: [{ id: "grid1", type: "grid", items: [
+      { id: "item-0", imageUrl: "https://cdn.example/1.png", imageAlt: "Alt 1" },
+      { id: "item-1", imageUrl: null, imageAlt: "" },
+    ] }] }] }],
+  };
+  const text: Record<string, string> = { "item-0:heading": "Kop 1", "item-0:body": "Body 1", "item-1:heading": "Kop 2", "item-1:body": "Body 2" };
+  const html = renderAftersalesCanvas(canvas, text, { ...baseOptions, resolveText: (key) => text[key] ?? "" });
+  assert.match(html, /Kop 1/);
+  assert.match(html, /Body 1/);
+  assert.match(html, /Kop 2/);
+  assert.match(html, /https:\/\/cdn\.example\/1\.png/);
+});

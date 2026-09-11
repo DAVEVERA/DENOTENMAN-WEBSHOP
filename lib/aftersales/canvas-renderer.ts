@@ -125,6 +125,36 @@ function renderCustomHtmlBlock(block: Extract<AftersalesBlock, { type: "customHt
   return options.resolveText(blockTextKey(block.id));
 }
 
+function renderTableBlock(block: Extract<AftersalesBlock, { type: "table" }>, options: AftersalesCanvasRenderOptions): string {
+  const headers = Array.from({ length: block.headerCount }, (_, index) =>
+    options.escapeText(options.resolveText(blockTextKey(block.id, `header:${index}`)))
+  );
+  const head = headers.length > 0
+    ? `<tr>${headers.map((header) => `<th style="padding:8px 10px;border-bottom:2px solid #e0b200;text-align:left;color:#141414;font-size:13px;font-weight:700">${header}</th>`).join("")}</tr>`
+    : "";
+  const body = block.rowIds.map((rowId) => {
+    const cells = Array.from({ length: block.headerCount }, (_, colIndex) =>
+      options.escapeText(options.resolveText(blockTextKey(block.id, `cell:${rowId}:${colIndex}`)))
+    );
+    return `<tr>${cells.map((cell) => `<td style="padding:8px 10px;border-bottom:1px solid #e4dfd5;color:#333;font-size:14px">${cell}</td>`).join("")}</tr>`;
+  }).join("");
+  return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;margin:0 0 16px">${head ? `<thead>${head}</thead>` : ""}<tbody>${body}</tbody></table>`;
+}
+
+function renderGridBlock(block: Extract<AftersalesBlock, { type: "grid" }>, options: AftersalesCanvasRenderOptions): string {
+  const cells = block.items.map((item) => {
+    const heading = options.escapeText(options.resolveText(blockTextKey(item.id, "heading")));
+    const body = options.escapeText(options.resolveText(blockTextKey(item.id, "body")));
+    const image = item.imageUrl
+      ? `<img src="${item.imageUrl}" alt="${item.imageAlt}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border-radius:8px;margin:0 0 8px" />`
+      : "";
+    return `<td width="50%" valign="top" style="padding:0 8px 16px 0">${image}<p style="margin:0 0 4px;color:#141414;font-size:15px;font-weight:700">${heading}</p><p style="margin:0;color:#4f4a42;font-size:14px;line-height:1.5">${body}</p></td>`;
+  });
+  const rows: string[] = [];
+  for (let index = 0; index < cells.length; index += 2) rows.push(`<tr>${cells.slice(index, index + 2).join("")}</tr>`);
+  return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;margin:0 0 16px"><tbody>${rows.join("")}</tbody></table>`;
+}
+
 function renderBlock(block: AftersalesBlock, options: AftersalesCanvasRenderOptions): string {
   switch (block.type) {
     case "text":
@@ -144,9 +174,9 @@ function renderBlock(block: AftersalesBlock, options: AftersalesCanvasRenderOpti
     case "customHtml":
       return renderCustomHtmlBlock(block, options);
     case "table":
+      return renderTableBlock(block, options);
     case "grid":
-      // Implemented in a later task; an unrecognized block simply renders nothing yet.
-      return "";
+      return renderGridBlock(block, options);
     default: {
       const exhaustive: never = block;
       return exhaustive;
