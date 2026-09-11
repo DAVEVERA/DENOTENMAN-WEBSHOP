@@ -45,7 +45,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=builder /app/node_modules/playwright ./node_modules/playwright
 COPY --from=builder /app/node_modules/playwright-core ./node_modules/playwright-core
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers
-RUN npx --yes playwright install --with-deps chromium
+RUN node ./node_modules/playwright/cli.js install --with-deps chromium
 
 RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs
