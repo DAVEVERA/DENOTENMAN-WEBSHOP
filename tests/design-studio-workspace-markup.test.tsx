@@ -51,3 +51,9 @@ test("PhotoRoom retries use a fresh key after definitive errors or changed input
   assert.match(workspaceSource, /changeRequestInput\(\(\) => setImageId/);
   assert.match(workspaceSource, /changeRequestInput\(\(\) => setImageId\(body\.image\.id\)\)/);
 });
+
+test("PhotoRoom workspace verifies provider credits before enabling generation", () => {
+  assert.match(workspaceSource, /api\/admin\/design-studio\/photoroom\/status/);
+  assert.match(workspaceSource, /PhotoRoom-tegoed op/);
+  assert.match(workspaceSource, /providerStatus === "ready"/);
+});

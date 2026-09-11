@@ -7,7 +7,7 @@ import { getOrderedProductImages, lockProductImages, productImageTransactionOpti
 import { revalidateProductImageStorefront } from "@/lib/product-image-revalidation";
 import type { PhotoRoomJobInput } from "@/lib/design-studio/photoroom-schema";
 import type { DesignAssetDto } from "@/lib/design-studio/types";
-import { PhotoRoomError, runPhotoRoomEdit } from "@/lib/design-studio/photoroom-provider";
+import { assertPhotoRoomAvailable, PhotoRoomError, runPhotoRoomEdit } from "@/lib/design-studio/photoroom-provider";
 
 const PHOTOROOM_DAILY_LIMIT = 25;
 
@@ -108,6 +108,9 @@ export async function createPhotoRoomDraft(input: {
     select: { id: true, productId: true, storageKey: true },
   });
   if (!source) throw new DesignStudioError("SOURCE_NOT_FOUND", "De gekozen afbeelding hoort niet bij dit product.", 404);
+
+  // Check the provider balance before creating a job or consuming the internal daily limit.
+  await assertPhotoRoomAvailable();
 
   let job;
   try {

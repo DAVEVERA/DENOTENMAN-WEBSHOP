@@ -23,3 +23,9 @@ export type DesignStudioProduct = {
     sortOrder: number;
   }>;
 };
+
+export type PhotoRoomAvailability = {
+  status: "ready" | "insufficient_credits" | "not_configured" | "invalid_configuration" | "unavailable";
+  availableCredits: number | null;
+  requiredCredits: number | null;
+};

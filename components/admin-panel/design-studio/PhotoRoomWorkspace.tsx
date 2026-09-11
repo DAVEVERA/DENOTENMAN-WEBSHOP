@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ArrowLeft, Check, ImagePlus, ShieldCheck, Sparkles } from "lucide-react";
 import type { PhotoRoomJobInput } from "@/lib/design-studio/photoroom-schema";
-import type { DesignAssetDto, DesignStudioProduct } from "@/lib/design-studio/types";
+import type { DesignAssetDto, DesignStudioProduct, PhotoRoomAvailability } from "@/lib/design-studio/types";
 
 const inputClass = "mt-1 min-h-11 w-full rounded-button border border-border bg-surface px-3 text-body-sm text-text";
 const buttonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-button px-4 font-heading text-body-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 
 type ApiError = { error?: string; message?: string };
+type PhotoRoomProviderStatus = PhotoRoomAvailability["status"] | "checking";
 
 class ApiResponseError extends Error {}
 
@@ -18,6 +19,14 @@ async function responseBody<T>(response: Response): Promise<T> {
   if (!response.ok) throw new ApiResponseError(body?.message || "De aanvraag is niet gelukt.");
   if (!body) throw new Error("De server retourneerde geen geldig antwoord.");
   return body;
+}
+
+async function requestPhotoRoomAvailability(signal?: AbortSignal): Promise<PhotoRoomAvailability> {
+  const response = await fetch("/api/admin/design-studio/photoroom/status", {
+    signal,
+    cache: "no-store",
+  });
+  return responseBody<PhotoRoomAvailability>(response);
 }
 
 function initialSelection(products: DesignStudioProduct[], productId?: string, imageId?: string) {
@@ -55,13 +64,57 @@ export function PhotoRoomWorkspace({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [providerStatus, setProviderStatus] = useState<PhotoRoomProviderStatus>(configured ? "checking" : "not_configured");
+  const [availableCredits, setAvailableCredits] = useState<number | null>(null);
   const idempotencyKey = useRef<string | null>(null);
 
   const selectedProduct = products.find((product) => product.id === productId);
   const selectedImage = selectedProduct?.images.find((image) => image.id === imageId);
   const selectedAsset = assets.find((asset) => asset.id === selectedAssetId);
   const productAssets = useMemo(() => assets.filter((asset) => asset.productId === productId), [assets, productId]);
-  const canRun = configured && allowed && Boolean(selectedImage) && !busy;
+  const canRun = providerStatus === "ready" && allowed && Boolean(selectedImage) && !busy;
+
+  async function checkProviderStatus() {
+    try {
+      const availability = await requestPhotoRoomAvailability();
+      setProviderStatus(availability.status);
+      setAvailableCredits(availability.availableCredits);
+    } catch {
+      setProviderStatus("unavailable");
+      setAvailableCredits(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!configured || !allowed) return;
+
+    const controller = new AbortController();
+    void requestPhotoRoomAvailability(controller.signal)
+      .then((availability) => {
+        setProviderStatus(availability.status);
+        setAvailableCredits(availability.availableCredits);
+      })
+      .catch((cause) => {
+        if (cause instanceof DOMException && cause.name === "AbortError") return;
+        setProviderStatus("unavailable");
+        setAvailableCredits(null);
+      });
+    return () => controller.abort();
+  }, [allowed, configured]);
+
+  const providerBadge = !allowed && configured
+    ? { className: "bg-slate-100 text-slate-700", label: "PhotoRoom ingesteld" }
+    : providerStatus === "ready"
+    ? { className: "bg-green-100 text-green-800", label: `PhotoRoom klaar · ${availableCredits} credits` }
+    : providerStatus === "insufficient_credits"
+      ? { className: "bg-amber-100 text-amber-900", label: availableCredits === 0 ? "PhotoRoom-tegoed op" : "PhotoRoom-tegoed te laag" }
+      : providerStatus === "checking"
+        ? { className: "bg-slate-100 text-slate-700", label: "PhotoRoom controleren" }
+        : providerStatus === "invalid_configuration"
+          ? { className: "bg-red-50 text-red-800", label: "PhotoRoom-sleutel geweigerd" }
+          : providerStatus === "unavailable"
+            ? { className: "bg-red-50 text-red-800", label: "PhotoRoom niet bereikbaar" }
+            : { className: "bg-red-50 text-red-800", label: "PhotoRoom niet geconfigureerd" };
 
   function changeRequestInput(update: () => void) {
     idempotencyKey.current = null;
@@ -123,6 +176,7 @@ export function PhotoRoomWorkspace({
       if (cause instanceof ApiResponseError) idempotencyKey.current = null;
       setError(cause instanceof Error ? cause.message : "De bewerking is niet gelukt.");
     } finally {
+      await checkProviderStatus();
       setBusy(false);
     }
   }
@@ -161,10 +215,11 @@ export function PhotoRoomWorkspace({
           <h1 className="mt-2 text-heading-xl text-text">Van bron naar verkoopbeeld</h1>
           <p className="mt-2 text-body-sm leading-6 text-muted">Kies een bestaande foto, maak een concept en publiceer pas na controle. Geen enkele stap overschrijft de bron.</p>
         </div>
-        <span className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-body-sm font-bold ${configured ? "bg-green-100 text-green-800" : "bg-red-50 text-red-800"}`}><ShieldCheck className="h-4 w-4" aria-hidden="true" />{configured ? "PhotoRoom verbonden" : "PhotoRoom niet geconfigureerd"}</span>
+        <span role="status" aria-live="polite" className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-body-sm font-bold ${providerBadge.className}`}><ShieldCheck className="h-4 w-4" aria-hidden="true" />{providerBadge.label}</span>
       </div>
 
       {!allowed ? <div role="alert" className="mt-6 rounded-card border border-amber-300 bg-amber-50 p-4 text-body-sm font-semibold text-amber-900">Alleen een owner of admin kan PhotoRoom-bewerkingen starten en publiceren.</div> : null}
+      {allowed && providerStatus === "insufficient_credits" ? <div role="alert" className="mt-6 rounded-card border border-amber-300 bg-amber-50 p-4 text-body-sm font-semibold text-amber-900">Het PhotoRoom API-tegoed is {availableCredits === 0 ? "op" : "te laag voor een bewerking"}. Vul het tegoed bij en controleer daarna de status opnieuw.</div> : null}
       <div aria-live="polite" className="mt-4 min-h-6 text-body-sm">{busy ? <p className="font-semibold text-muted">Bezig met veilig verwerken…</p> : error ? <p role="alert" className="font-semibold text-red-700">{error}</p> : message ? <p className="font-semibold text-green-700">{message}</p> : null}</div>
 
       <div className="mt-4 grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
@@ -199,8 +254,9 @@ export function PhotoRoomWorkspace({
             <select value={padding} onChange={(event) => changeRequestInput(() => setPadding(Number(event.target.value) as typeof padding))} className={inputClass}><option value="0.05">Compact · 5%</option><option value="0.1">Normaal · 10%</option><option value="0.15">Ruim · 15%</option><option value="0.2">Extra ruim · 20%</option></select>
           </label>
           <label className="mt-4 flex min-h-11 items-center gap-3 rounded-button border border-border px-3 text-body-sm font-semibold text-text"><input type="checkbox" checked={softShadow} onChange={(event) => changeRequestInput(() => setSoftShadow(event.target.checked))} />Zachte productschaduw</label>
-          <button type="button" onClick={() => void generateDraft()} disabled={!canRun} className={`${buttonClass} mt-6 w-full bg-accent text-contrast shadow-button hover:bg-accent-hover`}><Sparkles className="h-4 w-4" aria-hidden="true" />Concept maken</button>
-          <p className="mt-3 text-xs leading-5 text-muted">Maximaal 25 providerpogingen per kalenderdag. De teller gebruikt Nederlandse tijd.</p>
+          <button type="button" onClick={() => void generateDraft()} disabled={!canRun} aria-describedby="photoroom-provider-help" className={`${buttonClass} mt-6 w-full bg-accent text-contrast shadow-button hover:bg-accent-hover`}><Sparkles className="h-4 w-4" aria-hidden="true" />Concept maken</button>
+          <p id="photoroom-provider-help" className="mt-3 text-xs leading-5 text-muted">{providerStatus !== "ready" ? `${providerBadge.label}. ` : ""}Maximaal 25 providerpogingen per kalenderdag. De teller gebruikt Nederlandse tijd.</p>
+          {allowed && (providerStatus === "insufficient_credits" || providerStatus === "unavailable") ? <button type="button" onClick={() => { setProviderStatus("checking"); void checkProviderStatus(); }} disabled={busy} className={`${buttonClass} mt-2 w-full border border-border bg-surface text-text hover:border-border-hover`}>PhotoRoom-status opnieuw controleren</button> : null}
         </aside>
 
         <section className="min-w-0 rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6" aria-labelledby="preview-title">
