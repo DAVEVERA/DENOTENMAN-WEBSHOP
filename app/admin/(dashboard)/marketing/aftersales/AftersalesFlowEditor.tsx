@@ -20,12 +20,14 @@ import {
   X,
 } from "lucide-react";
 import type {
+  AftersalesCanvas,
   AftersalesContent,
   AftersalesDesign,
   AftersalesFlowInput,
   AftersalesTriggerValue,
 } from "@/lib/aftersales/schema";
 import { AFTERSALES_FONTS, AFTERSALES_FONT_SIZES, AFTERSALES_LAYOUTS, AFTERSALES_TOKENS_BY_TRIGGER } from "@/lib/aftersales/schema";
+import { renderAftersalesCanvas } from "@/lib/aftersales/canvas-renderer";
 import type { Locale } from "@/lib/i18n";
 
 type MediaOption = { id: string; url: string; originalFilename: string };
@@ -130,71 +132,29 @@ function sampleValue(value: string): string {
   }[token] ?? ""));
 }
 
-const PREVIEW_FONT_STACKS: Record<AftersalesDesign["font"], string> = {
-  SANS: "Arial,Helvetica,sans-serif",
-  SERIF: "Georgia,'Times New Roman',serif",
-  MODERN: "'Segoe UI',Verdana,sans-serif",
-};
-
-const PREVIEW_FONT_SIZES: Record<AftersalesDesign["fontSize"], { heading: number; body: number }> = {
-  COMPACT: { heading: 20, body: 14 },
-  STANDAARD: { heading: 24, body: 16 },
-  GROOT: { heading: 28, body: 18 },
-};
-
-function previewDocument(content: AftersalesContent[Locale], trigger: AftersalesTriggerValue, design: AftersalesDesign, logoUrl: string | null): string {
-  const heading = sampleValue(content.heading);
-  const body = sampleValue(content.body);
-  const button = sampleValue(content.buttonLabel);
+function previewDocument(
+  content: AftersalesContent[Locale],
+  trigger: AftersalesTriggerValue,
+  canvas: AftersalesCanvas,
+  logoUrl: string | null
+): string {
   const subject = sampleValue(content.subject);
+  const brandBlock = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
+    : `<p style="margin:0;color:#806600;font-size:12px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
+  const resolvedBlockText = Object.fromEntries(Object.entries(content.blockText).map(([key, value]) => [key, sampleValue(value)]));
+  const contentHtml = renderAftersalesCanvas(canvas, resolvedBlockText, {
+    escapeText: escapeHtml,
+    resolveText: (key) => resolvedBlockText[key] ?? "",
+    defaultActionUrl: "#",
+  });
+  const orderNumberBox = trigger === "BACK_IN_STOCK" ? "" : "<div style=\"margin:18px 0;padding:14px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;font-size:14px\"><strong>Bestelnummer:</strong> DN-2026-1842</div>";
   const detail = trigger === "ORDER_FULFILLED"
     ? "<p style=\"margin:18px 0 0;font-size:14px\"><strong>Track &amp; trace:</strong> 3SNOTEN1234567</p>"
     : trigger === "ORDER_PAID"
       ? "<div style=\"margin-top:20px;border-top:1px solid #e4dfd5;padding-top:16px;font-size:14px\"><p><strong>2× Cashewnoten gebrand</strong><span style=\"float:right\">€ 13,90</span></p><p><strong>Totaal</strong><span style=\"float:right\">€ 42,95</span></p></div>"
       : "";
-  const fontStack = PREVIEW_FONT_STACKS[design.font];
-  const sizes = PREVIEW_FONT_SIZES[design.fontSize];
-  const brandBlock = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
-    : `<p style="margin:0;color:#806600;font-size:12px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
-  const media = design.mediaUrl
-    ? `<img src="${escapeHtml(design.mediaUrl)}" alt="${escapeHtml(design.mediaAlt || heading)}" width="544" style="display:block;width:100%;max-width:544px;height:auto;border-radius:8px;margin:0 0 18px" />`
-    : "";
-  const textBlock = `<h1 style="margin:12px 0 10px;color:#141414;font-size:${sizes.heading}px;line-height:1.25">${escapeHtml(heading)}</h1><p style="color:#4f4a42;font-size:${sizes.body}px;line-height:1.65">${escapeHtml(body).replaceAll("\n", "<br>")}</p>`;
-  const gridBlock = (() => {
-    const items = design.gridItems.filter((item) => item.heading.trim() || item.body.trim() || item.imageUrl);
-    if (items.length === 0) return "";
-    const cells = items.map((item) => `
-      <td width="50%" valign="top" style="padding:0 8px 16px 0">
-        ${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.imageAlt || item.heading)}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border-radius:8px;margin:0 0 8px" />` : ""}
-        ${item.heading ? `<p style="margin:0 0 4px;color:#141414;font-size:15px;font-weight:700">${escapeHtml(item.heading)}</p>` : ""}
-        ${item.body ? `<p style="margin:0;color:#4f4a42;font-size:14px;line-height:1.5">${escapeHtml(item.body)}</p>` : ""}
-      </td>`);
-    const rows: string[] = [];
-    for (let i = 0; i < cells.length; i += 2) rows.push(`<tr>${cells.slice(i, i + 2).join("")}</tr>`);
-    return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px"><tbody>${rows.join("")}</tbody></table>`;
-  })();
-  const tableBlock = (() => {
-    if (design.tableRows.length === 0) return "";
-    const head = design.tableHeaders.length > 0
-      ? `<tr>${design.tableHeaders.map((header) => `<th style="padding:8px 10px;border-bottom:2px solid #e0b200;text-align:left;color:#141414;font-size:13px;font-weight:700">${escapeHtml(header)}</th>`).join("")}</tr>`
-      : "";
-    const rowsHtml = design.tableRows.map((row) => `<tr>${row.cells.map((cell) => `<td style="padding:8px 10px;border-bottom:1px solid #e4dfd5;color:#333;font-size:14px">${escapeHtml(cell)}</td>`).join("")}</tr>`).join("");
-    return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px">${head ? `<thead>${head}</thead>` : ""}<tbody>${rowsHtml}</tbody></table>`;
-  })();
-  const contentBlock = design.layout === "IMAGE_SIDE" && media
-    ? `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td width="200" valign="top" style="padding:0 16px 0 0">${media}</td><td valign="top">${textBlock}</td></tr></table>`
-    : design.layout === "IMAGE_TOP" && media
-      ? `${media}${textBlock}`
-      : design.layout === "IMAGE_BOTTOM" && media
-        ? `${textBlock}${media}`
-        : design.layout === "GRID_2COL"
-          ? `${textBlock}${gridBlock}`
-          : design.layout === "TABLE"
-            ? `${textBlock}${tableBlock}`
-            : textBlock;
-  const orderNumberBox = trigger === "BACK_IN_STOCK" ? "" : "<div style=\"margin:18px 0;padding:14px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;font-size:14px\"><strong>Bestelnummer:</strong> DN-2026-1842</div>";
-  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head><body style="margin:0;background:#f6f3ee;font-family:${fontStack}"><div style="padding:18px 10px"><div style="max-width:600px;margin:auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff"><div style="height:5px;background:#e0b200"></div><div style="padding:28px">${brandBlock}${contentBlock}${orderNumberBox}${detail}<a href="#" style="display:block;margin-top:26px;min-height:44px;box-sizing:border-box;padding:14px;border-radius:8px;background:#e0b200;color:#141414;font-size:16px;font-weight:700;text-align:center;text-decoration:none">${escapeHtml(button)}</a></div><div style="padding:18px 28px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px">Vragen? Beantwoord deze e-mail; we helpen je graag.</div></div></div></body></html>`;
+  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head><body style="margin:0;background:#f6f3ee"><div style="padding:18px 10px"><div style="max-width:600px;margin:auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff"><div style="height:5px;background:#e0b200"></div><div style="padding:28px">${brandBlock}${contentHtml}${orderNumberBox}${detail}</div></div></div></body></html>`;
 }
 
 function formatDate(value: string): string {
@@ -224,7 +184,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
 
   const selectedStep = flow.steps.find((step) => step.id === selectedStepId) ?? flow.steps[0];
   const preview = useMemo(
-    () => selectedStep ? previewDocument(selectedStep.content.locales[locale], selectedStep.trigger, selectedStep.content.design, flow.logoUrl) : "",
+    () => selectedStep ? previewDocument(selectedStep.content.locales[locale], selectedStep.trigger, selectedStep.content.canvas, flow.logoUrl) : "",
     [selectedStep, locale, flow.logoUrl]
   );
 
