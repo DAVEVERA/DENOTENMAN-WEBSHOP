@@ -1740,6 +1740,39 @@ model BusinessLifecycleEmailContent {
   updatedAt   DateTime                   @updatedAt
 }
 
+enum InvoiceTemplateStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model InvoiceTemplate {
+  id          String                @id @default(cuid())
+  status      InvoiceTemplateStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  blocks InvoiceTemplateBlock[]
+
+  @@unique([status])
+}
+
+model InvoiceTemplateBlock {
+  id            String          @id @default(cuid())
+  templateId    String
+  template      InvoiceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  key           String
+  x             Float
+  y             Float
+  width         Float
+  height        Float
+  textOverrides Json?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([templateId, key])
+}
+
 model BusinessSession {
   id                String          @id @default(cuid())
   businessAccountId String
