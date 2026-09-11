@@ -294,6 +294,8 @@ export async function sendBackInStockEmail(input: {
     const rendered = renderGenericFlowEmail({
       locale: input.locale,
       content: flowStep.content.locales[input.locale],
+      canvas: flowStep.content.canvas,
+      blockText: flowStep.content.locales[input.locale].blockText,
       design: flowStep.content.design,
       logoUrl: flowStep.logoUrl,
       tokens: { product_name: input.productName, product_url: input.productUrl },

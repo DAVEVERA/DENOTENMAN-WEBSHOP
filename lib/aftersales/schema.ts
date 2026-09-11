@@ -438,13 +438,19 @@ export function deriveCanvasFromLegacyContent(
     columns = [column("main", 1, [imageBlock("media", design, 544), heading, body, button])];
   } else if (design.layout === "IMAGE_BOTTOM" && design.mediaUrl) {
     columns = [column("main", 1, [heading, body, imageBlock("media", design, 544), button])];
-  } else if (design.layout === "GRID_2COL" && design.gridItems.length > 0) {
-    const items: AftersalesCanvasGridItem[] = design.gridItems.map((item, index) => ({
+  } else if (
+    design.layout === "GRID_2COL" &&
+    design.gridItems.some((item) => item.heading.trim() || item.body.trim() || item.imageUrl)
+  ) {
+    // Mirrors the pre-canvas gridBlockHtml, which dropped items with no
+    // heading/body/image entirely rather than rendering an empty cell.
+    const populatedItems = design.gridItems.filter((item) => item.heading.trim() || item.body.trim() || item.imageUrl);
+    const items: AftersalesCanvasGridItem[] = populatedItems.map((item, index) => ({
       id: `grid-item-${index}`,
       imageUrl: item.imageUrl,
       imageAlt: item.imageAlt,
     }));
-    for (const [index, item] of design.gridItems.entries()) {
+    for (const [index, item] of populatedItems.entries()) {
       const itemId = items[index].id;
       for (const locale of locales) {
         blockTextByLocale[locale][blockTextKey(itemId, "heading")] = item.heading;

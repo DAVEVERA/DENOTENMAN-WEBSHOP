@@ -4,52 +4,19 @@ import { formatPrice } from "@/lib/format";
 import { BASE_URL, orderConfirmation } from "@/lib/routes";
 import { postnlTrackingUrl } from "@/lib/shipping";
 import type {
+  AftersalesCanvas,
   AftersalesDesign,
   AftersalesLegacyLocaleContent,
   AftersalesTriggerValue,
 } from "@/lib/aftersales/schema";
-import { defaultAftersalesDesign } from "@/lib/aftersales/schema";
+import { blockTextKey, defaultAftersalesDesign } from "@/lib/aftersales/schema";
+import { renderAftersalesCanvas } from "@/lib/aftersales/canvas-renderer";
 
 const FONT_STACKS: Record<AftersalesDesign["font"], string> = {
   SANS: "Arial,Helvetica,sans-serif",
   SERIF: "Georgia,'Times New Roman',serif",
   MODERN: "'Segoe UI',Verdana,sans-serif",
 };
-
-const FONT_SIZES: Record<AftersalesDesign["fontSize"], { heading: number; body: number }> = {
-  COMPACT: { heading: 20, body: 14 },
-  STANDAARD: { heading: 24, body: 16 },
-  GROOT: { heading: 28, body: 18 },
-};
-
-function mediaBlockHtml(design: AftersalesDesign, altFallback: string): string {
-  if (!design.mediaUrl) return "";
-  const alt = escapeHtml(design.mediaAlt || altFallback);
-  return `<img src="${escapeHtml(design.mediaUrl)}" alt="${alt}" width="544" style="display:block;width:100%;max-width:544px;height:auto;border-radius:8px;margin:0 0 18px" />`;
-}
-
-function gridBlockHtml(design: AftersalesDesign): string {
-  const items = design.gridItems.filter((item) => item.heading.trim() || item.body.trim() || item.imageUrl);
-  if (items.length === 0) return "";
-  const cells = items.map((item) => `
-    <td width="50%" valign="top" style="padding:0 8px 16px 0">
-      ${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.imageAlt || item.heading)}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border-radius:8px;margin:0 0 8px" />` : ""}
-      ${item.heading ? `<p style="margin:0 0 4px;color:#141414;font-size:15px;font-weight:700">${escapeHtml(item.heading)}</p>` : ""}
-      ${item.body ? `<p style="margin:0;color:#4f4a42;font-size:14px;line-height:1.5">${escapeHtml(item.body)}</p>` : ""}
-    </td>`);
-  const rows: string[] = [];
-  for (let i = 0; i < cells.length; i += 2) rows.push(`<tr>${cells.slice(i, i + 2).join("")}</tr>`);
-  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px"><tbody>${rows.join("")}</tbody></table>`;
-}
-
-function tableBlockHtml(design: AftersalesDesign): string {
-  if (design.tableRows.length === 0) return "";
-  const head = design.tableHeaders.length > 0
-    ? `<tr>${design.tableHeaders.map((header) => `<th style="padding:8px 10px;border-bottom:2px solid #e0b200;text-align:left;color:#141414;font-size:13px;font-weight:700">${escapeHtml(header)}</th>`).join("")}</tr>`
-    : "";
-  const body = design.tableRows.map((row) => `<tr>${row.cells.map((cell) => `<td style="padding:8px 10px;border-bottom:1px solid #e4dfd5;color:#333;font-size:14px">${escapeHtml(cell)}</td>`).join("")}</tr>`).join("");
-  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px">${head ? `<thead>${head}</thead>` : ""}<tbody>${body}</tbody></table>`;
-}
 
 type OrderWithItems = Order & {
   items: OrderItem[];
@@ -97,31 +64,6 @@ export function replaceTokens(value: string, values: Record<string, string>): st
   return value.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, token: string) => values[token] ?? "");
 }
 
-function bodyHtml(value: string, bodyFontPx: number): string {
-  return value
-    .split(/\n{2,}/)
-    .map((paragraph) => `<p style="margin:0 0 14px;color:#4f4a42;font-size:${bodyFontPx}px;line-height:1.65">${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`)
-    .join("");
-}
-
-function contentBlockHtml(design: AftersalesDesign, textBlock: string, altFallback: string): string {
-  const media = mediaBlockHtml(design, altFallback);
-  return design.layout === "IMAGE_SIDE" && media
-    ? `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
-        <td width="200" valign="top" style="padding:0 16px 0 0">${media}</td>
-        <td valign="top">${textBlock}</td>
-      </tr></table>`
-    : design.layout === "IMAGE_TOP" && media
-      ? `${media}${textBlock}`
-      : design.layout === "IMAGE_BOTTOM" && media
-        ? `${textBlock}${media}`
-        : design.layout === "GRID_2COL"
-          ? `${textBlock}${gridBlockHtml(design)}`
-          : design.layout === "TABLE"
-            ? `${textBlock}${tableBlockHtml(design)}`
-            : textBlock;
-}
-
 /**
  * Shared shell for every mail-flow email regardless of trigger: brand/logo,
  * heading+body in the chosen layout (including grid/table blocks), and the
@@ -132,9 +74,8 @@ function renderEmailShell(input: {
   locale: Locale;
   subject: string;
   previewText: string;
-  heading: string;
-  body: string;
-  buttonLabel: string;
+  canvas: AftersalesCanvas;
+  blockText: Record<string, string>;
   actionUrl: string;
   design: AftersalesDesign;
   logoUrl: string | null;
@@ -142,15 +83,16 @@ function renderEmailShell(input: {
   extraText?: string[];
   footerText: string;
 }): RenderedFlowEmail {
-  const { locale, subject, previewText, heading, body, buttonLabel, actionUrl, design, logoUrl, extraHtml, extraText, footerText } = input;
+  const { locale, subject, previewText, canvas, blockText, actionUrl, design, logoUrl, extraHtml, extraText, footerText } = input;
   const fontStack = FONT_STACKS[design.font];
-  const sizes = FONT_SIZES[design.fontSize];
   const brandBlock = logoUrl
     ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
     : `<p style="margin:0;color:#806600;font-size:13px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
-  const headingBlock = `<h1 style="margin:12px 0 10px;color:#141414;font-size:${sizes.heading}px;line-height:1.25">${escapeHtml(heading)}</h1>`;
-  const textBlock = `${headingBlock}${bodyHtml(body, sizes.body)}`;
-  const contentBlock = contentBlockHtml(design, textBlock, heading);
+  const contentBlock = renderAftersalesCanvas(canvas, blockText, {
+    escapeText: escapeHtml,
+    resolveText: (key) => blockText[key] ?? "",
+    defaultActionUrl: actionUrl,
+  });
 
   const html = `<!doctype html>
 <html lang="${locale}" dir="ltr">
@@ -164,9 +106,6 @@ function renderEmailShell(input: {
         ${brandBlock}
         ${contentBlock}
         ${extraHtml ?? ""}
-        <div style="padding-top:26px">
-          <a href="${escapeHtml(actionUrl)}" style="display:block;min-height:44px;box-sizing:border-box;padding:14px 20px;border-radius:8px;background:#e0b200;color:#141414;font-size:16px;font-weight:700;text-align:center;text-decoration:none">${escapeHtml(buttonLabel)}</a>
-        </div>
       </div>
       <div style="padding:18px 28px 24px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px;line-height:1.5">${escapeHtml(footerText)}</div>
     </div>
@@ -174,6 +113,9 @@ function renderEmailShell(input: {
 </body>
 </html>`;
 
+  const heading = blockText[blockTextKey("heading")] ?? "";
+  const body = blockText[blockTextKey("body")] ?? "";
+  const buttonLabel = blockText[blockTextKey("button")] ?? "";
   const text = [
     heading,
     "",
@@ -192,6 +134,8 @@ export function renderAftersalesEmail(
   order: OrderWithItems,
   trigger: AftersalesTriggerValue,
   content: AftersalesLegacyLocaleContent,
+  canvas: AftersalesCanvas,
+  blockText: Record<string, string>,
   design: AftersalesDesign = defaultAftersalesDesign,
   logoUrl: string | null = null
 ): RenderedFlowEmail {
@@ -209,9 +153,9 @@ export function renderAftersalesEmail(
   };
   const subject = replaceTokens(content.subject, tokens);
   const preview = replaceTokens(content.previewText, tokens);
-  const heading = replaceTokens(content.heading, tokens);
-  const message = replaceTokens(content.body, tokens);
-  const buttonLabel = replaceTokens(content.buttonLabel, tokens);
+  const resolvedBlockText = Object.fromEntries(
+    Object.entries(blockText).map(([key, value]) => [key, replaceTokens(value, tokens)])
+  );
   const itemRows = order.items.map((item) => `
     <tr>
       <td style="padding:10px 8px 10px 0;border-bottom:1px solid #e4dfd5;color:#333;font-size:14px;line-height:1.45">
@@ -237,9 +181,8 @@ export function renderAftersalesEmail(
     locale,
     subject,
     previewText: preview,
-    heading,
-    body: message,
-    buttonLabel,
+    canvas,
+    blockText: resolvedBlockText,
     actionUrl,
     design,
     logoUrl,
@@ -273,25 +216,26 @@ const GENERIC_FOOTER: Record<Locale, string> = {
 export function renderGenericFlowEmail(input: {
   locale: Locale;
   content: AftersalesLegacyLocaleContent;
+  canvas: AftersalesCanvas;
+  blockText: Record<string, string>;
   design?: AftersalesDesign;
   logoUrl?: string | null;
   tokens: Record<string, string>;
   actionUrl: string;
 }): RenderedFlowEmail {
-  const { locale, content, design = defaultAftersalesDesign, logoUrl = null, tokens, actionUrl } = input;
+  const { locale, content, canvas, blockText, design = defaultAftersalesDesign, logoUrl = null, tokens, actionUrl } = input;
   const subject = replaceTokens(content.subject, tokens);
   const preview = replaceTokens(content.previewText, tokens);
-  const heading = replaceTokens(content.heading, tokens);
-  const message = replaceTokens(content.body, tokens);
-  const buttonLabel = replaceTokens(content.buttonLabel, tokens);
+  const resolvedBlockText = Object.fromEntries(
+    Object.entries(blockText).map(([key, value]) => [key, replaceTokens(value, tokens)])
+  );
 
   return renderEmailShell({
     locale,
     subject,
     previewText: preview,
-    heading,
-    body: message,
-    buttonLabel,
+    canvas,
+    blockText: resolvedBlockText,
     actionUrl,
     design,
     logoUrl,

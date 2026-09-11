@@ -65,7 +65,15 @@ export async function POST(request: NextRequest) {
   try {
     const stepContent = parseAftersalesContent(step.content);
     const locale = order.locale === "en" || order.locale === "fr" ? order.locale : "nl";
-    const rendered = renderAftersalesEmail(order, step.trigger, stepContent.locales[locale], stepContent.design, step.flow.logoUrl);
+    const rendered = renderAftersalesEmail(
+      order,
+      step.trigger,
+      stepContent.locales[locale],
+      stepContent.canvas,
+      stepContent.locales[locale].blockText,
+      stepContent.design,
+      step.flow.logoUrl
+    );
     const result = await deliverTransactionalEmail({
       idempotencyKey: `aftersales-test-${crypto.randomUUID()}`,
       kind: EmailDeliveryKind.AFTERSALES_TEST,

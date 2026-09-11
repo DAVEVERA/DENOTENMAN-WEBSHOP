@@ -229,6 +229,8 @@ export async function processAftersalesDelivery(
       delivery.order,
       delivery.trigger,
       stepContent.locales[locale],
+      stepContent.canvas,
+      stepContent.locales[locale].blockText,
       stepContent.design,
       delivery.step.flow.logoUrl
     );

@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import type { Order, OrderItem } from "@prisma/client";
 import { renderAftersalesEmail, renderGenericFlowEmail } from "../lib/aftersales/template";
-import { defaultAftersalesDesign } from "../lib/aftersales/schema";
+import {
+  defaultAftersalesDesign,
+  deriveCanvasFromLegacyContent,
+  type AftersalesDesign,
+  type AftersalesLegacyContent,
+  type AftersalesLegacyLocaleContent,
+} from "../lib/aftersales/schema";
 
 const order = {
   id: "order-123",
@@ -33,11 +41,23 @@ const content = {
   buttonLabel: "Volg je bestelling",
 };
 
+/** Derives a canvas + nl blockText for a legacy locale content, the same way
+ * parseAftersalesContent's fallback branch does for steps saved before the
+ * canvas editor shipped - lets these tests exercise renderAftersalesEmail /
+ * renderGenericFlowEmail with the real canvas/blockText params they now
+ * require, without hand-authoring a canvas per test. */
+function canvasFor(content: AftersalesLegacyLocaleContent, design: AftersalesDesign = defaultAftersalesDesign) {
+  const legacyLocales = { nl: content, en: content, fr: content } as AftersalesLegacyContent;
+  const { canvas, blockTextByLocale } = deriveCanvasFromLegacyContent(design, legacyLocales);
+  return { canvas, blockText: blockTextByLocale.nl };
+}
+
 test("aftersales template personalizes content while escaping customer and product data", () => {
-  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content);
+  const { canvas, blockText } = canvasFor(content);
+  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, canvas, blockText);
   assert.match(rendered.subject, /order-123/);
   assert.doesNotMatch(rendered.html, /<script>alert/);
-  assert.match(rendered.html, /<h1[^>]*>Hoi Sophie<\/h1>/);
+  assert.match(rendered.html, />Hoi Sophie</);
   assert.match(rendered.html, /Cashews &amp; amandelen/);
   assert.match(rendered.html, /<html lang="nl" dir="ltr">/);
   assert.match(rendered.html, /<title>Bestelling order-123 voor Sophie<\/title>/);
@@ -45,7 +65,8 @@ test("aftersales template personalizes content while escaping customer and produ
 });
 
 test("shipping email links to PostNL when tracking data is available", () => {
-  const rendered = renderAftersalesEmail(order, "ORDER_FULFILLED", content);
+  const { canvas, blockText } = canvasFor(content);
+  const rendered = renderAftersalesEmail(order, "ORDER_FULFILLED", content, canvas, blockText);
   assert.match(rendered.actionUrl, /^https:\/\/jouw\.postnl\.nl\/track-and-trace\//);
   assert.match(rendered.html, /3SNOTEN123/);
   assert.doesNotMatch(rendered.html, /Cashews &amp; amandelen/);
@@ -61,7 +82,8 @@ test("GRID_2COL layout renders up to 4 items in a 2-per-row table, escaped", () 
       { imageUrl: null, imageAlt: "", heading: "Walnoten", body: "" },
     ],
   };
-  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, design);
+  const { canvas, blockText } = canvasFor(content, design);
+  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, canvas, blockText, design);
   assert.match(rendered.html, /Amandelen &lt;b&gt;vers&lt;\/b&gt;/);
   assert.match(rendered.html, /Cashews/);
   assert.match(rendered.html, /Walnoten/);
@@ -73,7 +95,8 @@ test("GRID_2COL layout renders up to 4 items in a 2-per-row table, escaped", () 
 
 test("GRID_2COL layout omits empty items and renders nothing when all items are blank", () => {
   const design = { ...defaultAftersalesDesign, layout: "GRID_2COL" as const, gridItems: [{ imageUrl: null, imageAlt: "", heading: "", body: "" }] };
-  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, design);
+  const { canvas, blockText } = canvasFor(content, design);
+  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, canvas, blockText, design);
   assert.doesNotMatch(rendered.html, /width="50%"/);
 });
 
@@ -84,7 +107,8 @@ test("TABLE layout renders headers and rows, escaped", () => {
     tableHeaders: ["Product", "Prijs"],
     tableRows: [{ cells: ["Amandelen 500g", "€ 6,95"] }, { cells: ["<script>x</script>", "€ 1,00"] }],
   };
-  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, design);
+  const { canvas, blockText } = canvasFor(content, design);
+  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, canvas, blockText, design);
   assert.match(rendered.html, /<th[^>]*>Product<\/th>/);
   assert.match(rendered.html, /<th[^>]*>Prijs<\/th>/);
   assert.match(rendered.html, /Amandelen 500g/);
@@ -93,20 +117,25 @@ test("TABLE layout renders headers and rows, escaped", () => {
 
 test("TABLE layout with no rows renders nothing extra", () => {
   const design = { ...defaultAftersalesDesign, layout: "TABLE" as const };
-  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, design);
+  const { canvas, blockText } = canvasFor(content, design);
+  const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, canvas, blockText, design);
   assert.doesNotMatch(rendered.html, /<thead>/);
 });
 
 test("renderGenericFlowEmail personalizes non-order triggers and never mentions an order", () => {
+  const genericContent = {
+    subject: "{{product_name}} is weer verkrijgbaar",
+    previewText: "{{product_name}} kan weer besteld worden",
+    heading: "Weer op voorraad",
+    body: "Je vroeg om een seintje.\n\n{{product_name}}",
+    buttonLabel: "Bekijk product",
+  };
+  const { canvas, blockText } = canvasFor(genericContent);
   const rendered = renderGenericFlowEmail({
     locale: "nl",
-    content: {
-      subject: "{{product_name}} is weer verkrijgbaar",
-      previewText: "{{product_name}} kan weer besteld worden",
-      heading: "Weer op voorraad",
-      body: "Je vroeg om een seintje.\n\n{{product_name}}",
-      buttonLabel: "Bekijk product",
-    },
+    content: genericContent,
+    canvas,
+    blockText,
     tokens: { product_name: "Amandelen <b>vers</b>", product_url: "https://denotenman.com/nl/producten/amandelen" },
     actionUrl: "https://denotenman.com/nl/producten/amandelen",
   });
@@ -117,15 +146,19 @@ test("renderGenericFlowEmail personalizes non-order triggers and never mentions 
 });
 
 test("renderGenericFlowEmail uses per-locale footer text", () => {
+  const genericContent = {
+    subject: "{{product_name}} is back",
+    previewText: "back in stock",
+    heading: "Back in stock",
+    body: "{{product_name}}",
+    buttonLabel: "View",
+  };
+  const { canvas, blockText } = canvasFor(genericContent);
   const rendered = renderGenericFlowEmail({
     locale: "en",
-    content: {
-      subject: "{{product_name}} is back",
-      previewText: "back in stock",
-      heading: "Back in stock",
-      body: "{{product_name}}",
-      buttonLabel: "View",
-    },
+    content: genericContent,
+    canvas,
+    blockText,
     tokens: { product_name: "Almonds", product_url: "https://denotenman.com/en/products/almonds" },
     actionUrl: "https://denotenman.com/en/products/almonds",
   });
@@ -143,14 +176,21 @@ test("renders business_name and contact_name for a business trigger", () => {
       businessAccount: { companyName: "Restaurant De Notenboom", contactName: "Jan Jansen" },
     },
   } as unknown as Parameters<typeof renderAftersalesEmail>[0];
-  const locale = {
+  const businessContent = {
     subject: "Betaald",
     previewText: "Betaald",
     heading: "Betaald",
     body: "Beste {{contact_name}} van {{business_name}}, je zakelijke bestelling is betaald.",
     buttonLabel: "Bekijk",
   };
-  const rendered = renderAftersalesEmail(order, "BUSINESS_ORDER_PAID", locale, defaultAftersalesDesign, null);
+  const { canvas, blockText } = canvasFor(businessContent);
+  const rendered = renderAftersalesEmail(order, "BUSINESS_ORDER_PAID", businessContent, canvas, blockText, defaultAftersalesDesign, null);
   assert.match(rendered.html, /Jan Jansen/);
   assert.match(rendered.html, /Restaurant De Notenboom/);
+});
+
+test("template.ts renders content through the shared canvas renderer, not a bespoke layout builder", () => {
+  const source = readFileSync(path.join(__dirname, "..", "lib", "aftersales", "template.ts"), "utf8");
+  assert.match(source, /import\s*\{\s*renderAftersalesCanvas\s*\}\s*from\s*"@\/lib\/aftersales\/canvas-renderer"/);
+  assert.match(source, /renderAftersalesCanvas\(/);
 });
