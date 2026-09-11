@@ -21,7 +21,15 @@ function findBlock(blocks: InvoiceTemplateBlockLayout[], key: InvoiceTemplateBlo
   return blocks.find((block) => block.key === key);
 }
 
-export function InvoiceDocument({ input, blocks }: { input: InvoicePdfInput; blocks: InvoiceTemplateBlockLayout[] }) {
+export function InvoiceDocument({
+  input,
+  blocks,
+  logoDataUri = null,
+}: {
+  input: InvoicePdfInput;
+  blocks: InvoiceTemplateBlockLayout[];
+  logoDataUri?: string | null;
+}) {
   const header = findBlock(blocks, "header");
   const sellerAddress = findBlock(blocks, "sellerAddress");
   const buyerAddress = findBlock(blocks, "buyerAddress");
@@ -38,8 +46,14 @@ export function InvoiceDocument({ input, blocks }: { input: InvoicePdfInput; blo
         <div style={{ position: "relative", width: `${PAGE_WIDTH_PT}pt`, height: `${PAGE_HEIGHT_PT}pt` }}>
           {header ? (
             <div style={blockStyle(header)}>
-              <div style={{ fontWeight: 700, fontSize: "24pt" }}>{textOf(header, "title", "Factuur")}</div>
-              <div style={{ marginTop: "4pt", height: "1.8pt", background: GOLD }} />
+              {logoDataUri ? (
+                <div style={{ textAlign: "center" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logoDataUri} alt="De Notenman" style={{ height: "32pt", maxWidth: "100%" }} />
+                </div>
+              ) : null}
+              <div style={{ marginTop: logoDataUri ? "8pt" : 0, height: "1.8pt", background: GOLD }} />
+              <div style={{ marginTop: "10pt", fontWeight: 700, fontSize: "24pt" }}>{textOf(header, "title", "Factuur")}</div>
             </div>
           ) : null}
 
