@@ -18,3 +18,10 @@ test("selecting a hero, banner, footer or customHtml block shows its own setting
   assert.match(source, /selectedBlock\.type === "footer"/);
   assert.match(source, /selectedBlock\.type === "customHtml"/);
 });
+
+test("selecting a table or grid block shows its own settings fields, and the legacy grid media-picker target is gone", async () => {
+  const source = await readFile("app/admin/(dashboard)/marketing/aftersales/AftersalesFlowEditor.tsx", "utf8");
+  assert.match(source, /selectedBlock\.type === "table"/);
+  assert.match(source, /selectedBlock\.type === "grid"/);
+  assert.doesNotMatch(source, /gridIndex/);
+});

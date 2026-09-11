@@ -239,7 +239,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [testEmail, setTestEmail] = useState("");
-  const [mediaPickerFor, setMediaPickerFor] = useState<"logo" | "step" | { gridIndex: number } | { blockId: string } | null>(null);
+  const [mediaPickerFor, setMediaPickerFor] = useState<"logo" | "step" | { blockId: string } | { blockId: string; itemId: string } | null>(null);
   const [mediaOptions, setMediaOptions] = useState<MediaOption[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -353,7 +353,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
   const selectedBlockLocation = findSelectedBlockLocation();
   const selectedBlock = selectedBlockLocation?.block ?? null;
 
-  async function openMediaPicker(target: "logo" | "step" | { gridIndex: number } | { blockId: string }) {
+  async function openMediaPicker(target: "logo" | "step" | { blockId: string } | { blockId: string; itemId: string }) {
     setMediaPickerFor(target);
     setMediaLoading(true);
     try {
@@ -372,20 +372,19 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
       if (selectedStep) {
         updateStep(selectedStep.id, (step) => ({ ...step, content: { ...step.content, design: { ...step.content.design, mediaUrl: url } } }));
       }
-    } else if (mediaPickerFor && typeof mediaPickerFor === "object" && "gridIndex" in mediaPickerFor) {
-      const { gridIndex } = mediaPickerFor;
-      if (selectedStep) {
-        updateStep(selectedStep.id, (step) => ({
-          ...step,
-          content: {
-            ...step.content,
-            design: {
-              ...step.content.design,
-              gridItems: step.content.design.gridItems.map((item, i) => (i === gridIndex ? { ...item, imageUrl: url } : item)),
-            },
-          },
-        }));
-      }
+    } else if (mediaPickerFor && typeof mediaPickerFor === "object" && "itemId" in mediaPickerFor) {
+      const location = (() => {
+        if (!selectedStep) return null;
+        for (const row of selectedStep.content.canvas.rows) {
+          for (const column of row.columns) {
+            if (column.blocks.some((block) => block.id === mediaPickerFor.blockId)) return { rowId: row.id, columnId: column.id };
+          }
+        }
+        return null;
+      })();
+      if (location) updateBlock(location.rowId, location.columnId, mediaPickerFor.blockId, (block) =>
+        block.type === "grid" ? { ...block, items: block.items.map((item) => item.id === mediaPickerFor.itemId ? { ...item, imageUrl: url } : item) } : block
+      );
     } else if (mediaPickerFor && typeof mediaPickerFor === "object" && "blockId" in mediaPickerFor) {
       const location = (() => {
         if (!selectedStep) return null;
@@ -824,6 +823,130 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                       <label className="font-heading text-body-sm font-semibold">HTML</label>
                       <textarea rows={6} value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id)] ?? ""} onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id), event.target.value)} className="mt-1 w-full rounded-button border border-border bg-white px-3 py-2 font-mono text-xs" />
                       <p className="mt-1 text-xs text-muted">Dit blok wordt ongefilterd in de mail geplaatst — controleer zelf dat de HTML geldig is.</p>
+                    </div>
+                  ) : null}
+
+                  {selectedBlock.type === "table" ? (
+                    <div className="mt-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-heading text-body-sm font-semibold">Tabel (max 6 kolommen, 20 rijen)</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={selectedBlock.headerCount >= 6}
+                            onClick={() => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => block.type === "table" ? { ...block, headerCount: block.headerCount + 1 } : block)}
+                            className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"
+                          ><Plus size={14} />Kolom</button>
+                          <button
+                            type="button"
+                            disabled={selectedBlock.rowIds.length >= 20}
+                            onClick={() => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => block.type === "table" ? { ...block, rowIds: [...block.rowIds, newBlockId("table-row")] } : block)}
+                            className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"
+                          ><Plus size={14} />Rij</button>
+                        </div>
+                      </div>
+                      {selectedBlock.headerCount === 0 ? (
+                        <p className="mt-2 text-body-sm text-muted">Voeg eerst een kolom toe.</p>
+                      ) : (
+                        <div className="mt-3 overflow-x-auto">
+                          <table className="w-full min-w-[480px] text-body-sm">
+                            <thead>
+                              <tr>
+                                {Array.from({ length: selectedBlock.headerCount }, (_, colIndex) => (
+                                  <th key={colIndex} className="px-1 pb-2 text-left">
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id, `header:${colIndex}`)] ?? ""}
+                                        maxLength={80}
+                                        onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id, `header:${colIndex}`), event.target.value)}
+                                        placeholder={`Kolom ${colIndex + 1}`}
+                                        className="min-h-9 w-full rounded-button border border-border bg-white px-2 text-xs font-bold"
+                                      />
+                                      <button
+                                        type="button"
+                                        aria-label="Verwijder kolom"
+                                        onClick={() => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => block.type === "table" ? { ...block, headerCount: block.headerCount - 1 } : block)}
+                                        className="shrink-0 text-red-700"
+                                      ><X size={14} /></button>
+                                    </div>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedBlock.rowIds.map((rowId) => (
+                                <tr key={rowId}>
+                                  {Array.from({ length: selectedBlock.headerCount }, (_, colIndex) => (
+                                    <td key={colIndex} className="px-1 py-1">
+                                      <input
+                                        value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id, `cell:${rowId}:${colIndex}`)] ?? ""}
+                                        maxLength={200}
+                                        onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id, `cell:${rowId}:${colIndex}`), event.target.value)}
+                                        className="min-h-9 w-full rounded-button border border-border bg-white px-2 text-xs"
+                                      />
+                                    </td>
+                                  ))}
+                                  <td className="px-1 py-1">
+                                    <button
+                                      type="button"
+                                      aria-label="Verwijder rij"
+                                      onClick={() => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => block.type === "table" ? { ...block, rowIds: block.rowIds.filter((id) => id !== rowId) } : block)}
+                                      className="text-red-700"
+                                    ><X size={14} /></button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {selectedBlock.type === "grid" ? (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between">
+                        <p className="font-heading text-body-sm font-semibold">Grid-items (max 4)</p>
+                        <button
+                          type="button"
+                          disabled={selectedBlock.items.length >= 4}
+                          onClick={() => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => block.type === "grid" ? { ...block, items: [...block.items, { id: newBlockId("grid-item"), imageUrl: null, imageAlt: "" }] } : block)}
+                          className="inline-flex min-h-9 items-center gap-1 rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"
+                        ><Plus size={14} />Item toevoegen</button>
+                      </div>
+                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {selectedBlock.items.map((item) => (
+                          <div key={item.id} className="rounded-button border border-border bg-white p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-12 w-16 rounded border border-border object-cover" /> : <span className="text-xs text-muted">Geen afbeelding</span>}
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => openMediaPicker({ blockId: selectedBlock.id, itemId: item.id })} className="text-xs font-semibold text-accent-hover">Kies afbeelding</button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => block.type === "grid" ? { ...block, items: block.items.filter((candidate) => candidate.id !== item.id) } : block)}
+                                  className="text-xs font-semibold text-red-700"
+                                >Verwijder</button>
+                              </div>
+                            </div>
+                            <input
+                              value={selectedStep.content.locales[locale].blockText[blockTextKey(item.id, "heading")] ?? ""}
+                              maxLength={120}
+                              onChange={(event) => updateBlockText(blockTextKey(item.id, "heading"), event.target.value)}
+                              placeholder="Kop"
+                              className="mt-2 min-h-9 w-full rounded-button border border-border bg-background px-2 text-body-sm"
+                            />
+                            <textarea
+                              value={selectedStep.content.locales[locale].blockText[blockTextKey(item.id, "body")] ?? ""}
+                              maxLength={400}
+                              rows={2}
+                              onChange={(event) => updateBlockText(blockTextKey(item.id, "body"), event.target.value)}
+                              placeholder="Tekst"
+                              className="mt-2 w-full rounded-button border border-border bg-background px-2 py-1 text-body-sm"
+                            />
+                          </div>
+                        ))}
+                        {selectedBlock.items.length === 0 ? <p className="text-body-sm text-muted">Nog geen items. Voeg er een toe.</p> : null}
+                      </div>
                     </div>
                   ) : null}
                 </div>
