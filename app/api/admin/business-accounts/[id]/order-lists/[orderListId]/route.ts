@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { isSameOriginMutation } from "@/lib/admin-request-security";
 import { recordAudit } from "@/lib/admin-audit";
-import { recordBusinessEvent, sendBusinessOrderListEmail } from "@/lib/business-portal";
+import { recordBusinessEvent, sendBusinessOrderListChangedEmail, sendBusinessOrderListEmail } from "@/lib/business-portal";
 import { getMollieClient } from "@/lib/mollie";
 
 const schema = z.object({ action: z.enum(["SEND", "CANCEL", "CONFIRM_DELIVERED", "CONFIRM_FAILED"]) }).strict();
@@ -158,6 +158,12 @@ export async function PATCH(
   }
 
   if (action === "SEND") {
+    // "Wijzigingen naar klant sturen" (BusinessOrderListActions.tsx) hits this
+    // same SEND action for both a genuine first send and a re-send after
+    // items/route.ts marked the list CHANGES_PENDING. Capture which one this
+    // is before the transaction below overwrites deliveryStatus.
+    const isChangeNotification = existing.deliveryStatus === "CHANGES_PENDING";
+
     // Only an explicit SEND enters this delivery claim. Saving list changes
     // never invokes the mail provider, and every send receives a new version.
     const deliveryClaim = await prisma.businessOrderList.updateMany({
@@ -176,15 +182,24 @@ export async function PATCH(
 
     let delivery;
     try {
-      delivery = await sendBusinessOrderListEmail({
-        orderListId,
-        version: updated.version,
-        title: existing.title,
-        validUntil: existing.validUntil,
-        items: existing.items,
-        totalCents: existing.totalCents,
-        account: existing.businessAccount,
-      });
+      delivery = isChangeNotification
+        ? await sendBusinessOrderListChangedEmail({
+            orderListId,
+            version: updated.version,
+            title: existing.title,
+            items: existing.items,
+            totalCents: existing.totalCents,
+            account: existing.businessAccount,
+          })
+        : await sendBusinessOrderListEmail({
+            orderListId,
+            version: updated.version,
+            title: existing.title,
+            validUntil: existing.validUntil,
+            items: existing.items,
+            totalCents: existing.totalCents,
+            account: existing.businessAccount,
+          });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Onbekende verzendfout";
       await prisma.businessOrderList.updateMany({

@@ -107,6 +107,16 @@ test("order-list emails are only sent by the explicit admin action and remain re
   );
 });
 
+test("re-sending a CHANGES_PENDING order list emails the customer the changed-list notice, not the original send", async () => {
+  const [adminRoute, service] = await Promise.all([
+    readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/route.ts", "utf8"),
+    readFile("lib/business-portal.ts", "utf8"),
+  ]);
+  assert.match(adminRoute, /sendBusinessOrderListChangedEmail/);
+  assert.match(adminRoute, /existing\.deliveryStatus === "CHANGES_PENDING"/);
+  assert.match(service, /business-order-list:\$\{input\.orderListId\}:changed:\$\{input\.version\}/);
+});
+
 test("admin send uses an exclusive delivery claim and cancel targets only the current order", async () => {
   const adminRoute = await readFile("app/api/admin/business-accounts/[id]/order-lists/[orderListId]/route.ts", "utf8");
   assert.match(adminRoute, /deliveryStatus === "SENDING"/);
