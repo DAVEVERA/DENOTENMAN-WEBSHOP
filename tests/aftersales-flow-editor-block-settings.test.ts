@@ -25,3 +25,8 @@ test("selecting a table or grid block shows its own settings fields, and the leg
   assert.match(source, /selectedBlock\.type === "grid"/);
   assert.doesNotMatch(source, /gridIndex/);
 });
+
+test("pickMedia's plain blockId branch updates hero and banner backgroundUrl, not just image mediaUrl", async () => {
+  const source = await readFile("app/admin/(dashboard)/marketing/aftersales/AftersalesFlowEditor.tsx", "utf8");
+  assert.match(source, /block\.type === "hero" \|\| block\.type === "banner" \? \{ \.\.\.block, backgroundUrl: url \}/);
+});

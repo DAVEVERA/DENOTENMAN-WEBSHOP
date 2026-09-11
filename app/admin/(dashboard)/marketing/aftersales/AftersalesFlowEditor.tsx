@@ -395,7 +395,11 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
         }
         return null;
       })();
-      if (location) updateBlock(location.rowId, location.columnId, mediaPickerFor.blockId, (block) => block.type === "image" ? { ...block, mediaUrl: url } : block);
+      if (location) updateBlock(location.rowId, location.columnId, mediaPickerFor.blockId, (block) =>
+        block.type === "image" ? { ...block, mediaUrl: url }
+        : block.type === "hero" || block.type === "banner" ? { ...block, backgroundUrl: url }
+        : block
+      );
     }
     setMediaPickerFor(null);
   }
