@@ -43,6 +43,13 @@ export default async function BusinessLifecycleEmailsPage() {
             </Link>
           );
         })}
+        <Link
+          href="/admin/marketing/service-en-support-zakelijk/factuur-sjabloon"
+          className="rounded-panel border border-border bg-surface p-6 shadow-card transition-colors duration-hover-fast hover:border-border-hover"
+        >
+          <h2 className="font-heading text-body-md font-semibold text-text">Factuur-sjabloon (opmaak)</h2>
+          <p className="mt-1 text-body-sm text-muted">Verplaats en herschaal de onderdelen van de factuur-PDF.</p>
+        </Link>
       </div>
 
       <div className="mt-8 rounded-panel border border-border bg-surface p-6 shadow-card">
