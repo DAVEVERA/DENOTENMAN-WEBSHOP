@@ -767,6 +767,65 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                       <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={selectedBlock.showDivider} onChange={(event) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, showDivider: event.target.checked }))} className="h-5 w-5 accent-amber-500" />Scheidingslijn tonen</label>
                     </div>
                   ) : null}
+
+                  {selectedBlock.type === "hero" ? (
+                    <div className="mt-3 space-y-4">
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Kop</label>
+                        <input value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id, "heading")] ?? ""} maxLength={120} onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id, "heading"), event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Tekst</label>
+                        <textarea rows={2} value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id, "body")] ?? ""} onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id, "body"), event.target.value)} className="mt-1 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Knoptekst</label>
+                        <input value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id, "button")] ?? ""} maxLength={80} onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id, "button"), event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {selectedBlock.backgroundUrl ? <img src={selectedBlock.backgroundUrl} alt="" className="h-14 w-20 rounded border border-border object-cover" /> : <span className="text-body-sm text-muted">Geen achtergrondafbeelding</span>}
+                        <button type="button" onClick={() => openMediaPicker({ blockId: selectedBlock.id })} className="inline-flex min-h-9 items-center gap-1.5 rounded-button border border-border bg-white px-3 text-xs font-semibold"><ImageIcon size={14} />Kies afbeelding</button>
+                        {selectedBlock.backgroundUrl ? <button type="button" onClick={() => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => block.type === "hero" ? { ...block, backgroundUrl: null } : block)} className="text-xs font-semibold text-red-700">Verwijder</button> : null}
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <ColorField label="Achtergrondkleur" value={selectedBlock.backgroundColor} onChange={(value) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, backgroundColor: value }))} />
+                        <ColorField label="Knopkleur" value={selectedBlock.buttonColor} onChange={(value) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, buttonColor: value }))} />
+                        <ColorField label="Knoptekstkleur" value={selectedBlock.buttonTextColor} onChange={(value) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, buttonTextColor: value }))} />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedBlock.type === "banner" ? (
+                    <div className="mt-3 space-y-4">
+                      <div>
+                        <label className="font-heading text-body-sm font-semibold">Tekst</label>
+                        <input value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id)] ?? ""} maxLength={200} onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id), event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 py-2" />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {selectedBlock.backgroundUrl ? <img src={selectedBlock.backgroundUrl} alt="" className="h-14 w-20 rounded border border-border object-cover" /> : <span className="text-body-sm text-muted">Geen achtergrondafbeelding</span>}
+                        <button type="button" onClick={() => openMediaPicker({ blockId: selectedBlock.id })} className="inline-flex min-h-9 items-center gap-1.5 rounded-button border border-border bg-white px-3 text-xs font-semibold"><ImageIcon size={14} />Kies afbeelding</button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <ColorField label="Achtergrondkleur" value={selectedBlock.backgroundColor} onChange={(value) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, backgroundColor: value }))} />
+                        <ColorField label="Tekstkleur" value={selectedBlock.textColor} onChange={(value) => updateBlock(selectedBlockLocation.rowId, selectedBlockLocation.columnId, selectedBlock.id, (block) => ({ ...block, textColor: value }))} />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedBlock.type === "footer" ? (
+                    <div className="mt-3">
+                      <label className="font-heading text-body-sm font-semibold">Afsluittekst</label>
+                      <textarea rows={2} value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id)] ?? ""} onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id), event.target.value)} className="mt-1 w-full rounded-button border border-border bg-white px-3 py-2" />
+                    </div>
+                  ) : null}
+
+                  {selectedBlock.type === "customHtml" ? (
+                    <div className="mt-3">
+                      <label className="font-heading text-body-sm font-semibold">HTML</label>
+                      <textarea rows={6} value={selectedStep.content.locales[locale].blockText[blockTextKey(selectedBlock.id)] ?? ""} onChange={(event) => updateBlockText(blockTextKey(selectedBlock.id), event.target.value)} className="mt-1 w-full rounded-button border border-border bg-white px-3 py-2 font-mono text-xs" />
+                      <p className="mt-1 text-xs text-muted">Dit blok wordt ongefilterd in de mail geplaatst — controleer zelf dat de HTML geldig is.</p>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 

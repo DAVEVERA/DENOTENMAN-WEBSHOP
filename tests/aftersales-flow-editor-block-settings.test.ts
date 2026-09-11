@@ -10,3 +10,11 @@ test("selecting a text, image, button or spacer block shows its own settings fie
   assert.match(source, /selectedBlock\.type === "button"/);
   assert.match(source, /selectedBlock\.type === "spacer"/);
 });
+
+test("selecting a hero, banner, footer or customHtml block shows its own settings fields", async () => {
+  const source = await readFile("app/admin/(dashboard)/marketing/aftersales/AftersalesFlowEditor.tsx", "utf8");
+  assert.match(source, /selectedBlock\.type === "hero"/);
+  assert.match(source, /selectedBlock\.type === "banner"/);
+  assert.match(source, /selectedBlock\.type === "footer"/);
+  assert.match(source, /selectedBlock\.type === "customHtml"/);
+});
