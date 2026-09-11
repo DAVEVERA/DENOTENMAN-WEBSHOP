@@ -1,14 +1,15 @@
 import { randomBytes } from "node:crypto";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { buildGoogleBusinessAuthUrl, isGoogleBusinessLoginConfigured } from "@/lib/business-google-auth";
+import { BASE_URL } from "@/lib/routes";
 
 export const runtime = "nodejs";
 
 export const GOOGLE_OAUTH_STATE_COOKIE = "denotenman_business_google_state";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   if (!isGoogleBusinessLoginConfigured()) {
-    return NextResponse.redirect(new URL("/nl/zakelijk/inloggen?error=google_unavailable", request.url));
+    return NextResponse.redirect(new URL("/nl/zakelijk/inloggen?error=google_unavailable", BASE_URL));
   }
 
   const state = randomBytes(24).toString("base64url");
