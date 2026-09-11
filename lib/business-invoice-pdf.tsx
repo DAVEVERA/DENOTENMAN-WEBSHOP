@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
-import { renderToStaticMarkup } from "react-dom/server";
 import { InvoiceDocument } from "@/components/invoice-pdf/InvoiceDocument";
 import { getPublishedInvoiceTemplateBlocks } from "@/lib/invoice-template";
 import { renderHtmlToPdfBase64 } from "@/lib/invoice-pdf-renderer";
@@ -84,6 +83,10 @@ async function loadLogoDataUri(): Promise<string | null> {
 }
 
 export async function renderInvoicePdfBase64(input: InvoicePdfInput): Promise<string> {
+  // Dynamically imported (not a static top-level import) so this file's
+  // react-dom/server usage stays out of the RSC module graph that reaches
+  // it through lib/orders.ts -> app/admin/(dashboard)/bestellingen/[id]/page.tsx.
+  const { renderToStaticMarkup } = await import("react-dom/server");
   const [blocks, logoDataUri] = await Promise.all([
     getPublishedInvoiceTemplateBlocks(),
     loadLogoDataUri(),

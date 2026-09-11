@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { renderToStaticMarkup } from "react-dom/server";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { getOrCreateDraftInvoiceTemplate } from "@/lib/invoice-template";
 import { InvoiceDocument } from "@/components/invoice-pdf/InvoiceDocument";
@@ -40,6 +39,10 @@ export async function POST(request: NextRequest) {
   const admin = await getAdminSession(request);
   if (!admin) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
+  // Dynamically imported (not a static top-level import) so this route's
+  // react-dom/server usage doesn't get flagged as part of the app-wide
+  // Server Component module graph.
+  const { renderToStaticMarkup } = await import("react-dom/server");
   const draft = await getOrCreateDraftInvoiceTemplate();
   const html =
     "<!DOCTYPE html>" +
