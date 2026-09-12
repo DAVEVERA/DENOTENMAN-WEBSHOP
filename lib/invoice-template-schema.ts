@@ -224,3 +224,35 @@ export const invoiceCanvasSchema = z.object({
     }
   }
 });
+
+function invoiceColumn(id: string, blocks: InvoiceBlock[]): InvoiceColumn {
+  return { id, widthFraction: 1, backgroundColor: "#ffffff", padding: 0, blocks };
+}
+
+function invoiceRow(id: string, columns: InvoiceColumn[]): InvoiceRow {
+  return { id, backgroundColor: "#ffffff", padding: 0, columns };
+}
+
+/** One row per legacy block, in INVOICE_TEMPLATE_BLOCK_KEYS order, each a
+ * single full-width column holding that block's data-bound equivalent.
+ * Every legacy textOverrides entry moves into the flat blockText map under
+ * blockTextKey(key, overrideField) — the block's stable id is its legacy
+ * key, so a template migrated once and never re-saved keeps stable ids
+ * across repeated reads. */
+export function deriveCanvasFromLegacyContent(
+  blocks: InvoiceTemplateBlockLayout[]
+): { canvas: InvoiceCanvas; blockText: Record<string, string> } {
+  const byKey = new Map(blocks.map((block) => [block.key, block]));
+  const blockText: Record<string, string> = {};
+
+  const rows = INVOICE_TEMPLATE_BLOCK_KEYS.map((key) => {
+    const legacy = byKey.get(key);
+    for (const [field, value] of Object.entries(legacy?.textOverrides ?? {})) {
+      blockText[blockTextKey(key, field)] = value;
+    }
+    const dataBlock: InvoiceDataBlock = { id: key, type: key, backgroundColor: "#ffffff", textColor: "#333333" };
+    return invoiceRow(`${key}-row`, [invoiceColumn(`${key}-col`, [dataBlock])]);
+  });
+
+  return { canvas: { rows }, blockText };
+}
