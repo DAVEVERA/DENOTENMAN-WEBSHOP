@@ -30,3 +30,10 @@ test("pickMedia's plain blockId branch updates hero and banner backgroundUrl, no
   const source = await readFile("app/admin/(dashboard)/marketing/aftersales/AftersalesFlowEditor.tsx", "utf8");
   assert.match(source, /block\.type === "hero" \|\| block\.type === "banner" \? \{ \.\.\.block, backgroundUrl: url \}/);
 });
+
+test("the dead 'step' media-picker target (the deleted design panel's mediaUrl picker) is gone", async () => {
+  const source = await readFile("app/admin/(dashboard)/marketing/aftersales/AftersalesFlowEditor.tsx", "utf8");
+  assert.doesNotMatch(source, /"logo" \| "step"/);
+  assert.doesNotMatch(source, /mediaPickerFor === "step"/);
+  assert.doesNotMatch(source, /openMediaPicker\("step"\)/);
+});

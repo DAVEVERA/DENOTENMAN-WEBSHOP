@@ -408,6 +408,15 @@ function row(id: string, columns: AftersalesColumn[]): AftersalesRow {
   return { id, backgroundColor: WHITE, padding: 24, columns };
 }
 
+/** One tier larger than the body's size, capped at the largest tier - gives
+ * migrated legacy content back the heading/body visual hierarchy the old
+ * fixed-template renderer had, instead of heading and body sharing one size. */
+function headingSizeFor(bodySize: AftersalesFontSize): AftersalesFontSize {
+  if (bodySize === "COMPACT") return "STANDAARD";
+  if (bodySize === "STANDAARD") return "GROOT";
+  return "GROOT";
+}
+
 /** Derives a canvas (and the blockText each locale needs) from a step's
  * legacy design + per-locale content. Pure and deterministic: the same
  * design/content always produces the same block ids, so tests and the
@@ -427,7 +436,7 @@ export function deriveCanvasFromLegacyContent(
     blockTextByLocale[locale][blockTextKey("button")] = legacyLocales[locale].buttonLabel;
   }
 
-  const heading = textBlock("heading", { size: design.fontSize, bold: true }, design);
+  const heading = textBlock("heading", { size: headingSizeFor(design.fontSize), bold: true }, design);
   const body = textBlock("body", { size: design.fontSize }, design);
   const button = buttonBlock("button");
 
@@ -461,6 +470,11 @@ export function deriveCanvasFromLegacyContent(
     columns = [column("main", 1, [heading, body, gridBlock, button])];
   } else if (design.layout === "TABLE" && design.tableRows.length > 0) {
     const rowIds = design.tableRows.map((_, index) => `table-row-${index}`);
+    // Derive headerCount from whichever is wider - the configured headers or
+    // the widest row - so a flow with rows but no headers doesn't lose cell
+    // data to a headerCount of 0 (renderTableBlock loops per-row cells off
+    // headerCount too). Don't fabricate header text for the extra columns.
+    const headerCount = Math.max(design.tableHeaders.length, ...design.tableRows.map((tableRow) => tableRow.cells.length), 0);
     for (const [colIndex, header] of design.tableHeaders.entries()) {
       for (const locale of locales) blockTextByLocale[locale][blockTextKey("table", `header:${colIndex}`)] = header;
     }
@@ -471,13 +485,18 @@ export function deriveCanvasFromLegacyContent(
         }
       }
     }
-    const tableBlock: AftersalesCanvasTableBlock = { id: "table", type: "table", headerCount: design.tableHeaders.length, rowIds };
+    const tableBlock: AftersalesCanvasTableBlock = { id: "table", type: "table", headerCount, rowIds };
     columns = [column("main", 1, [heading, body, tableBlock, button])];
   } else {
     columns = [column("main", 1, [heading, body, button])];
   }
 
-  return { canvas: { rows: [row("main-row", columns)] }, blockTextByLocale };
+  // Override the row() helper's normal 24px default to 0 here only: this
+  // migrated row already sits inside renderEmailShell's own 28px padding
+  // wrapper, so keeping row()'s default would double up the inset. row()
+  // itself keeps its 24px default for other callers (e.g. rows an admin adds
+  // via "Rij toevoegen").
+  return { canvas: { rows: [{ ...row("main-row", columns), padding: 0 }] }, blockTextByLocale };
 }
 
 /** Resolves a hand-authored, legacy-shaped seed (lib/aftersales/defaults.ts)

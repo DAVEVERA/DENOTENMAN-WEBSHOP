@@ -189,6 +189,78 @@ test("renders business_name and contact_name for a business trigger", () => {
   assert.match(rendered.html, /Restaurant De Notenboom/);
 });
 
+test("a customHtml block escapes personalization token VALUES while keeping the admin's own HTML real, both for order emails and generic-flow emails", () => {
+  const customHtmlCanvas = {
+    rows: [{
+      id: "r1",
+      backgroundColor: "#ffffff",
+      padding: 0,
+      columns: [{
+        id: "c1",
+        widthFraction: 1,
+        backgroundColor: "#ffffff",
+        padding: 0,
+        blocks: [{ id: "html1", type: "customHtml" as const }],
+      }],
+    }],
+  };
+  const blockText = { html1: "<b>Hallo {{customer_name}}</b>" };
+  const maliciousName = "<script>alert(1)</script>";
+
+  const orderRendered = renderAftersalesEmail(
+    { ...order, contactName: maliciousName },
+    "ORDER_PAID",
+    content,
+    customHtmlCanvas,
+    blockText
+  );
+  // The admin's own <b> tags must survive as real markup, and the
+  // customer-controlled name must be escaped - neither the whole block
+  // escaped, nor the customer's markup left live.
+  assert.match(orderRendered.html, /<b>Hallo &lt;script&gt;alert\(1\)&lt;\/script&gt;<\/b>/);
+  assert.doesNotMatch(orderRendered.html, /&lt;b&gt;Hallo/);
+  assert.doesNotMatch(orderRendered.html, /<b>Hallo <script>/);
+
+  const genericRendered = renderGenericFlowEmail({
+    locale: "nl",
+    content,
+    canvas: customHtmlCanvas,
+    blockText,
+    tokens: { customer_name: maliciousName },
+    actionUrl: "https://denotenman.com/nl/account",
+  });
+  assert.match(genericRendered.html, /<b>Hallo &lt;script&gt;alert\(1\)&lt;\/script&gt;<\/b>/);
+  assert.doesNotMatch(genericRendered.html, /&lt;b&gt;Hallo/);
+  assert.doesNotMatch(genericRendered.html, /<b>Hallo <script>/);
+});
+
+test("an ordinary text block is not double-escaped when its token value contains an ampersand", () => {
+  const textCanvas = {
+    rows: [{
+      id: "r1",
+      backgroundColor: "#ffffff",
+      padding: 0,
+      columns: [{
+        id: "c1",
+        widthFraction: 1,
+        backgroundColor: "#ffffff",
+        padding: 0,
+        blocks: [{ id: "t1", type: "text" as const, font: "SANS" as const, size: "STANDAARD" as const, color: "#141414", align: "left" as const, bold: false, italic: false }],
+      }],
+    }],
+  };
+  const rendered = renderAftersalesEmail(
+    { ...order, contactName: "Sophie & Jan" },
+    "ORDER_PAID",
+    { ...content, body: "" },
+    textCanvas,
+    { t1: "Hallo {{customer_name}}" }
+  );
+  // Escaped exactly once: "&" -> "&amp;", not "&amp;amp;".
+  assert.match(rendered.html, /Hallo Sophie &amp; Jan/);
+  assert.doesNotMatch(rendered.html, /&amp;amp;/);
+});
+
 test("template.ts renders content through the shared canvas renderer, not a bespoke layout builder", () => {
   const source = readFileSync(path.join(__dirname, "..", "lib", "aftersales", "template.ts"), "utf8");
   assert.match(source, /import\s*\{\s*renderAftersalesCanvas\s*\}\s*from\s*"@\/lib\/aftersales\/canvas-renderer"/);

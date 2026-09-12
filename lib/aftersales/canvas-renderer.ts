@@ -41,10 +41,10 @@ function renderTextBlock(block: Extract<AftersalesBlock, { type: "text" }>, opti
   return `<p style="${style}">${text}</p>`;
 }
 
-function renderImageBlock(block: Extract<AftersalesBlock, { type: "image" }>): string {
+function renderImageBlock(block: Extract<AftersalesBlock, { type: "image" }>, options: AftersalesCanvasRenderOptions): string {
   if (!block.mediaUrl) return "";
-  const img = `<img src="${block.mediaUrl}" alt="${block.alt}" width="${block.width}" style="display:block;width:100%;max-width:${block.width}px;height:auto;margin:0 0 12px" />`;
-  return block.linkUrl ? `<a href="${block.linkUrl}" style="text-decoration:none">${img}</a>` : img;
+  const img = `<img src="${options.escapeText(block.mediaUrl)}" alt="${options.escapeText(block.alt)}" width="${block.width}" style="display:block;width:100%;max-width:${block.width}px;height:auto;margin:0 0 12px" />`;
+  return block.linkUrl ? `<a href="${options.escapeText(block.linkUrl)}" style="text-decoration:none">${img}</a>` : img;
 }
 
 function renderButtonBlock(block: Extract<AftersalesBlock, { type: "button" }>, options: AftersalesCanvasRenderOptions): string {
@@ -83,7 +83,7 @@ function renderHeroBlock(block: Extract<AftersalesBlock, { type: "hero" }>, opti
   const buttonLabel = options.escapeText(options.resolveText(blockTextKey(block.id, "button")));
   const containerStyle = [
     `background:${block.backgroundColor}`,
-    block.backgroundUrl ? `background-image:url('${block.backgroundUrl}')` : "",
+    block.backgroundUrl ? `background-image:url('${options.escapeText(block.backgroundUrl)}')` : "",
     block.backgroundUrl ? "background-size:cover" : "",
     block.backgroundUrl ? "background-position:center" : "",
     "padding:40px 24px",
@@ -110,7 +110,7 @@ function renderBannerBlock(block: Extract<AftersalesBlock, { type: "banner" }>, 
   const text = options.escapeText(options.resolveText(blockTextKey(block.id)));
   const style = [
     `background:${block.backgroundColor}`,
-    block.backgroundUrl ? `background-image:url('${block.backgroundUrl}')` : "",
+    block.backgroundUrl ? `background-image:url('${options.escapeText(block.backgroundUrl)}')` : "",
     block.backgroundUrl ? "background-size:cover" : "",
     "padding:16px 20px",
     "text-align:center",
@@ -146,7 +146,7 @@ function renderGridBlock(block: Extract<AftersalesBlock, { type: "grid" }>, opti
     const heading = options.escapeText(options.resolveText(blockTextKey(item.id, "heading")));
     const body = options.escapeText(options.resolveText(blockTextKey(item.id, "body")));
     const image = item.imageUrl
-      ? `<img src="${item.imageUrl}" alt="${item.imageAlt}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border-radius:8px;margin:0 0 8px" />`
+      ? `<img src="${options.escapeText(item.imageUrl)}" alt="${options.escapeText(item.imageAlt)}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border-radius:8px;margin:0 0 8px" />`
       : "";
     return `<td width="50%" valign="top" style="padding:0 8px 16px 0">${image}<p style="margin:0 0 4px;color:#141414;font-size:15px;font-weight:700">${heading}</p><p style="margin:0;color:#4f4a42;font-size:14px;line-height:1.5">${body}</p></td>`;
   });
@@ -160,7 +160,7 @@ function renderBlock(block: AftersalesBlock, options: AftersalesCanvasRenderOpti
     case "text":
       return renderTextBlock(block, options);
     case "image":
-      return renderImageBlock(block);
+      return renderImageBlock(block, options);
     case "button":
       return renderButtonBlock(block, options);
     case "footer":
@@ -195,8 +195,7 @@ function renderRow(row: AftersalesRow, options: AftersalesCanvasRenderOptions): 
   return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;background-color:${row.backgroundColor}"><tbody><tr style="padding:${row.padding}px"><td style="padding:${row.padding}px" colspan="${row.columns.length}"><table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse"><tbody><tr>${cells}</tr></tbody></table></td></tr></tbody></table>`;
 }
 
-export function renderAftersalesCanvas(canvas: AftersalesCanvas, blockText: Record<string, string>, options: AftersalesCanvasRenderOptions): string {
-  const resolveText = options.resolveText ?? ((key: string) => blockText[key] ?? "");
-  const rowOptions: AftersalesCanvasRenderOptions = { ...options, resolveText };
+export function renderAftersalesCanvas(canvas: AftersalesCanvas, options: AftersalesCanvasRenderOptions): string {
+  const rowOptions: AftersalesCanvasRenderOptions = options;
   return canvas.rows.map((row) => renderRow(row, rowOptions)).join("");
 }

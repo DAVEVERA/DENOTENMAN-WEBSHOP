@@ -71,6 +71,47 @@ test("TABLE design derives a table block whose header/cell text keeps the same v
   assert.equal(blockTextByLocale.fr[blockTextKey(tableBlock.id, `cell:${tableBlock.rowIds[0]}:0`)], "Waarde 1");
 });
 
+test("TABLE design with rows but no configured headers still derives a headerCount wide enough to keep every cell", () => {
+  const design = {
+    ...defaultAftersalesDesign,
+    layout: "TABLE" as const,
+    tableHeaders: [],
+    tableRows: [{ cells: ["Amandelen", "€ 4,95"] }, { cells: ["Cashews", "€ 6,25", "Extra"] }],
+  };
+  const { canvas, blockTextByLocale } = deriveCanvasFromLegacyContent(design, legacyLocales);
+  const tableBlock = canvas.rows[0].columns[0].blocks.find((block) => block.type === "table");
+  assert.ok(tableBlock && tableBlock.type === "table");
+  // Widest row has 3 cells, so headerCount must be at least 3 even though
+  // zero headers were configured - otherwise renderTableBlock's cell loop
+  // (which runs headerCount times) would drop every cell in every row.
+  assert.equal(tableBlock.headerCount, 3);
+  assert.equal(blockTextByLocale.nl[blockTextKey(tableBlock.id, `cell:${tableBlock.rowIds[1]}:2`)], "Extra");
+  // No header text should be fabricated for the columns beyond the (empty)
+  // configured header list.
+  assert.equal(blockTextByLocale.nl[blockTextKey(tableBlock.id, `header:0`)], undefined);
+});
+
+test("headings derived from legacy content are one font-size tier larger than the body, capped at GROOT", () => {
+  const compact = deriveCanvasFromLegacyContent({ ...defaultAftersalesDesign, fontSize: "COMPACT" }, legacyLocales);
+  const compactHeading = compact.canvas.rows[0].columns[0].blocks.find((block) => block.type === "text" && block.bold);
+  const compactBody = compact.canvas.rows[0].columns[0].blocks.find((block) => block.type === "text" && !block.bold);
+  assert.equal(compactHeading?.type === "text" && compactHeading.size, "STANDAARD");
+  assert.equal(compactBody?.type === "text" && compactBody.size, "COMPACT");
+
+  const standard = deriveCanvasFromLegacyContent({ ...defaultAftersalesDesign, fontSize: "STANDAARD" }, legacyLocales);
+  const standardHeading = standard.canvas.rows[0].columns[0].blocks.find((block) => block.type === "text" && block.bold);
+  assert.equal(standardHeading?.type === "text" && standardHeading.size, "GROOT");
+
+  const groot = deriveCanvasFromLegacyContent({ ...defaultAftersalesDesign, fontSize: "GROOT" }, legacyLocales);
+  const grootHeading = groot.canvas.rows[0].columns[0].blocks.find((block) => block.type === "text" && block.bold);
+  assert.equal(grootHeading?.type === "text" && grootHeading.size, "GROOT");
+});
+
+test("the migrated row has zero padding so it doesn't double up on renderEmailShell's own padding wrapper", () => {
+  const { canvas } = deriveCanvasFromLegacyContent(defaultAftersalesDesign, legacyLocales);
+  assert.equal(canvas.rows[0].padding, 0);
+});
+
 test("parseAftersalesContent always returns a canvas, deriving it when the stored JSON has none", () => {
   const legacyStoredShape = { locales: legacyLocales, design: defaultAftersalesDesign };
   const resolved = parseAftersalesContent(legacyStoredShape);

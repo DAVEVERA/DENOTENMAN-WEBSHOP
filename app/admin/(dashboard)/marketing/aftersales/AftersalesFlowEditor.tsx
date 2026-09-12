@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -204,7 +204,7 @@ function previewDocument(
     ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
     : `<p style="margin:0;color:#806600;font-size:12px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
   const resolvedBlockText = Object.fromEntries(Object.entries(content.blockText).map(([key, value]) => [key, sampleValue(value)]));
-  const contentHtml = renderAftersalesCanvas(canvas, resolvedBlockText, {
+  const contentHtml = renderAftersalesCanvas(canvas, {
     escapeText: escapeHtml,
     resolveText: (key) => resolvedBlockText[key] ?? "",
     defaultActionUrl: "#",
@@ -239,12 +239,12 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [testEmail, setTestEmail] = useState("");
-  const [mediaPickerFor, setMediaPickerFor] = useState<"logo" | "step" | { blockId: string } | { blockId: string; itemId: string } | null>(null);
+  const [mediaPickerFor, setMediaPickerFor] = useState<"logo" | { blockId: string } | { blockId: string; itemId: string } | null>(null);
   const [mediaOptions, setMediaOptions] = useState<MediaOption[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
-  const selectedColumnRef = useRef<{ rowId: string; columnId: string } | null>(null);
+  const [selectedColumn, setSelectedColumn] = useState<{ rowId: string; columnId: string } | null>(null);
 
   const selectedStep = flow.steps.find((step) => step.id === selectedStepId) ?? flow.steps[0];
   const preview = useMemo(
@@ -375,7 +375,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
   const selectedBlockLocation = findSelectedBlockLocation();
   const selectedBlock = selectedBlockLocation?.block ?? null;
 
-  async function openMediaPicker(target: "logo" | "step" | { blockId: string } | { blockId: string; itemId: string }) {
+  async function openMediaPicker(target: "logo" | { blockId: string } | { blockId: string; itemId: string }) {
     setMediaPickerFor(target);
     setMediaLoading(true);
     try {
@@ -390,10 +390,6 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
   function pickMedia(url: string) {
     if (mediaPickerFor === "logo") {
       markChanged({ ...flow, logoUrl: url });
-    } else if (mediaPickerFor === "step") {
-      if (selectedStep) {
-        updateStep(selectedStep.id, (step) => ({ ...step, content: { ...step.content, design: { ...step.content.design, mediaUrl: url } } }));
-      }
     } else if (mediaPickerFor && typeof mediaPickerFor === "object" && "itemId" in mediaPickerFor) {
       const location = (() => {
         if (!selectedStep) return null;
@@ -634,18 +630,6 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                   <label htmlFor="mail-preview" className="font-heading text-body-sm font-semibold">Previewtekst</label>
                   <input id="mail-preview" value={selectedStep.content.locales[locale].previewText} maxLength={255} onChange={(event) => updateContent("previewText", event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border bg-background px-3 py-2" />
                 </div>
-                <div>
-                  <label htmlFor="mail-heading" className="font-heading text-body-sm font-semibold">Persoonlijke kop</label>
-                  <input id="mail-heading" value={selectedStep.content.locales[locale].heading} maxLength={180} onChange={(event) => updateContent("heading", event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border bg-background px-3 py-2" />
-                </div>
-                <div>
-                  <label htmlFor="mail-body" className="font-heading text-body-sm font-semibold">Bericht</label>
-                  <textarea id="mail-body" rows={6} value={selectedStep.content.locales[locale].body} maxLength={4000} onChange={(event) => updateContent("body", event.target.value)} className="mt-1 w-full rounded-button border border-border bg-background px-3 py-2 leading-6" />
-                </div>
-                <div>
-                  <label htmlFor="mail-button" className="font-heading text-body-sm font-semibold">Knoptekst</label>
-                  <input id="mail-button" value={selectedStep.content.locales[locale].buttonLabel} maxLength={80} onChange={(event) => updateContent("buttonLabel", event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border bg-background px-3 py-2" />
-                </div>
               </div>
 
               <div className="mt-5 rounded-panel border border-border bg-background p-4">
@@ -658,8 +642,8 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                     <button
                       key={type}
                       type="button"
-                      disabled={!selectedColumnRef.current}
-                      onClick={() => selectedColumnRef.current && addBlock(selectedColumnRef.current.rowId, selectedColumnRef.current.columnId, type)}
+                      disabled={!selectedColumn}
+                      onClick={() => selectedColumn && addBlock(selectedColumn.rowId, selectedColumn.columnId, type)}
                       className="inline-flex min-h-9 items-center rounded-button border border-border bg-white px-3 text-xs font-semibold disabled:opacity-40"
                     >
                       {BLOCK_TYPE_LABELS[type]}
@@ -682,7 +666,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                         {row.columns.map((column) => (
                           <div
                             key={column.id}
-                            onClick={() => (selectedColumnRef.current = { rowId: row.id, columnId: column.id })}
+                            onClick={() => setSelectedColumn({ rowId: row.id, columnId: column.id })}
                             onDragOver={(event) => event.preventDefault()}
                             onDrop={(event) => {
                               event.preventDefault();
@@ -708,7 +692,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
                                     setDraggingBlockId(block.id);
                                   }}
                                   onDragEnd={() => setDraggingBlockId(null)}
-                                  onClick={(event) => { event.stopPropagation(); setSelectedBlockId(block.id); selectedColumnRef.current = { rowId: row.id, columnId: column.id }; }}
+                                  onClick={(event) => { event.stopPropagation(); setSelectedBlockId(block.id); setSelectedColumn({ rowId: row.id, columnId: column.id }); }}
                                   className={`flex w-full items-center justify-between gap-1 rounded border px-2 py-1 text-left text-xs ${selectedBlockId === block.id ? "border-accent bg-accent/10" : "border-border bg-background"} ${draggingBlockId === block.id ? "opacity-50" : "opacity-100"}`}
                                 >
                                   <span>{BLOCK_TYPE_LABELS[block.type]}</span>

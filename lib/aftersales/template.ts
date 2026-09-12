@@ -65,6 +65,48 @@ export function replaceTokens(value: string, values: Record<string, string>): st
 }
 
 /**
+ * Same substitution as replaceTokens, but with every token VALUE HTML-escaped
+ * first. customHtml blocks render their resolved blockText unescaped (that's
+ * how an admin embeds real HTML), so a token substituted into one must have
+ * its (customer-controlled) value escaped here - the admin's own HTML around
+ * it stays real markup, only the substituted value is neutralized.
+ */
+function replaceTokensEscaped(value: string, values: Record<string, string>): string {
+  return replaceTokens(value, Object.fromEntries(Object.entries(values).map(([key, val]) => [key, escapeHtml(val)])));
+}
+
+/** Ids (as blockText keys) of every customHtml block in the canvas - the only
+ * block type whose resolved text reaches the email unescaped, so it's the
+ * only one that needs its token values escaped before substitution. */
+function customHtmlBlockTextKeys(canvas: AftersalesCanvas): string[] {
+  const keys: string[] = [];
+  for (const row of canvas.rows) {
+    for (const column of row.columns) {
+      for (const block of column.blocks) {
+        if (block.type === "customHtml") keys.push(blockTextKey(block.id));
+      }
+    }
+  }
+  return keys;
+}
+
+/** Re-derives resolvedBlockText's entries for customHtml blocks using
+ * escaped token values, mutating the given resolvedBlockText in place from
+ * the original (pre-substitution) blockText. Ordinary blocks are left as
+ * whatever replaceTokens already produced - they're escaped downstream by
+ * the canvas renderer, so escaping here too would double-escape them. */
+function escapeCustomHtmlTokens(
+  canvas: AftersalesCanvas,
+  blockText: Record<string, string>,
+  resolvedBlockText: Record<string, string>,
+  tokens: Record<string, string>
+): void {
+  for (const key of customHtmlBlockTextKeys(canvas)) {
+    if (key in blockText) resolvedBlockText[key] = replaceTokensEscaped(blockText[key], tokens);
+  }
+}
+
+/**
  * Shared shell for every mail-flow email regardless of trigger: brand/logo,
  * heading+body in the chosen layout (including grid/table blocks), and the
  * call-to-action button. Order-specific extras (bestelnummer box, item
@@ -88,7 +130,7 @@ function renderEmailShell(input: {
   const brandBlock = logoUrl
     ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
     : `<p style="margin:0;color:#806600;font-size:13px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
-  const contentBlock = renderAftersalesCanvas(canvas, blockText, {
+  const contentBlock = renderAftersalesCanvas(canvas, {
     escapeText: escapeHtml,
     resolveText: (key) => blockText[key] ?? "",
     defaultActionUrl: actionUrl,
@@ -156,6 +198,7 @@ export function renderAftersalesEmail(
   const resolvedBlockText = Object.fromEntries(
     Object.entries(blockText).map(([key, value]) => [key, replaceTokens(value, tokens)])
   );
+  escapeCustomHtmlTokens(canvas, blockText, resolvedBlockText, tokens);
   const itemRows = order.items.map((item) => `
     <tr>
       <td style="padding:10px 8px 10px 0;border-bottom:1px solid #e4dfd5;color:#333;font-size:14px;line-height:1.45">
@@ -229,6 +272,7 @@ export function renderGenericFlowEmail(input: {
   const resolvedBlockText = Object.fromEntries(
     Object.entries(blockText).map(([key, value]) => [key, replaceTokens(value, tokens)])
   );
+  escapeCustomHtmlTokens(canvas, blockText, resolvedBlockText, tokens);
 
   return renderEmailShell({
     locale,
