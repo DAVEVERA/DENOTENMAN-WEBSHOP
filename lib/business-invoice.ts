@@ -50,6 +50,11 @@ export async function generateInvoiceForOrder(
   const vatNote = businessAccount.vatRegime === "REVERSE_CHARGE" ? REVERSE_CHARGE_NOTE : null;
   const createdAt = new Date();
 
+  // Renders a PDF (headless-browser launch + render) inside the transaction,
+  // so the default 5000ms interactive-transaction timeout must be raised —
+  // a cold instance's browser launch alone can take longer than that,
+  // otherwise Prisma closes the transaction before tx.invoice.create() runs
+  // (P2028) even though the render itself succeeded.
   return prisma.$transaction(async (tx) => {
     const alreadyCreated = await tx.invoice.findUnique({ where: { orderId: order.id } });
     if (alreadyCreated) return alreadyCreated;
@@ -108,7 +113,7 @@ export async function generateInvoiceForOrder(
     });
 
     return invoice;
-  });
+  }, { timeout: 20000 });
 }
 
 function acceptedOrPending(result: Awaited<ReturnType<typeof deliverTransactionalEmail>>): boolean {
