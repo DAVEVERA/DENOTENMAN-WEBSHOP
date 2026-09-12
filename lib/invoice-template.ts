@@ -3,8 +3,10 @@ import { prisma } from "@/lib/prisma";
 import {
   INVOICE_TEMPLATE_BLOCK_KEYS,
   DEFAULT_INVOICE_TEMPLATE_BLOCKS,
+  deriveCanvasFromLegacyContent,
   type InvoiceTemplateBlockKey,
   type InvoiceTemplateBlockLayout,
+  type InvoiceCanvas,
 } from "@/lib/invoice-template-schema";
 
 function defaultLayout(key: InvoiceTemplateBlockKey): InvoiceTemplateBlockLayout {
@@ -29,41 +31,43 @@ function fillMissingKeys(
   });
 }
 
-export async function getPublishedInvoiceTemplateBlocks(): Promise<InvoiceTemplateBlockLayout[]> {
-  const published = await prisma.invoiceTemplate.findUnique({
-    where: { status: "PUBLISHED" },
-    include: { blocks: true },
-  });
-  if (!published) return INVOICE_TEMPLATE_BLOCK_KEYS.map(defaultLayout);
-  return fillMissingKeys(published.blocks);
+type CanvasRecord = { templateId: string; canvas: InvoiceCanvas; blockText: Record<string, string> };
+
+function resolveCanvas(template: {
+  id: string;
+  canvas: unknown;
+  blockText: unknown;
+  blocks: { key: string; x: number; y: number; width: number; height: number; textOverrides: unknown }[];
+}): CanvasRecord {
+  if (template.canvas) {
+    return {
+      templateId: template.id,
+      canvas: template.canvas as InvoiceCanvas,
+      blockText: (template.blockText as Record<string, string> | null) ?? {},
+    };
+  }
+  const derived = deriveCanvasFromLegacyContent(fillMissingKeys(template.blocks));
+  return { templateId: template.id, canvas: derived.canvas, blockText: derived.blockText };
 }
 
-export async function getOrCreateDraftInvoiceTemplate(): Promise<{
-  templateId: string;
-  blocks: InvoiceTemplateBlockLayout[];
-}> {
-  const existingDraft = await prisma.invoiceTemplate.findUnique({
-    where: { status: "DRAFT" },
-    include: { blocks: true },
-  });
-  if (existingDraft) return { templateId: existingDraft.id, blocks: fillMissingKeys(existingDraft.blocks) };
+export async function getPublishedInvoiceCanvas(): Promise<Omit<CanvasRecord, "templateId">> {
+  const published = await prisma.invoiceTemplate.findUnique({ where: { status: "PUBLISHED" }, include: { blocks: true } });
+  if (!published) {
+    const derived = deriveCanvasFromLegacyContent(INVOICE_TEMPLATE_BLOCK_KEYS.map(defaultLayout));
+    return derived;
+  }
+  const { canvas, blockText } = resolveCanvas(published);
+  return { canvas, blockText };
+}
 
-  const seedBlocks = await getPublishedInvoiceTemplateBlocks();
+export async function getOrCreateDraftInvoiceCanvas(): Promise<CanvasRecord> {
+  const existingDraft = await prisma.invoiceTemplate.findUnique({ where: { status: "DRAFT" }, include: { blocks: true } });
+  if (existingDraft) return resolveCanvas(existingDraft);
+
+  const seed = await getPublishedInvoiceCanvas();
   const created = await prisma.invoiceTemplate.create({
-    data: {
-      status: "DRAFT",
-      blocks: {
-        create: seedBlocks.map((block) => ({
-          key: block.key,
-          x: block.x,
-          y: block.y,
-          width: block.width,
-          height: block.height,
-          textOverrides: block.textOverrides ?? undefined,
-        })),
-      },
-    },
+    data: { status: "DRAFT", canvas: seed.canvas, blockText: seed.blockText },
     include: { blocks: true },
   });
-  return { templateId: created.id, blocks: fillMissingKeys(created.blocks) };
+  return resolveCanvas(created);
 }
