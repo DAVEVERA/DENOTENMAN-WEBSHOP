@@ -110,7 +110,12 @@ export function InvoiceTemplateEditor({
     try {
       const response = await fetch("/api/admin/marketing/invoice-template/preview", { method: "POST" });
       const data = (await response.json()) as { pdfBase64: string };
-      window.open(`data:application/pdf;base64,${data.pdfBase64}`, "_blank");
+      // Chrome blocks top-frame navigation to data: URLs, so window.open
+      // needs an object URL (blob:) instead of a data:application/pdf URL.
+      const bytes = Uint8Array.from(atob(data.pdfBase64), (char) => char.charCodeAt(0));
+      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      window.open(blobUrl, "_blank");
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
     } finally {
       setPreviewBusy(false);
     }
