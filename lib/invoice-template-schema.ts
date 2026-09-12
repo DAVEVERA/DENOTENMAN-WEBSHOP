@@ -33,16 +33,6 @@ export const DEFAULT_INVOICE_TEMPLATE_BLOCKS: Record<InvoiceTemplateBlockKey, Bl
   footer: { x: 56, y: 808, width: 483, height: 26 },
 };
 
-export const invoiceTemplateBlockPatchSchema = z
-  .object({
-    x: z.number().min(0).max(842),
-    y: z.number().min(0).max(842),
-    width: z.number().min(20).max(842),
-    height: z.number().min(20).max(842),
-    textOverrides: z.record(z.string(), z.string().max(200)).nullable(),
-  })
-  .strict();
-
 export const EDITABLE_TEXT_KEYS_BY_BLOCK: Record<InvoiceTemplateBlockKey, readonly string[]> = {
   header: ["title"],
   sellerAddress: [],
