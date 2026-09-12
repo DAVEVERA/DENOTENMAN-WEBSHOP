@@ -19,7 +19,7 @@ export async function PATCH(request: NextRequest) {
 
   const updated = await prisma.$transaction(async (tx) => {
     const before = await tx.invoiceTemplate.findUniqueOrThrow({ where: { id: draft.templateId } });
-    const row = await tx.invoiceTemplate.update({ where: { id: draft.templateId }, data: { canvas: parsed.data } });
+    const row = await tx.invoiceTemplate.update({ where: { id: draft.templateId }, data: { canvas: parsed.data, blockText: draft.blockText } });
     await recordAudit(tx, admin, "InvoiceTemplate", row.id, "UPDATE", before, row);
     return row;
   });

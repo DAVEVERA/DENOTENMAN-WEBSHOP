@@ -4,6 +4,7 @@ import {
   INVOICE_TEMPLATE_BLOCK_KEYS,
   DEFAULT_INVOICE_TEMPLATE_BLOCKS,
   deriveCanvasFromLegacyContent,
+  invoiceCanvasSchema,
   type InvoiceTemplateBlockKey,
   type InvoiceTemplateBlockLayout,
   type InvoiceCanvas,
@@ -40,11 +41,16 @@ function resolveCanvas(template: {
   blocks: { key: string; x: number; y: number; width: number; height: number; textOverrides: unknown }[];
 }): CanvasRecord {
   if (template.canvas) {
-    return {
-      templateId: template.id,
-      canvas: template.canvas as InvoiceCanvas,
-      blockText: (template.blockText as Record<string, string> | null) ?? {},
-    };
+    const parsed = invoiceCanvasSchema.safeParse(template.canvas);
+    if (parsed.success) {
+      return {
+        templateId: template.id,
+        canvas: parsed.data,
+        blockText: (template.blockText as Record<string, string> | null) ?? {},
+      };
+    }
+    // Malformed stored canvas — fall through to the legacy-derived default
+    // rather than crashing invoice generation for a paid order.
   }
   const derived = deriveCanvasFromLegacyContent(fillMissingKeys(template.blocks));
   return { templateId: template.id, canvas: derived.canvas, blockText: derived.blockText };

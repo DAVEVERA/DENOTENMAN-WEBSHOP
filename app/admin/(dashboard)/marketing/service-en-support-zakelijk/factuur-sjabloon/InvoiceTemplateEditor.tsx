@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { InvoiceBlock, InvoiceCanvas, InvoiceColumn, InvoiceFreeBlockType, InvoiceRow, InvoiceTemplateBlockKey } from "@/lib/invoice-template-schema";
+import type { InvoiceBlock, InvoiceCanvas, InvoiceColumn, InvoiceFontFamily, InvoiceFontSize, InvoiceFreeBlockType, InvoiceRow, InvoiceTemplateBlockKey, InvoiceTextAlign } from "@/lib/invoice-template-schema";
 import { INVOICE_DATA_BLOCK_TYPES, INVOICE_FREE_BLOCK_TYPES, EDITABLE_TEXT_KEYS_BY_BLOCK, blockTextKey } from "@/lib/invoice-template-schema";
 
 const BLOCK_LABELS: Record<string, string> = {
@@ -25,21 +25,23 @@ function defaultFreeBlock(type: InvoiceFreeBlockType): InvoiceBlock {
   }
 }
 
-async function saveCanvas(canvas: InvoiceCanvas): Promise<void> {
-  await fetch("/api/admin/marketing/invoice-template/canvas", {
+async function saveCanvas(canvas: InvoiceCanvas): Promise<boolean> {
+  const response = await fetch("/api/admin/marketing/invoice-template/canvas", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(canvas),
   });
+  return response.ok;
 }
 
-async function saveBlockText(key: string, value: string): Promise<void> {
+async function saveBlockText(key: string, value: string): Promise<boolean> {
   const blockId = key.split(":")[0];
-  await fetch(`/api/admin/marketing/invoice-template/block-text/${blockId}`, {
+  const response = await fetch(`/api/admin/marketing/invoice-template/block-text/${blockId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key, value }),
   });
+  return response.ok;
 }
 
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
@@ -85,6 +87,7 @@ export function InvoiceTemplateEditor({
   const [previewBusy, setPreviewBusy] = useState(false);
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishMessage, setPublishMessage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const usedDataBlockTypes = new Set(
     canvas.rows.flatMap((row) => row.columns.flatMap((column) => column.blocks.map((block) => block.type)))
@@ -93,14 +96,14 @@ export function InvoiceTemplateEditor({
   function updateCanvas(updater: (canvas: InvoiceCanvas) => InvoiceCanvas) {
     setCanvas((current) => {
       const next = updater(current);
-      void saveCanvas(next);
+      void saveCanvas(next).then((ok) => setSaveError(ok ? null : "Opslaan is niet gelukt."));
       return next;
     });
   }
 
   function updateBlockTextValue(key: string, value: string) {
     setBlockText((current) => ({ ...current, [key]: value }));
-    void saveBlockText(key, value);
+    void saveBlockText(key, value).then((ok) => setSaveError(ok ? null : "Opslaan is niet gelukt."));
   }
 
   function addBlock(type: InvoiceFreeBlockType | (typeof INVOICE_DATA_BLOCK_TYPES)[number]) {
@@ -175,6 +178,7 @@ export function InvoiceTemplateEditor({
           {publishBusy ? "Bezig…" : "Publiceren"}
         </button>
         {publishMessage ? <span className="text-body-sm font-semibold text-text">{publishMessage}</span> : null}
+        {saveError ? <span className="text-body-sm font-semibold text-red-700">{saveError}</span> : null}
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -242,9 +246,48 @@ export function InvoiceTemplateEditor({
                 rows={4}
                 className="w-full rounded-button border border-border bg-white p-2 text-body-sm"
               />
+              <div>
+                <label className="font-heading text-body-sm font-semibold">Lettertype</label>
+                <select
+                  value={selectedBlock.font}
+                  onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, font: event.target.value as InvoiceFontFamily })))}
+                  className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                >
+                  <option value="SANS">Standaard</option>
+                  <option value="SERIF">Serif</option>
+                </select>
+              </div>
+              <div>
+                <label className="font-heading text-body-sm font-semibold">Grootte</label>
+                <select
+                  value={selectedBlock.size}
+                  onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, size: event.target.value as InvoiceFontSize })))}
+                  className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                >
+                  <option value="COMPACT">Compact</option>
+                  <option value="STANDAARD">Standaard</option>
+                  <option value="GROOT">Groot</option>
+                </select>
+              </div>
+              <div>
+                <label className="font-heading text-body-sm font-semibold">Uitlijning</label>
+                <select
+                  value={selectedBlock.align}
+                  onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, align: event.target.value as InvoiceTextAlign })))}
+                  className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                >
+                  <option value="left">Links</option>
+                  <option value="center">Midden</option>
+                  <option value="right">Rechts</option>
+                </select>
+              </div>
               <label className="flex items-center gap-2 text-body-sm">
                 <input type="checkbox" checked={selectedBlock.bold} onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, bold: event.target.checked })))} />
                 Vet
+              </label>
+              <label className="flex items-center gap-2 text-body-sm">
+                <input type="checkbox" checked={selectedBlock.italic} onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, italic: event.target.checked })))} />
+                Cursief
               </label>
             </div>
           ) : null}
@@ -269,11 +312,45 @@ export function InvoiceTemplateEditor({
                   className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
                 />
               </div>
+              <div>
+                <label className="font-heading text-body-sm font-semibold">Breedte (pt)</label>
+                <input
+                  type="number"
+                  min={10}
+                  max={483}
+                  value={selectedBlock.widthPt}
+                  onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, widthPt: Number(event.target.value) })))}
+                  className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                />
+              </div>
+              <div>
+                <label className="font-heading text-body-sm font-semibold">Uitlijning</label>
+                <select
+                  value={selectedBlock.align}
+                  onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, align: event.target.value as InvoiceTextAlign })))}
+                  className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                >
+                  <option value="left">Links</option>
+                  <option value="center">Midden</option>
+                  <option value="right">Rechts</option>
+                </select>
+              </div>
             </div>
           ) : null}
 
           {selectedBlock.type === "spacer" ? (
             <div className="mt-3 space-y-3">
+              <div>
+                <label className="font-heading text-body-sm font-semibold">Hoogte (pt)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={400}
+                  value={selectedBlock.heightPt}
+                  onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, heightPt: Number(event.target.value) })))}
+                  className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                />
+              </div>
               <label className="flex items-center gap-2 text-body-sm">
                 <input type="checkbox" checked={selectedBlock.showDivider} onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, showDivider: event.target.checked })))} />
                 Toon scheidingslijn
@@ -284,6 +361,18 @@ export function InvoiceTemplateEditor({
           {selectedBlock.type === "divider" ? (
             <div className="mt-3 space-y-3">
               <ColorField label="Kleur" value={selectedBlock.color} onChange={(value) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, color: value })))} />
+              <div>
+                <label className="font-heading text-body-sm font-semibold">Dikte (pt)</label>
+                <input
+                  type="number"
+                  min={0.5}
+                  max={10}
+                  step={0.5}
+                  value={selectedBlock.thicknessPt}
+                  onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, thicknessPt: Number(event.target.value) })))}
+                  className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                />
+              </div>
             </div>
           ) : null}
 

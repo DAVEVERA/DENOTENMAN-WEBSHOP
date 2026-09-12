@@ -1,13 +1,14 @@
 import type { InvoicePdfInput } from "@/lib/business-invoice-pdf";
 import { renderDataBlock } from "@/lib/invoice-template-canvas-renderer";
 import { renderFreeBlock, type InvoiceFreeBlock } from "@/lib/invoice-template-canvas-renderer";
+import { INVOICE_DATA_BLOCK_TYPES } from "@/lib/invoice-template-schema";
 import type { InvoiceCanvas, InvoiceDataBlock, InvoiceDataBlockType } from "@/lib/invoice-template-schema";
 
 const PAGE_WIDTH_PT = 595;
 const REQUIRED_DATA_BLOCK_TYPES: InvoiceDataBlockType[] = ["itemsTable", "totals"];
 
 function isDataBlock(block: { type: string }): block is InvoiceDataBlock {
-  return ["header", "sellerAddress", "buyerAddress", "metadata", "itemsTable", "totals", "footer"].includes(block.type);
+  return (INVOICE_DATA_BLOCK_TYPES as readonly string[]).includes(block.type);
 }
 
 export function InvoiceDocument({
@@ -50,7 +51,7 @@ export function InvoiceDocument({
   return (
     <html>
       <body style={{ margin: 0, fontFamily: "Helvetica, Arial, sans-serif", color: "#333333" }}>
-        <div style={{ width: `${PAGE_WIDTH_PT}pt`, padding: "32pt 56pt" }}>
+        <div style={{ width: `${PAGE_WIDTH_PT}pt`, padding: "32pt 56pt", boxSizing: "border-box" }}>
           {rows}
           {missingRequiredBlocks}
         </div>
