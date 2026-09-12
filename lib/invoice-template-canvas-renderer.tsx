@@ -1,6 +1,6 @@
 import { formatPrice } from "@/lib/format";
 import { invoiceRecipientLines, type InvoiceLine, type InvoicePdfInput } from "@/lib/business-invoice-pdf";
-import { blockTextKey, type InvoiceDataBlock } from "@/lib/invoice-template-schema";
+import { blockTextKey, type InvoiceBlock, type InvoiceCustomHtmlBlock, type InvoiceDataBlock, type InvoiceDividerBlock, type InvoiceImageBlock, type InvoiceSpacerBlock } from "@/lib/invoice-template-schema";
 
 const GOLD = "#e0b200";
 
@@ -134,5 +134,72 @@ export function renderDataBlock(
           <span style={{ fontWeight: 700, color: textColor }}>{textFor(blockText, id, "thankYouLine", "Bedankt voor uw bestelling bij De Notenman.")}</span>
         </div>
       );
+  }
+}
+
+const FONT_STACK: Record<"SANS" | "SERIF", string> = {
+  SANS: "Helvetica, Arial, sans-serif",
+  SERIF: "Georgia, 'Times New Roman', serif",
+};
+const FONT_SIZE_PT: Record<"COMPACT" | "STANDAARD" | "GROOT", string> = {
+  COMPACT: "8pt",
+  STANDAARD: "10pt",
+  GROOT: "14pt",
+};
+
+export type InvoiceFreeBlock = Exclude<InvoiceBlock, InvoiceDataBlock>;
+
+export function renderFreeBlock(block: InvoiceFreeBlock, blockText: Record<string, string>): React.ReactElement {
+  switch (block.type) {
+    case "text": {
+      const text = blockText[blockTextKey(block.id)] ?? "";
+      return (
+        <div
+          style={{
+            fontFamily: FONT_STACK[block.font],
+            fontSize: FONT_SIZE_PT[block.size],
+            color: block.color,
+            textAlign: block.align,
+            fontWeight: block.bold ? 700 : 400,
+            fontStyle: block.italic ? "italic" : "normal",
+            whiteSpace: "pre-line",
+          }}
+        >
+          {text}
+        </div>
+      );
+    }
+
+    case "image": {
+      const img = block as InvoiceImageBlock;
+      if (!img.mediaUrl) return <></>;
+      return (
+        <div style={{ textAlign: img.align }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={img.mediaUrl} alt={img.alt} style={{ width: `${img.widthPt}pt`, maxWidth: "100%" }} />
+        </div>
+      );
+    }
+
+    case "spacer": {
+      const spacer = block as InvoiceSpacerBlock;
+      return (
+        <div style={{ height: `${spacer.heightPt}pt`, display: "flex", alignItems: "center" }}>
+          {spacer.showDivider ? <div style={{ width: "100%", borderTop: "0.6pt solid #ddd6c8" }} /> : null}
+        </div>
+      );
+    }
+
+    case "divider": {
+      const divider = block as InvoiceDividerBlock;
+      return <div style={{ borderTop: `${divider.thicknessPt}pt solid ${divider.color}` }} />;
+    }
+
+    case "customHtml": {
+      const html = blockText[blockTextKey((block as InvoiceCustomHtmlBlock).id)] ?? "";
+      // Admin-authored HTML, rendered unescaped by design (see Global
+      // Constraints — no personalization tokens are substituted into it).
+      return <div dangerouslySetInnerHTML={{ __html: html }} />;
+    }
   }
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { renderDataBlock } from "../lib/invoice-template-canvas-renderer";
+import { renderDataBlock, renderFreeBlock } from "../lib/invoice-template-canvas-renderer";
 import { blockTextKey, type InvoiceDataBlock } from "../lib/invoice-template-schema";
 import type { InvoicePdfInput } from "../lib/business-invoice-pdf";
 
@@ -56,4 +56,23 @@ test("block textColor/backgroundColor settings are reflected as inline style", (
   const markup = renderToStaticMarkup(renderDataBlock(block, sampleInput, {}, null));
   assert.match(markup, /background:#111111/);
   assert.match(markup, /color:#eeeeee/);
+});
+
+test("a text block renders its blockText content with its style settings", () => {
+  const block = { id: "note-1", type: "text" as const, font: "SERIF" as const, size: "GROOT" as const, color: "#222222", align: "center" as const, bold: true, italic: false };
+  const markup = renderToStaticMarkup(renderFreeBlock(block, { [blockTextKey("note-1")]: "Bedankt voor uw vertrouwen." }));
+  assert.match(markup, /Bedankt voor uw vertrouwen\./);
+  assert.match(markup, /text-align:center/);
+});
+
+test("an image block with no mediaUrl renders nothing", () => {
+  const block = { id: "img-1", type: "image" as const, mediaUrl: null, alt: "", widthPt: 100, align: "left" as const };
+  const markup = renderToStaticMarkup(renderFreeBlock(block, {}));
+  assert.equal(markup, "");
+});
+
+test("a customHtml block renders its blockText content unescaped", () => {
+  const block = { id: "html-1", type: "customHtml" as const };
+  const markup = renderToStaticMarkup(renderFreeBlock(block, { [blockTextKey("html-1")]: "<strong>Let op</strong>" }));
+  assert.match(markup, /<strong>Let op<\/strong>/);
 });
