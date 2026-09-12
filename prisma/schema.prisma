@@ -1698,6 +1698,7 @@ enum BusinessEventType {
   INVOICE_SENT
   INVOICE_PEPPOL_SENT
   INVOICE_PEPPOL_FAILED
+  INVOICE_GENERATION_FAILED
 }
 
 model BusinessInvitation {

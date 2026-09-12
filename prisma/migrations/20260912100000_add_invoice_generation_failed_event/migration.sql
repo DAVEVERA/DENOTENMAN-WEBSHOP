@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "BusinessEventType" ADD VALUE 'INVOICE_GENERATION_FAILED';

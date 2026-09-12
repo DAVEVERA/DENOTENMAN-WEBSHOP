@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { BusinessAccountSections } from "./BusinessAccountSections";
 import { BusinessInvitationButton } from "./BusinessInvitationButton";
 import { BusinessOrderListActions } from "./BusinessOrderListActions";
+import { BusinessOrderRegenerateInvoiceButton } from "./BusinessOrderRegenerateInvoiceButton";
 
 const ORDER_LIST_STATUS_LABELS: Record<BusinessOrderListStatus, string> = {
   DRAFT: "Concept",
@@ -356,6 +357,20 @@ export default async function ZakelijkDetailPage({
                                     >
                                       Bestelling beoordelen
                                     </Link>
+                                  </div>
+                                ) : null}
+                                {(order.status === "PAID" || order.status === "FULFILLED") &&
+                                !businessAccount.invoices.some(
+                                  (invoice) => invoice.orderId === order.id,
+                                ) ? (
+                                  <div className="mt-2 rounded-card bg-red-50 px-3 py-2">
+                                    <p className="text-xs font-semibold text-red-700">
+                                      Geen factuur gevonden voor deze bestelling.
+                                    </p>
+                                    <BusinessOrderRegenerateInvoiceButton
+                                      businessAccountId={businessAccount.id}
+                                      orderId={order.id}
+                                    />
                                   </div>
                                 ) : null}
                               </li>

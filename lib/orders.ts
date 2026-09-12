@@ -23,6 +23,7 @@ import {
 import { getPickupLocation } from "@/lib/pickup-locations";
 import { markBusinessOrderListPaid } from "@/lib/business-order-checkout";
 import { generateAndSendBusinessInvoice } from "@/lib/business-invoice";
+import { recordBusinessEvent } from "@/lib/business-portal";
 import {
   evaluateCheckoutDiscount,
   hasDiscountCode,
@@ -630,6 +631,30 @@ export async function syncOrderPaymentStatus(
       } catch (error) {
         console.error(`Failed to generate/send business invoice for order ${order.id}`, error);
         emailFailure ??= error instanceof Error ? error : new Error(String(error));
+        // A console log alone is invisible until a customer notices a missing
+        // invoice, sometimes weeks later. Surface the failure directly in the
+        // account's own event timeline so an admin sees it immediately - this
+        // is a best-effort side note, so a failure here must never mask the
+        // original error above.
+        try {
+          const orderList = await prisma.businessOrderList.findUnique({
+            where: { id: order.businessOrderListId },
+            select: { businessAccountId: true },
+          });
+          if (orderList) {
+            await prisma.$transaction((tx) =>
+              recordBusinessEvent(tx, {
+                businessAccountId: orderList.businessAccountId,
+                type: "INVOICE_GENERATION_FAILED",
+                actorType: "SYSTEM",
+                actorName: "Systeem",
+                summary: `Factuur voor bestelling ${order.id} kon niet worden aangemaakt: ${error instanceof Error ? error.message : String(error)}`,
+              })
+            );
+          }
+        } catch (eventError) {
+          console.error(`Failed to record invoice-generation-failed event for order ${order.id}`, eventError);
+        }
       }
     }
     if (emailFailure && options.failOnAftersalesError) throw emailFailure;
