@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/admin-api-auth";
-import { getOrCreateDraftInvoiceTemplate } from "@/lib/invoice-template";
+import { getOrCreateDraftInvoiceCanvas } from "@/lib/invoice-template";
 import { InvoiceDocument } from "@/components/invoice-pdf/InvoiceDocument";
 import { renderHtmlToPdfBase64 } from "@/lib/invoice-pdf-renderer";
 import type { InvoicePdfInput } from "@/lib/business-invoice-pdf";
@@ -43,10 +43,10 @@ export async function POST(request: NextRequest) {
   // react-dom/server usage doesn't get flagged as part of the app-wide
   // Server Component module graph.
   const { renderToStaticMarkup } = await import("react-dom/server");
-  const draft = await getOrCreateDraftInvoiceTemplate();
+  const draft = await getOrCreateDraftInvoiceCanvas();
   const html =
     "<!DOCTYPE html>" +
-    renderToStaticMarkup(<InvoiceDocument input={SAMPLE_INPUT} blocks={draft.blocks} logoDataUri={null} />);
+    renderToStaticMarkup(<InvoiceDocument input={SAMPLE_INPUT} canvas={draft.canvas} blockText={draft.blockText} logoDataUri={null} />);
   const pdfBase64 = await renderHtmlToPdfBase64(html);
   return NextResponse.json({ pdfBase64 });
 }

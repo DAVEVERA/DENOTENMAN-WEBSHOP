@@ -85,14 +85,14 @@ export async function renderInvoicePdfBase64(input: InvoicePdfInput): Promise<st
   // react-dom/server usage stays out of the RSC module graph that reaches
   // it through lib/orders.ts -> app/admin/(dashboard)/bestellingen/[id]/page.tsx.
   const { renderToStaticMarkup } = await import("react-dom/server");
-  const { getPublishedInvoiceTemplateBlocks } = await import("@/lib/invoice-template");
+  const { getPublishedInvoiceCanvas } = await import("@/lib/invoice-template");
   const { renderHtmlToPdfBase64 } = await import("@/lib/invoice-pdf-renderer");
-  const [blocks, logoDataUri] = await Promise.all([
-    getPublishedInvoiceTemplateBlocks(),
+  const [{ canvas, blockText }, logoDataUri] = await Promise.all([
+    getPublishedInvoiceCanvas(),
     loadLogoDataUri(),
   ]);
   const html =
     "<!DOCTYPE html>" +
-    renderToStaticMarkup(<InvoiceDocument input={input} blocks={blocks} logoDataUri={logoDataUri} />);
+    renderToStaticMarkup(<InvoiceDocument input={input} canvas={canvas} blockText={blockText} logoDataUri={logoDataUri} />);
   return renderHtmlToPdfBase64(html);
 }
