@@ -1,108 +1,112 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { InvoiceTemplateBlockKey, InvoiceTemplateBlockLayout } from "@/lib/invoice-template-schema";
+import { useState } from "react";
+import type { InvoiceBlock, InvoiceCanvas, InvoiceColumn, InvoiceFreeBlockType, InvoiceRow } from "@/lib/invoice-template-schema";
+import { INVOICE_DATA_BLOCK_TYPES, INVOICE_FREE_BLOCK_TYPES } from "@/lib/invoice-template-schema";
 
-const SCALE = 480 / 595;
-const PAGE_WIDTH_PT = 595;
-const PAGE_HEIGHT_PT = 842;
-
-const BLOCK_LABELS: Record<InvoiceTemplateBlockKey, string> = {
-  header: "Kop",
-  sellerAddress: "Verkoperadres",
-  buyerAddress: "Klantadres",
-  metadata: "Metadata",
-  itemsTable: "Artikeltabel",
-  totals: "Totalen",
-  footer: "Footer",
+const BLOCK_LABELS: Record<string, string> = {
+  header: "Kop", sellerAddress: "Verkoperadres", buyerAddress: "Klantadres", metadata: "Metadata",
+  itemsTable: "Artikeltabel", totals: "Totalen", footer: "Footer",
+  text: "Tekst", image: "Afbeelding", spacer: "Witruimte", divider: "Lijn", customHtml: "Custom HTML",
 };
 
-type DragState =
-  | { mode: "move"; key: InvoiceTemplateBlockKey; startPointerX: number; startPointerY: number; startX: number; startY: number }
-  | { mode: "resize"; key: InvoiceTemplateBlockKey; startPointerX: number; startPointerY: number; startWidth: number; startHeight: number };
+function newId(prefix: string): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
-async function patchBlock(key: InvoiceTemplateBlockKey, block: InvoiceTemplateBlockLayout): Promise<void> {
-  await fetch(`/api/admin/marketing/invoice-template/blocks/${key}`, {
+function defaultFreeBlock(type: InvoiceFreeBlockType): InvoiceBlock {
+  const id = newId(type);
+  switch (type) {
+    case "text": return { id, type, font: "SANS", size: "STANDAARD", color: "#333333", align: "left", bold: false, italic: false };
+    case "image": return { id, type, mediaUrl: null, alt: "", widthPt: 200, align: "left" };
+    case "spacer": return { id, type, heightPt: 20, showDivider: false };
+    case "divider": return { id, type, color: "#ddd6c8", thicknessPt: 1 };
+    case "customHtml": return { id, type };
+  }
+}
+
+async function saveCanvas(canvas: InvoiceCanvas): Promise<void> {
+  await fetch("/api/admin/marketing/invoice-template/canvas", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ x: block.x, y: block.y, width: block.width, height: block.height, textOverrides: block.textOverrides }),
+    body: JSON.stringify(canvas),
+  });
+}
+
+async function saveBlockText(key: string, value: string): Promise<void> {
+  const blockId = key.split(":")[0];
+  await fetch(`/api/admin/marketing/invoice-template/block-text/${blockId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value }),
   });
 }
 
 export function InvoiceTemplateEditor({
   templateId,
-  initialBlocks,
+  initialCanvas,
+  initialBlockText,
 }: {
   templateId: string;
-  initialBlocks: InvoiceTemplateBlockLayout[];
+  initialCanvas: InvoiceCanvas;
+  initialBlockText: Record<string, string>;
 }) {
-  const [blocks, setBlocks] = useState<InvoiceTemplateBlockLayout[]>(initialBlocks);
-  const [selectedKey, setSelectedKey] = useState<InvoiceTemplateBlockKey | null>(null);
+  const [canvas, setCanvas] = useState<InvoiceCanvas>(initialCanvas);
+  const [blockText, setBlockText] = useState<Record<string, string>>(initialBlockText);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishMessage, setPublishMessage] = useState<string | null>(null);
-  const dragState = useRef<DragState | null>(null);
 
-  function updateBlock(key: InvoiceTemplateBlockKey, updater: (block: InvoiceTemplateBlockLayout) => InvoiceTemplateBlockLayout) {
-    setBlocks((current) => current.map((block) => (block.key === key ? updater(block) : block)));
+  const usedDataBlockTypes = new Set(
+    canvas.rows.flatMap((row) => row.columns.flatMap((column) => column.blocks.map((block) => block.type)))
+  );
+
+  function updateCanvas(updater: (canvas: InvoiceCanvas) => InvoiceCanvas) {
+    setCanvas((current) => {
+      const next = updater(current);
+      void saveCanvas(next);
+      return next;
+    });
   }
 
-  function findBlock(key: InvoiceTemplateBlockKey): InvoiceTemplateBlockLayout {
-    const block = blocks.find((candidate) => candidate.key === key);
-    if (!block) throw new Error(`Missing block ${key}`);
-    return block;
+  function updateBlockTextValue(key: string, value: string) {
+    setBlockText((current) => ({ ...current, [key]: value }));
+    void saveBlockText(key, value);
   }
 
-  useEffect(() => {
-    function onPointerMove(event: PointerEvent) {
-      const drag = dragState.current;
-      if (!drag) return;
-      const deltaXPt = (event.clientX - drag.startPointerX) / SCALE;
-      const deltaYPt = (event.clientY - drag.startPointerY) / SCALE;
-
-      if (drag.mode === "move") {
-        updateBlock(drag.key, (block) => ({
-          ...block,
-          x: Math.max(0, Math.min(PAGE_WIDTH_PT - block.width, drag.startX + deltaXPt)),
-          y: Math.max(0, Math.min(PAGE_HEIGHT_PT - block.height, drag.startY + deltaYPt)),
-        }));
-      } else {
-        updateBlock(drag.key, (block) => ({
-          ...block,
-          width: Math.max(20, Math.min(PAGE_WIDTH_PT - block.x, drag.startWidth + deltaXPt)),
-          height: Math.max(20, Math.min(PAGE_HEIGHT_PT - block.y, drag.startHeight + deltaYPt)),
-        }));
-      }
-    }
-
-    function onPointerUp() {
-      const drag = dragState.current;
-      dragState.current = null;
-      if (!drag) return;
-      patchBlock(drag.key, findBlock(drag.key));
-    }
-
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
-    return () => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocks]);
-
-  function startMove(key: InvoiceTemplateBlockKey, event: React.PointerEvent) {
-    event.preventDefault();
-    setSelectedKey(key);
-    const block = findBlock(key);
-    dragState.current = { mode: "move", key, startPointerX: event.clientX, startPointerY: event.clientY, startX: block.x, startY: block.y };
+  function addBlock(type: InvoiceFreeBlockType | (typeof INVOICE_DATA_BLOCK_TYPES)[number]) {
+    const isDataType = (INVOICE_DATA_BLOCK_TYPES as readonly string[]).includes(type);
+    const block: InvoiceBlock = isDataType
+      ? { id: type, type: type as (typeof INVOICE_DATA_BLOCK_TYPES)[number], backgroundColor: "#ffffff", textColor: "#333333" }
+      : defaultFreeBlock(type as InvoiceFreeBlockType);
+    updateCanvas((current) => ({
+      rows: [
+        ...current.rows,
+        { id: newId("row"), backgroundColor: "#ffffff", padding: 0, columns: [{ id: newId("col"), widthFraction: 1, backgroundColor: "#ffffff", padding: 0, blocks: [block] }] },
+      ],
+    }));
   }
 
-  function startResize(key: InvoiceTemplateBlockKey, event: React.PointerEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-    const block = findBlock(key);
-    dragState.current = { mode: "resize", key, startPointerX: event.clientX, startPointerY: event.clientY, startWidth: block.width, startHeight: block.height };
+  function removeBlock(blockId: string) {
+    updateCanvas((current) => ({
+      rows: current.rows
+        .map((row) => ({ ...row, columns: row.columns.map((column) => ({ ...column, blocks: column.blocks.filter((block) => block.id !== blockId) })) }))
+        .filter((row) => row.columns.some((column) => column.blocks.length > 0)),
+    }));
+    if (selectedBlockId === blockId) setSelectedBlockId(null);
+  }
+
+  function moveBlock(blockId: string, direction: "up" | "down") {
+    updateCanvas((current) => {
+      const flatRowIndex = current.rows.findIndex((row) => row.columns.some((column) => column.blocks.some((block) => block.id === blockId)));
+      if (flatRowIndex === -1) return current;
+      const targetIndex = direction === "up" ? flatRowIndex - 1 : flatRowIndex + 1;
+      if (targetIndex < 0 || targetIndex >= current.rows.length) return current;
+      const rows = [...current.rows];
+      [rows[flatRowIndex], rows[targetIndex]] = [rows[targetIndex], rows[flatRowIndex]];
+      return { rows };
+    });
   }
 
   async function generatePreview() {
@@ -110,8 +114,6 @@ export function InvoiceTemplateEditor({
     try {
       const response = await fetch("/api/admin/marketing/invoice-template/preview", { method: "POST" });
       const data = (await response.json()) as { pdfBase64: string };
-      // Chrome blocks top-frame navigation to data: URLs, so window.open
-      // needs an object URL (blob:) instead of a data:application/pdf URL.
       const bytes = Uint8Array.from(atob(data.pdfBase64), (char) => char.charCodeAt(0));
       const blobUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
       window.open(blobUrl, "_blank");
@@ -132,55 +134,59 @@ export function InvoiceTemplateEditor({
     }
   }
 
+  const allBlocks = canvas.rows.flatMap((row) => row.columns.flatMap((column) => column.blocks));
+  const selectedBlock = allBlocks.find((block) => block.id === selectedBlockId) ?? null;
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={generatePreview}
-          disabled={previewBusy}
-          className="inline-flex min-h-11 items-center rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text disabled:opacity-60"
-        >
+        <button type="button" onClick={generatePreview} disabled={previewBusy} className="inline-flex min-h-11 items-center rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text disabled:opacity-60">
           {previewBusy ? "Bezig…" : "Genereer voorbeeld"}
         </button>
-        <button
-          type="button"
-          onClick={publish}
-          disabled={publishBusy}
-          className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button disabled:opacity-60"
-        >
+        <button type="button" onClick={publish} disabled={publishBusy} className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button disabled:opacity-60">
           {publishBusy ? "Bezig…" : "Publiceren"}
         </button>
         {publishMessage ? <span className="text-body-sm font-semibold text-text">{publishMessage}</span> : null}
       </div>
 
-      <div
-        className="relative mt-6 border border-border bg-white"
-        style={{ width: `${PAGE_WIDTH_PT * SCALE}px`, height: `${PAGE_HEIGHT_PT * SCALE}px` }}
-      >
-        {blocks.map((block) => (
-          <div
-            key={block.key}
-            onPointerDown={(event) => startMove(block.key, event)}
-            className={`absolute cursor-move border ${selectedKey === block.key ? "border-accent" : "border-border"} bg-accent/10`}
-            style={{
-              left: block.x * SCALE,
-              top: block.y * SCALE,
-              width: block.width * SCALE,
-              height: block.height * SCALE,
-            }}
-          >
-            <span className="pointer-events-none select-none text-xs font-bold text-accent-ink">{BLOCK_LABELS[block.key]}</span>
-            <div
-              onPointerDown={(event) => startResize(block.key, event)}
-              className="absolute bottom-0 right-0 h-3 w-3 cursor-nwse-resize bg-accent"
-            />
-          </div>
-        ))}
+      <div className="mt-6 flex flex-wrap gap-2">
+        {[...INVOICE_DATA_BLOCK_TYPES, ...INVOICE_FREE_BLOCK_TYPES].map((type) => {
+          const isDataType = (INVOICE_DATA_BLOCK_TYPES as readonly string[]).includes(type);
+          const disabled = isDataType && usedDataBlockTypes.has(type);
+          return (
+            <button key={type} type="button" disabled={disabled} onClick={() => addBlock(type)} className="min-h-9 rounded-button border border-border bg-surface px-3 text-body-sm font-semibold text-text disabled:opacity-40">
+              + {BLOCK_LABELS[type] ?? type}
+            </button>
+          );
+        })}
       </div>
 
-      {selectedKey ? (
-        <p className="mt-3 text-body-sm text-muted">Geselecteerd: {BLOCK_LABELS[selectedKey]}</p>
+      <div className="mt-4 max-w-[595px] border border-border bg-white p-4">
+        {allBlocks.length === 0 ? <p className="text-body-sm text-muted">Nog geen blokken. Voeg er een toe via de knoppen hierboven.</p> : null}
+        {canvas.rows.map((row) =>
+          row.columns.flatMap((column) =>
+            column.blocks.map((block) => (
+              <div
+                key={block.id}
+                onClick={() => setSelectedBlockId(block.id)}
+                className={`mb-2 flex items-center justify-between rounded-button border px-3 py-2 ${selectedBlockId === block.id ? "border-accent bg-accent/10" : "border-border"}`}
+              >
+                <span className="text-body-sm font-semibold text-text">{BLOCK_LABELS[block.type] ?? block.type}</span>
+                <span className="flex gap-1">
+                  <button type="button" onClick={(event) => { event.stopPropagation(); moveBlock(block.id, "up"); }} className="min-h-7 rounded-button border border-border px-2 text-xs">↑</button>
+                  <button type="button" onClick={(event) => { event.stopPropagation(); moveBlock(block.id, "down"); }} className="min-h-7 rounded-button border border-border px-2 text-xs">↓</button>
+                  <button type="button" onClick={(event) => { event.stopPropagation(); removeBlock(block.id); }} className="min-h-7 rounded-button border border-border px-2 text-xs text-red-700">Verwijder</button>
+                </span>
+              </div>
+            ))
+          )
+        )}
+      </div>
+
+      {selectedBlock ? (
+        <div className="mt-4 max-w-[400px] rounded-card border border-border bg-surface p-4">
+          {/* Per-block settings panel: Task 11 */}
+        </div>
       ) : null}
     </div>
   );
