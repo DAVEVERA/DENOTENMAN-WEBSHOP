@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { InvoiceDocument } from "../components/invoice-pdf/InvoiceDocument";
-import { DEFAULT_INVOICE_TEMPLATE_BLOCKS, INVOICE_TEMPLATE_BLOCK_KEYS, type InvoiceTemplateBlockLayout } from "../lib/invoice-template-schema";
+import { deriveCanvasFromLegacyContent, INVOICE_TEMPLATE_BLOCK_KEYS, DEFAULT_INVOICE_TEMPLATE_BLOCKS, blockTextKey, type InvoiceTemplateBlockLayout, type InvoiceCanvas } from "../lib/invoice-template-schema";
 
-function defaultBlocks(): InvoiceTemplateBlockLayout[] {
-  return INVOICE_TEMPLATE_BLOCK_KEYS.map((key) => ({ key, ...DEFAULT_INVOICE_TEMPLATE_BLOCKS[key], textOverrides: null }));
+function defaultCanvas(): { canvas: InvoiceCanvas; blockText: Record<string, string> } {
+  const blocks: InvoiceTemplateBlockLayout[] = INVOICE_TEMPLATE_BLOCK_KEYS.map((key) => ({ key, ...DEFAULT_INVOICE_TEMPLATE_BLOCKS[key], textOverrides: null }));
+  return deriveCanvasFromLegacyContent(blocks);
 }
 
 const sampleInput = {
@@ -31,15 +32,9 @@ const sampleInput = {
   vatNote: null,
 };
 
-test("every block's absolute position/size is reflected as inline style", () => {
-  const markup = renderToStaticMarkup(<InvoiceDocument input={sampleInput} blocks={defaultBlocks()} />);
-  const header = DEFAULT_INVOICE_TEMPLATE_BLOCKS.header;
-  assert.match(markup, new RegExp(`left:${header.x}pt`));
-  assert.match(markup, new RegExp(`top:${header.y}pt`));
-});
-
 test("all required fiscal fields are present in the rendered markup", () => {
-  const markup = renderToStaticMarkup(<InvoiceDocument input={sampleInput} blocks={defaultBlocks()} />);
+  const { canvas, blockText } = defaultCanvas();
+  const markup = renderToStaticMarkup(<InvoiceDocument input={sampleInput} canvas={canvas} blockText={blockText} />);
   assert.match(markup, /NL0099/);
   assert.match(markup, /12345678/);
   assert.match(markup, /NL123456789B01/);
@@ -48,9 +43,22 @@ test("all required fiscal fields are present in the rendered markup", () => {
 });
 
 test("a footer text override replaces the default thank-you line", () => {
-  const blocks = defaultBlocks().map((block) =>
-    block.key === "footer" ? { ...block, textOverrides: { thankYouLine: "Bedankt voor je bestelling!" } } : block
-  );
-  const markup = renderToStaticMarkup(<InvoiceDocument input={sampleInput} blocks={blocks} />);
+  const { canvas, blockText } = defaultCanvas();
+  blockText[blockTextKey("footer", "thankYouLine")] = "Bedankt voor je bestelling!";
+  const markup = renderToStaticMarkup(<InvoiceDocument input={sampleInput} canvas={canvas} blockText={blockText} />);
   assert.match(markup, /Bedankt voor je bestelling!/);
+});
+
+test("a canvas missing the totals and itemsTable blocks still renders both, via the safety fallback", () => {
+  const { canvas, blockText } = defaultCanvas();
+  const trimmed: InvoiceCanvas = { rows: canvas.rows.filter((row) => !row.id.startsWith("totals") && !row.id.startsWith("itemsTable")) };
+  const markup = renderToStaticMarkup(<InvoiceDocument input={sampleInput} canvas={trimmed} blockText={blockText} />);
+  assert.match(markup, /Amandelen/);
+  assert.match(markup, /7,63/);
+});
+
+test("the page has no fixed height, allowing content to flow across a printed page break", () => {
+  const { canvas, blockText } = defaultCanvas();
+  const markup = renderToStaticMarkup(<InvoiceDocument input={sampleInput} canvas={canvas} blockText={blockText} />);
+  assert.doesNotMatch(markup, /height:842pt/);
 });
