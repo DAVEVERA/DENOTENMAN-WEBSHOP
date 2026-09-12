@@ -1750,6 +1750,8 @@ model InvoiceTemplate {
   id          String                @id @default(cuid())
   status      InvoiceTemplateStatus @default(DRAFT)
   publishedAt DateTime?
+  canvas      Json?
+  blockText   Json?
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
 
