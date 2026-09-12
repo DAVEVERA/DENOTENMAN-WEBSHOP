@@ -2,8 +2,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { InvoiceDocument } from "@/components/invoice-pdf/InvoiceDocument";
-import { getPublishedInvoiceTemplateBlocks } from "@/lib/invoice-template";
-import { renderHtmlToPdfBase64 } from "@/lib/invoice-pdf-renderer";
 
 export type InvoiceLine = {
   productName: string;
@@ -87,6 +85,8 @@ export async function renderInvoicePdfBase64(input: InvoicePdfInput): Promise<st
   // react-dom/server usage stays out of the RSC module graph that reaches
   // it through lib/orders.ts -> app/admin/(dashboard)/bestellingen/[id]/page.tsx.
   const { renderToStaticMarkup } = await import("react-dom/server");
+  const { getPublishedInvoiceTemplateBlocks } = await import("@/lib/invoice-template");
+  const { renderHtmlToPdfBase64 } = await import("@/lib/invoice-pdf-renderer");
   const [blocks, logoDataUri] = await Promise.all([
     getPublishedInvoiceTemplateBlocks(),
     loadLogoDataUri(),
