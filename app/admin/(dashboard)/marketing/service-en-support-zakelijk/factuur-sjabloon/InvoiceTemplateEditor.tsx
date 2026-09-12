@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { InvoiceBlock, InvoiceCanvas, InvoiceColumn, InvoiceFreeBlockType, InvoiceRow } from "@/lib/invoice-template-schema";
-import { INVOICE_DATA_BLOCK_TYPES, INVOICE_FREE_BLOCK_TYPES } from "@/lib/invoice-template-schema";
+import type { InvoiceBlock, InvoiceCanvas, InvoiceColumn, InvoiceFreeBlockType, InvoiceRow, InvoiceTemplateBlockKey } from "@/lib/invoice-template-schema";
+import { INVOICE_DATA_BLOCK_TYPES, INVOICE_FREE_BLOCK_TYPES, EDITABLE_TEXT_KEYS_BY_BLOCK, blockTextKey } from "@/lib/invoice-template-schema";
 
 const BLOCK_LABELS: Record<string, string> = {
   header: "Kop", sellerAddress: "Verkoperadres", buyerAddress: "Klantadres", metadata: "Metadata",
@@ -40,6 +40,34 @@ async function saveBlockText(key: string, value: string): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key, value }),
   });
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <label className="font-heading text-body-sm font-semibold">{label}</label>
+      <div className="mt-1 flex items-center gap-2">
+        <input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-14 rounded-button border border-border bg-white" aria-label={label} />
+        <input type="text" value={value} onChange={(event) => onChange(event.target.value)} maxLength={7} className="min-h-11 w-28 rounded-button border border-border bg-white px-2 text-body-sm" />
+      </div>
+    </div>
+  );
+}
+
+function patchBlock(canvas: InvoiceCanvas, blockId: string, updater: (block: InvoiceBlock) => InvoiceBlock): InvoiceCanvas {
+  return {
+    rows: canvas.rows.map((row) => ({
+      ...row,
+      columns: row.columns.map((column) => ({
+        ...column,
+        blocks: column.blocks.map((block) => (block.id === blockId ? updater(block) : block)),
+      })),
+    })),
+  };
+}
+
+function isDataBlock(block: InvoiceBlock): block is Extract<InvoiceBlock, { backgroundColor: string; textColor: string }> {
+  return (INVOICE_DATA_BLOCK_TYPES as readonly string[]).includes(block.type);
 }
 
 export function InvoiceTemplateEditor({
@@ -185,7 +213,91 @@ export function InvoiceTemplateEditor({
 
       {selectedBlock ? (
         <div className="mt-4 max-w-[400px] rounded-card border border-border bg-surface p-4">
-          {/* Per-block settings panel: Task 11 */}
+          <h2 className="font-heading text-body-sm font-bold text-text">{BLOCK_LABELS[selectedBlock.type] ?? selectedBlock.type} — instellingen</h2>
+
+          {isDataBlock(selectedBlock) ? (
+            <div className="mt-3 space-y-3">
+              <ColorField label="Achtergrondkleur" value={selectedBlock.backgroundColor} onChange={(value) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, backgroundColor: value })))} />
+              <ColorField label="Tekstkleur" value={selectedBlock.textColor} onChange={(value) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, textColor: value })))} />
+              {(EDITABLE_TEXT_KEYS_BY_BLOCK[selectedBlock.type as InvoiceTemplateBlockKey] ?? []).map((field) => (
+                <div key={field}>
+                  <label className="font-heading text-body-sm font-semibold">{field}</label>
+                  <input
+                    type="text"
+                    value={blockText[blockTextKey(selectedBlock.id, field)] ?? ""}
+                    onChange={(event) => updateBlockTextValue(blockTextKey(selectedBlock.id, field), event.target.value)}
+                    className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {selectedBlock.type === "text" ? (
+            <div className="mt-3 space-y-3">
+              <ColorField label="Tekstkleur" value={selectedBlock.color} onChange={(value) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, color: value })))} />
+              <textarea
+                value={blockText[blockTextKey(selectedBlock.id)] ?? ""}
+                onChange={(event) => updateBlockTextValue(blockTextKey(selectedBlock.id), event.target.value)}
+                rows={4}
+                className="w-full rounded-button border border-border bg-white p-2 text-body-sm"
+              />
+              <label className="flex items-center gap-2 text-body-sm">
+                <input type="checkbox" checked={selectedBlock.bold} onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, bold: event.target.checked })))} />
+                Vet
+              </label>
+            </div>
+          ) : null}
+
+          {selectedBlock.type === "image" ? (
+            <div className="mt-3 space-y-3">
+              <div>
+                <label className="font-heading text-body-sm font-semibold">Afbeelding-URL</label>
+                <input
+                  type="text"
+                  value={selectedBlock.mediaUrl ?? ""}
+                  onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, mediaUrl: event.target.value || null })))}
+                  className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                />
+              </div>
+              <div>
+                <label className="font-heading text-body-sm font-semibold">Alt-tekst</label>
+                <input
+                  type="text"
+                  value={selectedBlock.alt}
+                  onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, alt: event.target.value })))}
+                  className="mt-1 min-h-11 w-full rounded-button border border-border bg-white px-3 text-body-sm"
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {selectedBlock.type === "spacer" ? (
+            <div className="mt-3 space-y-3">
+              <label className="flex items-center gap-2 text-body-sm">
+                <input type="checkbox" checked={selectedBlock.showDivider} onChange={(event) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, showDivider: event.target.checked })))} />
+                Toon scheidingslijn
+              </label>
+            </div>
+          ) : null}
+
+          {selectedBlock.type === "divider" ? (
+            <div className="mt-3 space-y-3">
+              <ColorField label="Kleur" value={selectedBlock.color} onChange={(value) => updateCanvas((current) => patchBlock(current, selectedBlock.id, (block) => ({ ...block, color: value })))} />
+            </div>
+          ) : null}
+
+          {selectedBlock.type === "customHtml" ? (
+            <div className="mt-3">
+              <label className="font-heading text-body-sm font-semibold">HTML</label>
+              <textarea
+                value={blockText[blockTextKey(selectedBlock.id)] ?? ""}
+                onChange={(event) => updateBlockTextValue(blockTextKey(selectedBlock.id), event.target.value)}
+                rows={8}
+                className="mt-1 w-full rounded-button border border-border bg-white p-2 font-mono text-body-sm"
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
