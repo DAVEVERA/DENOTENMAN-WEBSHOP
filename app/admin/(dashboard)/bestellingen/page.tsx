@@ -6,6 +6,8 @@ import { cn } from "@/lib/cn";
 import { StatusBadge } from "./StatusBadge";
 import { BulkLabelPrint } from "./BulkLabelPrint";
 import { OrderLabelButton } from "./OrderLabelButton";
+import { BulkPakbonPrint } from "./BulkPakbonPrint";
+import { OrderPakbonButton } from "./OrderPakbonButton";
 
 const VALID_STATUSES = new Set<string>([
   "PENDING",
@@ -52,8 +54,9 @@ export default async function BestellingenPage({
     <div>
       <h1 className="text-heading-xl text-text">Bestellingen</h1>
 
-      <div className="mt-6">
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <BulkLabelPrint />
+        <BulkPakbonPrint />
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -89,7 +92,7 @@ export default async function BestellingenPage({
                 <th className="px-4 py-3 font-heading">Status</th>
                 <th className="px-4 py-3 font-heading">Datum</th>
                 <th className="px-4 py-3 font-heading">Trackingcode</th>
-                <th className="px-4 py-3 font-heading">Label</th>
+                <th className="px-4 py-3 font-heading">Documenten</th>
                 <th className="px-4 py-3 text-right font-heading">Totaal</th>
               </tr>
             </thead>
@@ -141,10 +144,13 @@ export default async function BestellingenPage({
                   </td>
                   <td className="px-4 py-3">
                     {!order.isTest && (order.status === "PAID" || order.status === "FULFILLED") ? (
-                      <OrderLabelButton
-                        orderId={order.id}
-                        hasLabel={Boolean(order.postnlLabelBase64)}
-                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        <OrderLabelButton
+                          orderId={order.id}
+                          hasLabel={Boolean(order.postnlLabelBase64)}
+                        />
+                        <OrderPakbonButton orderId={order.id} />
+                      </div>
                     ) : (
                       <span className="text-muted">—</span>
                     )}
