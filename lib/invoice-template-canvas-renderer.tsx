@@ -1,11 +1,28 @@
 import { formatPrice } from "@/lib/format";
 import { invoiceRecipientLines, type InvoiceLine, type InvoicePdfInput } from "@/lib/business-invoice-pdf";
+import { LEGAL_IDENTITY } from "@/lib/legal";
 import { blockTextKey, type InvoiceBlock, type InvoiceCustomHtmlBlock, type InvoiceDataBlock, type InvoiceDividerBlock, type InvoiceImageBlock, type InvoiceSpacerBlock } from "@/lib/invoice-template-schema";
 
 const GOLD = "#e0b200";
 
 function textFor(blockText: Record<string, string>, blockId: string, field: string, fallback: string): string {
   return blockText[blockTextKey(blockId, field)] ?? fallback;
+}
+
+/** De Notenman's own fiscal identity, on every invoice's "Van" block —
+ * sourced from lib/legal.ts (the same canonical identity used on the
+ * site's legal/terms pages) so it can never drift from what's registered. */
+function sellerAddressLines(): string[] {
+  const [street, cityLine] = LEGAL_IDENTITY.address.split(",").map((part) => part.trim());
+  return [
+    LEGAL_IDENTITY.tradeName,
+    street,
+    cityLine,
+    "Nederland",
+    LEGAL_IDENTITY.email,
+    `KVK ${LEGAL_IDENTITY.registrationNumber}`,
+    `BTW ${LEGAL_IDENTITY.vatNumber}`,
+  ].filter((line): line is string => Boolean(line));
 }
 
 export function renderDataBlock(
@@ -38,7 +55,11 @@ export function renderDataBlock(
       return (
         <div style={{ background: backgroundColor, padding: "10pt 0" }}>
           <div style={{ fontWeight: 700, fontSize: "9.5pt", color: textColor }}>Van</div>
-          <div style={{ fontSize: "8.5pt", color: textColor, marginTop: "6pt", whiteSpace: "pre-line" }}>De Notenman</div>
+          <div style={{ fontSize: "8.5pt", color: textColor, marginTop: "6pt" }}>
+            {sellerAddressLines().map((line) => (
+              <div key={line}>{line}</div>
+            ))}
+          </div>
         </div>
       );
 
@@ -110,20 +131,24 @@ export function renderDataBlock(
     case "totals": {
       const vatLabel = input.vatRatePercent === 0 ? "BTW verlegd (0%)" : `BTW (${input.vatRatePercent}%)`;
       return (
-        <div style={{ background: backgroundColor, padding: "10pt 0" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt", color: muted }}>
-            <span>Subtotaal excl. BTW</span>
-            <span>{formatPrice(input.subtotalCents, "nl")}</span>
+        <div style={{ background: backgroundColor, padding: "10pt 0", display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ width: "220pt" }}>
+            {input.vatNote ? (
+              <div style={{ fontSize: "7.5pt", color: muted, marginBottom: "8pt" }}>{input.vatNote}</div>
+            ) : null}
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt", color: muted }}>
+              <span>Subtotaal excl. BTW</span>
+              <span>{formatPrice(input.subtotalCents, "nl")}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt", color: muted, marginTop: "4pt" }}>
+              <span>{vatLabel}</span>
+              <span>{formatPrice(input.vatAmountCents, "nl")}</span>
+            </div>
+            <div style={{ borderTop: `1.5pt solid ${GOLD}`, marginTop: "8pt", paddingTop: "6pt", display: "flex", justifyContent: "space-between", fontSize: "10.5pt", fontWeight: 700, color: textColor }}>
+              <span>Totaal</span>
+              <span>{formatPrice(input.totalCents, "nl")}</span>
+            </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt", color: muted, marginTop: "4pt" }}>
-            <span>{vatLabel}</span>
-            <span>{formatPrice(input.vatAmountCents, "nl")}</span>
-          </div>
-          <div style={{ borderTop: `1.5pt solid ${GOLD}`, marginTop: "8pt", paddingTop: "6pt", display: "flex", justifyContent: "space-between", fontSize: "10.5pt", fontWeight: 700, color: textColor }}>
-            <span>Totaal</span>
-            <span>{formatPrice(input.totalCents, "nl")}</span>
-          </div>
-          {input.vatNote ? <div style={{ fontSize: "7.5pt", color: muted, marginTop: "8pt" }}>{input.vatNote}</div> : null}
         </div>
       );
     }
@@ -132,6 +157,9 @@ export function renderDataBlock(
       return (
         <div style={{ background: backgroundColor, borderTop: "0.6pt solid #ddd6c8", paddingTop: "6pt", display: "flex", justifyContent: "space-between", fontSize: "7.8pt", color: muted }}>
           <span style={{ fontWeight: 700, color: textColor }}>{textFor(blockText, id, "thankYouLine", "Bedankt voor uw bestelling bij De Notenman.")}</span>
+          <span>
+            KVK {LEGAL_IDENTITY.registrationNumber} | BTW {LEGAL_IDENTITY.vatNumber}
+          </span>
         </div>
       );
   }

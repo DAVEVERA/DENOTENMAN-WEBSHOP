@@ -1,6 +1,5 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
 import { InvoiceDocument } from "@/components/invoice-pdf/InvoiceDocument";
 
 export type InvoiceLine = {
@@ -71,8 +70,12 @@ async function loadLogoDataUri(): Promise<string | null> {
   try {
     const svgPath = path.join(process.cwd(), "public", "brand", "logo-wordmark.svg");
     const svg = await readFile(svgPath);
-    const png = await sharp(svg).resize({ width: 1200 }).png().toBuffer();
-    return `data:image/png;base64,${png.toString("base64")}`;
+    // Embedded directly as SVG (not rasterized via sharp) — Chromium/Playwright
+    // renders SVG natively, and sharp's SVG rasterization requires librsvg,
+    // which this container's libvips build does not have (every past attempt
+    // to rasterize failed with "Input buffer contains unsupported image
+    // format", silently dropping the logo from every invoice).
+    return `data:image/svg+xml;base64,${svg.toString("base64")}`;
   } catch (error) {
     // Invoice generation must continue if the local brand asset is unavailable.
     console.error("Could not embed De Notenman invoice logo", error);

@@ -246,3 +246,32 @@ export function deriveCanvasFromLegacyContent(
 
   return { canvas: { rows }, blockText };
 }
+
+function lockedDataBlock(type: InvoiceDataBlockType): InvoiceDataBlock {
+  return { id: type, type, backgroundColor: "#ffffff", textColor: "#333333" };
+}
+
+/**
+ * The canonical invoice layout — centered logo, seller and buyer address
+ * side by side, metadata, items table, totals, footer — used whenever no
+ * admin has published a customized canvas. Locked in per the 2026-09-14
+ * design review: the seller (De Notenman) address/KVK/BTW and the logo
+ * had never actually reached the rendered PDF before that review (see
+ * sellerAddressLines in lib/invoice-template-canvas-renderer.tsx and the
+ * SVG-embed fix in lib/business-invoice-pdf.tsx).
+ */
+export function buildLockedDefaultInvoiceCanvas(): InvoiceCanvas {
+  return {
+    rows: [
+      invoiceRow("header-row", [invoiceColumn("header-col", [lockedDataBlock("header")])]),
+      invoiceRow("address-row", [
+        { id: "sellerAddress-col", widthFraction: 0.5, backgroundColor: "#ffffff", padding: 0, blocks: [lockedDataBlock("sellerAddress")] },
+        { id: "buyerAddress-col", widthFraction: 0.5, backgroundColor: "#ffffff", padding: 0, blocks: [lockedDataBlock("buyerAddress")] },
+      ]),
+      invoiceRow("metadata-row", [invoiceColumn("metadata-col", [lockedDataBlock("metadata")])]),
+      invoiceRow("itemsTable-row", [invoiceColumn("itemsTable-col", [lockedDataBlock("itemsTable")])]),
+      invoiceRow("totals-row", [invoiceColumn("totals-col", [lockedDataBlock("totals")])]),
+      invoiceRow("footer-row", [invoiceColumn("footer-col", [lockedDataBlock("footer")])]),
+    ],
+  };
+}

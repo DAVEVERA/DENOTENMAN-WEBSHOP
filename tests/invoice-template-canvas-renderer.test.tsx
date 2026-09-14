@@ -3,6 +3,7 @@ import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { renderDataBlock, renderFreeBlock } from "../lib/invoice-template-canvas-renderer";
 import { blockTextKey, type InvoiceDataBlock } from "../lib/invoice-template-schema";
+import { LEGAL_IDENTITY } from "../lib/legal";
 import type { InvoicePdfInput } from "../lib/business-invoice-pdf";
 
 const sampleInput: InvoicePdfInput = {
@@ -42,6 +43,22 @@ test("totals renders the invoice's VAT and total amounts", () => {
   const markup = renderToStaticMarkup(renderDataBlock(dataBlock("totals"), sampleInput, {}, null));
   assert.match(markup, /BTW \(9%\)/);
   assert.match(markup, /7,63/);
+});
+
+test("sellerAddress renders De Notenman's real address, KVK and BTW from lib/legal", () => {
+  const markup = renderToStaticMarkup(renderDataBlock(dataBlock("sellerAddress"), sampleInput, {}, null));
+  assert.match(markup, new RegExp(LEGAL_IDENTITY.tradeName));
+  assert.match(markup, /Oude Baan 7a/);
+  assert.match(markup, /5076 PJ Haaren/);
+  assert.match(markup, new RegExp(`KVK ${LEGAL_IDENTITY.registrationNumber}`));
+  assert.match(markup, new RegExp(`BTW ${LEGAL_IDENTITY.vatNumber}`));
+});
+
+test("footer renders De Notenman's KVK and BTW alongside the thank-you line", () => {
+  const markup = renderToStaticMarkup(renderDataBlock(dataBlock("footer"), sampleInput, {}, null));
+  assert.match(markup, /Bedankt voor uw bestelling bij De Notenman\./);
+  assert.match(markup, new RegExp(`KVK ${LEGAL_IDENTITY.registrationNumber}`));
+  assert.match(markup, new RegExp(`BTW ${LEGAL_IDENTITY.vatNumber}`));
 });
 
 test("a footer text override in blockText replaces the default thank-you line", () => {

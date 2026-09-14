@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { invoiceCanvasSchema, blockTextKey, type InvoiceCanvas } from "../lib/invoice-template-schema";
+import { invoiceCanvasSchema, blockTextKey, buildLockedDefaultInvoiceCanvas, type InvoiceCanvas } from "../lib/invoice-template-schema";
 
 function sampleCanvas(): InvoiceCanvas {
   return {
@@ -45,4 +45,26 @@ test("an unknown block type is rejected", () => {
 test("blockTextKey composes and omits the field separator when absent", () => {
   assert.equal(blockTextKey("block-1"), "block-1");
   assert.equal(blockTextKey("block-1", "title"), "block-1:title");
+});
+
+test("the locked default canvas is schema-valid and puts seller/buyer address side by side", () => {
+  const canvas = buildLockedDefaultInvoiceCanvas();
+  assert.equal(invoiceCanvasSchema.safeParse(canvas).success, true);
+
+  const addressRow = canvas.rows.find((row) => row.id === "address-row");
+  assert.ok(addressRow, "expected an address-row");
+  assert.equal(addressRow.columns.length, 2);
+  assert.equal(addressRow.columns[0].widthFraction, 0.5);
+  assert.equal(addressRow.columns[1].widthFraction, 0.5);
+  assert.equal(addressRow.columns[0].blocks[0].type, "sellerAddress");
+  assert.equal(addressRow.columns[1].blocks[0].type, "buyerAddress");
+});
+
+test("the locked default canvas contains exactly one of each of the 7 data-bound block types", () => {
+  const canvas = buildLockedDefaultInvoiceCanvas();
+  const types = canvas.rows.flatMap((row) => row.columns.flatMap((column) => column.blocks.map((block) => block.type)));
+  assert.deepEqual(
+    [...types].sort(),
+    ["buyerAddress", "footer", "header", "itemsTable", "metadata", "sellerAddress", "totals"].sort()
+  );
 });

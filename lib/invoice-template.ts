@@ -4,6 +4,7 @@ import {
   INVOICE_TEMPLATE_BLOCK_KEYS,
   DEFAULT_INVOICE_TEMPLATE_BLOCKS,
   deriveCanvasFromLegacyContent,
+  buildLockedDefaultInvoiceCanvas,
   invoiceCanvasSchema,
   type InvoiceTemplateBlockKey,
   type InvoiceTemplateBlockLayout,
@@ -59,8 +60,7 @@ function resolveCanvas(template: {
 export async function getPublishedInvoiceCanvas(): Promise<Omit<CanvasRecord, "templateId">> {
   const published = await prisma.invoiceTemplate.findUnique({ where: { status: "PUBLISHED" }, include: { blocks: true } });
   if (!published) {
-    const derived = deriveCanvasFromLegacyContent(INVOICE_TEMPLATE_BLOCK_KEYS.map(defaultLayout));
-    return derived;
+    return { canvas: buildLockedDefaultInvoiceCanvas(), blockText: {} };
   }
   const { canvas, blockText } = resolveCanvas(published);
   return { canvas, blockText };
