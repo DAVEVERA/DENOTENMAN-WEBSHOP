@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export function BusinessOrderRegenerateInvoiceButton({ businessAccountId, orderId }: { businessAccountId: string; orderId: string }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "busy" | "error">("idle");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; tone: "success" | "error" } | null>(null);
 
   async function regenerate() {
     if (!window.confirm("Factuur opnieuw genereren voor deze bestelling? De klant krijgt hier geen e-mail over.")) return;
@@ -17,17 +17,21 @@ export function BusinessOrderRegenerateInvoiceButton({ businessAccountId, orderI
       const data = (await response.json().catch(() => null)) as { error?: string; invoiceNumber?: string } | null;
       if (!response.ok) {
         setState("error");
-        setMessage(
-          data?.error === "INVOICE_GENERATION_FAILED"
-            ? "De factuur kon niet worden gegenereerd. Probeer het opnieuw."
-            : "Regenereren is mislukt."
-        );
+        setMessage({
+          text:
+            data?.error === "INVOICE_GENERATION_FAILED"
+              ? "De factuur kon niet worden gegenereerd. Probeer het opnieuw."
+              : "Regenereren is mislukt.",
+          tone: "error",
+        });
         return;
       }
+      setState("idle");
+      setMessage({ text: "Factuur staat klaar.", tone: "success" });
       router.refresh();
     } catch {
       setState("error");
-      setMessage("De verbinding viel weg. Controleer of de factuur is aangemaakt voordat je opnieuw probeert.");
+      setMessage({ text: "De verbinding viel weg. Controleer of de factuur is aangemaakt voordat je opnieuw probeert.", tone: "error" });
     }
   }
 
@@ -41,7 +45,11 @@ export function BusinessOrderRegenerateInvoiceButton({ businessAccountId, orderI
       >
         {state === "busy" ? "Bezig…" : "Regenereer factuur"}
       </button>
-      {message ? <p role={state === "error" ? "alert" : "status"} className="mt-1 text-xs font-semibold text-red-700">{message}</p> : null}
+      {message ? (
+        <p role={message.tone === "error" ? "alert" : "status"} className={`mt-1 text-xs font-semibold ${message.tone === "error" ? "text-red-700" : "text-green-700"}`}>
+          {message.text}
+        </p>
+      ) : null}
     </div>
   );
 }

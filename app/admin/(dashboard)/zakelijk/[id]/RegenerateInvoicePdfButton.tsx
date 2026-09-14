@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export function RegenerateInvoicePdfButton({ businessAccountId, invoiceId }: { businessAccountId: string; invoiceId: string }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "busy" | "error">("idle");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; tone: "success" | "error" } | null>(null);
 
   async function regenerate() {
     if (!window.confirm("PDF van deze factuur opnieuw genereren met het huidige sjabloon? Bedragen en factuurnummer blijven ongewijzigd. De klant krijgt hier geen e-mail over.")) return;
@@ -19,13 +19,15 @@ export function RegenerateInvoicePdfButton({ businessAccountId, invoiceId }: { b
       );
       if (!response.ok) {
         setState("error");
-        setMessage("PDF opnieuw genereren is mislukt.");
+        setMessage({ text: "PDF opnieuw genereren is mislukt.", tone: "error" });
         return;
       }
+      setState("idle");
+      setMessage({ text: "Nieuwe PDF staat klaar.", tone: "success" });
       router.refresh();
     } catch {
       setState("error");
-      setMessage("De verbinding viel weg. Probeer het opnieuw.");
+      setMessage({ text: "De verbinding viel weg. Probeer het opnieuw.", tone: "error" });
     }
   }
 
@@ -39,7 +41,11 @@ export function RegenerateInvoicePdfButton({ businessAccountId, invoiceId }: { b
       >
         {state === "busy" ? "Bezig…" : "PDF opnieuw genereren"}
       </button>
-      {message ? <span role="alert" className="mt-0.5 text-xs font-semibold text-red-700">{message}</span> : null}
+      {message ? (
+        <span role={message.tone === "error" ? "alert" : "status"} className={`mt-0.5 text-xs font-semibold ${message.tone === "error" ? "text-red-700" : "text-green-700"}`}>
+          {message.text}
+        </span>
+      ) : null}
     </span>
   );
 }
