@@ -8,6 +8,7 @@ import { BusinessAccountSections } from "./BusinessAccountSections";
 import { BusinessInvitationButton } from "./BusinessInvitationButton";
 import { BusinessOrderListActions } from "./BusinessOrderListActions";
 import { BusinessOrderRegenerateInvoiceButton } from "./BusinessOrderRegenerateInvoiceButton";
+import { RegenerateInvoicePdfButton } from "./RegenerateInvoicePdfButton";
 
 const ORDER_LIST_STATUS_LABELS: Record<BusinessOrderListStatus, string> = {
   DRAFT: "Concept",
@@ -608,14 +609,17 @@ export default async function ZakelijkDetailPage({
                         </span>
                       ) : null}
                     </span>
-                    <a
-                      href={`/api/admin/business-accounts/${businessAccount.id}/invoices/${invoice.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-heading text-body-sm font-bold text-accent-hover underline underline-offset-4"
-                    >
-                      Downloaden
-                    </a>
+                    <span className="flex items-center gap-3">
+                      <a
+                        href={`/api/admin/business-accounts/${businessAccount.id}/invoices/${invoice.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-heading text-body-sm font-bold text-accent-hover underline underline-offset-4"
+                      >
+                        Downloaden
+                      </a>
+                      <RegenerateInvoicePdfButton businessAccountId={businessAccount.id} invoiceId={invoice.id} />
+                    </span>
                   </li>
                 ))}
               </ul>

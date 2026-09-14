@@ -116,6 +116,51 @@ export async function generateInvoiceForOrder(
   }, { timeout: 20000 });
 }
 
+/**
+ * Re-renders an already-issued invoice's PDF against the current published
+ * template, without touching any of its fiscal facts (invoice number,
+ * amounts, VAT regime/rate/note all stay exactly as issued) — only the
+ * `pdfBase64` presentation is replaced. For repairing invoices whose PDF
+ * predates a template fix (e.g. missing seller KVK/BTW or logo); never for
+ * correcting amounts, which would require a credit note, not a re-render.
+ */
+export async function regenerateInvoicePdf(invoiceId: string): Promise<Invoice> {
+  const invoice = await prisma.invoice.findUniqueOrThrow({
+    where: { id: invoiceId },
+    include: { order: { include: { items: true } }, businessAccount: true },
+  });
+
+  const pdfBase64 = await renderInvoicePdfBase64({
+    invoiceNumber: invoice.invoiceNumber,
+    createdAt: invoice.createdAt,
+    companyName: invoice.businessAccount.companyName,
+    contactName: invoice.businessAccount.contactName,
+    email: invoice.businessAccount.email,
+    kvkNumber: invoice.businessAccount.kvkNumber,
+    vatNumber: invoice.businessAccount.vatNumber,
+    country: invoice.businessAccount.country,
+    billingStreet: invoice.businessAccount.billingStreet,
+    billingHouseNumber: invoice.businessAccount.billingHouseNumber,
+    billingPostalCode: invoice.businessAccount.billingPostalCode,
+    billingCity: invoice.businessAccount.billingCity,
+    billingCountry: invoice.businessAccount.billingCountry,
+    items: invoice.order.items.map((item) => ({
+      productName: item.productName,
+      variantLabel: item.variantLabel || null,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+    })),
+    subtotalCents: invoice.subtotalCents,
+    vatRatePercent: Number(invoice.vatRatePercent),
+    vatAmountCents: invoice.vatAmountCents,
+    totalCents: invoice.totalCents,
+    paidCents: invoice.order.totalCents,
+    vatNote: invoice.invoiceNote,
+  });
+
+  return prisma.invoice.update({ where: { id: invoiceId }, data: { pdfBase64 } });
+}
+
 function acceptedOrPending(result: Awaited<ReturnType<typeof deliverTransactionalEmail>>): boolean {
   if (result.status === "accepted" || result.status === "pending") return true;
   return result.status === "duplicate" && result.deliveryStatus !== "FAILED";
