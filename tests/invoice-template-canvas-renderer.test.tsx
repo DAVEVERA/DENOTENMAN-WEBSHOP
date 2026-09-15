@@ -45,6 +45,27 @@ test("totals renders the invoice's VAT and total amounts", () => {
   assert.match(markup, /7,63/);
 });
 
+test("a fully paid invoice shows BETAALD and Nog te voldoen EUR 0,00", () => {
+  const paidMetadataMarkup = renderToStaticMarkup(renderDataBlock(dataBlock("metadata"), sampleInput, {}, null));
+  assert.match(paidMetadataMarkup, /BETAALD/);
+
+  const paidTotalsMarkup = renderToStaticMarkup(renderDataBlock(dataBlock("totals"), sampleInput, {}, null));
+  assert.match(paidTotalsMarkup, /Nog te voldoen/);
+  assert.match(paidTotalsMarkup, /0,00/);
+});
+
+test("an unpaid concept invoice shows OPENSTAAND and the full amount still owed", () => {
+  const unpaidInput: InvoicePdfInput = { ...sampleInput, invoiceNumber: "CONCEPT", paidCents: 0 };
+
+  const metadataMarkup = renderToStaticMarkup(renderDataBlock(dataBlock("metadata"), unpaidInput, {}, null));
+  assert.match(metadataMarkup, /OPENSTAAND/);
+  assert.doesNotMatch(metadataMarkup, /BETAALD/);
+
+  const totalsMarkup = renderToStaticMarkup(renderDataBlock(dataBlock("totals"), unpaidInput, {}, null));
+  assert.match(totalsMarkup, /Nog te voldoen/);
+  assert.match(totalsMarkup, /7,63/); // the full total is still owed
+});
+
 test("sellerAddress renders De Notenman's real address, KVK and BTW from lib/legal", () => {
   const markup = renderToStaticMarkup(renderDataBlock(dataBlock("sellerAddress"), sampleInput, {}, null));
   assert.match(markup, new RegExp(LEGAL_IDENTITY.tradeName));

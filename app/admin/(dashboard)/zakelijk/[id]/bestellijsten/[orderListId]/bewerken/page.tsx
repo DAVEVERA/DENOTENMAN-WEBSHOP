@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { BusinessOrderListForm } from "../../BusinessOrderListForm";
 import { BusinessOrderListActions } from "../../../BusinessOrderListActions";
+import { ConceptInvoiceButton } from "../../../ConceptInvoiceButton";
 
 export default async function BestellijstBewerkenPage({
   params,
@@ -68,6 +69,13 @@ export default async function BestellijstBewerkenPage({
               items: orderList.items,
             }}
           />
+          <div className="mt-6">
+            <ConceptInvoiceButton
+              accountId={account.id}
+              orderListId={orderList.id}
+              disabled={orderList.items.length === 0 || orderList.items.some((item) => item.unitPriceCents == null)}
+            />
+          </div>
           {orderList.orders.length > 0 ? (
             <div className="mt-6 rounded-card border border-red-200 bg-red-50 p-4">
               <p className="text-body-sm font-semibold text-red-900">Huidige bestelling annuleren</p>

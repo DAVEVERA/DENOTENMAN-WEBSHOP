@@ -161,6 +161,59 @@ export async function regenerateInvoicePdf(invoiceId: string): Promise<Invoice> 
   return prisma.invoice.update({ where: { id: invoiceId }, data: { pdfBase64 } });
 }
 
+/**
+ * Renders a not-yet-paid preview of an invoice for a business order list,
+ * before checkout/payment — same template and layout as a real invoice
+ * (marked "OPENSTAAND" instead of "BETAALD"), for the customer to arrange
+ * payment against. Nothing is persisted: no Invoice row is created and the
+ * real invoice-number counter is never touched — "CONCEPT" stands in for a
+ * real invoice number, which is only ever issued once payment lands.
+ */
+export async function renderConceptInvoicePdfBase64(orderListId: string): Promise<string> {
+  const orderList = await prisma.businessOrderList.findUniqueOrThrow({
+    where: { id: orderListId },
+    include: { items: true, businessAccount: true },
+  });
+
+  const unpriced = orderList.items.some((item) => item.unitPriceCents == null);
+  if (unpriced) {
+    throw new Error("Niet alle regels hebben een prijs; concept-factuur kan niet worden gemaakt.");
+  }
+
+  const subtotalCents = orderList.items.reduce((sum, item) => sum + item.unitPriceCents! * item.quantity, 0);
+  const businessAccount = orderList.businessAccount;
+  const { vatAmountCents, totalCents } = calculateVat(subtotalCents, Number(businessAccount.vatRatePercent));
+  const vatNote = businessAccount.vatRegime === "REVERSE_CHARGE" ? REVERSE_CHARGE_NOTE : null;
+
+  return renderInvoicePdfBase64({
+    invoiceNumber: "CONCEPT",
+    createdAt: new Date(),
+    companyName: businessAccount.companyName,
+    contactName: businessAccount.contactName,
+    email: businessAccount.email,
+    kvkNumber: businessAccount.kvkNumber,
+    vatNumber: businessAccount.vatNumber,
+    country: businessAccount.country,
+    billingStreet: businessAccount.billingStreet,
+    billingHouseNumber: businessAccount.billingHouseNumber,
+    billingPostalCode: businessAccount.billingPostalCode,
+    billingCity: businessAccount.billingCity,
+    billingCountry: businessAccount.billingCountry,
+    items: orderList.items.map((item) => ({
+      productName: item.productName,
+      variantLabel: item.variantLabel || null,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents!,
+    })),
+    subtotalCents,
+    vatRatePercent: Number(businessAccount.vatRatePercent),
+    vatAmountCents,
+    totalCents,
+    paidCents: 0,
+    vatNote,
+  });
+}
+
 function acceptedOrPending(result: Awaited<ReturnType<typeof deliverTransactionalEmail>>): boolean {
   if (result.status === "accepted" || result.status === "pending") return true;
   return result.status === "duplicate" && result.deliveryStatus !== "FAILED";

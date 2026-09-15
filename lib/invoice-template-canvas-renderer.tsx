@@ -77,7 +77,8 @@ export function renderDataBlock(
         </div>
       );
 
-    case "metadata":
+    case "metadata": {
+      const isPaid = input.paidCents >= input.totalCents;
       return (
         <div style={{ background: backgroundColor, display: "flex", alignItems: "center", padding: "10pt 16pt" }}>
           <div style={{ marginRight: "40pt" }}>
@@ -92,10 +93,13 @@ export function renderDataBlock(
           </div>
           <div>
             <div style={{ fontSize: "7.5pt", color: muted }}>Status</div>
-            <div style={{ fontSize: "10.5pt", fontWeight: 700, color: "#337a3b" }}>BETAALD</div>
+            <div style={{ fontSize: "10.5pt", fontWeight: 700, color: isPaid ? "#337a3b" : "#b45309" }}>
+              {isPaid ? "BETAALD" : "OPENSTAAND"}
+            </div>
           </div>
         </div>
       );
+    }
 
     case "itemsTable":
       return (
@@ -130,24 +134,37 @@ export function renderDataBlock(
 
     case "totals": {
       const vatLabel = input.vatRatePercent === 0 ? "BTW verlegd (0%)" : `BTW (${input.vatRatePercent}%)`;
+      const remainingCents = Math.max(0, input.totalCents - input.paidCents);
+      const isPaid = remainingCents === 0;
       return (
-        <div style={{ background: backgroundColor, padding: "10pt 0", display: "flex", justifyContent: "flex-end" }}>
-          <div style={{ width: "220pt" }}>
-            {input.vatNote ? (
-              <div style={{ fontSize: "7.5pt", color: muted, marginBottom: "8pt" }}>{input.vatNote}</div>
-            ) : null}
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt", color: muted }}>
-              <span>Subtotaal excl. BTW</span>
-              <span>{formatPrice(input.subtotalCents, "nl")}</span>
+        <div style={{ background: backgroundColor, padding: "10pt 0" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ width: "220pt" }}>
+              {input.vatNote ? (
+                <div style={{ fontSize: "7.5pt", color: muted, marginBottom: "8pt" }}>{input.vatNote}</div>
+              ) : null}
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt", color: muted }}>
+                <span>Subtotaal excl. BTW</span>
+                <span>{formatPrice(input.subtotalCents, "nl")}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt", color: muted, marginTop: "4pt" }}>
+                <span>{vatLabel}</span>
+                <span>{formatPrice(input.vatAmountCents, "nl")}</span>
+              </div>
+              <div style={{ borderTop: `1.5pt solid ${GOLD}`, marginTop: "8pt", paddingTop: "6pt", display: "flex", justifyContent: "space-between", fontSize: "10.5pt", fontWeight: 700, color: textColor }}>
+                <span>Totaal</span>
+                <span>{formatPrice(input.totalCents, "nl")}</span>
+              </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt", color: muted, marginTop: "4pt" }}>
-              <span>{vatLabel}</span>
-              <span>{formatPrice(input.vatAmountCents, "nl")}</span>
-            </div>
-            <div style={{ borderTop: `1.5pt solid ${GOLD}`, marginTop: "8pt", paddingTop: "6pt", display: "flex", justifyContent: "space-between", fontSize: "10.5pt", fontWeight: 700, color: textColor }}>
-              <span>Totaal</span>
-              <span>{formatPrice(input.totalCents, "nl")}</span>
-            </div>
+          </div>
+          <div style={{ marginTop: "16pt", background: "#fdf6e3", padding: "10pt 16pt", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "8.5pt", color: muted }}>Betaald bedrag: {formatPrice(input.paidCents, "nl")}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "8pt" }}>
+              <span style={{ fontSize: "9pt", fontWeight: 700, color: textColor }}>Nog te voldoen</span>
+              <span style={{ fontSize: "13pt", fontWeight: 700, color: isPaid ? "#337a3b" : "#b45309" }}>
+                {formatPrice(remainingCents, "nl")}
+              </span>
+            </span>
           </div>
         </div>
       );
