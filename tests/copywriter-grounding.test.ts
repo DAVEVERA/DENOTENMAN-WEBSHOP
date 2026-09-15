@@ -209,6 +209,26 @@ test("grounding rejects changed food facts and an authored slug", () => {
   );
 });
 
+test("skipSlugDeterminism lets a manual single-field edit keep an unpaired name or slug", () => {
+  const snapshot = buildCopywriterSourceSnapshot(sourceInput());
+
+  // Editing only "name" (as the workspace's per-field edit does) leaves the AI's original
+  // proposed slug in place, so it no longer matches slugify(newName). That must not be
+  // treated as an AI hallucination when it is an explicit admin edit.
+  const nameOnlyEdit = groundedProposal();
+  nameOnlyEdit.fields.name.proposed = "Cashewnoten naturel";
+  assert.throws(
+    () => assertGroundedCopywriterProposal(snapshot, nameOnlyEdit),
+    (error: unknown) => error instanceof CopywriterGroundingError && error.code === "SLUG_NOT_DETERMINISTIC",
+    "sanity check: the default (generation) path still enforces the pairing",
+  );
+  assert.doesNotThrow(() => assertGroundedCopywriterProposal(snapshot, nameOnlyEdit, { skipSlugDeterminism: true }));
+
+  const authoredSlug = groundedProposal();
+  authoredSlug.fields.slug.proposed = "lekkerste-cashews-van-nederland";
+  assert.doesNotThrow(() => assertGroundedCopywriterProposal(snapshot, authoredSlug, { skipSlugDeterminism: true }));
+});
+
 test("grounding rejects generic filler and unsupported health, sustainability, and origin claims", () => {
   const snapshot = buildCopywriterSourceSnapshot(sourceInput());
   for (const unsupported of [

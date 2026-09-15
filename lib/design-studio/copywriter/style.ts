@@ -254,13 +254,19 @@ function assertExactFacts(
 function assertDeterministicFields(
   snapshot: CopywriterSourceSnapshot,
   proposal: ParsedCopywriterProviderOutput,
+  options: { skipSlugDeterminism?: boolean } = {},
 ): void {
-  const expectedSlug = deterministicProductSlug(
-    proposal.fields.name.proposed,
-    snapshot.product.sku,
-  );
-  if (proposal.fields.slug.proposed !== expectedSlug) {
-    throw new CopywriterGroundingError("SLUG_NOT_DETERMINISTIC", "slug", expectedSlug);
+  // Generation must produce a slug that deterministically matches the proposed name (anti-hallucination
+  // guardrail for the AI). A manual, per-field admin edit of just "name" or just "slug" legitimately breaks
+  // that pairing and is not a hallucination, so editCopywriterProposal() opts out of this specific check.
+  if (!options.skipSlugDeterminism) {
+    const expectedSlug = deterministicProductSlug(
+      proposal.fields.name.proposed,
+      snapshot.product.sku,
+    );
+    if (proposal.fields.slug.proposed !== expectedSlug) {
+      throw new CopywriterGroundingError("SLUG_NOT_DETERMINISTIC", "slug", expectedSlug);
+    }
   }
 
   const hasRealSale = snapshot.product.salePriceCents !== null
@@ -499,12 +505,13 @@ export function buildCopywriterPrompt(snapshot: CopywriterSourceSnapshot): {
 export function assertGroundedCopywriterProposal(
   snapshot: CopywriterSourceSnapshot,
   candidate: CopywriterProviderOutput | unknown,
+  options: { skipSlugDeterminism?: boolean } = {},
 ): ParsedCopywriterProviderOutput {
   assertSourceIsData(snapshot);
   const parsed = copywriterProviderOutputSchema.parse(candidate);
   assertEvidencePaths(parsed);
   assertExactFacts(snapshot, parsed);
-  assertDeterministicFields(snapshot, parsed);
+  assertDeterministicFields(snapshot, parsed, options);
   assertNoUnsupportedClaims(snapshot, parsed);
   return parsed;
 }
@@ -512,8 +519,9 @@ export function assertGroundedCopywriterProposal(
 export function buildGroundedCopywriterProposal(
   snapshot: CopywriterSourceSnapshot,
   input: CopywriterProviderOutput | unknown,
+  options: { skipSlugDeterminism?: boolean } = {},
 ): CopywriterPersistedProposal {
-  const grounded = assertGroundedCopywriterProposal(snapshot, input);
+  const grounded = assertGroundedCopywriterProposal(snapshot, input, options);
   return copywriterPersistedProposalSchema.parse({
     ...grounded,
     sourceHash: canonicalSourceHash(snapshot),

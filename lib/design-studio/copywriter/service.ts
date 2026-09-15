@@ -25,7 +25,7 @@ import {
   protectedFactsHash,
   type CopywriterSourceSnapshot,
 } from "./snapshot";
-import { buildGroundedCopywriterProposal } from "./style";
+import { CopywriterGroundingError, buildGroundedCopywriterProposal } from "./style";
 
 export const copywriterGenerateRequestSchema = z.object({
   productId: z.string().trim().min(1).max(100),
@@ -49,6 +49,24 @@ export class CopywriterServiceError extends Error {
     super(message);
     this.name = "CopywriterServiceError";
   }
+}
+
+const groundingErrorMessages: Record<string, string> = {
+  SOURCE_INSTRUCTION_DETECTED: "De brondata bevat tekst die als instructie wordt herkend. Neem contact op met techniek voordat je verdergaat.",
+  FACT_NOT_SOURCE_EXACT: "Ingrediënten, allergenen en sporen moeten exact overeenkomen met de geverifieerde bron en kunnen niet handmatig worden aangepast.",
+  FACT_SOURCE_STATUS_INVALID: "De brontoestand van dit productfeit is ongeldig.",
+  SLUG_NOT_DETERMINISTIC: "Deze slug komt niet overeen met de productnaam.",
+  PROMOTION_NOT_VERIFIED: "Productactietekst kan niet worden voorgesteld zonder een bevestigde, lagere actieprijs.",
+  UNSUPPORTED_CLAIM: "Deze tekst bevat een claim die niet terug te vinden is in de brondata. Pas de tekst aan zodat elke claim letterlijk in de productbron staat.",
+  UNSUPPORTED_EVIDENCE_PATH: "Dit voorstel verwijst naar een bronpad dat niet is toegestaan.",
+};
+
+function toCopywriterServiceError(error: CopywriterGroundingError): CopywriterServiceError {
+  return new CopywriterServiceError(
+    error.code,
+    groundingErrorMessages[error.code] ?? "Deze bewerking kan niet veilig aan de productbron worden gekoppeld.",
+    422,
+  );
 }
 
 async function copywriterPrisma() {
@@ -274,7 +292,15 @@ export async function editCopywriterProposal(input: {
     field.proposed = value;
   }
   copywriterProposedFieldsSchema.parse(fields);
-  const grounded = buildGroundedCopywriterProposal(snapshot, { schemaVersion: 1, fields });
+  let grounded;
+  try {
+    // skipSlugDeterminism: a manual, per-field edit legitimately breaks the AI's name/slug pairing
+    // (e.g. editing only "name"); that is not a hallucination and must not block saving the edit.
+    grounded = buildGroundedCopywriterProposal(snapshot, { schemaVersion: 1, fields }, { skipSlugDeterminism: true });
+  } catch (error) {
+    if (error instanceof CopywriterGroundingError) throw toCopywriterServiceError(error);
+    throw error;
+  }
   const updated = await database.productCopyProposal.update({
     where: { id: record.id },
     data: { proposedFields: grounded as Prisma.InputJsonValue },
