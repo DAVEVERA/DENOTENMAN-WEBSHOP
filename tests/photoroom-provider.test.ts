@@ -95,3 +95,49 @@ test("PhotoRoom availability requires five credits for Basic image editing", asy
     else process.env.PHOTOROOM_API_KEY = previous;
   }
 });
+
+test("PhotoRoom availability guard mentions both causes when the account check is unauthorized", async () => {
+  // PhotoRoom returns an identical 401/403 "Unauthorized" body both for a rejected API key
+  // and for a zero credit balance, so the guard message must not blame only the API key.
+  const previous = process.env.PHOTOROOM_API_KEY;
+  process.env.PHOTOROOM_API_KEY = "test-secret";
+  try {
+    await assert.rejects(
+      () => assertPhotoRoomAvailable(async () => new Response(JSON.stringify({ error: { message: "Unauthorized" } }), { status: 401 })),
+      (error: unknown) => error instanceof PhotoRoomError
+        && error.code === "INVALID_CONFIGURATION"
+        && error.status === 503
+        && /sleutel/i.test(error.message)
+        && /tegoed/i.test(error.message),
+    );
+  } finally {
+    if (previous === undefined) delete process.env.PHOTOROOM_API_KEY;
+    else process.env.PHOTOROOM_API_KEY = previous;
+  }
+});
+
+test("PhotoRoom edit call maps a 401/403 provider response to the combined key/credit error instead of a generic rejection", async () => {
+  const previous = process.env.PHOTOROOM_API_KEY;
+  process.env.PHOTOROOM_API_KEY = "test-secret";
+  try {
+    const source = await png();
+    await assert.rejects(
+      () => runPhotoRoomEdit(source, {
+        productId: "product_1",
+        imageId: "image_1",
+        background: "white",
+        format: "square",
+        padding: 0.1,
+        softShadow: false,
+      }, async () => new Response(JSON.stringify({ error: { message: "Unauthorized" } }), { status: 403 })),
+      (error: unknown) => error instanceof PhotoRoomError
+        && error.code === "INVALID_CONFIGURATION"
+        && error.status === 503
+        && /sleutel/i.test(error.message)
+        && /tegoed/i.test(error.message),
+    );
+  } finally {
+    if (previous === undefined) delete process.env.PHOTOROOM_API_KEY;
+    else process.env.PHOTOROOM_API_KEY = previous;
+  }
+});

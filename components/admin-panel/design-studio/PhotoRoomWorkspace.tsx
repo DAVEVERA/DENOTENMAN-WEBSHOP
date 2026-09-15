@@ -111,7 +111,7 @@ export function PhotoRoomWorkspace({
       : providerStatus === "checking"
         ? { className: "bg-slate-100 text-slate-700", label: "PhotoRoom controleren" }
         : providerStatus === "invalid_configuration"
-          ? { className: "bg-red-50 text-red-800", label: "PhotoRoom-sleutel geweigerd" }
+          ? { className: "bg-red-50 text-red-800", label: "PhotoRoom-sleutel of tegoed geweigerd" }
           : providerStatus === "unavailable"
             ? { className: "bg-red-50 text-red-800", label: "PhotoRoom niet bereikbaar" }
             : { className: "bg-red-50 text-red-800", label: "PhotoRoom niet geconfigureerd" };

@@ -65,7 +65,9 @@ export async function assertPhotoRoomAvailable(fetchImpl: typeof fetch = fetch):
     throw new PhotoRoomError("NOT_CONFIGURED", "PhotoRoom is nog niet geconfigureerd.", 503);
   }
   if (availability.status === "invalid_configuration") {
-    throw new PhotoRoomError("INVALID_CONFIGURATION", "De PhotoRoom API-sleutel wordt geweigerd. Controleer de configuratie.", 503);
+    // PhotoRoom returns the same 401/403 "Unauthorized" response both for a rejected
+    // API key and for a zero credit balance, so the two causes cannot be told apart here.
+    throw new PhotoRoomError("INVALID_CONFIGURATION", "De PhotoRoom API-sleutel wordt geweigerd of het tegoed is op. Controleer de configuratie en het tegoed.", 503);
   }
   throw new PhotoRoomError("PROVIDER_UNAVAILABLE", "De beschikbaarheid van PhotoRoom kon niet worden gecontroleerd. Probeer het later opnieuw.", 503);
 }
@@ -140,6 +142,11 @@ export async function runPhotoRoomEdit(
   if (!response.ok) {
     if (response.status === 402) {
       throw new PhotoRoomError("CREDITS_EXHAUSTED", "Het PhotoRoom-tegoed is onvoldoende. Vul het API-tegoed aan om een nieuw concept te maken.", 503);
+    }
+    if (response.status === 401 || response.status === 403) {
+      // PhotoRoom returns the same 401/403 "Unauthorized" response both for a rejected
+      // API key and for a zero credit balance, so the two causes cannot be told apart here.
+      throw new PhotoRoomError("INVALID_CONFIGURATION", "De PhotoRoom API-sleutel wordt geweigerd of het tegoed is op. Controleer de configuratie en het tegoed.", 503);
     }
     const retryable = response.status === 429 || response.status >= 500;
     throw new PhotoRoomError(retryable ? "PROVIDER_BUSY" : "PROVIDER_REJECTED", retryable ? "PhotoRoom is tijdelijk bezet. Probeer het later opnieuw." : "PhotoRoom heeft deze bewerking geweigerd.", retryable ? 503 : 422);
