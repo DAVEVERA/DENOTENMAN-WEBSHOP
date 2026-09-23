@@ -14,6 +14,7 @@ import { deliverTransactionalEmail } from "@/lib/transactional-email";
 import { merchantOrderNotificationRecipient } from "@/lib/merchant-order-notification";
 import { BusinessInvoiceEmail } from "@/emails/BusinessInvoiceEmail";
 import { getBusinessLifecycleEmailContent, substituteBusinessLifecycleTokens } from "@/lib/business-lifecycle-email-content";
+import { createBusinessInvoiceDownloadUrl } from "@/lib/business-invoice-download";
 
 const REVERSE_CHARGE_NOTE =
   "BTW verlegd naar de afnemer (intracommunautaire levering, art. 138 Btw-richtlijn / art. 39bis Belgisch Btw-Wetboek).";
@@ -287,7 +288,7 @@ export async function generateAndSendBusinessInvoice(
   const businessAccount = orderList.businessAccount;
   const invoice = await generateInvoiceForOrder(order, businessAccount);
 
-  const customerDownloadUrl = `${BASE_URL}/api/business/orders/${order.id}/invoice`;
+  const customerDownloadUrl = createBusinessInvoiceDownloadUrl(order.id);
   const merchantDownloadUrl = `${BASE_URL}/api/admin/business-accounts/${businessAccount.id}/invoices/${invoice.id}`;
 
   const results = await Promise.allSettled([
