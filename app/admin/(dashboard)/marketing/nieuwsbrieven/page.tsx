@@ -5,7 +5,9 @@ import {
   listNewsletterCampaigns,
   type NewsletterSummary,
 } from "@/lib/mailchimp/newsletter";
+import { getBusinessSegmentInfo } from "@/lib/mailchimp/business-segment";
 import { NewsletterRowActions } from "./NewsletterRowActions";
+import { SyncBusinessTagsButton } from "./SyncBusinessTagsButton";
 
 const STATUS_LABELS: Record<NewsletterSummary["status"], string> = {
   save: "Concept",
@@ -14,6 +16,13 @@ const STATUS_LABELS: Record<NewsletterSummary["status"], string> = {
   sent: "Verzonden",
   paused: "Gepauzeerd",
   unknown: "Onbekend",
+};
+
+const AUDIENCE_LABELS: Record<NewsletterSummary["audience"], string> = {
+  all: "Iedereen",
+  zakelijk: "Zakelijk",
+  particulier: "Particulier",
+  custom: "Aangepaste selectie",
 };
 
 function formatCampaignDate(value: string | null): string {
@@ -39,6 +48,7 @@ function CampaignTable({ campaigns }: { campaigns: NewsletterSummary[] }) {
           <tr className="border-b border-border text-left text-muted">
             <th className="px-4 py-3 font-heading">Onderwerp</th>
             <th className="px-4 py-3 font-heading">Status</th>
+            <th className="px-4 py-3 font-heading">Doelgroep</th>
             <th className="px-4 py-3 font-heading">Datum</th>
             <th className="px-4 py-3 font-heading">Ontvangers</th>
             <th className="px-4 py-3" />
@@ -56,6 +66,7 @@ function CampaignTable({ campaigns }: { campaigns: NewsletterSummary[] }) {
                   {STATUS_LABELS[campaign.status]}
                 </span>
               </td>
+              <td className="px-4 py-3 text-muted">{AUDIENCE_LABELS[campaign.audience]}</td>
               <td className="whitespace-nowrap px-4 py-3 text-muted">
                 {formatCampaignDate(campaign.sendTime ?? campaign.createdAt)}
               </td>
@@ -75,9 +86,10 @@ export default async function NewsletterCampaignsPage() {
   await connection();
 
   try {
-    const [{ drafts, sent }, audience] = await Promise.all([
+    const [{ drafts, sent }, audience, businessSegment] = await Promise.all([
       listNewsletterCampaigns(),
       getAudienceDetails(),
+      getBusinessSegmentInfo(),
     ]);
 
     return (
@@ -89,7 +101,7 @@ export default async function NewsletterCampaignsPage() {
         <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="font-heading text-body-sm font-bold uppercase tracking-heading text-accent-hover">
-              Mailchimp · {audience.recipientCount} ontvangers
+              Mailchimp · {audience.recipientCount} ontvangers · {businessSegment.memberCount} zakelijk
             </p>
             <h1 className="mt-1 text-heading-xl text-text">Nieuwsbrieven</h1>
             <p className="mt-1 text-body-sm text-muted">
@@ -102,6 +114,14 @@ export default async function NewsletterCampaignsPage() {
           >
             Nieuwe nieuwsbrief
           </Link>
+        </div>
+
+        <div className="mt-4">
+          <SyncBusinessTagsButton />
+          <p className="mt-1 text-xs text-muted">
+            Tagt contacten met een zakelijk account als &quot;Zakelijk&quot; in Mailchimp, zodat een nieuwsbrief
+            op zakelijk of particulier gericht kan worden.
+          </p>
         </div>
 
         <section className="mt-8">

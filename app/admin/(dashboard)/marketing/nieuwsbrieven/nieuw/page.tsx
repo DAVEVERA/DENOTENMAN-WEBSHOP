@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { getAudienceDetails } from "@/lib/mailchimp/newsletter";
+import { getBusinessSegmentInfo } from "@/lib/mailchimp/business-segment";
 import { NewsletterEditorForm } from "../NewsletterEditorForm";
 
 export default async function NewNewsletterCampaignPage() {
   await connection();
-  const audience = await getAudienceDetails();
+  const [audience, businessSegment] = await Promise.all([
+    getAudienceDetails(),
+    getBusinessSegmentInfo(),
+  ]);
 
   return (
     <div>
@@ -22,6 +26,8 @@ export default async function NewNewsletterCampaignPage() {
         <NewsletterEditorForm
           mode="create"
           recipientCount={audience.recipientCount}
+          businessRecipientCount={businessSegment.memberCount}
+          businessSegmentReady={businessSegment.segmentId !== null}
           initial={{
             subject: "",
             previewText: "",
@@ -29,6 +35,7 @@ export default async function NewNewsletterCampaignPage() {
             fromName: audience.fromName,
             replyTo: audience.replyTo,
             contentHtml: "<p></p>",
+            audience: "all",
           }}
         />
       </div>

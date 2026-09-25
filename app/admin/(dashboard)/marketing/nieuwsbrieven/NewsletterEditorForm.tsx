@@ -7,6 +7,8 @@ import { buildGridBlockHtml, buildTableBlockHtml } from "@/lib/mailchimp/blocks"
 import { InsertGridDialog, type GridItemDraft } from "./InsertGridDialog";
 import { InsertTableDialog } from "./InsertTableDialog";
 
+import type { NewsletterAudience } from "@/lib/mailchimp/schemas";
+
 type NewsletterDraft = {
   subject: string;
   previewText: string;
@@ -14,7 +16,14 @@ type NewsletterDraft = {
   fromName: string;
   replyTo: string;
   contentHtml: string;
+  audience: NewsletterAudience;
 };
+
+const AUDIENCE_OPTIONS: Array<{ value: NewsletterAudience; label: string }> = [
+  { value: "all", label: "Iedereen" },
+  { value: "zakelijk", label: "Zakelijk" },
+  { value: "particulier", label: "Particulier" },
+];
 
 type ApiError = {
   error?: string;
@@ -26,9 +35,21 @@ type NewsletterEditorFormProps = {
   mode: "create" | "edit";
   initial: NewsletterDraft;
   recipientCount: number;
+  businessRecipientCount: number;
+  businessSegmentReady: boolean;
   campaignId?: string;
   campaignStatus?: string;
 };
+
+function recipientCountForAudience(
+  audience: NewsletterAudience,
+  totalRecipientCount: number,
+  businessRecipientCount: number
+): number {
+  if (audience === "zakelijk") return businessRecipientCount;
+  if (audience === "particulier") return Math.max(0, totalRecipientCount - businessRecipientCount);
+  return totalRecipientCount;
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -55,6 +76,8 @@ export function NewsletterEditorForm({
   mode,
   initial,
   recipientCount,
+  businessRecipientCount,
+  businessSegmentReady,
   campaignId,
   campaignStatus = "save",
 }: NewsletterEditorFormProps) {
@@ -71,6 +94,11 @@ export function NewsletterEditorForm({
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const editable = mode === "create" || campaignStatus === "save";
   const preview = useMemo(() => previewDocument(draft), [draft]);
+  const audienceRecipientCount = draft.audience === "custom" ? "bestaande selectie van" : recipientCountForAudience(
+    draft.audience,
+    recipientCount,
+    businessRecipientCount
+  );
 
   function update(field: keyof NewsletterDraft, value: string) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -201,7 +229,7 @@ export function NewsletterEditorForm({
   async function send() {
     if (
       !window.confirm(
-        `Nu definitief versturen naar ${recipientCount} ontvangers? Dit kan niet ongedaan worden gemaakt.`
+        `Nu definitief versturen naar ${audienceRecipientCount} ontvangers? Dit kan niet ongedaan worden gemaakt.`
       )
     ) {
       return;
@@ -246,6 +274,39 @@ export function NewsletterEditorForm({
           </div>
 
           <div>
+            <p className="font-heading text-body-sm font-semibold text-text">Doelgroep</p>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {[...(mode === "edit" ? [{ value: "custom" as const, label: "Bestaande selectie behouden" }] : []), ...AUDIENCE_OPTIONS].map((option) => {
+                const disabled = (option.value === "zakelijk" || option.value === "particulier") && !businessSegmentReady;
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex min-h-11 items-center gap-2 rounded-button border px-3 py-2 text-body-sm ${
+                      draft.audience === option.value ? "border-accent bg-accent/10" : "border-border bg-background"
+                    } ${disabled ? "opacity-50" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="newsletter-audience"
+                      value={option.value}
+                      checked={draft.audience === option.value}
+                      disabled={disabled}
+                      onChange={() => update("audience", option.value)}
+                    />
+                    {option.label}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              {draft.audience === "custom" ? "De bestaande Mailchimp-selectie blijft behouden. Controleer het aantal ontvangers in Mailchimp." : `${audienceRecipientCount} ontvangers bij deze keuze.`}
+              {!businessSegmentReady
+                ? " Synchroniseer eerst de zakelijke contacten om op zakelijk/particulier te kunnen richten."
+                : ""}
+            </p>
+          </div>
+
+          <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label htmlFor="newsletter-content" className="font-heading text-body-sm font-semibold text-text">Inhoud (veilige HTML)</label>
               <div className="flex flex-wrap gap-2">
@@ -283,7 +344,7 @@ export function NewsletterEditorForm({
         {mode === "edit" && editable ? (
           <section className="mt-8 border-t border-border pt-6" aria-label="Verzenden">
             <div className="rounded-panel border border-accent/40 bg-accent/10 p-4">
-              <p className="font-heading text-body-sm font-bold text-text">Verzendcontrole · {recipientCount} ontvangers</p>
+              <p className="font-heading text-body-sm font-bold text-text">Verzendcontrole · {audienceRecipientCount} ontvangers</p>
               <p className="mt-1 text-xs text-muted">Test eerst. Definitief versturen kan niet ongedaan worden gemaakt.</p>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">

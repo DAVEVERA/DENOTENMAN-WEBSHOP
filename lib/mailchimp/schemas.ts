@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+export const newsletterAudienceSchema = z.enum(["all", "zakelijk", "particulier", "custom"]);
+
+export type NewsletterAudience = z.infer<typeof newsletterAudienceSchema>;
+
 export const newsletterDraftSchema = z
   .object({
     subject: z.string().trim().min(1).max(150),
@@ -8,6 +12,7 @@ export const newsletterDraftSchema = z
     fromName: z.string().trim().min(1).max(100),
     replyTo: z.string().trim().email(),
     contentHtml: z.string().trim().min(1).max(100_000),
+    audience: newsletterAudienceSchema.default("custom"),
   })
   .strict();
 

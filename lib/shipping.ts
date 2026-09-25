@@ -14,20 +14,11 @@ export type ShippingPolicy = {
 export const SHIPPING_POLICIES = {
   NL: {
     freeShippingThresholdCents: 5_000,
-    rateTiers: [
-      { maxWeightGrams: 3_000, rateCents: 595 },
-      // The supplied second band is advertised through 10 kg. Keeping this
-      // final tier open-ended prevents an unpriced heavier cart; ordinary
-      // heavier NL carts already qualify for free shipping from EUR 50.
-      { maxWeightGrams: null, rateCents: 695 },
-    ],
+    rateTiers: [{ maxWeightGrams: null, rateCents: 495 }],
   },
   BE: {
     freeShippingThresholdCents: 7_000,
-    rateTiers: [
-      { maxWeightGrams: 2_000, rateCents: 665 },
-      { maxWeightGrams: null, rateCents: 875 },
-    ],
+    rateTiers: [{ maxWeightGrams: null, rateCents: 695 }],
   },
 } as const satisfies Record<ShippingCountryCode, ShippingPolicy>;
 
@@ -82,8 +73,8 @@ export function shippingRateForWeight(
     totalWeightGrams > 0;
 
   if (!hasValidWeight) {
-    // Missing legacy browser-cart weights must never cause undercharging. The
-    // server uses database weights and will still persist the exact rate.
+    // A missing legacy browser-cart weight is harmless for the current flat
+    // country rates. Keep the conservative maximum for future multi-tier use.
     return Math.max(...policy.rateTiers.map((tier) => tier.rateCents));
   }
 

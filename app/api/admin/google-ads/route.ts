@@ -10,6 +10,7 @@ const saveSchema = z.object({
   descriptions: z.array(z.string().trim().min(1).max(90)).min(2).max(4),
   finalUrl: z.string().url().refine((value) => value.startsWith("https://denotenman.com/"), "Alleen denotenman.com is toegestaan"),
   dailyBudgetMicros: z.number().int().min(1_000_000).max(2_000_000_000),
+  keywords: z.array(z.string().trim().min(1).max(80)).max(50).default([]),
 });
 const actionSchema = z.object({ action: z.enum(["publish", "enable", "pause"]), productId: z.string().cuid() });
 
@@ -20,8 +21,8 @@ export async function POST(request: NextRequest) {
   if (saved.success) {
     await prisma.googleAdsConfiguration.upsert({
       where: { productId: saved.data.productId },
-      update: { headlines: saved.data.headlines, descriptions: saved.data.descriptions, finalUrl: saved.data.finalUrl, dailyBudgetMicros: saved.data.dailyBudgetMicros, status: "DRAFT", enabled: false, lastError: null },
-      create: { productId: saved.data.productId, headlines: saved.data.headlines, descriptions: saved.data.descriptions, finalUrl: saved.data.finalUrl, dailyBudgetMicros: saved.data.dailyBudgetMicros },
+      update: { headlines: saved.data.headlines, descriptions: saved.data.descriptions, finalUrl: saved.data.finalUrl, dailyBudgetMicros: saved.data.dailyBudgetMicros, keywords: saved.data.keywords, status: "DRAFT", enabled: false, lastError: null },
+      create: { productId: saved.data.productId, headlines: saved.data.headlines, descriptions: saved.data.descriptions, finalUrl: saved.data.finalUrl, dailyBudgetMicros: saved.data.dailyBudgetMicros, keywords: saved.data.keywords },
     });
     return NextResponse.json({ ok: true });
   }
@@ -35,8 +36,9 @@ export async function POST(request: NextRequest) {
   try {
     if (action.data.action === "publish") {
       if (!config.finalUrl || !config.dailyBudgetMicros || config.headlines.length < 3 || config.descriptions.length < 2) return NextResponse.json({ error: "INCOMPLETE_DRAFT" }, { status: 409 });
+      if (!config.keywords.length) return NextResponse.json({ error: "NO_KEYWORDS" }, { status: 409 });
       if (config.adResourceName) return NextResponse.json({ error: "ALREADY_PUBLISHED" }, { status: 409 });
-      const resources = await createPausedProductAd({ name: config.product.translations[0]?.name ?? config.product.slug, headlines: config.headlines, descriptions: config.descriptions, finalUrl: config.finalUrl, dailyBudgetMicros: config.dailyBudgetMicros });
+      const resources = await createPausedProductAd({ name: config.product.translations[0]?.name ?? config.product.slug, headlines: config.headlines, descriptions: config.descriptions, finalUrl: config.finalUrl, dailyBudgetMicros: config.dailyBudgetMicros, keywords: config.keywords });
       await prisma.googleAdsConfiguration.update({ where: { productId: action.data.productId }, data: { campaignResourceName: resources.campaign, adGroupResourceName: resources.adGroup, adResourceName: resources.ad, status: "PAUSED", enabled: false, lastSyncedAt: new Date(), lastError: null } });
     } else {
       if (!config.adResourceName) return NextResponse.json({ error: "NOT_PUBLISHED" }, { status: 409 });

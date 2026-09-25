@@ -29,6 +29,7 @@ const html = buildNewsletterHtml({
   fromName: "De Notenman",
   replyTo: "info@denotenman.com",
   contentHtml: "<p>Welkom <strong>terug</strong>.</p>",
+  audience: "all",
 });
 assert.equal(html.includes("Proef &amp; geniet"), true);
 assert.equal(html.includes("*|UNSUB|*"), true);

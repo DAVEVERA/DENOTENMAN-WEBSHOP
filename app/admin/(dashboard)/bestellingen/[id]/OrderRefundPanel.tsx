@@ -147,8 +147,11 @@ export function OrderRefundPanel({
 
   async function submitRefund() {
     if (!calculation || state === "saving") return;
+    const itemCount = selections.reduce((sum, item) => sum + item.quantity, 0);
     const confirmed = window.confirm(
-      `Je annuleert ${selections.reduce((sum, item) => sum + item.quantity, 0)} artikel(en) en betaalt ${formatPrice(calculation.amountCents, "nl")} terug via Mollie. Doorgaan?`
+      itemCount > 0
+        ? `Je annuleert ${itemCount} artikel(en) en betaalt ${formatPrice(calculation.amountCents, "nl")} terug via Mollie. Doorgaan?`
+        : `Je betaalt ${formatPrice(calculation.amountCents, "nl")} verzendkosten terug via Mollie, zonder artikelen te annuleren. Doorgaan?`
     );
     if (!confirmed) return;
 
@@ -199,7 +202,7 @@ export function OrderRefundPanel({
       <div>
         <h2 className="font-heading text-heading-sm text-text">Deelannulering en terugbetaling</h2>
         <p className="mt-1 max-w-2xl text-body-sm text-muted">
-          Kies per orderregel hoeveel stuks worden geannuleerd. Het bedrag wordt server-side berekend en idempotent via Mollie uitgevoerd.
+          Kies per orderregel hoeveel stuks worden geannuleerd, of vink alleen verzendkosten aan om die apart terug te betalen. Het bedrag wordt server-side berekend en idempotent via Mollie uitgevoerd.
         </p>
       </div>
 
@@ -276,7 +279,7 @@ export function OrderRefundPanel({
                 disabled={shippingAlreadyReserved || state === "saving"}
                 className="h-5 w-5"
               />
-              Verzendkosten van {formatPrice(shippingCents, "nl")} ook terugbetalen
+              Verzendkosten van {formatPrice(shippingCents, "nl")} terugbetalen
               {shippingAlreadyReserved ? " (al verwerkt)" : ""}
             </label>
           ) : null}

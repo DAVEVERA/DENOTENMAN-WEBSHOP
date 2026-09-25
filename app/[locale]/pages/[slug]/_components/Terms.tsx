@@ -74,11 +74,9 @@ export function Terms({ locale: _locale }: { locale: string }) {
       <LegalSection title="Artikel 6 – Prijzen, kortingen en verzendkosten">
         <p>
           Consumentenprijzen zijn in euro en inclusief btw. De checkout toont vóór bestelling de volledige
-          prijs. Naar Nederland kost verzending momenteel {euro(SHIPPING_POLICIES.NL.rateTiers[0].rateCents)}
-          tot en met 3 kg en {euro(SHIPPING_POLICIES.NL.rateTiers[1].rateCents)} daarboven; verzending is
-          gratis vanaf {euro(SHIPPING_POLICIES.NL.freeShippingThresholdCents)}. Naar België kost verzending
-          {" "}{euro(SHIPPING_POLICIES.BE.rateTiers[0].rateCents)} tot en met 2 kg en
-          {" "}{euro(SHIPPING_POLICIES.BE.rateTiers[1].rateCents)} daarboven; verzending is gratis vanaf
+          prijs. Naar Nederland kost verzending momenteel {euro(SHIPPING_POLICIES.NL.rateTiers[0].rateCents)};
+          verzending is gratis vanaf {euro(SHIPPING_POLICIES.NL.freeShippingThresholdCents)}. Naar België kost verzending
+          {" "}{euro(SHIPPING_POLICIES.BE.rateTiers[0].rateCents)}; verzending is gratis vanaf
           {" "}{euro(SHIPPING_POLICIES.BE.freeShippingThresholdCents)}. De checkout is leidend als tarieven
           of drempels later wijzigen.
         </p>

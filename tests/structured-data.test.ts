@@ -53,12 +53,12 @@ test("builds ProductGroup variants, breadcrumb and Organization from storefront 
   assert.equal(organization?.name, "De Notenman");
   assert.equal(organization?.logo, "https://denotenman.com/brand/logo-wordmark.svg");
   assert.equal(organization?.hasShippingService?.["@id"], "https://denotenman.com#standard-shipping");
-  assert.equal(organization?.hasShippingService?.shippingConditions?.length, 6);
+  assert.equal(organization?.hasShippingService?.shippingConditions?.length, 4);
   const shippingConditions = (organization?.hasShippingService?.shippingConditions ?? []) as Array<{
     shippingDestination: { addressCountry: string };
     weight?: { maxValue?: number; minValue?: number };
-    orderValue?: { minValue?: number };
-    shippingRate: { value: number };
+    orderValue?: { minValue?: number; maxValue?: number; currency: string };
+    shippingRate: { value: number; currency: string };
   }>;
   assert.deepEqual(
     shippingConditions.map((condition) => ({
@@ -66,15 +66,16 @@ test("builds ProductGroup variants, breadcrumb and Organization from storefront 
       maxWeight: condition.weight?.maxValue ?? null,
       minWeight: condition.weight?.minValue ?? null,
       minOrder: condition.orderValue?.minValue ?? null,
+      maxOrder: condition.orderValue?.maxValue ?? null,
+      orderCurrency: condition.orderValue?.currency,
       rate: condition.shippingRate.value,
+      rateCurrency: condition.shippingRate.currency,
     })),
     [
-      { country: "NL", maxWeight: 3, minWeight: null, minOrder: 0, rate: 5.95 },
-      { country: "NL", maxWeight: null, minWeight: 3.001, minOrder: 0, rate: 6.95 },
-      { country: "NL", maxWeight: null, minWeight: null, minOrder: 50, rate: 0 },
-      { country: "BE", maxWeight: 2, minWeight: null, minOrder: 0, rate: 6.65 },
-      { country: "BE", maxWeight: null, minWeight: 2.001, minOrder: 0, rate: 8.75 },
-      { country: "BE", maxWeight: null, minWeight: null, minOrder: 70, rate: 0 },
+      { country: "NL", maxWeight: null, minWeight: null, minOrder: 0, maxOrder: 49.99, orderCurrency: "EUR", rate: 4.95, rateCurrency: "EUR" },
+      { country: "NL", maxWeight: null, minWeight: null, minOrder: 50, maxOrder: null, orderCurrency: "EUR", rate: 0, rateCurrency: "EUR" },
+      { country: "BE", maxWeight: null, minWeight: null, minOrder: 0, maxOrder: 69.99, orderCurrency: "EUR", rate: 6.95, rateCurrency: "EUR" },
+      { country: "BE", maxWeight: null, minWeight: null, minOrder: 70, maxOrder: null, orderCurrency: "EUR", rate: 0, rateCurrency: "EUR" },
     ]
   );
   assert.deepEqual(organization?.hasMerchantReturnPolicy?.applicableCountry, ["NL", "BE"]);

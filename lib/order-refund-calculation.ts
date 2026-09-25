@@ -90,7 +90,10 @@ export function calculateOrderRefund(input: {
     };
   });
 
-  if (selectedItems.length === 0) {
+  // Zero selected items is only allowed when refunding just the shipping
+  // cost (e.g. a late delivery) — a refund with nothing selected at all is
+  // caught below by the REFUND_AMOUNT_ZERO check instead.
+  if (selectedItems.length === 0 && !input.includeShipping) {
     throw new OrderRefundCalculationError("NO_REFUND_ITEMS");
   }
   if (input.includeShipping && committed.some((refund) => refund.includesShipping)) {

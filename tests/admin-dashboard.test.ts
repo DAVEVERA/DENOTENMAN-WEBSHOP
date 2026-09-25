@@ -224,6 +224,16 @@ test("GA4 property configuration survives the committed Cloud Run deployment pat
   }
 });
 
+test("notenplan admin page is request-time and rejects unauthenticated access", () => {
+  const page = readFileSync("app/admin/(dashboard)/notenplan/page.tsx", "utf8");
+  assert.match(page, /export const dynamic = "force-dynamic"/);
+  assert.match(page, /await connection\(\)/);
+  assert.match(page, /verifyAdminSessionToken/);
+  assert.match(page, /redirect\("\/admin\/login"\)/);
+  assert.match(page, /adminUser\.findFirst/);
+  assert.match(page, /active: true/);
+});
+
 test("customer service uses the supplied WhatsApp Business number", () => {
   assert.equal(CUSTOMER_SERVICE_WHATSAPP_URL, "https://wa.me/31411700232");
 });

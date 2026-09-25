@@ -17,6 +17,14 @@ test("VModel jobs are provider-scoped, idempotent, limited and finalized under a
   assert.match(service, /error instanceof VModelError && error\.retryable/);
 });
 
+test("VModel reserves a daily attempt before making the paid provider call", () => {
+  const createIndex = service.indexOf("await createVModelTask(");
+  const consumeIndex = service.indexOf("await consumeDesignProviderAttempt(job.id, \"VMODEL\"");
+  assert.notEqual(createIndex, -1, "createVModelTask call not found");
+  assert.notEqual(consumeIndex, -1, "consumeDesignProviderAttempt call not found");
+  assert.ok(consumeIndex < createIndex, "quota must be reserved before createVModelTask");
+});
+
 test("VModel routes enforce admin authorization, same-origin mutation and no-store responses", () => {
   assert.match(createRoute, /getAdminSession/);
   assert.match(createRoute, /hasSameOrigin/);

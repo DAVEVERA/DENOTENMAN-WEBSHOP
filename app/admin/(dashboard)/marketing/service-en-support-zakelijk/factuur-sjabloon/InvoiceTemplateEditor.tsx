@@ -120,6 +120,10 @@ export function InvoiceTemplateEditor({
   }
 
   function removeBlock(blockId: string) {
+    const blockToRemove = canvas.rows
+      .flatMap((row) => row.columns.flatMap((column) => column.blocks))
+      .find((block) => block.id === blockId);
+    if (!blockToRemove || isDataBlock(blockToRemove)) return;
     updateCanvas((current) => ({
       rows: current.rows
         .map((row) => ({ ...row, columns: row.columns.map((column) => ({ ...column, blocks: column.blocks.filter((block) => block.id !== blockId) })) }))
@@ -207,7 +211,9 @@ export function InvoiceTemplateEditor({
                 <span className="flex gap-1">
                   <button type="button" onClick={(event) => { event.stopPropagation(); moveBlock(block.id, "up"); }} className="min-h-7 rounded-button border border-border px-2 text-xs">↑</button>
                   <button type="button" onClick={(event) => { event.stopPropagation(); moveBlock(block.id, "down"); }} className="min-h-7 rounded-button border border-border px-2 text-xs">↓</button>
-                  <button type="button" onClick={(event) => { event.stopPropagation(); removeBlock(block.id); }} className="min-h-7 rounded-button border border-border px-2 text-xs text-red-700">Verwijder</button>
+                  {!isDataBlock(block) ? (
+                    <button type="button" onClick={(event) => { event.stopPropagation(); removeBlock(block.id); }} className="min-h-7 rounded-button border border-border px-2 text-xs text-red-700">Verwijder</button>
+                  ) : null}
                 </span>
               </div>
             ))

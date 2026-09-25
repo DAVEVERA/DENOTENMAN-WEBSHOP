@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Locale } from "@/lib/i18n";
 import type { ShippingCountryCode } from "@/lib/shipping";
 import {
@@ -23,13 +23,22 @@ function readCountryCookie(): ShippingCountryCode | null {
 }
 
 export function CountrySelectModal({ locale }: { locale: Locale }) {
-  const labels = copy[locale];
-  const [open, setOpen] = useState(false);
-  const headingRef = useRef<HTMLHeadingElement>(null);
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    clientSnapshot,
+    serverSnapshot,
+  );
+  return hydrated ? <CountrySelectDialog locale={locale} /> : null;
+}
 
-  useEffect(() => {
-    setOpen(!readCountryCookie());
-  }, []);
+const subscribeHydration = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
+function CountrySelectDialog({ locale }: { locale: Locale }) {
+  const labels = copy[locale];
+  const [open, setOpen] = useState(() => !readCountryCookie());
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     if (!open) return;

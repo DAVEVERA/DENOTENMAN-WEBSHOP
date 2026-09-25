@@ -4,6 +4,9 @@ import { getMailchimpClient } from "@/lib/mailchimp/client";
 import { runMailchimpRequest } from "@/lib/mailchimp/limiter";
 import { buildNewsletterHtml, extractNewsletterContent } from "@/lib/mailchimp/template";
 import { campaignSlug } from "@/lib/campaign-urls";
+import { buildAudienceSegmentOpts, getBusinessSegmentInfo } from "@/lib/mailchimp/business-segment";
+import { audienceFromRecipients } from "@/lib/mailchimp/business-segment-logic";
+import type { NewsletterAudience } from "@/lib/mailchimp/schemas";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -41,6 +44,7 @@ export type NewsletterSummary = {
   createdAt: string | null;
   sendTime: string | null;
   recipientCount: number;
+  audience: NewsletterAudience;
 };
 
 export type NewsletterDetail = NewsletterSummary & {
@@ -54,6 +58,7 @@ export type NewsletterDraftInput = {
   fromName: string;
   replyTo: string;
   contentHtml: string;
+  audience: NewsletterAudience;
 };
 
 export type NewsletterReport = {
@@ -108,7 +113,7 @@ function listSdk(): ListSdk {
   return getMailchimpClient().lists as unknown as ListSdk;
 }
 
-function mapCampaign(value: unknown): NewsletterSummary {
+function mapCampaign(value: unknown, businessSegmentId: number | null): NewsletterSummary {
   if (!isRecord(value) || typeof value.id !== "string") {
     throw new Error("Mailchimp returned an invalid campaign");
   }
@@ -125,11 +130,20 @@ function mapCampaign(value: unknown): NewsletterSummary {
     createdAt: nullableTime(value.create_time),
     sendTime: nullableTime(value.send_time),
     recipientCount: number(recipients.recipient_count),
+    audience: audienceFromRecipients(recipients, businessSegmentId),
   };
 }
 
 function campaignArray(response: unknown): unknown[] {
   return isRecord(response) && Array.isArray(response.campaigns) ? response.campaigns : [];
+}
+
+async function recipientsForAudience(audience: NewsletterAudience): Promise<UnknownRecord> {
+  if (audience === "custom") throw new Error("Kies een doelgroep voor een nieuwe campagne.");
+  const listId = getMailchimpEnvironment().MAILCHIMP_AUDIENCE_ID;
+  if (audience === "all") return { list_id: listId };
+  const { segmentId } = await getBusinessSegmentInfo();
+  return { list_id: listId, segment_opts: buildAudienceSegmentOpts(audience, segmentId) };
 }
 
 function settings(input: NewsletterDraftInput): UnknownRecord {
@@ -177,9 +191,10 @@ export async function listNewsletterCampaigns(): Promise<{
       })
     ),
   ]);
+  const { segmentId } = await getBusinessSegmentInfo();
   return {
-    drafts: campaignArray(draftResponse).map(mapCampaign),
-    sent: campaignArray(sentResponse).map(mapCampaign),
+    drafts: campaignArray(draftResponse).map((campaign) => mapCampaign(campaign, segmentId)),
+    sent: campaignArray(sentResponse).map((campaign) => mapCampaign(campaign, segmentId)),
   };
 }
 
@@ -189,7 +204,8 @@ export async function getNewsletterCampaign(campaignId: string): Promise<Newslet
     runMailchimpRequest(() => campaigns.get(campaignId)),
     runMailchimpRequest(() => campaigns.getContent(campaignId)),
   ]);
-  const summary = mapCampaign(campaign);
+  const { segmentId } = await getBusinessSegmentInfo();
+  const summary = mapCampaign(campaign, segmentId);
   const contentRecord = isRecord(content) ? content : {};
   return { ...summary, contentHtml: extractNewsletterContent(text(contentRecord.html)) };
 }
@@ -197,17 +213,18 @@ export async function getNewsletterCampaign(campaignId: string): Promise<Newslet
 export async function createNewsletterCampaign(
   input: NewsletterDraftInput
 ): Promise<NewsletterDetail> {
-  const environment = getMailchimpEnvironment();
   const campaigns = campaignSdk();
+  const recipients = await recipientsForAudience(input.audience);
   const created = await runMailchimpRequest(() =>
     campaigns.create({
       type: "regular",
-      recipients: { list_id: environment.MAILCHIMP_AUDIENCE_ID },
+      recipients,
       settings: settings(input),
       tracking: tracking(input),
     })
   );
-  const summary = mapCampaign(created);
+  const { segmentId } = await getBusinessSegmentInfo();
+  const summary = mapCampaign(created, segmentId);
   const html = buildNewsletterHtml(input);
   await runMailchimpRequest(() => campaigns.setContent(summary.id, { html }));
   return { ...summary, contentHtml: html };
@@ -218,12 +235,17 @@ export async function updateNewsletterCampaign(
   input: NewsletterDraftInput
 ): Promise<NewsletterDetail> {
   const campaigns = campaignSdk();
+  // Omit recipients entirely when preserving a segment configured in Mailchimp.
+  const recipientUpdate = input.audience === "custom"
+    ? {}
+    : { recipients: await recipientsForAudience(input.audience) };
   const updated = await runMailchimpRequest(() =>
-    campaigns.update(campaignId, { settings: settings(input), tracking: tracking(input) })
+    campaigns.update(campaignId, { ...recipientUpdate, settings: settings(input), tracking: tracking(input) })
   );
   const html = buildNewsletterHtml(input);
   await runMailchimpRequest(() => campaigns.setContent(campaignId, { html }));
-  return { ...mapCampaign(updated), contentHtml: html };
+  const { segmentId } = await getBusinessSegmentInfo();
+  return { ...mapCampaign(updated, segmentId), contentHtml: html };
 }
 
 export async function deleteNewsletterCampaign(campaignId: string): Promise<void> {

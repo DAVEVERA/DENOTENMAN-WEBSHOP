@@ -33,6 +33,12 @@ export default async function MarketingHubPage() {
       count: newsletterCount,
     },
     {
+      title: "Marketingkalender",
+      href: "/admin/marketing/kalender",
+      description: "Acties, banners en nieuwsbrieven in één maandoverzicht.",
+      count: "Overzicht",
+    },
+    {
       title: "Mail flows",
       href: "/admin/marketing/aftersales",
       description: "Persoonlijke bestel- en verzendmails via Mailchimp.",

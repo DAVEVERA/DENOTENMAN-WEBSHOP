@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { deleteProductImage, publicImageUrl, saveProductImage } from "@/lib/storage";
 import {
   consumeDesignProviderAttempt,
+  releaseDesignProviderAttempt,
   designAssetDto,
   DesignStudioError,
   safeDesignId,
@@ -92,13 +93,18 @@ export async function createVModelCampaignJob(input: {
     throw error;
   }
 
+  const reservedAt = new Date();
+  let reserved = false;
+  let providerAccepted = false;
   try {
-    const attemptsUsed = await consumeDesignProviderAttempt(job.id, "VMODEL", VMODEL_DAILY_LIMIT, "VModel");
+    const attemptsUsed = await consumeDesignProviderAttempt(job.id, "VMODEL", VMODEL_DAILY_LIMIT, "VModel", reservedAt);
+    reserved = true;
     const task = await createVModelTask(
       options,
       publicImageUrl(source.storageKey),
       source.product.translations[0]?.name || "De Notenman-product",
     );
+    providerAccepted = true;
     const updated = await prisma.designJob.update({
       where: { id: job.id },
       data: {
@@ -111,6 +117,12 @@ export async function createVModelCampaignJob(input: {
     });
     return { job: vModelJobDto(updated), attemptsUsed, dailyLimit: VMODEL_DAILY_LIMIT, replayed: false };
   } catch (error) {
+    // A timeout, network error, 5xx or malformed response may hide an accepted
+    // paid task. Retain that reservation; only definite rejections release it.
+    if (reserved && !providerAccepted && error instanceof VModelError
+      && (error.code === "PROVIDER_REJECTED" || error.code === "NOT_CONFIGURED")) {
+      await releaseDesignProviderAttempt(job.id, "VMODEL", reservedAt);
+    }
     const mapped = error instanceof DesignStudioError || error instanceof VModelError
       ? error
       : new DesignStudioError("TASK_CREATE_FAILED", "De VModel-taak kon niet veilig worden gestart.", 500);

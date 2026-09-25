@@ -74,4 +74,32 @@ assert.throws(
     error instanceof OrderRefundCalculationError && error.code === "SHIPPING_ALREADY_REFUNDED"
 );
 
+// A shipping-only refund (e.g. a late delivery) must be possible without
+// canceling any order items.
+const shippingOnlyRefund = calculateOrderRefund({
+  ...base,
+  selections: [],
+  includeShipping: true,
+});
+assert.deepEqual(shippingOnlyRefund, {
+  amountCents: base.shippingCents,
+  selectedGrossCents: 0,
+  allocatedDiscountCents: 0,
+  remainingOrderCents: base.totalCents,
+  items: [],
+});
+
+// Zero items with includeShipping false is still rejected — there is
+// nothing to refund.
+assert.throws(
+  () =>
+    calculateOrderRefund({
+      ...base,
+      selections: [],
+      includeShipping: false,
+    }),
+  (error: unknown) =>
+    error instanceof OrderRefundCalculationError && error.code === "NO_REFUND_ITEMS"
+);
+
 console.log("order refund calculation tests passed");

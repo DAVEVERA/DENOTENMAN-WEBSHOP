@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   const order = await prisma.order.findUnique({ where: { molliePaymentId: paymentId } });
 
   if (!order) {
-    // Unknown payment id: acknowledge so Mollie stops retrying, nothing to do.
+    console.warn("Mollie webhook received an unknown payment id", { paymentId });
     return NextResponse.json({ received: true });
   }
 

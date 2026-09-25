@@ -15,6 +15,8 @@ const requestSchema = z
     businessCancellationRequestId: z.string().trim().min(1).nullable().optional(),
     reason: z.string().trim().max(500).nullable().optional(),
     includeShipping: z.boolean().default(false),
+    // Zero items is only meaningful together with includeShipping (a
+    // shipping-only refund) — enforced below, not by the array's own bounds.
     items: z
       .array(
         z
@@ -24,10 +26,13 @@ const requestSchema = z
           })
           .strict()
       )
-      .min(1)
       .max(100),
   })
-  .strict();
+  .strict()
+  .refine((data) => data.items.length > 0 || data.includeShipping, {
+    message: "Selecteer minimaal één artikel of vink verzendkosten aan.",
+    path: ["items"],
+  });
 
 export async function POST(
   request: NextRequest,

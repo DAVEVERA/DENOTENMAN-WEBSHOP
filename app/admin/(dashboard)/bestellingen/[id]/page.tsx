@@ -5,9 +5,11 @@ import { syncOrderPaymentStatus } from "@/lib/orders";
 import { syncOrderRefundStatuses } from "@/lib/order-refund-service";
 import { formatPrice } from "@/lib/format";
 import { getPickupLocation } from "@/lib/pickup-locations";
+import { buildOrderTimeline } from "@/lib/order-timeline";
 import { StatusBadge } from "../StatusBadge";
 import { OrderEditForm } from "./OrderEditForm";
 import { OrderRefundPanel } from "./OrderRefundPanel";
+import { OrderTimeline } from "./OrderTimeline";
 
 function formatDateTime(date: Date) {
   return new Intl.DateTimeFormat("nl-NL", {
@@ -56,7 +58,30 @@ export default async function OrderDetailPage({
         include: { items: true },
         orderBy: { createdAt: "desc" },
       },
+      emailDeliveryLogs: {
+        select: { kind: true, status: true, createdAt: true, deliveredAt: true },
+        orderBy: { createdAt: "asc" },
+      },
     },
+  });
+
+  const timelineEvents = buildOrderTimeline({
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+    paidAt: order.paidAt,
+    status: order.status,
+    emailDeliveryLogs: order.emailDeliveryLogs,
+    refunds: order.refunds.map((refund) => ({
+      status: refund.status,
+      amountCents: refund.amountCents,
+      createdAt: refund.createdAt,
+      updatedAt: refund.updatedAt,
+    })),
+    businessCancellationRequests: order.businessCancellationRequests.map((request) => ({
+      status: request.status,
+      createdAt: request.createdAt,
+      updatedAt: request.updatedAt,
+    })),
   });
 
   const pickupLocation =
@@ -267,6 +292,13 @@ export default async function OrderDetailPage({
                 <div key={index}>{line}</div>
               ))}
             </address>
+          </div>
+
+          <div className="rounded-panel border border-border bg-surface p-5">
+            <h2 className="font-heading text-heading-sm text-text">Tijdlijn</h2>
+            <div className="mt-4">
+              <OrderTimeline events={timelineEvents} />
+            </div>
           </div>
         </div>
       </div>

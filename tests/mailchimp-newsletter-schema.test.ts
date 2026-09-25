@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  newsletterAudienceSchema,
   newsletterDraftSchema,
   newsletterScheduleSchema,
   newsletterSendSchema,
@@ -16,6 +17,16 @@ const draft = {
 };
 
 assert.equal(newsletterDraftSchema.safeParse(draft).success, true);
+assert.equal(newsletterDraftSchema.parse(draft).audience, "custom");
+assert.equal(
+  newsletterDraftSchema.safeParse({ ...draft, audience: "zakelijk" }).success,
+  true
+);
+assert.equal(
+  newsletterDraftSchema.safeParse({ ...draft, audience: "onbekend" }).success,
+  false
+);
+assert.equal(newsletterAudienceSchema.safeParse("particulier").success, true);
 assert.equal(
   newsletterDraftSchema.safeParse({
     subject: draft.subject,

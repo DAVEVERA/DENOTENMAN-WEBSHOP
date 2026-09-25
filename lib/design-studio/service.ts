@@ -59,8 +59,9 @@ export async function consumeDesignProviderAttempt(
   provider: DesignProvider,
   dailyLimit: number,
   providerLabel: string,
+  reservedAt = new Date(),
 ): Promise<number> {
-  const dayKey = amsterdamDayKey();
+  const dayKey = amsterdamDayKey(reservedAt);
   return prisma.$transaction(async (tx) => {
     await tx.designProviderUsage.upsert({
       where: { dayKey_provider: { dayKey, provider } },
@@ -75,6 +76,25 @@ export async function consumeDesignProviderAttempt(
     const usage = await tx.designProviderUsage.findUniqueOrThrow({ where: { dayKey_provider: { dayKey, provider } } });
     await tx.designJob.update({ where: { id: jobId }, data: { status: "PROCESSING" } });
     return usage.attempts;
+  });
+}
+
+export async function releaseDesignProviderAttempt(
+  jobId: string,
+  provider: DesignProvider,
+  reservedAt: Date,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    // Claim the release once, and only before a provider task is recorded.
+    const released = await tx.designJob.updateMany({
+      where: { id: jobId, provider, status: "PROCESSING", providerRequestId: null },
+      data: { status: "FAILED" },
+    });
+    if (released.count !== 1) return;
+    await tx.designProviderUsage.updateMany({
+      where: { dayKey: amsterdamDayKey(reservedAt), provider, attempts: { gt: 0 } },
+      data: { attempts: { decrement: 1 } },
+    });
   });
 }
 

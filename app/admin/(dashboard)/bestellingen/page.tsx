@@ -8,6 +8,8 @@ import { BulkLabelPrint } from "./BulkLabelPrint";
 import { OrderLabelButton } from "./OrderLabelButton";
 import { BulkPakbonPrint } from "./BulkPakbonPrint";
 import { OrderPakbonButton } from "./OrderPakbonButton";
+import { OrderRefundBadge } from "./OrderRefundBadge";
+import { MarketManifestPrint } from "./MarketManifestPrint";
 
 const VALID_STATUSES = new Set<string>([
   "PENDING",
@@ -23,6 +25,7 @@ const STATUS_TABS: { label: string; status: OrderStatus | null }[] = [
   { label: "Betaald", status: "PAID" },
   { label: "Verzonden", status: "FULFILLED" },
   { label: "Geannuleerd", status: "CANCELLED" },
+  { label: "Terugbetaald", status: "REFUNDED" },
 ];
 
 export default async function BestellingenPage({
@@ -47,6 +50,7 @@ export default async function BestellingenPage({
       createdAt: true,
       postnlTrackingCode: true,
       postnlLabelBase64: true,
+      refunds: { select: { amountCents: true, status: true } },
     },
   });
 
@@ -57,6 +61,10 @@ export default async function BestellingenPage({
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <BulkLabelPrint />
         <BulkPakbonPrint />
+      </div>
+
+      <div className="mt-4">
+        <MarketManifestPrint />
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -114,6 +122,7 @@ export default async function BestellingenPage({
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge status={order.status} />
+                      <OrderRefundBadge totalCents={order.totalCents} refunds={order.refunds} />
                       {order.isTest ? (
                         <span className="rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">
                           Test

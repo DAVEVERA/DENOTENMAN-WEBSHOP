@@ -19,19 +19,16 @@ test("totals authoritative variant weights including quantity", () => {
   assert.equal(calculateTotalWeightGrams([{ weightGrams: 0, quantity: 1 }]), null);
 });
 
-test("applies Netherlands weight tiers through the exact 3 kg boundary", () => {
-  assert.equal(shippingRateForWeight("NL", 1), 595);
-  assert.equal(shippingRateForWeight("NL", 3_000), 595);
-  assert.equal(shippingRateForWeight("NL", 3_001), 695);
-  assert.equal(shippingRateForWeight("NL", 10_000), 695);
-  assert.equal(shippingRateForWeight("NL", 10_001), 695);
+test("applies the flat Netherlands rate at every weight", () => {
+  assert.equal(shippingRateForWeight("NL", 1), 495);
+  assert.equal(shippingRateForWeight("NL", 3_000), 495);
+  assert.equal(shippingRateForWeight("NL", 25_000), 495);
 });
 
-test("applies Belgium weight tiers through the exact 2 kg boundary", () => {
-  assert.equal(shippingRateForWeight("BE", 1), 665);
-  assert.equal(shippingRateForWeight("BE", 2_000), 665);
-  assert.equal(shippingRateForWeight("BE", 2_001), 875);
-  assert.equal(shippingRateForWeight("BE", 25_000), 875);
+test("applies the flat Belgium rate at every weight", () => {
+  assert.equal(shippingRateForWeight("BE", 1), 695);
+  assert.equal(shippingRateForWeight("BE", 2_000), 695);
+  assert.equal(shippingRateForWeight("BE", 25_000), 695);
 });
 
 test("uses the country-specific free-shipping thresholds", () => {
@@ -40,7 +37,7 @@ test("uses the country-specific free-shipping thresholds", () => {
 
   assert.equal(
     calculateShippingCents({ country: "NL", subtotalCents: 4_999, totalWeightGrams: 500 }),
-    595
+    495
   );
   assert.equal(
     calculateShippingCents({ country: "NL", subtotalCents: 5_000, totalWeightGrams: 500 }),
@@ -48,7 +45,7 @@ test("uses the country-specific free-shipping thresholds", () => {
   );
   assert.equal(
     calculateShippingCents({ country: "BE", subtotalCents: 6_999, totalWeightGrams: 500 }),
-    665
+    695
   );
   assert.equal(
     calculateShippingCents({ country: "BE", subtotalCents: 7_000, totalWeightGrams: 500 }),
@@ -72,7 +69,7 @@ test("keeps pickup and empty carts free", () => {
   );
 });
 
-test("uses the highest country rate when a legacy browser cart has no weight", () => {
-  assert.equal(shippingRateForWeight("NL", null), 695);
-  assert.equal(shippingRateForWeight("BE", null), 875);
+test("uses the country rate when a legacy browser cart has no weight", () => {
+  assert.equal(shippingRateForWeight("NL", null), 495);
+  assert.equal(shippingRateForWeight("BE", null), 695);
 });

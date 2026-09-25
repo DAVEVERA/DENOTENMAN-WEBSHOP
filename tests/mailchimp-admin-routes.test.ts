@@ -9,6 +9,7 @@ import {
 import { POST as sendTest } from "../app/api/admin/marketing/newsletters/[id]/test/route";
 import { POST as schedule } from "../app/api/admin/marketing/newsletters/[id]/schedule/route";
 import { POST as send } from "../app/api/admin/marketing/newsletters/[id]/send/route";
+import { POST as syncBusinessTags } from "../app/api/admin/marketing/newsletters/sync-business-tags/route";
 
 const baseUrl = "http://localhost/api/admin/marketing/newsletters";
 const context = { params: Promise.resolve({ id: "campaign-1" }) };
@@ -35,6 +36,7 @@ async function main(): Promise<void> {
     sendTest(request("/campaign-1/test", "POST"), context),
     schedule(request("/campaign-1/schedule", "POST"), context),
     send(request("/campaign-1/send", "POST"), context),
+    syncBusinessTags(request("/sync-business-tags", "POST")),
   ]);
 
   for (const response of responses) {

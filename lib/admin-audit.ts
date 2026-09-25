@@ -42,7 +42,7 @@ export async function revertAuditEntry(admin: AdminUser, auditLogId: string): Pr
       await model.delete({ where: { id: entry.entityId } });
     } else if (entry.action === "DELETE") {
       if (!entry.before) return { ok: false, error: "MISSING_SNAPSHOT" };
-      await model.create({ data: entry.before as object });
+      await applyDeleteRevert(model, entry.entityId, entry.before as object);
     } else {
       if (!entry.before) return { ok: false, error: "MISSING_SNAPSHOT" };
       await model.update({ where: { id: entry.entityId }, data: entry.before as object });
@@ -76,7 +76,6 @@ const AUDITABLE_MODELS = [
   "MarketingCampaign",
   "NewsletterCampaign",
   "BusinessAccount",
-  "Quote",
 ] as const;
 
 export function canRevertAuditEntity(entityType: string): boolean {
@@ -87,7 +86,31 @@ type AuditableDelegate = {
   delete: (args: { where: { id: string } }) => Promise<unknown>;
   create: (args: { data: object }) => Promise<unknown>;
   update: (args: { where: { id: string }; data: object }) => Promise<unknown>;
+  findUnique: (args: { where: { id: string } }) => Promise<unknown>;
 };
+
+// Reverting a DELETE audit entry normally means replaying `before` as a
+// `create`. But some routes (e.g. BusinessAccount) log "DELETE" for what is
+// actually a soft delete — the row still exists with deletedAt set — and a
+// `create` against an existing id would crash on the unique constraint.
+// Check whether the row still exists first: if it does, restore it with an
+// `update` back to the `before` snapshot (which naturally clears deletedAt,
+// since that field was unset in the pre-delete snapshot); only a genuine
+// hard delete, where the row is truly gone, falls back to `create`.
+// Exported so the branch can be exercised against a fake delegate in tests
+// without a real database.
+export async function applyDeleteRevert(
+  model: AuditableDelegate,
+  entityId: string,
+  before: object
+): Promise<void> {
+  const stillExists = await model.findUnique({ where: { id: entityId } });
+  if (stillExists) {
+    await model.update({ where: { id: entityId }, data: before });
+  } else {
+    await model.create({ data: before });
+  }
+}
 
 function getDelegate(tx: Prisma.TransactionClient, entityType: string): AuditableDelegate | null {
   if (!canRevertAuditEntity(entityType)) return null;
