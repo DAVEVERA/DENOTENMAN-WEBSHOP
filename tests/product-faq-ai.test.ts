@@ -12,9 +12,11 @@ import {
 function factCard(overrides: Partial<ProductFaqFactCard> = {}): ProductFaqFactCard {
   return {
     productName: "Cashewnoten ongebrand",
+    categoryName: "Noten",
     ingredients: "CASHEWNOTEN",
     allergens: "CASHEWNOTEN",
     mayContainTraces: "PINDA'S, ANDERE NOTEN",
+    variants: [{ weightGrams: 250, preparation: "RAW", salting: "UNSALTED", coating: "NONE" }],
     ...overrides,
   };
 }
@@ -81,6 +83,30 @@ test("generateProductFaqSuggestions drops duplicates and hallucinated allergen c
   ]);
 });
 
+test("generateProductFaqSuggestions sends product-specific data and the min/max guidance to the provider", async () => {
+  let capturedPrompt = "";
+  await generateProductFaqSuggestions(
+    {
+      factCard: factCard({ categoryName: "Noten", variants: [
+        { weightGrams: 250, preparation: "ROASTED", salting: "SALTED", coating: "NONE" },
+        { weightGrams: 500, preparation: "ROASTED", salting: "SALTED", coating: "NONE" },
+      ] }),
+      existingQuestions: ["Een al bestaande vraag?"],
+    },
+    async (request) => {
+      const parts = (request.contents as Array<{ parts: Array<{ text: string }> }>)[0].parts;
+      capturedPrompt = parts[1].text;
+      return { text: JSON.stringify({ suggestions: [] }) };
+    }
+  );
+  assert.match(capturedPrompt, /minimaal 3, maximaal 5/);
+  assert.match(capturedPrompt, /Noten/);
+  assert.match(capturedPrompt, /"gewichtGrams":250/);
+  assert.match(capturedPrompt, /"gewichtGrams":500/);
+  assert.match(capturedPrompt, /"bereiding":"ROASTED"/);
+  assert.match(capturedPrompt, /Een al bestaande vraag\?/);
+});
+
 test("generateProductFaqSuggestions surfaces an error for an invalid provider response", async () => {
   await assert.rejects(
     () => generateProductFaqSuggestions({ factCard: factCard(), existingQuestions: [] }, async () => ({ text: "not json" })),
@@ -88,17 +114,17 @@ test("generateProductFaqSuggestions surfaces an error for an invalid provider re
   );
 });
 
-test("generateProductFaqSuggestions caps suggestions at 4", async () => {
+test("generateProductFaqSuggestions caps suggestions at 5", async () => {
   const suggestions = await generateProductFaqSuggestions(
     { factCard: factCard(), existingQuestions: [] },
     async () => ({
       text: JSON.stringify({
-        suggestions: Array.from({ length: 6 }, (_, index) => ({
+        suggestions: Array.from({ length: 5 }, (_, index) => ({
           question: `Vraag ${index}?`,
           answer: `Antwoord ${index}.`,
         })),
       }),
     })
   );
-  assert.equal(suggestions.length, 4);
+  assert.equal(suggestions.length, 5);
 });

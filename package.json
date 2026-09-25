@@ -17,6 +17,7 @@
     "images:migrate": "tsx scripts/migrate-product-images.ts",
     "images:verify": "tsx scripts/verify-product-image-migration.ts",
     "faqs:migrate": "tsx scripts/migrate-product-faqs.ts",
+    "faqs:backfill-ai": "tsx scripts/backfill-product-faqs.ts",
     "photoroom:smoke": "tsx scripts/run-photoroom-smoke.ts",
     "test:product-faqs": "tsx --test tests/product-faq-*.test.ts tests/product-faq-*.test.tsx",
     "test:product-images": "tsx --test tests/product-image-migration*.test.ts",
