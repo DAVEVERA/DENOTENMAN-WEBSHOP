@@ -4,6 +4,8 @@ import { designStudioModules } from "@/lib/design-studio/modules";
 import { getDesignStudioProviderStatuses } from "@/lib/design-studio/provider-status";
 import { copywriterBadge, photoRoomBadge, plannedBadge, vModelBadge, type DesignStudioBadge } from "@/lib/design-studio/provider-badges";
 
+export const dynamic = "force-dynamic";
+
 const moduleIcons = {
   "product-photos": ImageIcon,
   "campaign-assets": WandSparkles,
