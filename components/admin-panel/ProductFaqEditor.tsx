@@ -9,6 +9,7 @@ import {
   Plus,
   Save,
   Send,
+  Sparkles,
   Trash2,
   Undo2,
   Upload,
@@ -142,6 +143,15 @@ function faqLocalePanelId(itemId: string): string {
   return `faq-locale-panel-${itemId}`;
 }
 
+type FaqAiSuggestion = { question: string; answer: string };
+
+function escapeFaqAiAnswer(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 export function ProductFaqEditor({ productId }: { productId: string }) {
   const [faqSet, setFaqSet] = useState<FaqSet>({ revision: 0, items: [] });
   const [localeByItem, setLocaleByItem] = useState<Record<string, FaqLocale>>({});
@@ -150,6 +160,10 @@ export function ProductFaqEditor({ productId }: { productId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dirtyItemIds, setDirtyItemIds] = useState<Set<string>>(() => new Set());
+  const [aiSuggestions, setAiSuggestions] = useState<FaqAiSuggestion[] | null>(null);
+  const [aiSelected, setAiSelected] = useState<Set<number>>(() => new Set());
+  const [aiPhase, setAiPhase] = useState<"idle" | "generating" | "adding">("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const endpoint = `/api/admin/products/${productId}/faqs`;
   const activeCount = faqSet.items.length;
@@ -246,6 +260,74 @@ export function ProductFaqEditor({ productId }: { productId: string }) {
     }, "Conceptvraag toegevoegd.");
   }
 
+  async function generateAiSuggestions() {
+    setAiError(null);
+    setAiPhase("generating");
+    try {
+      const response = await fetch(`${endpoint}/genereer`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() } });
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const code = payload && typeof payload === "object" ? (payload as { error?: unknown }).error : null;
+        throw new Error(code === "FAQ_AI_NOT_CONFIGURED" ? "AI-suggesties zijn nog niet geconfigureerd." : apiMessage(payload, "AI kon geen suggesties genereren."));
+      }
+      const list = payload && typeof payload === "object" && Array.isArray((payload as { suggestions?: unknown }).suggestions)
+        ? (payload as { suggestions: FaqAiSuggestion[] }).suggestions
+        : [];
+      setAiSuggestions(list);
+      setAiSelected(new Set(list.map((_, index) => index)));
+      if (list.length === 0) setAiError("Geen nieuwe suggesties gevonden.");
+    } catch (cause) {
+      setAiError(cause instanceof Error ? cause.message : "AI kon geen suggesties genereren.");
+      setAiSuggestions(null);
+    } finally {
+      setAiPhase("idle");
+    }
+  }
+
+  function toggleAiSelected(index: number) {
+    setAiSelected((current) => {
+      const next = new Set(current);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  }
+
+  async function addSelectedAiSuggestions() {
+    const selected = [...aiSelected].sort((left, right) => left - right).map((index) => aiSuggestions?.[index]).filter((value): value is FaqAiSuggestion => Boolean(value));
+    if (selected.length === 0) return;
+    setAiPhase("adding");
+    setAiError(null);
+    let revision = faqSet.revision;
+    let failed = false;
+    for (const suggestion of selected) {
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+          body: JSON.stringify({
+            expectedRevision: revision,
+            idempotencyKey: crypto.randomUUID(),
+            placement: "BELOW_PRODUCT_DETAILS",
+            translations: [{ locale: "nl", question: suggestion.question, answerHtml: `<p>${escapeFaqAiAnswer(suggestion.answer)}</p>`, mediaLabel: null }],
+          }),
+        });
+        const payload: unknown = await response.json().catch(() => null);
+        if (!response.ok) { failed = true; break; }
+        if (payload && typeof payload === "object" && typeof (payload as { revision?: unknown }).revision === "number") {
+          revision = (payload as { revision: number }).revision;
+        }
+      } catch {
+        failed = true;
+        break;
+      }
+    }
+    await load();
+    setAiSuggestions(null);
+    setAiSelected(new Set());
+    setAiPhase("idle");
+    setMessage(failed ? "Niet alle suggesties konden worden toegevoegd. Ververs en probeer opnieuw." : "Geselecteerde suggesties toegevoegd als concept. Controleer en publiceer ze zelf.");
+  }
+
   async function saveItem(item: FaqItem) {
     const idempotencyKey = crypto.randomUUID();
     await mutate(`${endpoint}/${item.id}`, {
@@ -327,9 +409,14 @@ export function ProductFaqEditor({ productId }: { productId: string }) {
               Schrijf alle inhoud zelf. Alleen gepubliceerde vragen met een complete vertaling worden in die taal getoond.
             </p>
           </div>
-          <button type="button" onClick={() => void addItem()} disabled={phase === "saving" || activeCount >= 50 || dirtyItemIds.size > 0} className={`${actionClass} border-accent bg-accent text-contrast`}>
-            <Plus className="h-4 w-4" aria-hidden="true" /> Vraag toevoegen
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => void generateAiSuggestions()} disabled={phase === "saving" || aiPhase !== "idle" || activeCount >= 50} className={actionClass}>
+              <Sparkles className="h-4 w-4" aria-hidden="true" /> {aiPhase === "generating" ? "Genereren…" : "Genereer met AI"}
+            </button>
+            <button type="button" onClick={() => void addItem()} disabled={phase === "saving" || activeCount >= 50 || dirtyItemIds.size > 0} className={`${actionClass} border-accent bg-accent text-contrast`}>
+              <Plus className="h-4 w-4" aria-hidden="true" /> Vraag toevoegen
+            </button>
+          </div>
         </div>
         <dl className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {groupedCount.map((placement) => (
@@ -344,6 +431,36 @@ export function ProductFaqEditor({ productId }: { productId: string }) {
           {!error && message ? <p className="text-body-sm font-semibold text-green-700">{message}</p> : null}
         </div>
       </div>
+
+      {aiSuggestions && aiSuggestions.length > 0 ? (
+        <div className="mt-5 rounded-panel border border-accent bg-accent/5 p-4 shadow-card sm:p-6" aria-labelledby="faq-ai-review-title">
+          <h3 id="faq-ai-review-title" className="font-heading text-heading-sm text-text">AI-suggesties beoordelen</h3>
+          <p className="mt-1 text-body-sm text-muted">Vink aan wat je als concept wilt toevoegen. Niets wordt automatisch gepubliceerd — controleer en publiceer zelf per vraag.</p>
+          <ul className="mt-4 space-y-3">
+            {aiSuggestions.map((suggestion, index) => (
+              <li key={index} className="rounded-button border border-border bg-white p-3">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" className="mt-1 h-4 w-4" checked={aiSelected.has(index)} onChange={() => toggleAiSelected(index)} />
+                  <span>
+                    <span className="block font-heading text-body-sm font-bold text-text">{suggestion.question}</span>
+                    <span className="mt-1 block text-body-sm text-muted">{suggestion.answer}</span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          {aiError ? <p role="alert" className="mt-3 text-body-sm font-semibold text-red-700">{aiError}</p> : null}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={() => void addSelectedAiSuggestions()} disabled={aiPhase === "adding" || aiSelected.size === 0} className={`${actionClass} border-accent bg-accent text-contrast`}>
+              {aiPhase === "adding" ? "Toevoegen…" : `Voeg ${aiSelected.size} concept${aiSelected.size === 1 ? "" : "en"} toe`}
+            </button>
+            <button type="button" onClick={() => { setAiSuggestions(null); setAiError(null); }} disabled={aiPhase === "adding"} className={actionClass}>Annuleren</button>
+          </div>
+        </div>
+      ) : null}
+      {aiError && (!aiSuggestions || aiSuggestions.length === 0) ? (
+        <p role="alert" className="mt-4 text-body-sm font-semibold text-red-700">{aiError}</p>
+      ) : null}
 
       {faqSet.items.length === 0 ? (
         <div className="mt-5 rounded-panel border border-dashed border-border bg-surface p-8 text-center">
