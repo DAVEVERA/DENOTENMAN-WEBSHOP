@@ -107,6 +107,24 @@ test("generateProductFaqSuggestions sends product-specific data and the min/max 
   assert.match(capturedPrompt, /Een al bestaande vraag\?/);
 });
 
+test("generateProductFaqSuggestions tells the provider to skip raw/roasted and salting angles outside Noten, and to vary warm words", async () => {
+  let capturedSystem = "";
+  let capturedPrompt = "";
+  await generateProductFaqSuggestions(
+    { factCard: factCard({ categoryName: "Gedroogd fruit" }), existingQuestions: [] },
+    async (request) => {
+      const parts = (request.contents as Array<{ parts: Array<{ text: string }> }>)[0].parts;
+      capturedSystem = parts[0].text;
+      capturedPrompt = parts[1].text;
+      return { text: JSON.stringify({ suggestions: [] }) };
+    }
+  );
+  assert.match(capturedPrompt, /uitsluitend bij categorie Noten/);
+  assert.match(capturedPrompt, /Sla deze invalshoek altijd over bij andere categorieën/);
+  assert.match(capturedSystem, /Varieer je woordkeuze/);
+  assert.match(capturedSystem, /maximaal één keer per set antwoorden/);
+});
+
 test("generateProductFaqSuggestions surfaces an error for an invalid provider response", async () => {
   await assert.rejects(
     () => generateProductFaqSuggestions({ factCard: factCard(), existingQuestions: [] }, async () => ({ text: "not json" })),
