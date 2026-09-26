@@ -1,4 +1,3 @@
-import "server-only";
 import { prisma } from "@/lib/prisma";
 import { ProductFaqAiError, type ProductFaqFactCard } from "@/lib/product-faq-ai";
 
