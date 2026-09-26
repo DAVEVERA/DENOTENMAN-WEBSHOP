@@ -1,13 +1,19 @@
 import { prisma } from "../lib/prisma";
-import { createFaqItem } from "../lib/product-faq-db";
+import { createFaqItem, deleteFaqItem } from "../lib/product-faq-db";
 import { getAdminProductFaqSet } from "../lib/product-faq";
 import { generateProductFaqSuggestions } from "../lib/product-faq-ai";
 import { loadProductFaqFactCard } from "../lib/product-faq-ai-service";
 
 // Dry-run by default. Pass --apply to actually write draft FAQ items. Nothing is ever
 // published automatically — every item lands as DRAFT, exactly like the admin "Genereer met
-// AI" button, so a human still reviews and publishes each one.
+// AI" button, so a human still reviews and publishes each one. Published items are never
+// touched or removed by this script, in any mode.
 const apply = process.argv.includes("--apply");
+// Default mode only fills products below MIN_TARGET_ITEMS. --all instead refreshes every
+// active product: any of ITS OWN existing DRAFT items (e.g. from an earlier run of this
+// script) are deleted first, then a fresh 3-5 set is generated — a full "replace", never
+// touching PUBLISHED items.
+const refreshAll = process.argv.includes("--all");
 const MIN_TARGET_ITEMS = 3;
 const DEFAULT_BATCH_SIZE = 20;
 
@@ -27,7 +33,7 @@ function escapeFaqAiAnswer(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-type ProductResult = { productId: string; sku: string; generated: number; added: number; error?: string };
+type ProductResult = { productId: string; sku: string; removed: number; generated: number; added: number; error?: string };
 
 async function main() {
   if (apply && !adminId && !adminUsername) {
@@ -51,13 +57,17 @@ async function main() {
     orderBy: { id: "asc" },
   });
 
-  const candidates = products.filter((product) => (product.faqSet?.items.length ?? 0) < MIN_TARGET_ITEMS);
+  const candidates = refreshAll
+    ? products
+    : products.filter((product) => (product.faqSet?.items.length ?? 0) < MIN_TARGET_ITEMS);
   const batch = candidates.slice(0, limit);
 
   console.log(JSON.stringify({
     mode: apply ? "apply" : "dry-run",
+    scope: refreshAll ? "all-active-products" : "below-target-only",
     totalActiveProducts: products.length,
-    productsBelowTarget: candidates.length,
+    productsBelowTarget: products.filter((product) => (product.faqSet?.items.length ?? 0) < MIN_TARGET_ITEMS).length,
+    candidateCount: candidates.length,
     batchSize: batch.length,
   }, null, 2));
 
@@ -68,8 +78,25 @@ async function main() {
         loadProductFaqFactCard(product.id),
         getAdminProductFaqSet(product.id),
       ]);
+
+      let removed = 0;
+      if (refreshAll && apply) {
+        for (const item of faqSet.items.filter((entry) => entry.status === "DRAFT")) {
+          const current = await prisma.productFaqSet.findUnique({ where: { productId: product.id }, select: { aggregateRevision: true } });
+          await deleteFaqItem(product.id, item.id, admin!, {
+            expectedRevision: current?.aggregateRevision ?? 0,
+            itemVersion: item.version,
+            idempotencyKey: crypto.randomUUID(),
+          });
+          removed += 1;
+        }
+      }
+
+      // Only PUBLISHED questions still count as "existing" — in --all mode any DRAFT
+      // question is either already removed above or about to be replaced, so it must not
+      // suppress a similar fresh suggestion.
       const existingQuestions = faqSet.items.flatMap((item) =>
-        [item.draft, item.published].flatMap((revision) =>
+        (refreshAll ? [item.published] : [item.draft, item.published]).flatMap((revision) =>
           revision?.translations.filter((translation) => translation.locale === "nl").map((translation) => translation.question) ?? []
         )
       );
@@ -87,9 +114,9 @@ async function main() {
           added += 1;
         }
       }
-      results.push({ productId: product.id, sku: product.sku, generated: suggestions.length, added });
+      results.push({ productId: product.id, sku: product.sku, removed, generated: suggestions.length, added });
     } catch (error) {
-      results.push({ productId: product.id, sku: product.sku, generated: 0, added: 0, error: error instanceof Error ? error.message : String(error) });
+      results.push({ productId: product.id, sku: product.sku, removed: 0, generated: 0, added: 0, error: error instanceof Error ? error.message : String(error) });
     }
   }
   console.log(JSON.stringify({ results }, null, 2));

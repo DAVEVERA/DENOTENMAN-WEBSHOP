@@ -107,7 +107,7 @@ test("generateProductFaqSuggestions sends product-specific data and the min/max 
   assert.match(capturedPrompt, /Een al bestaande vraag\?/);
 });
 
-test("generateProductFaqSuggestions tells the provider to skip raw/roasted and salting angles outside Noten, and to vary warm words", async () => {
+test("generateProductFaqSuggestions tells the provider to skip raw/roasted and salting angles outside Noten, ban the allergen question, and vary warm words", async () => {
   let capturedSystem = "";
   let capturedPrompt = "";
   await generateProductFaqSuggestions(
@@ -119,8 +119,10 @@ test("generateProductFaqSuggestions tells the provider to skip raw/roasted and s
       return { text: JSON.stringify({ suggestions: [] }) };
     }
   );
-  assert.match(capturedPrompt, /uitsluitend bij categorie Noten/);
-  assert.match(capturedPrompt, /Sla deze invalshoek altijd over bij andere categorieën/);
+  assert.match(capturedSystem, /bereiding: rauw\/geroosterd' buiten de categorie Noten/);
+  assert.match(capturedPrompt, /Gedroogd fruit: puur fruit/);
+  assert.match(capturedSystem, /Stel nooit een vraag in de trant van 'bevat dit product allergenen/);
+  assert.match(capturedSystem, /nieuwsgierige klant/);
   assert.match(capturedSystem, /Varieer je woordkeuze/);
   assert.match(capturedSystem, /maximaal één keer per set antwoorden/);
 });
