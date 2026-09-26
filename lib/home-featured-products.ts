@@ -13,10 +13,12 @@ export const HOME_NUT_PRODUCT_SKUS = [
 ] as const;
 
 export const HOME_HONEY_PRODUCT_SKUS = [
-  "NAT-10003-350-P",
   "NAT-10005-450-P",
-  "NAT-10010-900-P",
-  "NAT-10011-350-P",
+  "NAT-10006-350-P",
+  "NAT-10007-350-P",
+  "NAT-10008-350-P",
+  "NAT-10012-350-P",
+  "NAT-10016-350-P",
+  "NAT-10017-450-P",
   "NAT-10019-350-P",
-  "NAT-10020-250-P",
 ] as const;

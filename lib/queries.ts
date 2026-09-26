@@ -1115,7 +1115,7 @@ export const getHomeLandingProducts = cache(
           preferredSkus: HOME_NUT_PRODUCT_SKUS,
         }),
         findGroupIds(honeyCategoryIds, {
-          limit: HOME_PRODUCT_LIMIT,
+          limit: HOME_HONEY_PRODUCT_SKUS.length,
           excludedCategoryIds: nutButterCategoryIds,
           preferredSkus: HOME_HONEY_PRODUCT_SKUS,
         }),

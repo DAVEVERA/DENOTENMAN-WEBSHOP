@@ -35,8 +35,8 @@ test("homepage category previews are curated and unique", () => {
   assert.equal(HOME_CATEGORY_PREVIEW_SKUS.noten, "MIX-3003-250-P");
   assert.equal(HOME_NUT_PRODUCT_SKUS.length, 6);
   assert.equal(new Set(HOME_NUT_PRODUCT_SKUS).size, 6);
-  assert.equal(HOME_HONEY_PRODUCT_SKUS.length, 6);
-  assert.equal(new Set(HOME_HONEY_PRODUCT_SKUS).size, 6);
+  assert.equal(HOME_HONEY_PRODUCT_SKUS.length, 8);
+  assert.equal(new Set(HOME_HONEY_PRODUCT_SKUS).size, 8);
 });
 
 test("homepage product query is bounded, taxonomy-aware and keeps every nut butter", async () => {
