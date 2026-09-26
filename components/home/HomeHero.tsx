@@ -66,7 +66,7 @@ type MobileHeroImageTreatment = {
    * a future photo that genuinely needs breathing room above it. */
   top: string;
   /** object-fit + object-position classes for the mobile/sm crop (desktop's
-   * `lg:object-contain lg:object-center` is applied unconditionally and
+   * `lg:object-cover lg:object-center` is applied unconditionally and
    * always wins at that breakpoint, independent of this value). */
   imageClassName: string;
   naturalSize: { width: number; height: number };
@@ -278,7 +278,7 @@ export function HomeHero({
                   fetchPriority={index === 0 ? "high" : "auto"}
                   decoding="async"
                   className={cn(
-                    "absolute inset-0 h-full w-full lg:object-contain lg:object-center",
+                    "absolute inset-0 h-full w-full lg:object-cover lg:object-center",
                     treatment.imageClassName,
                   )}
                 />
