@@ -66,8 +66,12 @@ type MobileHeroImageTreatment = {
    * a future photo that genuinely needs breathing room above it. */
   top: string;
   /** object-fit + object-position classes for the mobile/sm crop (desktop's
-   * `lg:object-cover lg:object-center` is applied unconditionally and
-   * always wins at that breakpoint, independent of this value). */
+   * `lg:object-cover lg:object-right` is applied unconditionally and always
+   * wins at that breakpoint, independent of this value — every desktop hero
+   * photo has its subject grouped on the right with empty space on the left,
+   * so a right-anchored crop always trims the empty side, never the
+   * product, at the in-between viewport widths where cropping is
+   * horizontal). */
   imageClassName: string;
   naturalSize: { width: number; height: number };
   /** Where the text sits on top of the photo. See comment above. */
@@ -278,7 +282,7 @@ export function HomeHero({
                   fetchPriority={index === 0 ? "high" : "auto"}
                   decoding="async"
                   className={cn(
-                    "absolute inset-0 h-full w-full lg:object-cover lg:object-center",
+                    "absolute inset-0 h-full w-full lg:object-cover lg:object-right",
                     treatment.imageClassName,
                   )}
                 />
