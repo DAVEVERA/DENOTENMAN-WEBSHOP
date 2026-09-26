@@ -19,6 +19,7 @@ function argumentValue(name: string): string | null {
 }
 
 const adminId = argumentValue("--admin-id");
+const adminUsername = argumentValue("--admin-username");
 const limitArgument = Number(argumentValue("--limit") ?? DEFAULT_BATCH_SIZE);
 const limit = Number.isFinite(limitArgument) && limitArgument > 0 ? Math.trunc(limitArgument) : DEFAULT_BATCH_SIZE;
 
@@ -29,10 +30,18 @@ function escapeFaqAiAnswer(value: string): string {
 type ProductResult = { productId: string; sku: string; generated: number; added: number; error?: string };
 
 async function main() {
-  if (apply && !adminId) throw new Error("Gebruik --admin-id=<id> bij --apply voor expliciet auteurschap en auditprovenance.");
+  if (apply && !adminId && !adminUsername) {
+    throw new Error("Gebruik --admin-id=<id> of --admin-username=<username> bij --apply voor expliciet auteurschap en auditprovenance.");
+  }
 
   const admin = apply
-    ? await prisma.adminUser.findFirst({ where: { id: adminId!, active: true, role: { in: ["OWNER", "ADMIN"] } } })
+    ? await prisma.adminUser.findFirst({
+        where: {
+          active: true,
+          role: { in: ["OWNER", "ADMIN"] },
+          ...(adminId ? { id: adminId } : { username: adminUsername! }),
+        },
+      })
     : null;
   if (apply && !admin) throw new Error("De opgegeven actor is geen actieve OWNER of ADMIN.");
 
