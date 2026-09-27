@@ -10,6 +10,7 @@ import { BulkPakbonPrint } from "./BulkPakbonPrint";
 import { OrderPakbonButton } from "./OrderPakbonButton";
 import { OrderRefundBadge } from "./OrderRefundBadge";
 import { MarketManifestPrint } from "./MarketManifestPrint";
+import { publicOrderNumber } from "@/lib/order-reference";
 
 const VALID_STATUSES = new Set<string>([
   "PENDING",
@@ -42,6 +43,7 @@ export default async function BestellingenPage({
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
+      orderNumber: true,
       contactName: true,
       contactEmail: true,
       status: true,
@@ -112,7 +114,7 @@ export default async function BestellingenPage({
                       href={`/admin/bestellingen/${order.id}`}
                       className="font-mono text-accent-hover underline underline-offset-4"
                     >
-                      {order.id.slice(0, 10)}…
+                      {publicOrderNumber(order)}
                     </Link>
                   </td>
                   <td className="px-4 py-3">

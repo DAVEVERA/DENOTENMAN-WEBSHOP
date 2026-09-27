@@ -1,6 +1,7 @@
 import type { BusinessAccount, Order, OrderItem } from "@prisma/client";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { formatPrice } from "@/lib/format";
+import { publicOrderNumber } from "@/lib/order-reference";
 import { BASE_URL, orderConfirmation } from "@/lib/routes";
 import { postnlTrackingUrl } from "@/lib/shipping";
 import type {
@@ -182,11 +183,12 @@ export function renderAftersalesEmail(
   logoUrl: string | null = null
 ): RenderedFlowEmail {
   const locale: Locale = isLocale(order.locale) ? order.locale : "nl";
+  const orderNumber = publicOrderNumber(order);
   const actionUrl = actionUrlFor(order, trigger, locale);
   const tokens = {
     first_name: firstName(order.contactName),
     customer_name: order.contactName,
-    order_number: order.id,
+    order_number: orderNumber,
     order_total: formatPrice(order.totalCents, locale),
     tracking_code: order.postnlTrackingCode ?? "",
     order_url: actionUrl,
@@ -218,7 +220,7 @@ export function renderAftersalesEmail(
   const tracking = (trigger === "ORDER_FULFILLED" || trigger === "BUSINESS_ORDER_FULFILLED") && order.postnlTrackingCode
     ? `<p style="margin:18px 0 0;color:#333;font-size:14px"><strong>Track &amp; trace:</strong> ${escapeHtml(order.postnlTrackingCode)}</p>`
     : "";
-  const orderNumberBox = `<div style="margin:18px 0;padding:14px 16px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;color:#333;font-size:14px"><strong>Bestelnummer:</strong> ${escapeHtml(order.id)}</div>`;
+  const orderNumberBox = `<div style="margin:18px 0;padding:14px 16px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;color:#333;font-size:14px"><strong>Bestelnummer:</strong> ${escapeHtml(orderNumber)}</div>`;
 
   return renderEmailShell({
     locale,
@@ -231,7 +233,7 @@ export function renderAftersalesEmail(
     logoUrl,
     extraHtml: `${orderNumberBox}${itemsSection}${tracking}`,
     extraText: [
-      `Bestelnummer: ${order.id}`,
+      `Bestelnummer: ${orderNumber}`,
       ...(trigger === "ORDER_PAID"
         ? [
             ...order.items.map((item) => `${item.quantity}× ${item.productName} (${item.variantLabel}) — ${formatPrice(item.unitPriceCents * item.quantity, locale)}`),

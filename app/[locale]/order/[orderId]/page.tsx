@@ -8,6 +8,7 @@ import { syncOrderPaymentStatus, type MolliePaymentMeasurement } from "@/lib/ord
 import { buildGoogleAnalyticsPurchase } from "@/lib/analytics";
 import { formatPrice } from "@/lib/format";
 import { checkout as checkoutPath, home, account as accountPath } from "@/lib/routes";
+import { publicOrderNumber } from "@/lib/order-reference";
 import { Container } from "@/components/ui/Container";
 import { OrderStatusEffects } from "@/components/checkout/OrderStatusEffects";
 import nl from "@/dictionaries/nl.json";
@@ -114,7 +115,7 @@ export default async function OrderConfirmationPage({
         <div className="mt-8 rounded-panel border border-border bg-surface p-5 text-left">
           <div className="flex justify-between text-body-sm">
             <span className="text-muted">{dictionary.order.orderNumber}</span>
-            <span className="font-mono">{order.id}</span>
+            <span className="font-mono">{publicOrderNumber(order)}</span>
           </div>
           <div className="mt-2 flex justify-between font-heading text-heading-sm font-semibold text-text">
             <span>{dictionary.checkout.total}</span>

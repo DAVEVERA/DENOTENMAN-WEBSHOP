@@ -32,6 +32,7 @@ export type MarketManifestOrderItem = {
 
 export type MarketManifestOrder = {
   id: string;
+  orderNumber?: string | null;
   contactName: string;
   contactPhone: string | null;
   pickupLocationId: string | null;

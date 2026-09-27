@@ -6,6 +6,7 @@ import {
   type AdminUser,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { publicOrderNumber } from "@/lib/order-reference";
 import { getMollieClient } from "@/lib/mollie";
 import { recordAudit } from "@/lib/admin-audit";
 import {
@@ -199,12 +200,14 @@ async function executeProviderRefund(
   }
 
   try {
+    const orderNumber = publicOrderNumber(refund.order);
     const providerRefund = await provider.createPaymentRefund({
       paymentId: refund.order.molliePaymentId,
       amountCents: refund.amountCents,
-      description: `Deelannulering bestelling ${refund.orderId}`,
+      description: `Deelannulering bestelling ${orderNumber}`,
       metadata: {
         orderId: refund.orderId,
+        orderNumber,
         orderRefundId: refund.id,
         requestId: refund.idempotencyKey,
       },

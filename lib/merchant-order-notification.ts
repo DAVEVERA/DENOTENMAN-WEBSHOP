@@ -7,6 +7,7 @@ import { formatPrice } from "@/lib/format";
 import { LEGAL_IDENTITY } from "@/lib/legal";
 import { prisma } from "@/lib/prisma";
 import { BASE_URL } from "@/lib/routes";
+import { publicOrderNumber } from "@/lib/order-reference";
 import {
   deliverTransactionalEmail,
   retryTransactionalEmail,
@@ -57,6 +58,7 @@ export async function sendMerchantNewOrderNotification(orderId: string): Promise
   if (!isMerchantNewOrderNotifiable(order)) return;
 
   const adminUrl = `${BASE_URL}/admin/bestellingen/${order.id}`;
+  const orderNumber = publicOrderNumber(order);
   const orderDate = new Intl.DateTimeFormat("nl-NL", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -71,11 +73,11 @@ export async function sendMerchantNewOrderNotification(orderId: string): Promise
     ? "Afhalen op de markt"
     : `${order.shippingStreet} ${order.shippingHouseNumber}, ${order.shippingPostalCode} ${order.shippingCity}`;
   const total = formatPrice(order.totalCents, "nl");
-  const subject = `Nieuwe bestelling ${order.id} geplaatst — De Notenman`;
+  const subject = `Nieuwe bestelling ${orderNumber} geplaatst — De Notenman`;
   const preview = `${order.contactName} · ${total} · betaling bevestigd`;
   const html = await render(createElement(NewOrderNotificationEmail, {
     preview,
-    orderNumber: order.id,
+    orderNumber,
     orderDate,
     customerName: order.contactName,
     customerEmail: order.contactEmail,
@@ -89,7 +91,7 @@ export async function sendMerchantNewOrderNotification(orderId: string): Promise
     "",
     "De betaling is bevestigd. Dit is de enige interne e-mail voor deze bestelling.",
     "",
-    `Bestelnummer: ${order.id}`,
+    `Bestelnummer: ${orderNumber}`,
     `Besteld op: ${orderDate}`,
     `Klant: ${order.contactName}`,
     `E-mail: ${order.contactEmail}`,

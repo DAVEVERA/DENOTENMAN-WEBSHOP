@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
   const groups = groupOrdersForMarketManifest(
     orders.map((order) => ({
       id: order.id,
+      orderNumber: order.orderNumber,
       contactName: order.contactName,
       contactPhone: order.contactPhone,
       pickupLocationId: order.pickupLocationId,

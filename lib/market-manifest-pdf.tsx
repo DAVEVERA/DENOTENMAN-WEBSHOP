@@ -1,4 +1,5 @@
 import type { MarketManifestGroup } from "@/lib/market-manifest";
+import { publicOrderNumber } from "@/lib/order-reference";
 
 const PAGE_WIDTH_PT = 595;
 const GOLD = "#e0b200";
@@ -46,7 +47,7 @@ function GroupPage({ group, isLast }: { group: MarketManifestGroup; isLast: bool
           >
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11pt" }}>
               <div style={{ fontWeight: 700 }}>{order.contactName}</div>
-              <div style={{ color: MUTED, fontSize: "8.5pt" }}>Bestelling {order.id.slice(0, 10)}…</div>
+              <div style={{ color: MUTED, fontSize: "8.5pt" }}>Bestelling {publicOrderNumber(order)}</div>
             </div>
             <div style={{ fontSize: "8.5pt", color: MUTED, marginTop: "2pt" }}>
               Telefoon: {order.contactPhone ?? "—"}

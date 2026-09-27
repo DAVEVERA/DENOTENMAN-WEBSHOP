@@ -730,11 +730,12 @@ model User {
 }
 
 model Order {
-  id     String      @id @default(cuid())
-  userId String
-  user   User        @relation(fields: [userId], references: [id])
-  status OrderStatus @default(PENDING)
-  isTest Boolean     @default(false)
+  id          String      @id @default(cuid())
+  orderNumber String?     @unique @default(dbgenerated("('DN-' || to_char(CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Amsterdam', 'YYYY') || '-' || lpad(nextval('\"Order_orderNumber_seq\"'::regclass)::text, 5, '0'))"))
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  status      OrderStatus @default(PENDING)
+  isTest      Boolean     @default(false)
 
   locale        String  @default("nl")
   currency      String  @default("EUR")

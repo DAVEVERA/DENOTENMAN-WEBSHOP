@@ -63,7 +63,7 @@ export default async function FacturenPage({
             ...(activeCountry ? { shippingCountry: activeCountry } : {}),
           },
           orderBy: { createdAt: "desc" },
-          select: { id: true, contactName: true, totalCents: true, createdAt: true },
+          select: { id: true, orderNumber: true, contactName: true, totalCents: true, createdAt: true },
         }),
   ]);
 
@@ -80,7 +80,7 @@ export default async function FacturenPage({
     ...privateOrders.map((order) => ({
       key: `order-${order.id}`,
       kind: "particulier" as const,
-      number: order.id.slice(0, 10),
+      number: order.orderNumber ?? order.id,
       customer: order.contactName,
       createdAt: order.createdAt,
       totalCents: order.totalCents,

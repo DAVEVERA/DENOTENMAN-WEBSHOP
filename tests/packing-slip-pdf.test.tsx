@@ -5,6 +5,7 @@ import { PackingSlipDocument, type PackingSlipInput } from "../lib/packing-slip-
 
 const sampleInput: PackingSlipInput = {
   orderId: "cktest1234567890",
+  orderNumber: "DN-2026-00125",
   createdAt: new Date("2026-09-01T10:00:00.000Z"),
   contactName: "Marije de Boer",
   shippingStreet: "Marktstraat",
@@ -34,7 +35,8 @@ test("the packing slip shows the correct total item count and no prices", () => 
   assert.doesNotMatch(markup, /€/);
 });
 
-test("a shipped order id is shortened to the same 10-character convention used elsewhere in the admin", () => {
+test("the packing slip uses the customer-facing order number", () => {
   const markup = renderToStaticMarkup(<PackingSlipDocument input={sampleInput} />);
-  assert.match(markup, new RegExp(sampleInput.orderId.slice(0, 10)));
+  assert.match(markup, /DN-2026-00125/);
+  assert.doesNotMatch(markup, /cktest1234/);
 });

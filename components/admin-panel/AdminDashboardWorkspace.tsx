@@ -36,6 +36,7 @@ type CommerceStats = {
 
 type RecentOrder = {
   id: string;
+  orderNumber: string;
   contactName: string;
   status: string;
   createdAt: string;
@@ -550,7 +551,7 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link href={`/admin/bestellingen/${order.id}`} className="inline-flex min-h-11 items-center font-mono text-body-sm font-semibold text-[#684027] underline underline-offset-4">
-                      {order.id.slice(0, 10)}…
+                      {order.orderNumber}
                     </Link>
                     <p className="mt-1 truncate text-body-sm font-semibold">{order.contactName}</p>
                   </div>
@@ -568,7 +569,7 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[42rem] text-body-sm">
               <thead><tr className="border-b border-border text-left text-muted"><th className="px-3 py-3">Bestelnummer</th><th className="px-3 py-3">Klant</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Datum</th><th className="px-3 py-3 text-right">Totaal</th></tr></thead>
-              <tbody>{recentOrders.map((order) => <tr key={order.id} className="border-b border-border last:border-0"><td className="px-3 py-3"><Link href={`/admin/bestellingen/${order.id}`} className="inline-flex min-h-11 items-center font-mono font-semibold text-[#684027] underline underline-offset-4">{order.id.slice(0, 10)}…</Link></td><td className="px-3 py-3">{order.contactName}</td><td className="px-3 py-3">{orderStatusLabels[order.status] ?? order.status}</td><td className="px-3 py-3 text-muted">{new Intl.DateTimeFormat("nl-NL", { dateStyle: "short", timeStyle: "short" }).format(new Date(order.createdAt))}</td><td className="px-3 py-3 text-right font-semibold">{order.total}</td></tr>)}</tbody>
+              <tbody>{recentOrders.map((order) => <tr key={order.id} className="border-b border-border last:border-0"><td className="px-3 py-3"><Link href={`/admin/bestellingen/${order.id}`} className="inline-flex min-h-11 items-center font-mono font-semibold text-[#684027] underline underline-offset-4">{order.orderNumber}</Link></td><td className="px-3 py-3">{order.contactName}</td><td className="px-3 py-3">{orderStatusLabels[order.status] ?? order.status}</td><td className="px-3 py-3 text-muted">{new Intl.DateTimeFormat("nl-NL", { dateStyle: "short", timeStyle: "short" }).format(new Date(order.createdAt))}</td><td className="px-3 py-3 text-right font-semibold">{order.total}</td></tr>)}</tbody>
             </table>
           </div>
           <div className="mt-4 text-right"><Link href="/admin/bestellingen" className="inline-flex min-h-11 items-center font-heading text-body-sm font-semibold text-[#684027] underline underline-offset-4">Alle bestellingen</Link></div>

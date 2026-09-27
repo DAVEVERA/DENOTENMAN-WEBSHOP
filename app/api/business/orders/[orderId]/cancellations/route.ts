@@ -4,6 +4,7 @@ import { z } from "zod";
 import { isSameOriginMutation } from "@/lib/admin-request-security";
 import { BUSINESS_SESSION_COOKIE, getBusinessPortalSession, recordBusinessEvent } from "@/lib/business-portal";
 import { prisma } from "@/lib/prisma";
+import { publicOrderNumber } from "@/lib/order-reference";
 
 const inputSchema = z.object({
   reason: z.string().trim().max(1_000).nullable().optional(),
@@ -84,7 +85,7 @@ export async function POST(
             : "ORDER_LIST_NOTE_ADDED",
           actorType: "CUSTOMER",
           actorName: session.businessAccount.contactName,
-          summary: `${session.businessAccount.contactName} vraagt annulering aan voor ${totalQuantity} artikel(en) uit bestelling ${order.id}`,
+          summary: `${session.businessAccount.contactName} vraagt annulering aan voor ${totalQuantity} artikel(en) uit bestelling ${publicOrderNumber(order)}`,
           metadata: { eventType: "ORDER_CANCELLATION_REQUESTED", cancellationRequestId: cancellation.id, orderId: order.id },
         });
         return { cancellation };

@@ -10,6 +10,7 @@ import { StatusBadge } from "../StatusBadge";
 import { OrderEditForm } from "./OrderEditForm";
 import { OrderRefundPanel } from "./OrderRefundPanel";
 import { OrderTimeline } from "./OrderTimeline";
+import { publicOrderNumber } from "@/lib/order-reference";
 
 function formatDateTime(date: Date) {
   return new Intl.DateTimeFormat("nl-NL", {
@@ -108,7 +109,7 @@ export default async function OrderDetailPage({
           >
             ← Alle bestellingen
           </Link>
-          <h1 className="mt-2 font-mono text-heading-lg text-text">{order.id}</h1>
+          <h1 className="mt-2 font-mono text-heading-lg text-text">{publicOrderNumber(order)}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={order.status} />

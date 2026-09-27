@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { findOrderForLookup } from "@/lib/orders";
+import { publicOrderNumber } from "@/lib/order-reference";
 
 type OrderLookupRequestBody = {
   orderId: string;
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     id: order.id,
+    orderNumber: publicOrderNumber(order),
     status: order.status,
     createdAt: order.createdAt,
     subtotalCents: order.subtotalCents,

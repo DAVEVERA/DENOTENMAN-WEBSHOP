@@ -11,6 +11,7 @@ export type PackingSlipItem = {
 
 export type PackingSlipInput = {
   orderId: string;
+  orderNumber?: string | null;
   createdAt: Date;
   contactName: string;
   shippingStreet: string | null;
@@ -50,7 +51,9 @@ export function PackingSlipDocument({ input }: { input: PackingSlipInput }) {
               {new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "long", year: "numeric" }).format(input.createdAt)}
             </div>
           </div>
-          <div style={{ marginTop: "4pt", fontSize: "9pt", color: MUTED }}>Bestelling {input.orderId.slice(0, 10)}…</div>
+          <div style={{ marginTop: "4pt", fontSize: "9pt", color: MUTED }}>
+            Bestelling {input.orderNumber ?? input.orderId}
+          </div>
 
           <div style={{ marginTop: "24pt", background: "#f6f3ee", padding: "12pt 16pt" }}>
             <div style={{ fontWeight: 700, fontSize: "9.5pt" }}>Verzendadres</div>

@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getMollieClient } from "@/lib/mollie";
 import { BASE_URL } from "@/lib/routes";
+import { buildMollieOrderReference } from "@/lib/order-reference";
 import { businessOrderListIsExpired, calculateBusinessOrderListTotal } from "@/lib/business-portal-contract";
 import { calculateVat } from "@/lib/business-vat";
 import { recordBusinessEvent } from "@/lib/business-portal";
@@ -185,12 +186,13 @@ export async function createBusinessOrderListCheckout(
 
   const isPubliclyReachable = /^https:\/\//.test(BASE_URL);
   try {
+    const mollieReference = buildMollieOrderReference(order);
     const payment = await getMollieClient().payments.create({
       amount: { currency: "EUR", value: (totalCents / 100).toFixed(2) },
-      description: `Zakelijke bestelling ${account.companyName} - De Notenman`,
+      description: mollieReference.description,
       redirectUrl: `${BASE_URL}/nl/zakelijk`,
       ...(isPubliclyReachable ? { webhookUrl: `${BASE_URL}/api/webhooks/mollie` } : {}),
-      metadata: { orderId: order.id, businessOrderListId: orderListId },
+      metadata: { ...mollieReference.metadata, businessOrderListId: orderListId },
     });
     const checkoutUrl = payment.getCheckoutUrl();
     if (!checkoutUrl) throw new Error("Mollie returned no checkout URL");

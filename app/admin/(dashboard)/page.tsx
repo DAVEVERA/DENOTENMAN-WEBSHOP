@@ -30,6 +30,7 @@ export default async function AdminDashboardPage() {
         take: 8,
         select: {
           id: true,
+          orderNumber: true,
           contactName: true,
           status: true,
           totalCents: true,
@@ -50,6 +51,7 @@ export default async function AdminDashboardPage() {
       initialAnalytics={initialAnalytics}
       recentOrders={recentOrders.map((order) => ({
         id: order.id,
+        orderNumber: order.orderNumber ?? order.id,
         contactName: order.contactName,
         status: order.status,
         createdAt: order.createdAt.toISOString(),

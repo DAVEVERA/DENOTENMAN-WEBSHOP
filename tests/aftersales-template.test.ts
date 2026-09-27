@@ -14,6 +14,7 @@ import {
 
 const order = {
   id: "order-123",
+  orderNumber: "DN-2026-00125",
   locale: "nl",
   contactName: "Sophie <script>alert(1)</script>",
   contactEmail: "sophie@example.com",
@@ -55,12 +56,13 @@ function canvasFor(content: AftersalesLegacyLocaleContent, design: AftersalesDes
 test("aftersales template personalizes content while escaping customer and product data", () => {
   const { canvas, blockText } = canvasFor(content);
   const rendered = renderAftersalesEmail(order, "ORDER_PAID", content, canvas, blockText);
-  assert.match(rendered.subject, /order-123/);
+  assert.match(rendered.subject, /DN-2026-00125/);
+  assert.doesNotMatch(rendered.subject, /order-123/);
   assert.doesNotMatch(rendered.html, /<script>alert/);
   assert.match(rendered.html, />Hoi Sophie</);
   assert.match(rendered.html, /Cashews &amp; amandelen/);
   assert.match(rendered.html, /<html lang="nl" dir="ltr">/);
-  assert.match(rendered.html, /<title>Bestelling order-123 voor Sophie<\/title>/);
+  assert.match(rendered.html, /<title>Bestelling DN-2026-00125 voor Sophie<\/title>/);
   assert.match(rendered.text, /2× Cashews & amandelen/);
 });
 

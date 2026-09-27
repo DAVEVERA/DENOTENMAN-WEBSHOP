@@ -5,6 +5,7 @@ import { sendCompletedTestOrderConfirmation } from "../lib/test-order-confirmati
 
 const testOrder = {
   id: "test-order-1",
+  orderNumber: "DN-2026-00125",
   userId: "test-user-1",
   status: "PAID",
   isTest: true,

@@ -25,6 +25,7 @@ export async function GET(
 
   const pdfBase64 = await renderPackingSlipPdfBase64({
     orderId: order.id,
+    orderNumber: order.orderNumber,
     createdAt: order.createdAt,
     contactName: order.contactName,
     shippingStreet: order.shippingStreet,
@@ -42,7 +43,7 @@ export async function GET(
   return new NextResponse(Buffer.from(pdfBase64, "base64"), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="pakbon-${id}.pdf"`,
+      "Content-Disposition": `inline; filename="pakbon-${order.orderNumber ?? id}.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });

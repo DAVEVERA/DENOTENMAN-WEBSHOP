@@ -25,6 +25,11 @@ import { markBusinessOrderListPaid } from "@/lib/business-order-checkout";
 import { generateAndSendBusinessInvoice } from "@/lib/business-invoice";
 import { recordBusinessEvent } from "@/lib/business-portal";
 import {
+  buildMollieOrderReference,
+  orderLookupWhere,
+  publicOrderNumber,
+} from "@/lib/order-reference";
+import {
   evaluateCheckoutDiscount,
   hasDiscountCode,
   resolveDiscountUsagePolicy,
@@ -405,13 +410,14 @@ export async function createOrderWithPayment(
   const isPubliclyReachable = /^https:\/\//.test(BASE_URL);
 
   try {
+    const mollieReference = buildMollieOrderReference(order);
     const payment = await getMollieClient().payments.create({
       amount: { currency: "EUR", value: (totalCents / 100).toFixed(2) },
-      description: `Bestelling ${order.id} - De Notenman`,
+      description: mollieReference.description,
       redirectUrl: `${BASE_URL}/${locale}/order/${order.id}`,
       ...(isPubliclyReachable ? { webhookUrl: `${BASE_URL}/api/webhooks/mollie` } : {}),
       locale: mollieLocaleMap[locale],
-      metadata: { orderId: order.id },
+      metadata: mollieReference.metadata,
     });
 
     const checkoutUrl = payment.getCheckoutUrl();
@@ -468,17 +474,17 @@ export type MolliePaymentMeasurement = {
 };
 
 /**
- * There is no login system — order status is looked up with the order id
- * (shown once on the confirmation page) plus the contact email used at
+ * There is no login system — order status is looked up with either the public
+ * order number or the legacy internal id, plus the contact email used at
  * checkout. Both must match, and a mismatch on either looks identical to
- * "not found" so this can't be used to test whether an order id exists.
+ * "not found" so this can't be used to test whether an order exists.
  */
 export async function findOrderForLookup(
   orderId: string,
   email: string
 ): Promise<OrderLookupResult | null> {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
+  const order = await prisma.order.findFirst({
+    where: orderLookupWhere(orderId),
     include: { items: true },
   });
 
@@ -648,7 +654,7 @@ export async function syncOrderPaymentStatus(
                 type: "INVOICE_GENERATION_FAILED",
                 actorType: "SYSTEM",
                 actorName: "Systeem",
-                summary: `Factuur voor bestelling ${order.id} kon niet worden aangemaakt: ${error instanceof Error ? error.message : String(error)}`,
+                summary: `Factuur voor bestelling ${publicOrderNumber(order)} kon niet worden aangemaakt: ${error instanceof Error ? error.message : String(error)}`,
               })
             );
           }

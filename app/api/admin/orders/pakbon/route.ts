@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
       limit(() =>
         renderPackingSlipPdfBase64({
           orderId: order.id,
+          orderNumber: order.orderNumber,
           createdAt: order.createdAt,
           contactName: order.contactName,
           shippingStreet: order.shippingStreet,

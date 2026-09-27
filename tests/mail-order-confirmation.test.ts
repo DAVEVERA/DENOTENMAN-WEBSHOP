@@ -5,6 +5,7 @@ import { renderOrderConfirmationEmail } from "../lib/mail";
 function baseOrder(overrides: Partial<Order> = {}): Order {
   return {
     id: "order-1",
+    orderNumber: null,
     userId: "user-1",
     status: "PAID",
     isTest: false,
@@ -45,6 +46,14 @@ async function main() {
   assert.ok(shippingEmail.text.includes("Kerkstraat 1"));
   assert.ok(shippingEmail.text.includes("5405 AB Uden"));
   assert.ok(!shippingEmail.text.includes("null"));
+
+  const numberedEmail = await renderOrderConfirmationEmail(
+    baseOrder({ orderNumber: "DN-2026-00125" }),
+    []
+  );
+  assert.ok(numberedEmail.subject.includes("DN-2026-00125"));
+  assert.ok(numberedEmail.text.includes("Bestelnummer: DN-2026-00125"));
+  assert.ok(!numberedEmail.text.includes("Bestelnummer: order-1"));
 
   // Pickup orders must never render the null address fields, and should
   // name the pickup location instead.

@@ -7,6 +7,7 @@ import { isLocale, type Locale } from "@/lib/i18n";
 import { BASE_URL, orderConfirmation } from "@/lib/routes";
 import { formatPrice } from "@/lib/format";
 import { getPickupLocation } from "@/lib/pickup-locations";
+import { publicOrderNumber } from "@/lib/order-reference";
 
 type OrderCopy = {
   subject: (orderNumber: string) => string;
@@ -106,6 +107,7 @@ export async function renderOrderConfirmationEmail(
 ): Promise<{ subject: string; html: string; text: string; orderUrl: string }> {
   const locale: Locale = isLocale(order.locale) ? order.locale : "nl";
   const copy = copyByLocale[locale];
+  const orderNumber = publicOrderNumber(order);
   const orderUrl = `${BASE_URL}${orderConfirmation(locale, order.id)}`;
   const total = formatPrice(order.totalCents, locale);
   const shipping =
@@ -141,11 +143,11 @@ export async function renderOrderConfirmationEmail(
 
   const email = createElement(OrderConfirmationEmail, {
     locale,
-    preview: copy.preview(order.id, total),
+    preview: copy.preview(orderNumber, total),
     greeting,
     intro: copy.intro,
     orderNumberLabel: copy.orderNumber,
-    orderNumber: order.id,
+    orderNumber,
     orderDateLabel: copy.orderDate,
     orderDate,
     itemsTitle: copy.itemsTitle,
@@ -176,7 +178,7 @@ export async function renderOrderConfirmationEmail(
     "",
     copy.intro,
     "",
-    `${copy.orderNumber}: ${order.id}`,
+    `${copy.orderNumber}: ${orderNumber}`,
     `${copy.orderDate}: ${orderDate}`,
     "",
     copy.itemsTitle,
@@ -203,7 +205,7 @@ export async function renderOrderConfirmationEmail(
   ].join("\n");
 
   return {
-    subject: copy.subject(order.id),
+    subject: copy.subject(orderNumber),
     html,
     text,
     orderUrl,

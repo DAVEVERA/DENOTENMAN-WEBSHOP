@@ -13,6 +13,7 @@ type OrderDictionary = (typeof nl)["order"];
 
 type OrderLookupResponse = {
   id: string;
+  orderNumber: string;
   status: "PENDING" | "PAID" | "FULFILLED" | "CANCELLED" | "REFUNDED";
   createdAt: string;
   subtotalCents: number;
@@ -104,7 +105,7 @@ export function OrderLookup({
           <div>
             <h3 className="font-heading text-heading-sm text-text">{statusTitle}</h3>
             <p className="mt-1 text-body-sm text-muted">
-              {orderDictionary.orderNumber}: <span className="font-mono">{order.id}</span>
+              {orderDictionary.orderNumber}: <span className="font-mono">{order.orderNumber}</span>
             </p>
             <p className="text-body-sm text-muted">{formatDate(new Date(order.createdAt), locale)}</p>
           </div>
