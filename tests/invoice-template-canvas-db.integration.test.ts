@@ -2,15 +2,23 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { prisma } from "../lib/prisma";
 import { getPublishedInvoiceCanvas, getOrCreateDraftInvoiceCanvas } from "../lib/invoice-template";
-import { INVOICE_TEMPLATE_BLOCK_KEYS, DEFAULT_INVOICE_TEMPLATE_BLOCKS, invoiceCanvasSchema } from "../lib/invoice-template-schema";
+import {
+  INVOICE_TEMPLATE_BLOCK_KEYS,
+  DEFAULT_INVOICE_TEMPLATE_BLOCKS,
+  buildLockedDefaultInvoiceCanvas,
+  invoiceCanvasSchema,
+} from "../lib/invoice-template-schema";
 
-test("getPublishedInvoiceCanvas with no published template returns derived-default canvas", async () => {
+test("getPublishedInvoiceCanvas with no published template returns the locked default canvas", async () => {
   await prisma.invoiceTemplateBlock.deleteMany({});
   await prisma.invoiceTemplate.deleteMany({});
   const { canvas, blockText } = await getPublishedInvoiceCanvas();
   assert.ok(canvas);
-  assert.ok(Array.isArray(canvas.rows));
-  assert.equal(canvas.rows.length, INVOICE_TEMPLATE_BLOCK_KEYS.length);
+  // Seller and buyer address share one row since the 2026-09-14 design lock,
+  // so the fallback has fewer rows than block keys but still every block.
+  assert.deepEqual(canvas, buildLockedDefaultInvoiceCanvas());
+  const types = canvas.rows.flatMap((row) => row.columns.flatMap((column) => column.blocks.map((block) => block.type)));
+  assert.deepEqual([...types].sort(), [...INVOICE_TEMPLATE_BLOCK_KEYS].sort());
   const validation = invoiceCanvasSchema.safeParse(canvas);
   assert.ok(validation.success, `Canvas should be valid: ${validation.error?.message}`);
   assert.deepEqual(blockText, {});
