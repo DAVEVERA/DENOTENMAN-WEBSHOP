@@ -71,6 +71,7 @@
     "inStock": "Op voorraad",
     "quickOrder": "Snel bestellen",
     "moreInfo": "Meer info",
+    "orderNow": "Bestel nu",
     "backToProducts": "Terug naar assortiment",
     "closeDetails": "Sluit productdetails",
     "viewProduct": "Bekijk product",
@@ -109,8 +110,7 @@
     "perHundredGrams": "Voedingswaarde per 100 g",
     "perHundredMilliliters": "Voedingswaarde per 100 ml",
     "faqFallback": "Nog geen vragen beantwoord voor dit product. Neem contact op voor meer informatie.",
-    "stockAlert": "Geef me een seintje",
-    "loadingQuickView": "Product laden…"
+    "stockAlert": "Geef me een seintje"
   },
   "cart": {
     "title": "Winkelwagen",

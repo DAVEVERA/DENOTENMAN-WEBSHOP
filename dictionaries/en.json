@@ -71,6 +71,7 @@
     "inStock": "In stock",
     "quickOrder": "Quick order",
     "moreInfo": "More info",
+    "orderNow": "Order now",
     "backToProducts": "Back to products",
     "closeDetails": "Close product details",
     "viewProduct": "View product",
@@ -109,8 +110,7 @@
     "perHundredGrams": "Nutritional value per 100 g",
     "perHundredMilliliters": "Nutritional value per 100 ml",
     "faqFallback": "No questions answered yet for this product. Contact us for more information.",
-    "stockAlert": "Notify me",
-    "loadingQuickView": "Loading product…"
+    "stockAlert": "Notify me"
   },
   "cart": {
     "title": "Cart",

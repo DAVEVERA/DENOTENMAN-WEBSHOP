@@ -142,26 +142,9 @@ export default async function HomePage({
     outOfStock: dictionary.product.outOfStock,
     addToFavorites: dictionary.product.addToFavorites,
     removeFromFavorites: dictionary.product.removeFromFavorites,
-    openQuickView: dictionary.product.openQuickView,
-    quickOrder: dictionary.product.quickOrder,
+    orderNow: dictionary.product.orderNow,
     moreInfo: dictionary.product.moreInfo,
     stockAlert: dictionary.product.stockAlert,
-    loadingQuickView: dictionary.product.loadingQuickView,
-  };
-  const productQuickViewCopy = {
-    selectQuantity: dictionary.product.selectQuantity,
-    closeQuickView: dictionary.product.closeQuickView,
-    outOfStock: dictionary.product.outOfStock,
-    inStock: dictionary.product.inStock,
-    quantity: dictionary.product.quantity,
-    added: dictionary.product.addedToCart,
-    goToCart: dictionary.product.goToCart,
-    continueShopping: dictionary.product.continueShopping,
-    order: dictionary.product.order,
-    quickOrder: dictionary.product.quickOrder,
-    moreInfo: dictionary.product.moreInfo,
-    decrease: dictionary.cart.decrease,
-    increase: dictionary.cart.increase,
   };
 
   return (
@@ -213,7 +196,6 @@ export default async function HomePage({
           copy={{
             ...dictionary.home.nutsProducts,
             card: productCardCopy,
-            quickView: productQuickViewCopy,
           }}
         />
 
@@ -236,7 +218,6 @@ export default async function HomePage({
           copy={{
             ...dictionary.home.nutButterProducts,
             card: productCardCopy,
-            quickView: productQuickViewCopy,
           }}
         />
 
@@ -257,7 +238,6 @@ export default async function HomePage({
           copy={{
             ...dictionary.home.honeyProducts,
             card: productCardCopy,
-            quickView: productQuickViewCopy,
           }}
         />
 

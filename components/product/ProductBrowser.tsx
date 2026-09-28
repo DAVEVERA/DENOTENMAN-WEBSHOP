@@ -8,9 +8,7 @@ import type {
   CatalogFacetOptionDto,
   CatalogPageDto,
   CatalogProductDto,
-  ProductSummaryDto,
 } from "@/lib/queries";
-import { product as productPath } from "@/lib/routes";
 import { cn } from "@/lib/cn";
 import {
   defaultCatalogSort,
@@ -24,12 +22,7 @@ import {
 import {
   ProductCard,
   type ProductCardCopy,
-  type ProductCardProduct,
 } from "@/components/product/ProductCard";
-import {
-  ProductQuickView,
-  type ProductQuickViewCopy,
-} from "@/components/product/ProductQuickView";
 import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 
 type FacetOption = { value: string; label: string };
@@ -68,7 +61,6 @@ export type CatalogBrowserCopy = {
   resultsCountPlural: string;
   loadMore: string;
   card: ProductCardCopy;
-  quickView: ProductQuickViewCopy;
 };
 
 const QUERY_PARAM = "q";
@@ -142,9 +134,6 @@ export function ProductBrowser({
   const [loadingMore, setLoadingMore] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
-  const [quickViewProduct, setQuickViewProduct] = useState<ProductSummaryDto | null>(null);
-  const [quickViewOpen, setQuickViewOpen] = useState(false);
-  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const lastLoadedSignature = useRef(
     `${requestKey(initialQuery, initialSelected, initialSort)}::0`
   );
@@ -152,8 +141,6 @@ export function ProductBrowser({
   // below doesn't echo the query this component was initialized with.
   const suppressNextBroadcast = useRef(true);
   const catalogRequestId = useRef(0);
-  const quickViewRequestId = useRef(0);
-  const quickViewCache = useRef(new Map<string, ProductSummaryDto>());
   const filterTriggerRef = useRef<HTMLButtonElement>(null);
   const filterPanelRef = useRef<HTMLDivElement>(null);
   const filterCloseRef = useRef<HTMLButtonElement>(null);
@@ -387,42 +374,6 @@ export function ProductBrowser({
     }
   }
 
-  async function openQuickView(product: ProductCardProduct) {
-    if (loadingProductId === product.id) return;
-    const cached = quickViewCache.current.get(product.id);
-    if (cached) {
-      setQuickViewProduct(cached);
-      setQuickViewOpen(true);
-      return;
-    }
-
-    const requestId = ++quickViewRequestId.current;
-    setLoadingProductId(product.id);
-    try {
-      const response = await fetch(
-        `/api/storefront/products/${encodeURIComponent(product.id)}?locale=${locale}`,
-        { headers: { Accept: "application/json" } }
-      );
-      if (!response.ok) throw new Error(`Quick-view request failed (${response.status})`);
-      const rawDetail = (await response.json()) as Omit<ProductSummaryDto, "updatedAt"> & {
-        updatedAt: string;
-      };
-      const detail: ProductSummaryDto = {
-        ...rawDetail,
-        updatedAt: new Date(rawDetail.updatedAt),
-      };
-      if (requestId !== quickViewRequestId.current) return;
-      quickViewCache.current.set(product.id, detail);
-      setQuickViewProduct(detail);
-      setQuickViewOpen(true);
-    } catch (error) {
-      console.error("Storefront quick view request failed", error);
-      window.location.assign(productPath(locale, product.slug));
-    } finally {
-      if (requestId === quickViewRequestId.current) setLoadingProductId(null);
-    }
-  }
-
   function clearAll() {
     setQuery("");
     setSelected(new Set());
@@ -624,9 +575,6 @@ export function ProductBrowser({
               categoryName={item.category?.name}
               locale={locale}
               copy={copy.card}
-              quickViewCopy={copy.quickView}
-              quickViewLoading={loadingProductId === item.id}
-              onQuickView={openQuickView}
             />
           ))}
         </div>
@@ -643,16 +591,6 @@ export function ProductBrowser({
             {loadingMore ? <LoadingIndicator size="sm" label={copy.loading} showLabel /> : copy.loadMore.replace("{remaining}", String(remaining))}
           </button>
         </div>
-      ) : null}
-
-      {quickViewProduct ? (
-        <ProductQuickView
-          open={quickViewOpen}
-          onClose={() => setQuickViewOpen(false)}
-          product={quickViewProduct}
-          locale={locale}
-          copy={copy.quickView}
-        />
       ) : null}
     </div>
   );

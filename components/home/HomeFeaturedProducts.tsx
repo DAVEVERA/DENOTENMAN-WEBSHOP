@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import type { ProductSummaryDto } from "@/lib/queries";
 import type { ProductCardCopy } from "@/components/product/ProductCard";
-import type { ProductQuickViewCopy } from "@/components/product/ProductQuickView";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Container } from "@/components/ui/Container";
 import { cn } from "@/lib/cn";
@@ -18,7 +17,6 @@ export type HomeFeaturedProductsCopy = {
   loadMore?: string;
   showLess?: string;
   card: ProductCardCopy;
-  quickView: ProductQuickViewCopy;
 };
 
 export function HomeFeaturedProducts({
@@ -85,7 +83,6 @@ export function HomeFeaturedProducts({
                 product={product}
                 locale={locale}
                 copy={copy.card}
-                quickViewCopy={copy.quickView}
                 compact
               />
             </li>
