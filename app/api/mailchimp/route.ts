@@ -6,6 +6,7 @@ import { subscriberHash } from "@/lib/mailchimp/subscriberHash";
 import {
   createNewsletterRateLimiter,
   newsletterSignupInputSchema,
+  newsletterRedirectUrl,
   parseNewsletterSignupBody,
   pendingNewsletterConsentData,
   submitNewsletterSignup,
@@ -44,9 +45,12 @@ function formRedirect(
   status: "success" | "invalid" | "unavailable" | "rate-limited",
   retryAfterSeconds?: number,
 ) {
-  const destination = new URL(`/${locale}`, request.url);
-  destination.searchParams.set("newsletter", status);
-  destination.hash = "newsletter-signup";
+  const destination = newsletterRedirectUrl(
+    request.url,
+    process.env.SITE_URL,
+    locale,
+    status,
+  );
   const response = NextResponse.redirect(destination, 303);
   response.headers.set("Cache-Control", "no-store");
   if (retryAfterSeconds) {

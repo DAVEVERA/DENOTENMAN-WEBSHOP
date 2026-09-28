@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createNewsletterRateLimiter,
+  newsletterRedirectUrl,
   newsletterSignupInputSchema,
   parseNewsletterSignupBody,
   pendingNewsletterConsentData,
@@ -69,6 +70,28 @@ test("newsletter signup parses JSON and progressive-enhancement form posts", () 
 test("newsletter form parsing rejects unsupported and malformed request bodies", () => {
   assert.throws(() => parseNewsletterSignupBody("not-json", "application/json"));
   assert.throws(() => parseNewsletterSignupBody("email=a%40b.nl", "text/plain"));
+});
+
+test("newsletter form redirects use the public storefront instead of the internal runtime host", () => {
+  assert.equal(
+    newsletterRedirectUrl(
+      "https://0.0.0.0:8080/api/mailchimp?locale=nl",
+      "https://denotenman.com",
+      "nl",
+      "invalid",
+    ).toString(),
+    "https://denotenman.com/nl?newsletter=invalid#newsletter-signup",
+  );
+
+  assert.equal(
+    newsletterRedirectUrl(
+      "http://localhost:3000/api/mailchimp?locale=fr",
+      undefined,
+      "fr",
+      "success",
+    ).toString(),
+    "http://localhost:3000/fr?newsletter=success#newsletter-signup",
+  );
 });
 
 test("newsletter signup normalizes email and persists only after Mailchimp accepted pending", async () => {

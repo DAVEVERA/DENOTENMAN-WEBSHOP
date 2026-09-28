@@ -31,6 +31,18 @@ export function parseNewsletterSignupBody(rawBody: string, contentType: string):
   throw new Error("Unsupported newsletter signup content type");
 }
 
+export function newsletterRedirectUrl(
+  requestUrl: string,
+  publicSiteUrl: string | undefined,
+  locale: Locale,
+  status: "success" | "invalid" | "unavailable" | "rate-limited",
+): URL {
+  const destination = new URL(`/${locale}`, publicSiteUrl?.trim() || requestUrl);
+  destination.searchParams.set("newsletter", status);
+  destination.hash = "newsletter-signup";
+  return destination;
+}
+
 export type PendingNewsletterSignup = {
   email: string;
   locale: Locale;
