@@ -1,0 +1,29 @@
+# Local development database. Never production: the database is named
+# denotenman_dev (lib/database-access.cjs treats loopback + "neondb" as production).
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   DATABASE_URL="postgresql://denotenman:denotenman@127.0.0.1:15432/denotenman_dev"
+services:
+  postgres:
+    image: postgres:18
+    container_name: denotenman-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: denotenman
+      POSTGRES_PASSWORD: denotenman
+      POSTGRES_DB: denotenman_dev
+      # Same collation as production (Neon and Cloud SQL both use C.UTF-8).
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      # PostgreSQL 18+ images keep data under /var/lib/postgresql/<major>/docker.
+      - denotenman-dev-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U denotenman -d denotenman_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  denotenman-dev-db:

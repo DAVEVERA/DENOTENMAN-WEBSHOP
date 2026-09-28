@@ -7,10 +7,50 @@ The existing Neon database is reserved for production:
 - Service: `denotenman-webshop`, project `project-5dc79156-4200-4528-bfc`, region `europe-west4`.
 - Credential source for production: Secret Manager `denotenman-database-url`.
 
-Local development must use a separate `DATABASE_URL`. There is currently no
-separate development target configured. Do not use the production URL to make
-local startup or tests pass. The production URL has been removed from the local
-`.env`; the production secret itself has not been rotated or modified.
+Production is moving to Cloud SQL (see "Cloud SQL migration" below). Until the
+cutover, Neon above stays the live database.
+
+Local development uses a PostgreSQL 18 container with the same collation as
+production (`C.UTF-8`):
+
+```sh
+docker compose -f docker-compose.dev.yml up -d
+# .env.local
+DATABASE_URL="postgresql://denotenman:denotenman@127.0.0.1:15432/denotenman_dev"
+```
+
+The local database is named `denotenman_dev` on purpose: a loopback host with the
+database name `neondb` is treated as production (it is what a Cloud SQL Auth
+Proxy to production looks like). Port 15432 avoids Windows' reserved port ranges.
+Do not use the production URL to make local startup or tests pass.
+
+## Cloud SQL migration
+
+- Instance: `project-5dc79156-4200-4528-bfc:europe-west4:denotenman-db`
+  (PostgreSQL 18, `db-f1-micro`, max 25 connections, daily backups, 7 days
+  point-in-time recovery, deletion protection, public IP without authorized
+  networks: reachable only through the Cloud SQL connector or Auth Proxy).
+- Databases: `neondb` (production, owner `webshop`) and `neondb_rehearsal`
+  (rehearsal copy), both with collation `C.UTF-8`.
+- Secrets: `denotenman-cloudsql-database-url` (socket URL for Cloud Run,
+  `connection_limit=3`) and `denotenman-cloudsql-postgres-password` (admin, not
+  granted to any service account).
+- Cloud Run reaches the socket URL after `--add-cloudsql-instances`; Cloud Build
+  reaches it through a proxy container (`scripts/ci/cloudsql-url.sh`). With a
+  Neon `DATABASE_URL` the release pipeline behaves exactly as before.
+- One-off data copy: `powershell -File scripts/cloudsql-migration.ps1 -Mode rehearsal`
+  copies production Neon into `neondb_rehearsal` and compares both with
+  `scripts/compare-databases.cjs`. `-Mode cutover` refuses unless `neondb` is
+  empty, then freezes Neon itself (`default_transaction_read_only = on`, open
+  sessions of the app role closed), copies and compares. `-Mode unfreeze` is the
+  rollback: it makes Neon writable again. Cutover and unfreeze ask for
+  confirmation unless `-Confirmed` is passed. Run a mode only from a committed
+  state; the commit hash is recorded as `DEPLOYMENT_VERSION`.
+- Cutover must switch the Cloud Run secret reference to
+  `denotenman-cloudsql-database-url` on a new revision (not a new version of
+  `denotenman-database-url`, which older revisions read as `latest`), together
+  with `--add-cloudsql-instances` and `--max-instances=5`, and switch the
+  `availableSecrets` entry in `cloudbuild-trigger.yaml` in the same release.
 
 ## Enforced application checks
 

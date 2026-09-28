@@ -1,0 +1,162 @@
+# One-off data migration Neon -> Cloud SQL. Start it with
+# scripts/cloudsql-migration.ps1 -Mode rehearsal|cutover|unfreeze (never from a trigger).
+#
+#   rehearsal: copies production Neon into the separate, empty database
+#              neondb_rehearsal on Cloud SQL. Neon is only read.
+#   cutover:   checks that neondb on Cloud SQL is empty, then freezes Neon
+#              (default_transaction_read_only = on, open sessions of the app role
+#              closed so they reconnect read-only), copies and compares.
+#   unfreeze:  rollback only: makes Neon writable again. Copies nothing.
+#
+# Credentials stay in Secret Manager; the job runs as the release service account.
+serviceAccount: "projects/project-5dc79156-4200-4528-bfc/serviceAccounts/1083856703616-compute@developer.gserviceaccount.com"
+
+steps:
+  - id: "validate"
+    name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        source scripts/ci/cloudsql-url.sh
+        if [[ "${_MODE}" != "rehearsal" && "${_MODE}" != "cutover" && "${_MODE}" != "unfreeze" ]]; then
+          echo "_MODE moet rehearsal, cutover of unfreeze zijn."; exit 2
+        fi
+        if [[ ! "${_DEPLOYMENT_VERSION}" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "_DEPLOYMENT_VERSION moet een volledige commit-hash zijn."; exit 2
+        fi
+        if [[ "${_MODE}" == "cutover" && "${_TARGET_DATABASE}" != "neondb" ]]; then
+          echo "Cutover gaat altijd naar neondb."; exit 2
+        fi
+        if [[ "${_MODE}" == "rehearsal" && "${_TARGET_DATABASE}" == "neondb" ]]; then
+          echo "Een repetitie mag nooit naar de productiedatabase neondb."; exit 2
+        fi
+        if is_cloudsql_url "$${SOURCE_DATABASE_URL}"; then
+          echo "De bron wijst al naar Cloud SQL; er valt niets te migreren."; exit 2
+        fi
+        if ! is_cloudsql_url "$${TARGET_SOCKET_URL}"; then
+          echo "Het doel is geen Cloud SQL-adres."; exit 2
+        fi
+        echo "Modus ${_MODE}, doeldatabase ${_TARGET_DATABASE}, versie ${_DEPLOYMENT_VERSION}."
+    secretEnv: ["SOURCE_DATABASE_URL", "TARGET_SOCKET_URL"]
+
+  - id: "start-cloudsql-proxy"
+    name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        source scripts/ci/cloudsql-url.sh
+        if [[ "${_MODE}" == "unfreeze" ]]; then echo "Unfreeze: geen proxy nodig."; exit 0; fi
+        start_cloudsql_proxy "$$(cloudsql_instance "$${TARGET_SOCKET_URL}")"
+    secretEnv: ["TARGET_SOCKET_URL"]
+
+  - id: "dump-and-restore"
+    name: "docker.io/library/postgres:18"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        if [[ "${_MODE}" == "unfreeze" ]]; then echo "Unfreeze: er wordt niets gekopieerd."; exit 0; fi
+        source scripts/ci/cloudsql-url.sh
+        src="$$(libpq_url "$${SOURCE_DATABASE_URL}")"
+        dst="$$(libpq_url "$$(cloudsql_tcp_url "$${TARGET_SOCKET_URL}" "${_TARGET_DATABASE}")")"
+        src_version="$$(psql "$${src}" -Atc 'show server_version')"
+        dst_version="$$(psql "$${dst}" -Atc 'show server_version')"
+        echo "Bronversie: $${src_version}, doelversie: $${dst_version}"
+        collation="$$(psql "$${dst}" -Atc 'select datcollate from pg_database where datname = current_database()')"
+        if [[ "$${collation}" != "C.UTF-8" ]]; then
+          echo "Doeldatabase heeft collatie $${collation}, verwacht C.UTF-8; gestopt."; exit 1
+        fi
+        tables="$$(psql "$${dst}" -Atc "select count(*) from information_schema.tables where table_schema = 'public'")"
+        if [[ "$${tables}" != "0" ]]; then
+          echo "Doeldatabase is niet leeg ($${tables} tabellen); gestopt."; exit 1
+        fi
+        if [[ "${_MODE}" == "cutover" ]]; then
+          source_db="$$(psql "$${src}" -Atc 'select current_database()')"
+          if [[ ! "$${source_db}" =~ ^[a-z_]+$ ]]; then
+            echo "Onverwachte brondatabasenaam; gestopt."; exit 1
+          fi
+          closed="$$(psql "$${src}" -v ON_ERROR_STOP=1 -qAt \
+            -c "ALTER DATABASE $${source_db} SET default_transaction_read_only = on" \
+            -c "select count(pg_terminate_backend(pid)) from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and usename = current_user")"
+          echo "Neon bevroren; $${closed} open verbindingen van de webshop gesloten."
+          sleep 3
+          frozen="$$(psql "$${src}" -Atc 'show default_transaction_read_only')"
+          if [[ "$${frozen}" != "on" ]]; then
+            echo "Neon is niet bevroren (default_transaction_read_only = $${frozen}); gestopt."; exit 1
+          fi
+        fi
+        started="$$(date +%s)"
+        pg_dump "$${src}" --format=custom --no-owner --no-acl --file=/workspace/source.dump
+        echo "Dump: $$(du -h /workspace/source.dump | cut -f1)"
+        pg_restore --dbname="$${dst}" --no-owner --no-acl --exit-on-error --single-transaction /workspace/source.dump
+        rm -f /workspace/source.dump
+        echo "Dump en restore klaar in $$(( $$(date +%s) - started )) seconden."
+    secretEnv: ["SOURCE_DATABASE_URL", "TARGET_SOCKET_URL"]
+
+  - id: "compare"
+    name: "docker.io/library/node:22-bookworm"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        if [[ "${_MODE}" == "unfreeze" ]]; then echo "Unfreeze: niets te vergelijken."; exit 0; fi
+        npm install --no-save --no-audit --no-fund --loglevel=error pg@8.23.0
+        source scripts/ci/cloudsql-url.sh
+        export DATABASE_ACCESS_CONTEXT=release
+        export DEPLOYMENT_VERSION="${_DEPLOYMENT_VERSION}"
+        export SOURCE_DATABASE_URL="$$(libpq_url "$${SOURCE_DATABASE_URL}")"
+        export TARGET_DATABASE_URL="$$(cloudsql_tcp_url "$${TARGET_SOCKET_URL}" "${_TARGET_DATABASE}")"
+        export NODE_NO_WARNINGS=1
+        if [[ "${_MODE}" == "rehearsal" ]]; then
+          echo "Let op: in een repetitie blijft Neon beschrijfbaar; bestellingen na de dump geven verschillen."
+        fi
+        node scripts/compare-databases.cjs
+    secretEnv: ["SOURCE_DATABASE_URL", "TARGET_SOCKET_URL"]
+
+  - id: "unfreeze-neon"
+    name: "docker.io/library/postgres:18"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        if [[ "${_MODE}" != "unfreeze" ]]; then echo "Geen unfreeze gevraagd."; exit 0; fi
+        source scripts/ci/cloudsql-url.sh
+        src="$$(libpq_url "$${SOURCE_DATABASE_URL}")"
+        source_db="$$(psql "$${src}" -Atc 'select current_database()')"
+        if [[ ! "$${source_db}" =~ ^[a-z_]+$ ]]; then
+          echo "Onverwachte brondatabasenaam; gestopt."; exit 1
+        fi
+        # A read-only session cannot run ALTER DATABASE; lift it for this session first.
+        psql "$${src}" -v ON_ERROR_STOP=1 -qAt \
+          -c "SET default_transaction_read_only = off" \
+          -c "ALTER DATABASE $${source_db} RESET default_transaction_read_only"
+        state="$$(psql "$${src}" -Atc 'show default_transaction_read_only')"
+        if [[ "$${state}" != "off" ]]; then
+          echo "Neon is nog steeds alleen-lezen; controleer handmatig."; exit 1
+        fi
+        echo "Neon is weer beschrijfbaar."
+    secretEnv: ["SOURCE_DATABASE_URL"]
+
+timeout: "1800s"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _MODE: "rehearsal"
+  _TARGET_DATABASE: "neondb_rehearsal"
+  _DEPLOYMENT_VERSION: ""
+
+availableSecrets:
+  secretManager:
+    - versionName: "projects/project-5dc79156-4200-4528-bfc/secrets/denotenman-database-url/versions/latest"
+      env: "SOURCE_DATABASE_URL"
+    - versionName: "projects/project-5dc79156-4200-4528-bfc/secrets/denotenman-cloudsql-database-url/versions/latest"
+      env: "TARGET_SOCKET_URL"

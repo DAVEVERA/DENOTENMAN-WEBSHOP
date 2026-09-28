@@ -18,6 +18,24 @@ steps:
           exit 2
         fi
 
+  # Cloud SQL is reached through an Auth Proxy container on the `cloudbuild`
+  # network (scripts/ci/cloudsql-url.sh). With a Neon DATABASE_URL this step
+  # does nothing and the steps below behave exactly as before.
+  - id: "start-cloudsql-proxy"
+    name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        source scripts/ci/cloudsql-url.sh
+        if is_cloudsql_url "$${DATABASE_URL}"; then
+          start_cloudsql_proxy "$$(cloudsql_instance "$${DATABASE_URL}")"
+        else
+          echo "DATABASE_URL wijst niet naar Cloud SQL; geen proxy nodig."
+        fi
+    secretEnv: ["DATABASE_URL"]
+
   # The build statically reads product data. Apply only committed expand-only
   # migrations before Docker invokes `next build`. Review data backfills and
   # reader compatibility separately; additive enum values alone do not make
@@ -33,7 +51,12 @@ steps:
         export DATABASE_ACCESS_CONTEXT=release
         export DEPLOYMENT_VERSION="${COMMIT_SHA}"
         node scripts/check-database-access.cjs migrate-release
-        migration_database_url="$${DATABASE_URL/-pooler./.}"
+        source scripts/ci/cloudsql-url.sh
+        if is_cloudsql_url "$${DATABASE_URL}"; then
+          migration_database_url="$$(cloudsql_tcp_url "$${DATABASE_URL}")"
+        else
+          migration_database_url="$${DATABASE_URL/-pooler./.}"
+        fi
         run_migration() {
           DATABASE_URL="$${migration_database_url}" npx prisma migrate deploy
         }
@@ -59,6 +82,12 @@ steps:
       - |
         set -euo pipefail
         build_database_url="$$DATABASE_URL"
+        network_args=()
+        source scripts/ci/cloudsql-url.sh
+        if is_cloudsql_url "$$build_database_url"; then
+          build_database_url="$$(cloudsql_tcp_url "$$build_database_url")"
+          network_args=(--network=cloudbuild)
+        fi
         if [[ "$$build_database_url" != *"connection_limit="* ]]; then
           if [[ "$$build_database_url" == *"?"* ]]; then
             build_database_url="$${build_database_url}&connection_limit=10&pool_timeout=30"
@@ -67,6 +96,7 @@ steps:
           fi
         fi
         docker build \
+          $${network_args[@]+"$${network_args[@]}"} \
           --build-arg DATABASE_URL="$$build_database_url" \
           --build-arg CDN_BASE_URL="${_CDN_BASE_URL}" \
           --build-arg SITE_URL="${_SITE_URL}" \
