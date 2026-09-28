@@ -37,4 +37,6 @@ test("footer utility links resolve to implemented storefront experiences", async
   assert.match(contentPage, /<NewsletterOptOut locale=\{locale\} \/>/);
   assert.match(footer, /href=\{`\$\{homePath\(locale\)\}#newsletter-signup`\}/);
   assert.match(optOutPage, /persoonlijke afmeldlink/i);
+  assert.match(optOutPage, /aria-labelledby="newsletter-opt-out-title"/);
+  assert.doesNotMatch(optOutPage, /<main/);
 });

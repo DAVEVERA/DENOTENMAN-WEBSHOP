@@ -49,13 +49,21 @@ export function NewsletterOptOut({ locale }: { locale: Locale }) {
   const content = copy[locale];
 
   return (
-    <main className="border-y border-border bg-surface">
+    <section
+      className="border-y border-border bg-surface"
+      aria-labelledby="newsletter-opt-out-title"
+    >
       <Container className="py-12 sm:py-16 lg:py-20">
         <div className="mx-auto max-w-3xl rounded-panel border border-border bg-background p-6 shadow-card sm:p-8 lg:p-10">
           <p className="font-heading text-xs font-bold uppercase tracking-[0.16em] text-accent-ink">
             {content.eyebrow}
           </p>
-          <h1 className="mt-3 text-heading-xl text-text sm:text-[3rem]">{content.title}</h1>
+          <h1
+            id="newsletter-opt-out-title"
+            className="mt-3 text-heading-xl text-text sm:text-[3rem]"
+          >
+            {content.title}
+          </h1>
           <p className="mt-5 text-body-lg leading-8 text-text">{content.intro}</p>
           <p className="mt-4 leading-7 text-muted">{content.instruction}</p>
           <p className="mt-6 leading-7 text-muted">{content.help}</p>
@@ -76,6 +84,6 @@ export function NewsletterOptOut({ locale }: { locale: Locale }) {
           </div>
         </div>
       </Container>
-    </main>
+    </section>
   );
 }
