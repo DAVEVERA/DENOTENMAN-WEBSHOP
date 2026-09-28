@@ -248,7 +248,7 @@ export async function Footer({
                 </p>
               ) : null}
               <Link
-                href={pagePath("subscribe", locale)}
+                href={`${homePath(locale)}#newsletter-signup`}
                 className="mt-gap-md inline-flex min-h-11 items-center justify-center rounded-button bg-accent px-5 py-3 font-heading text-body-sm font-bold text-contrast shadow-button transition-colors duration-hover-fast hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
               >
                 {dictionary.footer.subscribe}

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Martini, Sun, Wheat, type LucideIcon } from "lucide-react";
 import { locales, isLocale, type Locale } from "@/lib/i18n";
@@ -24,6 +24,7 @@ import { AdditionalTerms } from "./_components/AdditionalTerms";
 import { ProcessingAgreement } from "./_components/ProcessingAgreement";
 import { CookiePolicy } from "./_components/CookiePolicy";
 import { Withdrawal } from "./_components/Withdrawal";
+import { NewsletterOptOut } from "./_components/NewsletterOptOut";
 import { MarketRouteMap, type MarketRouteCopy } from "./_components/MarketRouteMap";
 import { SquirrelEmptyState } from "@/components/layout/SquirrelEmptyState";
 import { CustomerServicePage } from "@/components/customer-service/CustomerServicePage";
@@ -75,6 +76,42 @@ const dutchAboutMetadata = {
   title: "Over De Notenman | Vers gebrande noten van de markt",
   description:
     "Maak kennis met Fedor en De Notenman. Vers gebrande noten, gedroogd fruit en meer, op de markt en online vanuit Haaren.",
+};
+
+const newsletterUtilityMetadata: Record<
+  Locale,
+  Record<"subscribe" | "optOut", { title: string; description: string }>
+> = {
+  nl: {
+    subscribe: {
+      title: "Aanmelden voor de nieuwsbrief",
+      description: "Meld je aan voor nieuws van De Notenman.",
+    },
+    optOut: {
+      title: "Afmelden voor de nieuwsbrief",
+      description: "Lees hoe je je veilig afmeldt voor de nieuwsbrief van De Notenman.",
+    },
+  },
+  en: {
+    subscribe: {
+      title: "Newsletter signup",
+      description: "Sign up for news from De Notenman.",
+    },
+    optOut: {
+      title: "Unsubscribe from the newsletter",
+      description: "Learn how to unsubscribe safely from the De Notenman newsletter.",
+    },
+  },
+  fr: {
+    subscribe: {
+      title: "Inscription à la newsletter",
+      description: "Inscrivez-vous aux actualités de De Notenman.",
+    },
+    optOut: {
+      title: "Se désinscrire de la newsletter",
+      description: "Découvrez comment vous désinscrire en toute sécurité de la newsletter de De Notenman.",
+    },
+  },
 };
 
 const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTitle: string; metadataDescription: string }> = {
@@ -187,16 +224,29 @@ export async function generateMetadata({
     };
   }
 
-  const customerServiceCopy = key === "faq" ? getCustomerServiceCopy(locale) : null;
+  const customerServiceCopy = key === "faq" || key === "contact"
+    ? getCustomerServiceCopy(locale)
+    : null;
+  const newsletterMetadata = key === "subscribe" || key === "optOut"
+    ? newsletterUtilityMetadata[locale][key]
+    : null;
   const isDutchAbout = locale === "nl" && key === "about";
-  const page = key === "markets" || key === "faq" || isDutchAbout
+  const hasStaticContent = key === "markets"
+    || key === "faq"
+    || key === "contact"
+    || Boolean(newsletterMetadata)
+    || isDutchAbout;
+  const page = hasStaticContent
     ? null
     : await getPageBySlug(slug, locale);
   const title = isDutchAbout
     ? dutchAboutMetadata.title
     : key === "markets"
       ? marketRouteCopy[locale].metadataTitle
-      : customerServiceCopy?.metadataTitle ?? page?.title ?? key.charAt(0).toUpperCase() + key.slice(1);
+      : newsletterMetadata?.title
+        ?? customerServiceCopy?.metadataTitle
+        ?? page?.title
+        ?? key.charAt(0).toUpperCase() + key.slice(1);
 
   return {
     title,
@@ -204,7 +254,7 @@ export async function generateMetadata({
       ? dutchAboutMetadata.description
       : key === "markets"
         ? marketRouteCopy[locale].metadataDescription
-        : customerServiceCopy?.metadataDescription,
+        : newsletterMetadata?.description ?? customerServiceCopy?.metadataDescription,
     robots: pageRobots(key),
     alternates: {
       canonical: alternates.canonical,
@@ -235,8 +285,16 @@ export default async function ContentPage({
     return <MarketRouteMap copy={marketRouteCopy[locale]} />;
   }
 
-  if (key === "faq") {
+  if (key === "faq" || key === "contact") {
     return <CustomerServicePage locale={locale} copy={getCustomerServiceCopy(locale)} />;
+  }
+
+  if (key === "subscribe") {
+    redirect(`/${locale}#newsletter-signup`);
+  }
+
+  if (key === "optOut") {
+    return <NewsletterOptOut locale={locale} />;
   }
 
   if (locale === "nl" && key === "about") {

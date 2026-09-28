@@ -34,7 +34,10 @@ test("newsletter form is accessible, mobile-first and contains consent plus hone
   assert.match(html, /bg-\[#121212\]/);
   assert.match(html, /type="email"/);
   assert.match(html, /autoComplete="email"/);
-  assert.match(html, /type="checkbox"/);
+  assert.match(html, /action="\/api\/mailchimp\?locale=nl"/);
+  assert.match(html, /method="post"/);
+  assert.match(html, /<input type="checkbox"[^>]*name="consent"[^>]*value="true"/);
+  assert.doesNotMatch(html, /<button[^>]*\sdisabled(?:=|\s|>)/);
   assert.match(html, /name="website"/);
   assert.match(html, /tabindex="-1"/);
   assert.match(html, /min-h-12/);

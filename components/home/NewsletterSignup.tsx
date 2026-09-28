@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Mail } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Locale } from "@/lib/i18n";
 
 export type NewsletterSignupCopy = {
@@ -41,6 +41,19 @@ export function NewsletterSignup({
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
   const [state, setState] = useState<SubmissionState>("idle");
+
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get("newsletter");
+    if (
+      status === "success" ||
+      status === "invalid" ||
+      status === "unavailable" ||
+      status === "rate-limited"
+    ) {
+      const timeout = window.setTimeout(() => setState(status), 0);
+      return () => window.clearTimeout(timeout);
+    }
+  }, []);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,10 +122,13 @@ export function NewsletterSignup({
         </div>
 
         <form
+          action={`/api/mailchimp?locale=${locale}`}
+          method="post"
           onSubmit={submit}
           aria-busy={state === "submitting"}
           className="min-w-0"
         >
+          <input type="hidden" name="locale" value={locale} />
           <label
             htmlFor="newsletter-email"
             className="block font-heading text-body-md font-bold text-surface sm:text-body-sm"
@@ -146,7 +162,7 @@ export function NewsletterSignup({
             </div>
             <button
               type="submit"
-              disabled={state === "submitting" || !consent}
+              disabled={state === "submitting"}
               className="inline-flex min-h-12 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.45rem] bg-accent px-5 font-heading text-body-md font-bold text-contrast shadow-button transition-colors hover:bg-[#F2C500] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:text-body-sm"
             >
               {state === "submitting" ? copy.submitting : copy.submit}
@@ -171,6 +187,8 @@ export function NewsletterSignup({
           <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-3 text-body-md leading-6 text-surface/85 sm:text-body-sm sm:leading-5">
             <input
               type="checkbox"
+              name="consent"
+              value="true"
               required
               checked={consent}
               onChange={(event) => {

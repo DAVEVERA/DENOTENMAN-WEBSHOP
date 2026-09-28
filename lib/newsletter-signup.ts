@@ -13,6 +13,24 @@ export const newsletterSignupInputSchema = z
 
 export type NewsletterSignupInput = z.infer<typeof newsletterSignupInputSchema>;
 
+export function parseNewsletterSignupBody(rawBody: string, contentType: string): unknown {
+  if (contentType.toLowerCase().includes("application/json")) {
+    return JSON.parse(rawBody);
+  }
+
+  if (contentType.toLowerCase().includes("application/x-www-form-urlencoded")) {
+    const form = new URLSearchParams(rawBody);
+    return {
+      email: form.get("email") ?? "",
+      locale: form.get("locale") ?? "",
+      consent: form.get("consent") === "true",
+      website: form.get("website") ?? "",
+    };
+  }
+
+  throw new Error("Unsupported newsletter signup content type");
+}
+
 export type PendingNewsletterSignup = {
   email: string;
   locale: Locale;

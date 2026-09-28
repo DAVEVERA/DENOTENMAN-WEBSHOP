@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createNewsletterRateLimiter,
   newsletterSignupInputSchema,
+  parseNewsletterSignupBody,
   pendingNewsletterConsentData,
   submitNewsletterSignup,
 } from "../lib/newsletter-signup";
@@ -30,6 +31,44 @@ test("newsletter signup requires explicit consent and accepts only the public co
     }).success,
     false
   );
+});
+
+test("newsletter signup parses JSON and progressive-enhancement form posts", () => {
+  assert.deepEqual(
+    parseNewsletterSignupBody(
+      JSON.stringify({
+        email: "person@example.com",
+        locale: "nl",
+        consent: true,
+        website: "",
+      }),
+      "application/json",
+    ),
+    {
+      email: "person@example.com",
+      locale: "nl",
+      consent: true,
+      website: "",
+    },
+  );
+
+  assert.deepEqual(
+    parseNewsletterSignupBody(
+      "email=person%40example.com&locale=fr&consent=true&website=",
+      "application/x-www-form-urlencoded",
+    ),
+    {
+      email: "person@example.com",
+      locale: "fr",
+      consent: true,
+      website: "",
+    },
+  );
+});
+
+test("newsletter form parsing rejects unsupported and malformed request bodies", () => {
+  assert.throws(() => parseNewsletterSignupBody("not-json", "application/json"));
+  assert.throws(() => parseNewsletterSignupBody("email=a%40b.nl", "text/plain"));
 });
 
 test("newsletter signup normalizes email and persists only after Mailchimp accepted pending", async () => {

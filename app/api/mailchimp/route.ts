@@ -6,6 +6,7 @@ import { subscriberHash } from "@/lib/mailchimp/subscriberHash";
 import {
   createNewsletterRateLimiter,
   newsletterSignupInputSchema,
+  parseNewsletterSignupBody,
   pendingNewsletterConsentData,
   submitNewsletterSignup,
 } from "@/lib/newsletter-signup";
@@ -33,10 +34,47 @@ function acceptedResponse() {
   return json(acceptedBody, { status: 202 });
 }
 
+function isFormSubmission(contentType: string) {
+  return contentType.toLowerCase().includes("application/x-www-form-urlencoded");
+}
+
+function formRedirect(
+  request: NextRequest,
+  locale: "nl" | "en" | "fr",
+  status: "success" | "invalid" | "unavailable" | "rate-limited",
+  retryAfterSeconds?: number,
+) {
+  const destination = new URL(`/${locale}`, request.url);
+  destination.searchParams.set("newsletter", status);
+  destination.hash = "newsletter-signup";
+  const response = NextResponse.redirect(destination, 303);
+  response.headers.set("Cache-Control", "no-store");
+  if (retryAfterSeconds) {
+    response.headers.set("Retry-After", String(retryAfterSeconds));
+  }
+  return response;
+}
+
+function requestedLocale(request: NextRequest): "nl" | "en" | "fr" {
+  const locale = request.nextUrl.searchParams.get("locale");
+  return locale === "en" || locale === "fr" ? locale : "nl";
+}
+
 export async function POST(request: NextRequest) {
+  const contentType = request.headers.get("content-type") ?? "";
+  const formSubmission = isFormSubmission(contentType);
+  const fallbackLocale = requestedLocale(request);
   const ipAddress = clientIp(request);
   const rateLimit = checkNewsletterRateLimit(ipAddress ?? "unknown");
   if (rateLimit.limited) {
+    if (formSubmission) {
+      return formRedirect(
+        request,
+        fallbackLocale,
+        "rate-limited",
+        rateLimit.retryAfterSeconds,
+      );
+    }
     return json(
       { ok: false, error: "RATE_LIMITED" },
       { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
@@ -45,29 +83,37 @@ export async function POST(request: NextRequest) {
 
   const contentLength = Number(request.headers.get("content-length"));
   if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+    if (formSubmission) return formRedirect(request, fallbackLocale, "invalid");
     return json({ ok: false, error: "INVALID_REQUEST" }, { status: 400 });
   }
 
   const rawBody = await request.text();
   if (rawBody.length > MAX_BODY_BYTES) {
+    if (formSubmission) return formRedirect(request, fallbackLocale, "invalid");
     return json({ ok: false, error: "INVALID_REQUEST" }, { status: 400 });
   }
 
   let body: unknown;
   try {
-    body = JSON.parse(rawBody);
+    body = parseNewsletterSignupBody(rawBody, contentType);
   } catch {
+    if (formSubmission) return formRedirect(request, fallbackLocale, "invalid");
     return json({ ok: false, error: "INVALID_REQUEST" }, { status: 400 });
   }
 
   const parsed = newsletterSignupInputSchema.safeParse(body);
   if (!parsed.success) {
+    if (formSubmission) return formRedirect(request, fallbackLocale, "invalid");
     return json({ ok: false, error: "INVALID_REQUEST" }, { status: 400 });
   }
 
   // A filled honeypot gets the same response as a real request, but performs no
   // external call or database write.
-  if (parsed.data.website.length > 0) return acceptedResponse();
+  if (parsed.data.website.length > 0) {
+    return formSubmission
+      ? formRedirect(request, parsed.data.locale, "success")
+      : acceptedResponse();
+  }
 
   try {
     await submitNewsletterSignup(parsed.data, ipAddress, {
@@ -113,13 +159,18 @@ export async function POST(request: NextRequest) {
         });
       },
     });
-    return acceptedResponse();
+    return formSubmission
+      ? formRedirect(request, parsed.data.locale, "success")
+      : acceptedResponse();
   } catch (error) {
     const status =
       typeof error === "object" && error !== null && "status" in error
         ? String(error.status)
         : "unknown";
     console.error("Newsletter signup dependency failed", { status });
+    if (formSubmission) {
+      return formRedirect(request, parsed.data.locale, "unavailable");
+    }
     return json({ ok: false, error: "TEMPORARILY_UNAVAILABLE" }, { status: 503 });
   }
 }
