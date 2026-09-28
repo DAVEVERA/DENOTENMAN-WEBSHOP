@@ -21,7 +21,7 @@ export const primaryAdminLinks: NavItem[] = [
 
 export const secondaryAdminGroups: NavGroup[] = [
   { label: "Verkoop", items: [{ href: "/admin/zakelijk", label: "Zakelijk" }, { href: "/admin/facturen", label: "Facturen" }, { href: "/admin/kortingen", label: "Kortingen" }] },
-  { label: "Catalogus", items: [{ href: "/admin/categorieen", label: "Categorieën" }, { href: "/admin/notenplan", label: "Notenplan" }] },
+  { label: "Catalogus", items: [{ href: "/admin/categorieen", label: "Categorieën" }] },
   { label: "Groei", items: [{ href: "/admin/advertenties", label: "Google Ads" }, { href: "/admin/prijsmonitor", label: "Prijsmonitor" }] },
   { label: "Creatie", items: [{ href: "/admin/qrcodes", label: "QR-codes" }] },
   { label: "Beheer", items: [{ href: "/admin/logboek", label: "Logboek" }, { href: "/admin/instellingen", label: "Instellingen" }] },
