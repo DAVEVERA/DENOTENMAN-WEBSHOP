@@ -32,12 +32,13 @@ test("assortment page progressively fetches bounded server-side catalog pages", 
   assert.match(browser, /copy\.loadMore/);
 });
 
-test("assortment cards link to the product page instead of opening a quick view", () => {
+test("assortment quick view is shared and fetches variant data only on demand", () => {
   const browser = readFileSync("components/product/ProductBrowser.tsx", "utf8");
   const card = readFileSync("components/product/ProductCard.tsx", "utf8");
 
-  assert.doesNotMatch(browser, /ProductQuickView|onQuickView|\/api\/storefront\/products\//);
-  assert.doesNotMatch(card, /ProductQuickView|onQuickView|openQuickView|quickOrder/);
+  assert.match(browser, /\/api\/storefront\/products\//);
+  assert.equal((browser.match(/<ProductQuickView/g) ?? []).length, 1);
+  assert.match(card, /!onQuickView && "variants" in product/);
   assert.doesNotMatch(card, /@\/dictionaries\//);
   assert.doesNotMatch(browser, /@\/dictionaries\//);
 });

@@ -71,7 +71,6 @@
     "inStock": "En stock",
     "quickOrder": "Commander rapidement",
     "moreInfo": "Plus d’infos",
-    "orderNow": "Commander maintenant",
     "backToProducts": "Retour aux produits",
     "closeDetails": "Fermer les détails du produit",
     "viewProduct": "Voir le produit",
@@ -110,7 +109,8 @@
     "perHundredGrams": "Valeurs nutritionnelles pour 100 g",
     "perHundredMilliliters": "Valeurs nutritionnelles pour 100 ml",
     "faqFallback": "Aucune question répondue pour ce produit. Contactez-nous pour plus d'informations.",
-    "stockAlert": "Prévenez-moi"
+    "stockAlert": "Prévenez-moi",
+    "loadingQuickView": "Chargement du produit…"
   },
   "cart": {
     "title": "Panier",
