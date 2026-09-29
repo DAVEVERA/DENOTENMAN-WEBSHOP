@@ -72,7 +72,7 @@ test("customer service route and metadata are localized without relying on a dat
   assert.equal(pagePath("faq", "fr"), "/fr/pages/faq");
 
   const routeSource = readFileSync("app/[locale]/pages/[slug]/page.tsx", "utf8");
-  assert.match(routeSource, /if \(key === "faq"\)/);
+  assert.match(routeSource, /if \(key === "faq" \|\| key === "contact"\)/);
   assert.match(routeSource, /getCustomerServiceCopy\(locale\)/);
   assert.match(routeSource, /getAlternates\(locale, \{ type: "page", key \}\)/);
   assert.match(routeSource, /canonical: alternates\.canonical/);
