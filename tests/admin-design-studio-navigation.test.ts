@@ -10,10 +10,22 @@ test("admin navigation keeps five primary destinations and grouped secondary des
   for (const label of ["Dashboard", "Producten", "Bestellingen", "Design Studio", "Marketing"]) {
     assert.match(navSource, new RegExp(`label: \\\"${label}\\\"`));
   }
-  for (const group of ["Verkoop", "Catalogus", "Groei", "Creatie", "Beheer"]) {
+  for (const group of ["Verkoop", "Catalogus", "Beheer"]) {
     assert.match(navSource, new RegExp(`label: \\\"${group}\\\"`));
   }
   assert.doesNotMatch(navSource, /overflow-x-auto/);
+});
+
+test("Google Ads and QR codes live under Marketing; the removed tools are gone", () => {
+  const marketingHub = readFileSync(join(process.cwd(), "app/admin/(dashboard)/marketing/page.tsx"), "utf8");
+  assert.match(marketingHub, /href: "\/admin\/marketing\/advertenties"/);
+  assert.match(marketingHub, /href: "\/admin\/marketing\/qrcodes"/);
+  for (const removed of ["/admin/advertenties", "/admin/qrcodes", "/admin/prijsmonitor", "/admin/notenplan"]) {
+    assert.doesNotMatch(navSource, new RegExp(`"${removed}"`));
+  }
+  const nextConfig = readFileSync(join(process.cwd(), "next.config.ts"), "utf8");
+  assert.match(nextConfig, /source: "\/admin\/advertenties", destination: "\/admin\/marketing\/advertenties"/);
+  assert.match(nextConfig, /source: "\/admin\/qrcodes\/:path\*", destination: "\/admin\/marketing\/qrcodes\/:path\*"/);
 });
 
 test("admin menus expose active state, escape handling, focus restoration and 44px targets", () => {

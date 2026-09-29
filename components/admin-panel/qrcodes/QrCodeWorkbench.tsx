@@ -523,7 +523,7 @@ export function QrCodeWorkbench({ initialDesign, products, categories, siteUrl, 
       router.refresh();
 
       if (!initialDesign && body?.design?.id) {
-        router.push(`/admin/qrcodes/${body.design.id}`);
+        router.push(`/admin/marketing/qrcodes/${body.design.id}`);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Opslaan is niet gelukt.");
@@ -575,7 +575,7 @@ export function QrCodeWorkbench({ initialDesign, products, categories, siteUrl, 
         throw new Error(body?.error ?? "Verwijderen is niet gelukt.");
       }
 
-      router.push("/admin/qrcodes");
+      router.push("/admin/marketing/qrcodes");
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Verwijderen is niet gelukt.");

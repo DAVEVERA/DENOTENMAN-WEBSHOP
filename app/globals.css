@@ -52,14 +52,6 @@
   body {
     background: #fff !important;
   }
-
-  .price-monitor-workspace > :not(.price-monitor-print) {
-    display: none !important;
-  }
-
-  .price-monitor-workspace .price-monitor-print {
-    display: block !important;
-  }
 }
 
 *:focus-visible {

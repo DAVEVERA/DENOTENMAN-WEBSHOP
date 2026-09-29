@@ -4,13 +4,15 @@ import { prisma } from "@/lib/prisma";
 
 export default async function MarketingHubPage() {
   await connection();
-  const [campaignCount, bannerCount, newsletterCount, emailLogCount, mediaAssetCount, businessLifecycleEmailCount] = await Promise.all([
+  const [campaignCount, bannerCount, newsletterCount, emailLogCount, mediaAssetCount, businessLifecycleEmailCount, adsConfigurationCount, qrCodeCount] = await Promise.all([
     prisma.marketingCampaign.count(),
     prisma.marketingBanner.count(),
     prisma.newsletterCampaign.count(),
     prisma.emailDeliveryLog.count(),
     prisma.mediaAsset.count(),
     prisma.businessLifecycleEmailContent.count(),
+    prisma.googleAdsConfiguration.count(),
+    prisma.qrCodeDesign.count(),
   ]);
 
   const sections = [
@@ -62,6 +64,18 @@ export default async function MarketingHubPage() {
       description: "Afbeeldingen uploaden en hergebruiken binnen alle marketingcategorieën.",
       count: mediaAssetCount,
     },
+    {
+      title: "Google Ads",
+      href: "/admin/marketing/advertenties",
+      description: "Advertentieconcepten per product voorbereiden.",
+      count: adsConfigurationCount,
+    },
+    {
+      title: "QR-codes",
+      href: "/admin/marketing/qrcodes",
+      description: "QR-codes ontwerpen en downloaden voor print en verpakking.",
+      count: qrCodeCount,
+    },
   ];
 
   return (
@@ -69,7 +83,7 @@ export default async function MarketingHubPage() {
       <div>
         <h1 className="text-heading-xl text-text">Marketing</h1>
         <p className="mt-1 text-body-sm text-muted">
-          Beheer acties, banners en nieuwsbrieven.
+          Beheer acties, banners, nieuwsbrieven, Google Ads en QR-codes.
         </p>
       </div>
 

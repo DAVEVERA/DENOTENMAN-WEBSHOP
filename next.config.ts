@@ -131,6 +131,9 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/favicon.ico", destination: "/brand/favicon.png", permanent: true },
+      // Google Ads and QR codes moved under Marketing in the admin.
+      { source: "/admin/advertenties", destination: "/admin/marketing/advertenties", permanent: true },
+      { source: "/admin/qrcodes/:path*", destination: "/admin/marketing/qrcodes/:path*", permanent: true },
       ...legacyWordpressRedirects(),
       ...localizedPageRedirects(),
       ...localizedWildcardRedirects(productsSegment, "products"),

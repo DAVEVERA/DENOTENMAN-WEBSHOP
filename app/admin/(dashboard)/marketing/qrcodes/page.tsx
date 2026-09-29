@@ -29,7 +29,7 @@ export default async function QrCodesPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-heading-xl text-text">QR-codes</h1>
         <Link
-          href="/admin/qrcodes/nieuw"
+          href="/admin/marketing/qrcodes/nieuw"
           className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button"
         >
           Nieuwe QR-code
@@ -58,7 +58,7 @@ export default async function QrCodesPage() {
                 <tr key={design.id} className="border-b border-border last:border-0 hover:bg-background">
                   <td className="px-4 py-3">
                     <Link
-                      href={`/admin/qrcodes/${design.id}`}
+                      href={`/admin/marketing/qrcodes/${design.id}`}
                       className="font-semibold text-text underline-offset-4 hover:underline"
                     >
                       {design.name}
@@ -89,7 +89,7 @@ export default async function QrCodesPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
-                      href={`/admin/qrcodes/${design.id}`}
+                      href={`/admin/marketing/qrcodes/${design.id}`}
                       className="font-heading text-body-sm font-semibold text-accent-hover underline underline-offset-4"
                     >
                       Bewerken
