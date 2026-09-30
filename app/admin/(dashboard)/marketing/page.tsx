@@ -37,8 +37,14 @@ export default async function MarketingHubPage() {
     {
       title: "Marketingkalender",
       href: "/admin/marketing/kalender",
-      description: "Acties, banners en nieuwsbrieven in één maandoverzicht.",
-      count: "Overzicht",
+      description: "Social posts en campagnes plannen en plaatsen, met acties, banners en nieuwsbrieven erbij.",
+      count: "Planning",
+    },
+    {
+      title: "Social kanalen",
+      href: "/admin/marketing/social/kanalen",
+      description: "Facebook, Instagram, TikTok en YouTube koppelen.",
+      count: "Koppelingen",
     },
     {
       title: "Mail flows",

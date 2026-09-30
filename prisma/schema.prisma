@@ -1850,3 +1850,123 @@ model DeveloperBillingProfile {
   paymentLinkLabel         String   @default("")
   updatedAt                DateTime @updatedAt
 }
+
+/// Social posting: accounts connected through OAuth, posts planned in the marketing
+/// calendar and published to one or more platforms.
+enum SocialPlatform {
+  FACEBOOK
+  INSTAGRAM
+  TIKTOK
+  YOUTUBE
+}
+
+enum SocialPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  PARTIAL
+  FAILED
+}
+
+enum SocialTargetStatus {
+  PENDING
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+model SocialAccount {
+  id                    String             @id @default(cuid())
+  platform              SocialPlatform
+  externalId            String
+  displayName           String
+  username              String?
+  avatarUrl             String?
+  /// AES-256-GCM sealed tokens; never sent to a browser.
+  accessTokenEncrypted  String
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime?
+  /// Meta: the Facebook page an Instagram account publishes through.
+  parentExternalId      String?
+  status                String             @default("CONNECTED")
+  lastError             String?
+  connectedByAdminId    String?
+  connectedAt           DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  targets               SocialPostTarget[]
+
+  @@unique([platform, externalId])
+}
+
+model SocialCampaign {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  color       String       @default("#B7791F")
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  posts       SocialPost[]
+}
+
+model SocialMediaAsset {
+  id               String    @id @default(cuid())
+  storageKey       String    @unique
+  originalFilename String
+  contentType      String
+  sizeBytes        Int
+  width            Int?
+  height           Int?
+  durationSeconds  Float?
+  /// Set once every byte is stored; unfinished uploads are never attached to a post.
+  completedAt      DateTime?
+  /// Resumable GCS upload session while the upload is running.
+  uploadSessionUri String?
+  uploadedBytes    Int       @default(0)
+  createdAt        DateTime  @default(now())
+}
+
+model SocialPost {
+  id                 String             @id @default(cuid())
+  title              String
+  caption            String             @default("")
+  /// Per-platform caption overrides: { "INSTAGRAM": "…" }.
+  platformCaptions   Json?
+  /// Ordered SocialMediaAsset ids.
+  mediaIds           String[]           @default([])
+  linkUrl            String?
+  youtubeTitle       String?
+  youtubePrivacy     String             @default("public")
+  tiktokPrivacy      String             @default("PUBLIC_TO_EVERYONE")
+  status             SocialPostStatus   @default(DRAFT)
+  scheduledAt        DateTime?
+  publishedAt        DateTime?
+  campaignId         String?
+  campaign           SocialCampaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  createdByAdminId   String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  targets            SocialPostTarget[]
+
+  @@index([status, scheduledAt])
+  @@index([scheduledAt])
+}
+
+model SocialPostTarget {
+  id          String             @id @default(cuid())
+  postId      String
+  post        SocialPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     SocialAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  status      SocialTargetStatus @default(PENDING)
+  externalId  String?
+  permalink   String?
+  error       String?
+  attempts    Int                @default(0)
+  publishedAt DateTime?
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([postId, accountId])
+}
