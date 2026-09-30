@@ -20,7 +20,7 @@ export const primaryAdminLinks: NavItem[] = [
 ];
 
 export const secondaryAdminGroups: NavGroup[] = [
-  { label: "Verkoop", items: [{ href: "/admin/zakelijk", label: "Zakelijk" }, { href: "/admin/facturen", label: "Facturen" }, { href: "/admin/kortingen", label: "Kortingen" }] },
+  { label: "Verkoop", items: [{ href: "/admin/zakelijk", label: "Zakelijk" }, { href: "/admin/facturen", label: "Facturen" }, { href: "/admin/abonnementen", label: "Abonnementen" }, { href: "/admin/kortingen", label: "Kortingen" }] },
   { label: "Catalogus", items: [{ href: "/admin/categorieen", label: "Categorieën" }] },
   { label: "Beheer", items: [{ href: "/admin/logboek", label: "Logboek" }, { href: "/admin/instellingen", label: "Instellingen" }] },
 ];
