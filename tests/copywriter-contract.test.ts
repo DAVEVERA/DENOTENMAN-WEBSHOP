@@ -13,6 +13,7 @@ import {
   productNutritionInputSchema,
   productTranslationInputSchema,
 } from "../lib/admin-product-schema";
+import { missingNutrition } from "./copywriter-nutrition-fixture";
 
 const editorial = (proposed: string) => ({
   proposed,
@@ -58,11 +59,12 @@ function validProviderOutput(): CopywriterProviderOutput {
         reason: "Een geverifieerde bron ontbreekt.",
         evidencePaths: ["facts.mayContainTraces"],
       },
+      ...missingNutrition(),
     },
   };
 }
 
-test("the contract exposes all ten product fields with the live save limits", () => {
+test("the contract exposes every product field with the live save limits", () => {
   assert.deepEqual(COPYWRITER_REQUIRED_FIELDS, [
     "name",
     "slug",
@@ -74,6 +76,15 @@ test("the contract exposes all ten product fields with the live save limits", ()
     "ingredients",
     "allergens",
     "mayContainTraces",
+    "nutritionEnergyKj",
+    "nutritionEnergyKcal",
+    "nutritionFat",
+    "nutritionSaturatedFat",
+    "nutritionCarbohydrates",
+    "nutritionSugars",
+    "nutritionFiber",
+    "nutritionProtein",
+    "nutritionSalt",
   ]);
   assert.deepEqual(COPYWRITER_FIELD_LIMITS, {
     name: { text: 180 },
@@ -86,6 +97,15 @@ test("the contract exposes all ten product fields with the live save limits", ()
     ingredients: { text: 10_000 },
     allergens: { text: 10_000 },
     mayContainTraces: { text: 10_000 },
+    nutritionEnergyKj: { text: 12 },
+    nutritionEnergyKcal: { text: 12 },
+    nutritionFat: { text: 12 },
+    nutritionSaturatedFat: { text: 12 },
+    nutritionCarbohydrates: { text: 12 },
+    nutritionSugars: { text: 12 },
+    nutritionFiber: { text: 12 },
+    nutritionProtein: { text: 12 },
+    nutritionSalt: { text: 12 },
   });
 });
 

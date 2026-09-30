@@ -20,12 +20,13 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { productEditorHref } from "@/lib/admin-return-to";
 
 export type CopyCompleteness = "COMPLETE" | "MISSING_TEXT" | "MISSING_SEO" | "MISSING_PRODUCT_FACTS" | "NEEDS_REVIEW";
-export type CopyFieldName = "name" | "slug" | "shortDescription" | "descriptionHtml" | "seoTitle" | "metaDescription" | "promotionText" | "ingredients" | "allergens" | "mayContainTraces";
+export type NutritionFieldName = "nutritionEnergyKj" | "nutritionEnergyKcal" | "nutritionFat" | "nutritionSaturatedFat" | "nutritionCarbohydrates" | "nutritionSugars" | "nutritionFiber" | "nutritionProtein" | "nutritionSalt";
+export type CopyFieldName = "name" | "slug" | "shortDescription" | "descriptionHtml" | "seoTitle" | "metaDescription" | "promotionText" | "ingredients" | "allergens" | "mayContainTraces" | NutritionFieldName;
 export type FieldDecision = "keep" | "proposal" | "edit";
 export type CopyProposalStatus = "GENERATING" | "DRAFT" | "APPLIED" | "FAILED";
 
@@ -64,6 +65,10 @@ export type CopyWriterField = {
   qualityReason: string;
   warnings: string[];
   applyAllowed: boolean;
+  /** Product info only: SOURCE_EXACT, AI_ESTIMATE, ADMIN_ENTERED or MISSING_VERIFIED_SOURCE. */
+  sourceStatus?: string | null;
+  /** Nutrition only: the unit per 100 g. */
+  unit?: string;
 };
 
 export type CopyWriterProposal = {
@@ -106,7 +111,19 @@ const severity: Record<CopyCompleteness, number> = {
   COMPLETE: 4,
 };
 
-const factFields = new Set<CopyFieldName>(["ingredients", "allergens", "mayContainTraces"]);
+const productInfoFields = new Set<CopyFieldName>([
+  "ingredients", "allergens", "mayContainTraces",
+  "nutritionEnergyKj", "nutritionEnergyKcal", "nutritionFat", "nutritionSaturatedFat",
+  "nutritionCarbohydrates", "nutritionSugars", "nutritionFiber", "nutritionProtein", "nutritionSalt",
+]);
+
+function isNutrition(field: CopyFieldName) {
+  return field.startsWith("nutrition");
+}
+
+function isEstimate(field: CopyWriterField) {
+  return field.sourceStatus === "AI_ESTIMATE" || field.sourceStatus === "ADMIN_ENTERED";
+}
 
 function statusTone(status: CopyCompleteness) {
   if (status === "COMPLETE") return "bg-green-100 text-green-800";
@@ -120,13 +137,16 @@ function attention(product: CopyWriterProduct) {
 
 /** The CopyWriter can improve at least one field of this product. */
 function isFixable(product: CopyWriterProduct) {
-  if (product.attentionFields) return product.attentionFields.some((item) => !item.outsideCopywriter);
-  return product.completeness !== "COMPLETE" && product.completeness !== "MISSING_PRODUCT_FACTS";
+  if (product.attentionFields) return product.attentionFields.length > 0;
+  return product.completeness !== "COMPLETE";
 }
 
+/** Products that only miss product info (facts or nutrition) form their own group. */
 function bucketOf(product: CopyWriterProduct): Bucket {
   if (product.completeness === "COMPLETE") return "done";
-  return isFixable(product) ? "todo" : "info";
+  const items = product.attentionFields;
+  if (items?.length) return items.every((item) => productInfoFields.has(item.field)) ? "info" : "todo";
+  return product.completeness === "MISSING_PRODUCT_FACTS" ? "info" : "todo";
 }
 
 function hasDraft(product: CopyWriterProduct) {
@@ -260,12 +280,8 @@ function normalizedProposal(body: CopyWriterProposal | { proposal: CopyWriterPro
   return "proposal" in body ? body.proposal : body;
 }
 
-function isEditorial(field: CopyWriterField) {
-  return !factFields.has(field.name);
-}
-
 function isChange(field: CopyWriterField) {
-  return isEditorial(field) && field.applyAllowed && field.proposed !== null && field.proposed !== field.current;
+  return field.applyAllowed && field.proposed !== null && field.proposed !== field.current;
 }
 
 export function countSelectedChanges(
@@ -275,7 +291,7 @@ export function countSelectedChanges(
 ) {
   return fields.filter((field) => {
     const decision = decisions[field.name];
-    if (!isEditorial(field) || !field.applyAllowed || (decision !== "proposal" && decision !== "edit")) return false;
+    if (!field.applyAllowed || (decision !== "proposal" && decision !== "edit")) return false;
     const value = decision === "edit" ? edits[field.name] ?? field.proposed : field.proposed;
     return value !== null && value !== field.current;
   }).length;
@@ -543,7 +559,7 @@ function ProductOverview({ products, busy, requestStatus, initialContext }: {
   const filters: Array<[OverviewFilter, string, string]> = [
     ["todo", "Te doen", "Tekst of SEO die de CopyWriter kan verbeteren"],
     ["draft", "Voorstel klaar", "Wacht op jouw keuze"],
-    ["info", "Productinfo nodig", "Vul aan bij het product"],
+    ["info", "Productinfo nodig", "AI vult ingrediënten, allergenen en voedingswaarden aan"],
     ["done", "Op orde", "Niets te doen"],
   ];
 
@@ -610,12 +626,10 @@ function ProductOverview({ products, busy, requestStatus, initialContext }: {
   );
 }
 
-function AttentionPanel({ product, busy, onAccept, editorHref }: {
+function AttentionPanel({ product, busy, onAccept }: {
   product: CopyWriterProduct;
   busy: boolean;
   onAccept: (field: CopyWriterAttentionField) => void;
-  /** Product editor link that returns to this CopyWriter page. */
-  editorHref: string;
 }) {
   const items = attention(product);
   const accepted = product.acceptedFields ?? [];
@@ -627,9 +641,7 @@ function AttentionPanel({ product, busy, onAccept, editorHref }: {
         {items.map((item) => (
           <li key={item.field} className="flex flex-wrap items-center gap-3 rounded-card border border-border bg-background p-3 text-body-sm">
             <span className="min-w-0 flex-1"><strong className="text-text">{item.label}.</strong> <span className="text-muted">{item.reason}</span></span>
-            {item.outsideCopywriter ? (
-              <Link href={editorHref} className={`${buttonClass} border border-border bg-surface text-text`}>Aanvullen bij product</Link>
-            ) : item.kind === "NEEDS_REVIEW" ? (
+            {item.kind === "NEEDS_REVIEW" ? (
               <button type="button" disabled={busy} onClick={() => onAccept(item)} className={`${buttonClass} border border-border bg-surface text-text`}><Check className="h-4 w-4" aria-hidden="true" />Laten zoals het is</button>
             ) : null}
           </li>
@@ -653,6 +665,15 @@ const fieldLabels: Record<CopyFieldName, string> = {
   ingredients: "Ingrediënten",
   allergens: "Allergenen",
   mayContainTraces: "Kan sporen bevatten van",
+  nutritionEnergyKj: "Energie (kJ)",
+  nutritionEnergyKcal: "Energie (kcal)",
+  nutritionFat: "Vetten",
+  nutritionSaturatedFat: "Waarvan verzadigd",
+  nutritionCarbohydrates: "Koolhydraten",
+  nutritionSugars: "Waarvan suikers",
+  nutritionFiber: "Vezels",
+  nutritionProtein: "Eiwitten",
+  nutritionSalt: "Zout",
 };
 
 function fieldLabel(field: CopyFieldName) {
@@ -740,11 +761,9 @@ function EditorialWorkspace({ product, proposal, busy, requestStatus, generatePr
   }, [confirmOpen, busy]);
 
   const fields = proposal?.fields || [];
-  const editorialFields = fields.filter(isEditorial);
-  const changedFields = editorialFields.filter(isChange);
-  const unchangedFields = editorialFields.filter((field) => field.proposed !== null && field.proposed === field.current);
-  const blockedFields = editorialFields.filter((field) => !field.applyAllowed || field.proposed === null);
-  const facts = fields.filter((field) => !isEditorial(field));
+  const changedFields = fields.filter(isChange);
+  const unchangedFields = fields.filter((field) => field.proposed !== null && field.proposed === field.current);
+  const blockedFields = fields.filter((field) => !field.applyAllowed || field.proposed === null);
   const selectedCount = countSelectedChanges(fields, decisions, edits);
   const selectedFields = changedFields.filter((field) => {
     const decision = decisions[field.name];
@@ -754,6 +773,7 @@ function EditorialWorkspace({ product, proposal, busy, requestStatus, generatePr
   const stale = Boolean(proposal?.stale);
   const applied = proposal?.status === "APPLIED";
   const canSave = proposal?.status === "DRAFT" && !stale && selectedCount > 0 && !busy;
+  const selectedEstimates = selectedFields.filter(isEstimate);
   const allTaken = changedFields.length > 0 && changedFields.every((field) => decisions[field.name] === "proposal" || decisions[field.name] === "edit");
 
   function changeDecision(field: CopyWriterField, decision: FieldDecision) {
@@ -886,7 +906,7 @@ function EditorialWorkspace({ product, proposal, busy, requestStatus, generatePr
           <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-card border border-border bg-background">{product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-contain" /> : <FilePenLine className="h-7 w-7 text-muted" aria-hidden="true" />}</div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone(product.completeness)}`}>{statusLabels[product.completeness]}</span>{!product.active ? <span className="rounded-full bg-border px-2 py-1 text-xs font-semibold text-muted">Inactief</span> : null}</div>
-            <p className="mt-2 text-xs text-muted">SKU {product.sku} · Nederlandse tekst</p>
+            <p className="mt-2 text-xs text-muted">SKU {product.sku} · Nederlandse tekst · <Link href={productEditorHref(product.id, productHref(product.id, context))} className="font-semibold text-accent-ink underline underline-offset-4">Open in producteditor</Link></p>
           </div>
           {!proposal || applied || stale ? (
             <button type="button" disabled={busy} onClick={requestNewProposal} className={`${buttonClass} w-full bg-accent text-contrast sm:w-auto`}><Sparkles className="h-4 w-4" aria-hidden="true" />{proposal ? "Nieuw voorstel schrijven" : "Schrijf voorstel"}</button>
@@ -898,7 +918,7 @@ function EditorialWorkspace({ product, proposal, busy, requestStatus, generatePr
 
       <div className="mt-4">{requestStatus}</div>
 
-      {product ? <AttentionPanel product={product} busy={busy} onAccept={(item) => void acceptField(item)} editorHref={productEditorHref(product.id, productHref(product.id, context))} /> : null}
+      {product ? <AttentionPanel product={product} busy={busy} onAccept={(item) => void acceptField(item)} /> : null}
 
       {product && !proposal && !busy ? (
         <section className="mt-4 rounded-panel border border-dashed border-border bg-background p-6 text-center">
@@ -937,7 +957,9 @@ function EditorialWorkspace({ product, proposal, busy, requestStatus, generatePr
             ) : null}
           </div>
 
-          {changedFields.map((field) => (
+          {changedFields.map((field, index) => (
+            <Fragment key={field.name}>
+            {field.group !== changedFields[index - 1]?.group ? <h3 className="mt-2 font-heading text-body-md font-bold text-text">{field.group}</h3> : null}
             <EditorialFieldCard
               key={field.name}
               field={field}
@@ -948,6 +970,7 @@ function EditorialWorkspace({ product, proposal, busy, requestStatus, generatePr
               onEdit={(value) => changeEdit(field, value)}
               disabled={busy || stale}
             />
+            </Fragment>
           ))}
 
           {unchangedFields.length || blockedFields.length ? (
@@ -960,20 +983,6 @@ function EditorialWorkspace({ product, proposal, busy, requestStatus, generatePr
             </section>
           ) : null}
 
-          {facts.length ? (
-            <section className="rounded-panel border border-border bg-surface p-4 text-body-sm shadow-card sm:p-5" aria-labelledby="facts-title">
-              <h3 id="facts-title" className="flex items-center gap-2 font-heading text-body-md font-bold text-text"><ShieldAlert className="h-4 w-4 text-accent-ink" aria-hidden="true" />Productinfo</h3>
-              <p className="mt-1 text-muted">Ingrediënten, allergenen en sporen schrijven we niet met AI. Pas ze aan bij het product.</p>
-              <dl className="mt-3 grid gap-2">
-                {facts.map((field) => (
-                  <div key={field.name} className="rounded-card bg-background p-3">
-                    <dt className="font-bold text-text">{fieldLabel(field.name)}</dt>
-                    <dd className="mt-1 break-words text-muted">{field.current || <span className="text-amber-900">Ontbreekt. <Link href={productEditorHref(proposal.productId, productHref(proposal.productId, context))} className="font-semibold underline underline-offset-4">Aanvullen bij product</Link></span>}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ) : null}
         </div>
       ) : null}
 
@@ -1002,6 +1011,12 @@ function EditorialWorkspace({ product, proposal, busy, requestStatus, generatePr
                 </li>
               ))}
             </ul>
+            {selectedEstimates.length ? (
+              <p role="alert" className="mt-3 flex gap-2 rounded-card border border-amber-300 bg-amber-50 p-3 text-body-sm font-semibold text-amber-900">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Je slaat {selectedEstimates.length} {selectedEstimates.length === 1 ? "schatting" : "schattingen"} op voor productinfo ({selectedEstimates.map((field) => fieldLabel(field.name)).join(", ")}). Klanten met een allergie vertrouwen hierop: controleer ze tegen het etiket.</span>
+              </p>
+            ) : null}
             <p className="mt-3 text-xs text-muted">Andere velden blijven zoals ze zijn.</p>
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               <button type="button" disabled={busy} onClick={closeConfirmation} className={`${buttonClass} border border-border bg-surface text-text`}>Annuleren</button>
@@ -1017,6 +1032,7 @@ function EditorialWorkspace({ product, proposal, busy, requestStatus, generatePr
 function FieldValue({ field, value }: { field: CopyWriterField; value: string }) {
   if (field.name === "promotionText" && value === "") return <span className="italic text-muted">Wordt leeggemaakt</span>;
   if (!value) return <span className="italic text-muted">Leeg</span>;
+  if (field.unit) return <>{value} {field.unit}</>;
   return <>{field.name === "descriptionHtml" ? plainText(value) : value}</>;
 }
 
@@ -1034,6 +1050,7 @@ function EditorialFieldCard({ field, attentionItem, decision, editedValue, onDec
   const tooLong = proposedLength > field.maxLength;
   const canEdit = !(field.name === "promotionText" && field.proposed === "");
   const textAreaRows = field.name === "descriptionHtml" ? 8 : field.name === "shortDescription" ? 4 : 3;
+  const nutrition = isNutrition(field.name);
   const options: Array<[FieldDecision, string]> = [
     ["proposal", "Overnemen"],
     ...(canEdit ? [["edit", "Aanpassen"] as [FieldDecision, string]] : []),
@@ -1047,6 +1064,11 @@ function EditorialFieldCard({ field, attentionItem, decision, editedValue, onDec
         {decision !== "keep" ? <span className="rounded-full bg-accent/20 px-2.5 py-1 text-xs font-bold text-accent-ink">Wordt opgeslagen</span> : null}
       </div>
       {attentionItem ? <p className="mt-2 text-body-sm text-amber-900">{attentionItem.reason}</p> : null}
+      {isEstimate(field) ? (
+        <p className="mt-2 flex gap-2 rounded-card border border-amber-300 bg-amber-50 p-2.5 text-body-sm font-semibold text-amber-900">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{field.warnings[0] ?? "AI-schatting. Controleer dit tegen het etiket voordat je opslaat."}
+        </p>
+      ) : null}
       <div className="mt-3 grid min-w-0 gap-3 lg:grid-cols-2">
         <section className="min-w-0 rounded-card border border-border bg-background p-3">
           <h4 className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Nu</h4>
@@ -1054,12 +1076,17 @@ function EditorialFieldCard({ field, attentionItem, decision, editedValue, onDec
         </section>
         <section className="min-w-0 rounded-card border border-accent/50 bg-accent/10 p-3">
           <h4 className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Voorstel</h4>
-          {decision === "edit" ? (
+          {decision === "edit" && nutrition ? (
+            <span className="mt-2 flex items-center gap-2">
+              <input value={editedValue} onChange={(event) => onEdit(event.target.value)} disabled={disabled} inputMode="decimal" maxLength={field.maxLength} className={inputClass} aria-label={`${fieldLabel(field.name)} aanpassen`} />
+              <span className="shrink-0 text-body-sm text-muted">{field.unit}</span>
+            </span>
+          ) : decision === "edit" ? (
             <textarea value={editedValue} onChange={(event) => onEdit(event.target.value)} disabled={disabled} maxLength={field.name === "descriptionHtml" ? field.htmlMaxLength || 50000 : field.maxLength} rows={textAreaRows} className={`${inputClass} mt-2 resize-y py-3 leading-6`} aria-label={`${fieldLabel(field.name)} aanpassen`} />
           ) : (
             <div className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-body-sm leading-6 text-text"><FieldValue field={field} value={field.proposed ?? ""} /></div>
           )}
-          {nextValue ? <p className={`mt-2 text-xs ${tooLong ? "font-bold text-red-700" : "text-muted"}`}>{proposedLength} van maximaal {field.maxLength} tekens{tooLong ? " · te lang, maak de tekst korter" : ""}</p> : null}
+          {nextValue && !nutrition ? <p className={`mt-2 text-xs ${tooLong ? "font-bold text-red-700" : "text-muted"}`}>{proposedLength} van maximaal {field.maxLength} tekens{tooLong ? " · te lang, maak de tekst korter" : ""}</p> : null}
         </section>
       </div>
       {field.name === "slug" ? <p className="mt-3 text-xs text-amber-900">Overnemen verandert het webadres. De oude link stuurt automatisch door.</p> : null}

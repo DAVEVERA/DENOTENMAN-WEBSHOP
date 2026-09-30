@@ -7,6 +7,7 @@ import {
   isCopywriterGeminiConfigured,
   runCopywriterGeneration,
 } from "../lib/design-studio/copywriter/gemini-provider";
+import { missingNutrition } from "./copywriter-nutrition-fixture";
 
 function snapshot() {
   return buildCopywriterSourceSnapshot({
@@ -104,6 +105,7 @@ function candidate(): CopywriterProviderOutput {
         reason: "Een geverifieerde bron ontbreekt.",
         evidencePaths: ["facts.mayContainTraces"],
       },
+      ...missingNutrition(),
     },
   };
 }

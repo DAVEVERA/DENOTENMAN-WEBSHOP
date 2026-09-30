@@ -3,8 +3,11 @@ import { z } from "zod";
 
 import { slugify } from "../../slugify";
 import {
+  COPYWRITER_NUTRITION_ATTRIBUTE_KEYS,
+  isCopywriterNutritionField,
   normalizeCopywriterHtml,
   normalizeCopywriterText,
+  type CopywriterProductInfoFieldName,
 } from "./schema";
 
 const nullableSourceTextSchema = z.string().nullable().optional();
@@ -303,6 +306,17 @@ export function canonicalSourceHash(value: unknown): string {
 /** Hash of one stored field value, used to expire a "kept as is" review once the text changes. */
 export function copywriterFieldValueHash(value: string | null): string {
   return canonicalSourceHash({ value: value ?? "" });
+}
+
+/** Stored value of a text fact or nutrition value (per 100 g), or null when empty. */
+export function copywriterProductInfoValue(
+  snapshot: CopywriterSourceSnapshot,
+  field: CopywriterProductInfoFieldName,
+): string | null {
+  if (!isCopywriterNutritionField(field)) return snapshot.facts[field];
+  const key = COPYWRITER_NUTRITION_ATTRIBUTE_KEYS[field];
+  const value = snapshot.attributes.find((attribute) => attribute.key === key)?.value.trim();
+  return value || null;
 }
 
 export function protectedFactsHash(snapshot: CopywriterSourceSnapshot): string {

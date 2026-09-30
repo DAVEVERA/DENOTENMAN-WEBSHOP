@@ -13,6 +13,7 @@ import {
   getCopywriterProduct,
   listCopywriterProducts,
 } from "../lib/design-studio/copywriter/service";
+import { exactNutrition, nutritionAttributes } from "./copywriter-nutrition-fixture";
 
 const run = randomUUID().slice(0, 8);
 let adminId = "";
@@ -48,11 +49,12 @@ function modelOutput(): CopywriterProviderOutput {
       ingredients: exactFact("CASHEWNOTEN", "facts.ingredients"),
       allergens: exactFact("CASHEWNOTEN", "facts.allergens"),
       mayContainTraces: exactFact("Kan sporen bevatten van andere NOTEN.", "facts.mayContainTraces"),
+      ...exactNutrition(),
     },
   };
 }
 
-async function insertDraft(options: { superseded?: boolean } = {}) {
+async function insertDraft(options: { superseded?: boolean; output?: CopywriterProviderOutput } = {}) {
   const snapshot = await copywriterSnapshotForProduct(productId);
   const product = await prisma.product.findUniqueOrThrow({ where: { id: productId } });
   return prisma.productCopyProposal.create({
@@ -66,7 +68,7 @@ async function insertDraft(options: { superseded?: boolean } = {}) {
       sourceProductVersion: product.updatedAt,
       sourceHash: canonicalSourceHash(snapshot),
       sourceSnapshot: snapshot,
-      proposedFields: buildGroundedCopywriterProposal(snapshot, modelOutput()),
+      proposedFields: buildGroundedCopywriterProposal(snapshot, options.output ?? modelOutput()),
       supersededAt: options.superseded ? new Date() : null,
     },
   });
@@ -108,6 +110,7 @@ before(async () => {
         create: [
           { key: "ingredients", value: "CASHEWNOTEN" },
           { key: "allergens", value: "CASHEWNOTEN" },
+          ...nutritionAttributes(),
           { key: "mayContainTraces", value: "Kan sporen bevatten van andere NOTEN." },
         ],
       },
@@ -194,10 +197,55 @@ test("applying the cleared promotion text makes the product complete and closes 
   const translation = await prisma.productTranslation.findUniqueOrThrow({ where: { productId_locale: { productId, locale: "nl" } } });
   assert.equal(translation.promotionText, null);
   const stored = await prisma.productCopyProposal.findUniqueOrThrow({ where: { id: draft.id } });
-  assert.deepEqual(stored.appliedFields, ["promotionText"], "product facts are never recorded as applied");
+  assert.deepEqual(stored.appliedFields, ["promotionText"], "unchanged product info is not rewritten or recorded as applied");
 
   const reloaded = await getCopywriterProduct({ adminUserId: adminId, productId });
   assert.equal(reloaded.product.completeness, "COMPLETE");
   assert.equal(reloaded.proposal, null, "applied proposals are not reopened");
   assert.equal(reloaded.product.latestProposal?.status, "APPLIED");
+});
+
+test("saving an AI estimate writes it to the product and logs it as an estimate", async () => {
+  await prisma.productAttribute.deleteMany({ where: { productId, key: { in: ["mayContainTraces", "nutrition.salt"] } } });
+  await prisma.product.update({ where: { id: productId }, data: { updatedAt: new Date() } });
+  const output = modelOutput();
+  output.fields.mayContainTraces = {
+    sourceStatus: "AI_ESTIMATE",
+    proposed: "Kan sporen bevatten van pinda's, sesam en andere noten.",
+    applyAllowed: true,
+    reason: "Gangbare kruisbesmetting in een notenbranderij.",
+    evidencePaths: ["facts.mayContainTraces"],
+  };
+  output.fields.nutritionSalt = {
+    sourceStatus: "AI_ESTIMATE",
+    proposed: "0.03",
+    applyAllowed: true,
+    reason: "Ongezouten noten bevatten vrijwel geen zout.",
+    evidencePaths: ["nutrition.salt"],
+  };
+  const draft = await insertDraft({ output });
+  const loaded = await getCopywriterProduct({ adminUserId: adminId, productId });
+  assert.equal(loaded.product.completeness, "MISSING_PRODUCT_FACTS");
+  const traces = loaded.proposal?.fields.find((field) => field.name === "mayContainTraces");
+  assert.equal(traces?.sourceStatus, "AI_ESTIMATE");
+  assert.match(traces?.warnings[0] ?? "", /AI-schatting/u);
+
+  const result = await applyCopywriterProposal({
+    adminUserId: adminId,
+    proposalId: draft.id,
+    idempotencyKey: `copywriter-test:${randomUUID()}`,
+    options: applyOptions(draft, ["mayContainTraces", "nutritionSalt", "ingredients"]),
+  });
+  assert.equal(result.proposal.status, "APPLIED");
+  assert.equal(result.proposal.product.completeness, "COMPLETE");
+
+  const attributes = await prisma.productAttribute.findMany({ where: { productId, key: { in: ["mayContainTraces", "nutrition.salt"] } } });
+  assert.deepEqual(
+    Object.fromEntries(attributes.map(({ key, value }) => [key, value])),
+    { mayContainTraces: "Kan sporen bevatten van pinda's, sesam en andere noten.", "nutrition.salt": "0,03" },
+  );
+  const stored = await prisma.productCopyProposal.findUniqueOrThrow({ where: { id: draft.id } });
+  assert.deepEqual(stored.appliedFields, ["mayContainTraces", "nutritionSalt"], "the unchanged ingredients are not rewritten");
+  const audit = await prisma.auditLog.findFirst({ where: { adminUserId: adminId, entityType: "ProductAttribute", entityId: productId }, orderBy: { createdAt: "desc" } });
+  assert.equal((audit?.after as { source?: string } | null)?.source, "AI_ESTIMATE");
 });

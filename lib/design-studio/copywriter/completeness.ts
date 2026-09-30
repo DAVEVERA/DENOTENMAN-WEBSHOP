@@ -1,10 +1,13 @@
 import {
+  COPYWRITER_FACT_FIELDS,
   COPYWRITER_FIELD_LIMITS,
+  COPYWRITER_NUTRITION_FIELDS,
   COPYWRITER_REQUIRED_FIELDS,
   normalizeCopywriterText,
+  parseCopywriterNutritionValue,
   type CopywriterFieldName,
 } from "./schema";
-import type { CopywriterSourceSnapshot } from "./snapshot";
+import { copywriterProductInfoValue, type CopywriterSourceSnapshot } from "./snapshot";
 
 export const COPYWRITER_COMPLETENESS_STATUSES = [
   "COMPLETE",
@@ -145,11 +148,19 @@ export function assessCopywriterCompleteness(
     markReview("promotionText", "Productactietekst heeft geen bevestigde lagere actieprijs als bron.");
   }
 
-  for (const field of ["ingredients", "allergens", "mayContainTraces"] as const) {
+  for (const field of COPYWRITER_FACT_FIELDS) {
     const value = snapshot.facts[field];
-    if (!hasText(value)) markMissing(field, "Geverifieerde productinformatie ontbreekt.");
+    if (!hasText(value)) markMissing(field, "Productinformatie ontbreekt.");
     else if (value.length > COPYWRITER_FIELD_LIMITS[field].text) {
       markReview(field, "Productinformatie overschrijdt 10.000 tekens.");
+    }
+  }
+
+  for (const field of COPYWRITER_NUTRITION_FIELDS) {
+    const value = copywriterProductInfoValue(snapshot, field);
+    if (!hasText(value)) markMissing(field, "Voedingswaarde per 100 gram ontbreekt.");
+    else if (parseCopywriterNutritionValue(value) === null) {
+      markReview(field, "Voedingswaarde is geen geldig getal.");
     }
   }
 
@@ -159,7 +170,7 @@ export function assessCopywriterCompleteness(
     "name", "slug", "shortDescription", "descriptionHtml", "promotionText",
   ]);
   const seoFields = new Set<CopywriterFieldName>(["seoTitle", "metaDescription"]);
-  const factFields = new Set<CopywriterFieldName>(["ingredients", "allergens", "mayContainTraces"]);
+  const factFields = new Set<CopywriterFieldName>([...COPYWRITER_FACT_FIELDS, ...COPYWRITER_NUTRITION_FIELDS]);
   const attentionAreas: CopywriterAttentionArea[] = [];
   if (missingFields.some((field) => textFields.has(field))) attentionAreas.push("TEXT");
   if (missingFields.some((field) => seoFields.has(field))) attentionAreas.push("SEO");

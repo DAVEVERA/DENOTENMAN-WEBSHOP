@@ -19,13 +19,18 @@ import {
   copywriterPersistedProposalSchema,
   copywriterProposedFieldsSchema,
   copywriterFieldNameSchema,
+  COPYWRITER_NUTRITION_ATTRIBUTE_KEYS,
+  isCopywriterNutritionField,
+  isCopywriterProductInfoField,
   type CopywriterEditorialFieldName,
   type CopywriterFieldName,
+  type CopywriterProductInfoFieldName,
 } from "./schema";
 import {
   buildCopywriterSourceSnapshot,
   canonicalSourceHash,
   copywriterFieldValueHash,
+  copywriterProductInfoValue,
   copywriterSourceSnapshotSchema,
   protectedFactsHash,
   type CopywriterSourceSnapshot,
@@ -62,7 +67,7 @@ export class CopywriterServiceError extends Error {
 
 const groundingErrorMessages: Record<string, string> = {
   SOURCE_INSTRUCTION_DETECTED: "De brondata bevat tekst die als instructie wordt herkend. Neem contact op met techniek voordat je verdergaat.",
-  FACT_NOT_SOURCE_EXACT: "Ingrediënten, allergenen en sporen moeten exact overeenkomen met de geverifieerde bron en kunnen niet handmatig worden aangepast.",
+  FACT_NOT_SOURCE_EXACT: "Deze productinfo staat al bij het product en blijft zoals die is. Pas een bestaande waarde aan bij het product zelf.",
   FACT_SOURCE_STATUS_INVALID: "De brontoestand van dit productfeit is ongeldig.",
   SLUG_NOT_DETERMINISTIC: "Deze slug komt niet overeen met de productnaam.",
   PROMOTION_NOT_VERIFIED: "Productactietekst kan niet worden voorgesteld zonder een bevestigde, lagere actieprijs.",
@@ -419,7 +424,11 @@ export async function editCopywriterProposal(input: {
   const fields = structuredClone(persisted.fields);
   for (const [name, value] of Object.entries(parsed.edits) as Array<[CopywriterFieldName, string]>) {
     const field = fields[name];
-    if (!field.applyAllowed) throw new CopywriterServiceError("FIELD_LOCKED", `${name} heeft geen gecontroleerde bron.`, 422);
+    if (!field.applyAllowed) throw new CopywriterServiceError("FIELD_LOCKED", `${copywriterFieldLabel(name)} heeft geen voorstel om aan te passen.`, 422);
+    if (isCopywriterProductInfoField(name) && "sourceStatus" in field && field.sourceStatus === "AI_ESTIMATE") {
+      // An edited estimate is no longer the model's value: label it as entered by the admin.
+      Object.assign(field, { sourceStatus: "ADMIN_ENTERED", reason: "Aangepast in de CopyWriter." });
+    }
     field.proposed = value;
   }
   copywriterProposedFieldsSchema.parse(fields);
@@ -427,7 +436,7 @@ export async function editCopywriterProposal(input: {
   try {
     // skipSlugDeterminism: a manual, per-field edit legitimately breaks the AI's name/slug pairing
     // (e.g. editing only "name"); that is not a hallucination and must not block saving the edit.
-    grounded = buildGroundedCopywriterProposal(snapshot, { schemaVersion: 1, fields }, { skipSlugDeterminism: true });
+    grounded = buildGroundedCopywriterProposal(snapshot, { schemaVersion: 1, fields }, { skipSlugDeterminism: true, allowAdminEntered: true });
   } catch (error) {
     if (error instanceof CopywriterGroundingError) throw toCopywriterServiceError(error);
     throw error;
@@ -451,7 +460,9 @@ export async function editCopywriterProposal(input: {
   });
 }
 
-const factFieldNames = new Set<CopywriterFieldName>(["ingredients", "allergens", "mayContainTraces"]);
+function productInfoAttributeKey(field: CopywriterProductInfoFieldName): string {
+  return isCopywriterNutritionField(field) ? COPYWRITER_NUTRITION_ATTRIBUTE_KEYS[field] : field;
+}
 
 function supersededError() {
   return new CopywriterServiceError("PROPOSAL_SUPERSEDED", "Er is een nieuwer voorstel voor dit product. Laad de pagina opnieuw.", 409);
@@ -509,10 +520,18 @@ export async function applyCopywriterProposal(input: {
       throw new CopywriterServiceError("STALE_PRODUCT", "Het product is intussen gewijzigd. Maak eerst een nieuw voorstel.", 409);
     }
 
-    // Ingredients, allergens and traces are never written by the CopyWriter.
-    const selected = options.selectedFields.filter((field): field is CopywriterEditorialFieldName => !factFieldNames.has(field));
-    if (selected.length === 0) {
-      throw new CopywriterServiceError("NOTHING_SELECTED", "Kies ten minste één tekstveld om op te slaan.", 422);
+    const selected = options.selectedFields.filter((field): field is CopywriterEditorialFieldName => !isCopywriterProductInfoField(field));
+    // Product info (facts and nutrition) is stored as product attributes. A value copied
+    // from the product is left untouched; only estimates and entered values are written.
+    const selectedInfo = options.selectedFields.filter(isCopywriterProductInfoField);
+    const infoWrites: Array<{ field: CopywriterProductInfoFieldName; key: string; before: string | null; after: string }> = [];
+    for (const field of selectedInfo) {
+      const after = proposalValue(persisted.fields, field);
+      const before = copywriterProductInfoValue(current, field);
+      if (after !== before) infoWrites.push({ field, key: productInfoAttributeKey(field), before, after });
+    }
+    if (selected.length === 0 && infoWrites.length === 0) {
+      throw new CopywriterServiceError("NOTHING_SELECTED", "Kies ten minste één veld om op te slaan.", 422);
     }
     const translation = product.translations[0];
     if (!translation) throw new CopywriterServiceError("NL_TRANSLATION_MISSING", "De Nederlandse vertaling ontbreekt.", 422);
@@ -555,10 +574,29 @@ export async function applyCopywriterProposal(input: {
       }
     }
 
-    await tx.productTranslation.update({
-      where: { productId_locale: { productId: product.id, locale: "nl" } },
-      data: translationData,
-    });
+    if (selected.length) {
+      await tx.productTranslation.update({
+        where: { productId_locale: { productId: product.id, locale: "nl" } },
+        data: translationData,
+      });
+    }
+    for (const write of infoWrites) {
+      await tx.productAttribute.upsert({
+        where: { productId_key: { productId: product.id, key: write.key } },
+        update: { value: write.after },
+        create: { productId: product.id, key: write.key, value: write.after },
+      });
+      await tx.auditLog.create({
+        data: {
+          adminUserId: input.adminUserId,
+          action: "UPDATE",
+          entityType: "ProductAttribute",
+          entityId: product.id,
+          before: { field: write.key, value: write.before },
+          after: { field: write.key, value: write.after, source: persisted.fields[write.field].sourceStatus },
+        },
+      });
+    }
     await tx.product.update({
       where: { id: product.id },
       data: selected.includes("slug") ? { slug: proposalValue(persisted.fields, "slug") } : { updatedAt: new Date() },
@@ -582,7 +620,7 @@ export async function applyCopywriterProposal(input: {
         appliedByAdminUserId: input.adminUserId,
         applyIdempotencyKey: input.idempotencyKey,
         applyRequestHash: requestHash,
-        appliedFields: selected as Prisma.InputJsonValue,
+        appliedFields: [...selected, ...infoWrites.map((write) => write.field)] as Prisma.InputJsonValue,
         appliedAt: new Date(),
       },
     });

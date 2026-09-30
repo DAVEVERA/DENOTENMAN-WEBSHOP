@@ -67,12 +67,14 @@ const proposal: CopyWriterProposal = {
     { ...baseField, name: "metaDescription", label: "Meta-omschrijving", group: "Vindbaarheid" },
     { ...baseField, name: "ingredients", label: "Ingrediënten", group: "Productfeiten", current: "AMANDELEN", proposed: "AMANDELEN", maxLength: 10000 },
     { ...baseField, name: "allergens", label: "Allergenen", group: "Productfeiten", current: "AMANDELEN", proposed: "AMANDELEN", maxLength: 10000 },
-    { ...baseField, name: "mayContainTraces", label: "Kan sporen bevatten van", group: "Productfeiten", current: "", proposed: null, maxLength: 10000, qualityStatus: "MISSING", qualityReason: "Een gecontroleerde bron ontbreekt.", applyAllowed: false },
+    { ...baseField, name: "mayContainTraces", label: "Kan sporen bevatten van", group: "Productfeiten", current: "", proposed: "Kan sporen bevatten van pinda's en andere noten.", maxLength: 10000, sourceStatus: "AI_ESTIMATE", warnings: ["AI-schatting. Controleer dit tegen het etiket of de specificatie van de leverancier voordat je opslaat."] },
+    { ...baseField, name: "nutritionFat", label: "Vetten", group: "Voedingswaarden per 100 g", current: "", proposed: "53", maxLength: 12, unit: "g", sourceStatus: "AI_ESTIMATE", warnings: ["AI-schatting. Controleer dit tegen het etiket of de specificatie van de leverancier voordat je opslaat."] },
+    { ...baseField, name: "nutritionSalt", label: "Zout", group: "Voedingswaarden per 100 g", current: "", proposed: null, maxLength: 12, unit: "g", sourceStatus: "MISSING_VERIFIED_SOURCE", qualityReason: "Geen waarde beschikbaar.", applyAllowed: false },
   ],
 };
 
 function catalog(): CopyWriterProduct[] {
-  const factsOnly = { field: "allergens" as const, label: "Allergenen", reason: "Geverifieerde productinformatie ontbreekt.", kind: "MISSING" as const, outsideCopywriter: true };
+  const factsOnly = { field: "allergens" as const, label: "Allergenen", reason: "Productinformatie ontbreekt.", kind: "MISSING" as const, outsideCopywriter: false };
   const missingSeo = { field: "seoTitle" as const, label: "SEO-titel", reason: "SEO-titel ontbreekt.", kind: "MISSING" as const, outsideCopywriter: false };
   return [
     { ...product, id: "done", name: "Cashewnoten", completeness: "COMPLETE", attentionReasons: [], attentionFields: [] },
@@ -96,11 +98,12 @@ test("the overview is a to-do list ordered by what needs attention first", () =>
   assert.deepEqual(sortForWork(catalog()).map((item) => item.id), ["draft", "seo", "review", "facts", "done"]);
 });
 
-test("next product skips the open product and products the CopyWriter cannot fix", () => {
+test("next product skips the open product and finished products", () => {
   assert.equal(nextProductToWork(catalog())?.id, "draft");
   assert.equal(nextProductToWork(catalog(), "draft")?.id, "seo");
   const onlyFactsAndDone = catalog().filter((item) => item.id === "facts" || item.id === "done");
-  assert.equal(nextProductToWork(onlyFactsAndDone), null);
+  assert.equal(nextProductToWork(onlyFactsAndDone)?.id, "facts", "the CopyWriter now fills in product info too");
+  assert.equal(nextProductToWork(onlyFactsAndDone, "facts"), null);
 });
 
 test("previous and next follow the overview order and its filter", () => {
@@ -146,17 +149,22 @@ test("the product page shows only real changes with clear choices and nothing pr
     <CopyWriterWorkspace mode="product" productId={product.id} initialProduct={product} initialProposal={proposal} />,
   );
 
-  // name, slug, shortDescription, descriptionHtml, promotionText (clear) and metaDescription change.
-  assert.equal((html.match(/data-editorial-field=/g) || []).length, 6);
-  assert.match(html, /6 verbeteringen/);
+  // name, slug, shortDescription, descriptionHtml, promotionText (clear), metaDescription,
+  // and the estimated traces and fat change.
+  assert.equal((html.match(/data-editorial-field=/g) || []).length, 8);
+  assert.match(html, /8 verbeteringen/);
   for (const label of ["Nu", "Voorstel", "Overnemen", "Aanpassen", "Laten zoals het is"]) assert.match(html, new RegExp(label));
-  assert.match(html, /Alle verbeteringen overnemen \(6\)/);
+  assert.match(html, /Alle verbeteringen overnemen \(8\)/);
   assert.match(html, /0 wijzigingen gekozen/);
   assert.match(html, /Wordt leeggemaakt/);
   assert.match(html, /Nieuw en beter/, "HTML is shown as readable text");
   assert.match(html, /SEO-titel:<\/strong> blijft hetzelfde/);
-  assert.match(html, /Productinfo/);
-  assert.match(html, /Aanvullen bij product/);
+  assert.match(html, /Voedingswaarden per 100 g/);
+  assert.match(html, /53 g/, "nutrition values show their unit");
+  assert.equal((html.match(/AI-schatting/g) || []).length, 2, "every estimate carries a warning");
+  assert.match(html, /Zout:<\/strong> Geen waarde beschikbaar/);
+  assert.doesNotMatch(html, /Aanvullen bij product/);
+  assert.match(html, /Open in producteditor/);
   assert.match(html, /href="\/admin\/producten\/product_1\?terug=%2Fadmin%2Fdesign-studio%2Fcopywriter%2Fproduct_1%3Flocale%3Dnl"/);
   assert.doesNotMatch(html, /MISSING_VERIFIED_SOURCE|NEEDS_REVIEW|Eindcontrole|Bronpaden|Locale/);
 });
@@ -189,10 +197,11 @@ test("after saving the page offers the next product", () => {
   assert.equal((html.match(/data-editorial-field=/g) || []).length, 0);
 });
 
-test("only explicit, applicable, actually changed text fields count as changes", () => {
+test("only explicit, applicable, actually changed fields count as changes", () => {
   assert.equal(countSelectedChanges(proposal.fields, {}), 0);
   assert.equal(countSelectedChanges(proposal.fields, { name: "proposal", slug: "edit" }), 2);
-  assert.equal(countSelectedChanges(proposal.fields, { mayContainTraces: "proposal", seoTitle: "proposal" }), 0);
+  assert.equal(countSelectedChanges(proposal.fields, { nutritionSalt: "proposal", seoTitle: "proposal" }), 0);
+  assert.equal(countSelectedChanges(proposal.fields, { mayContainTraces: "proposal", nutritionFat: "proposal" }), 2);
   assert.equal(countSelectedChanges(proposal.fields, { ingredients: "proposal" }), 0);
   assert.equal(countSelectedChanges(proposal.fields, { promotionText: "proposal" }), 1);
 });

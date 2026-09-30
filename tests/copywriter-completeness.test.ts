@@ -9,6 +9,7 @@ import {
   buildCopywriterSourceSnapshot,
   type CopywriterSourceInput,
 } from "../lib/design-studio/copywriter/snapshot";
+import { nutritionAttributes } from "./copywriter-nutrition-fixture";
 
 function completeSource(): CopywriterSourceInput {
   return {
@@ -37,6 +38,7 @@ function completeSource(): CopywriterSourceInput {
       { key: "ingredients", value: "AMANDELEN" },
       { key: "allergens", value: "AMANDELEN" },
       { key: "mayContainTraces", value: "Kan sporen bevatten van andere NOTEN en PINDA'S." },
+      ...nutritionAttributes(),
     ],
     categories: [],
     variants: [],
@@ -80,7 +82,25 @@ test("safety-first precedence keeps every missing area visible", () => {
     "ingredients",
     "allergens",
     "mayContainTraces",
+    "nutritionEnergyKj",
+    "nutritionEnergyKcal",
+    "nutritionFat",
+    "nutritionSaturatedFat",
+    "nutritionCarbohydrates",
+    "nutritionSugars",
+    "nutritionFiber",
+    "nutritionProtein",
+    "nutritionSalt",
   ]);
+});
+
+test("a missing or malformed nutrition value is product info to fill in", () => {
+  assert.equal(statusFor((source) => {
+    source.attributes = source.attributes.filter(({ key }) => key !== "nutrition.salt");
+  }), "MISSING_PRODUCT_FACTS");
+  assert.equal(statusFor((source) => {
+    source.attributes = source.attributes.map((row) => row.key === "nutrition.fat" ? { ...row, value: "ongeveer 50" } : row);
+  }), "NEEDS_REVIEW");
 });
 
 test("invalid limits, slug syntax, and an unverified promotion require review", () => {

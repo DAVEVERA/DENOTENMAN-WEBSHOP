@@ -3,10 +3,11 @@ import {
   COPYWRITER_FIELD_LIMITS,
   COPYWRITER_REQUIRED_FIELDS,
   copywriterPersistedProposalSchema,
+  isCopywriterProductInfoField,
   type CopywriterFieldName,
   type CopywriterPersistedProposal,
 } from "./schema";
-import type { CopywriterSourceSnapshot } from "./snapshot";
+import { copywriterProductInfoValue, type CopywriterSourceSnapshot } from "./snapshot";
 
 export type CopywriterProposalStatus = "GENERATING" | "DRAFT" | "APPLIED" | "FAILED";
 
@@ -23,7 +24,7 @@ export type CopywriterAttentionFieldDto = {
   reason: string;
   /** MISSING needs new text; NEEDS_REVIEW can also be kept as is. */
   kind: "MISSING" | "NEEDS_REVIEW";
-  /** Ingredients, allergens and traces are never written by the CopyWriter. */
+  /** Always false: the CopyWriter now proposes every field, including product info. */
   outsideCopywriter: boolean;
 };
 
@@ -54,6 +55,10 @@ export type CopywriterFieldDto = {
   qualityReason: string;
   warnings: string[];
   applyAllowed: boolean;
+  /** Product info only: where the proposed value comes from. */
+  sourceStatus: "SOURCE_EXACT" | "AI_ESTIMATE" | "ADMIN_ENTERED" | "MISSING_VERIFIED_SOURCE" | null;
+  /** Nutrition only: the unit of the value, per 100 g. */
+  unit?: string;
 };
 
 export type CopywriterProposalDto = {
@@ -86,8 +91,6 @@ export type CopywriterProductDtoOptions = {
   latestProposal?: CopywriterLatestProposalDto | null;
 };
 
-const factFieldNames = new Set<CopywriterFieldName>(["ingredients", "allergens", "mayContainTraces"]);
-
 const fieldMeta: Record<CopywriterFieldName, { label: string; group: string }> = {
   name: { label: "Productnaam", group: "Identiteit" },
   slug: { label: "Slug", group: "Identiteit" },
@@ -99,6 +102,33 @@ const fieldMeta: Record<CopywriterFieldName, { label: string; group: string }> =
   ingredients: { label: "Ingrediënten", group: "Productfeiten" },
   allergens: { label: "Allergenen", group: "Productfeiten" },
   mayContainTraces: { label: "Kan sporen bevatten van", group: "Productfeiten" },
+  nutritionEnergyKj: { label: "Energie (kJ)", group: "Voedingswaarden per 100 g" },
+  nutritionEnergyKcal: { label: "Energie (kcal)", group: "Voedingswaarden per 100 g" },
+  nutritionFat: { label: "Vetten", group: "Voedingswaarden per 100 g" },
+  nutritionSaturatedFat: { label: "Waarvan verzadigd", group: "Voedingswaarden per 100 g" },
+  nutritionCarbohydrates: { label: "Koolhydraten", group: "Voedingswaarden per 100 g" },
+  nutritionSugars: { label: "Waarvan suikers", group: "Voedingswaarden per 100 g" },
+  nutritionFiber: { label: "Vezels", group: "Voedingswaarden per 100 g" },
+  nutritionProtein: { label: "Eiwitten", group: "Voedingswaarden per 100 g" },
+  nutritionSalt: { label: "Zout", group: "Voedingswaarden per 100 g" },
+};
+
+const nutritionUnit: Partial<Record<CopywriterFieldName, string>> = {
+  nutritionEnergyKj: "kJ",
+  nutritionEnergyKcal: "kcal",
+  nutritionFat: "g",
+  nutritionSaturatedFat: "g",
+  nutritionCarbohydrates: "g",
+  nutritionSugars: "g",
+  nutritionFiber: "g",
+  nutritionProtein: "g",
+  nutritionSalt: "g",
+};
+
+const sourceStatusWarnings: Record<string, string> = {
+  AI_ESTIMATE: "AI-schatting. Controleer dit tegen het etiket of de specificatie van de leverancier voordat je opslaat.",
+  ADMIN_ENTERED: "Door jou ingevuld. Controleer dit tegen het etiket voordat je opslaat.",
+  MISSING_VERIFIED_SOURCE: "Geen waarde beschikbaar. Vul dit in bij het product.",
 };
 
 export function copywriterFieldLabel(field: CopywriterFieldName): string {
@@ -107,9 +137,7 @@ export function copywriterFieldLabel(field: CopywriterFieldName): string {
 
 export function currentValue(snapshot: CopywriterSourceSnapshot, field: CopywriterFieldName): string {
   if (field === "name" || field === "slug") return snapshot.translation[field];
-  if (field === "ingredients" || field === "allergens" || field === "mayContainTraces") {
-    return snapshot.facts[field] ?? "";
-  }
+  if (isCopywriterProductInfoField(field)) return copywriterProductInfoValue(snapshot, field) ?? "";
   return snapshot.translation[field] ?? "";
 }
 
@@ -126,7 +154,7 @@ export function copywriterProductDto(
       label: fieldMeta[field].label,
       reason: completeness.fields[field].reason,
       kind: completeness.fields[field].status as "MISSING" | "NEEDS_REVIEW",
-      outsideCopywriter: factFieldNames.has(field),
+      outsideCopywriter: false,
     }));
   return {
     id: snapshot.product.id,
@@ -178,9 +206,7 @@ export function copywriterProposalDto(
       const sourceStatus = "sourceStatus" in (proposed ?? {})
         ? (proposed as { sourceStatus?: string }).sourceStatus
         : null;
-      const warnings = sourceStatus === "MISSING_VERIFIED_SOURCE"
-        ? ["Geverifieerde productinformatie ontbreekt. Dit veld kan niet worden toegepast."]
-        : [];
+      const warnings = sourceStatus && sourceStatusWarnings[sourceStatus] ? [sourceStatusWarnings[sourceStatus]] : [];
       return {
         name: field,
         label: meta.label,
@@ -194,6 +220,8 @@ export function copywriterProposalDto(
         qualityReason: proposed?.reason ?? completeness.fields[field].reason,
         warnings,
         applyAllowed: proposed?.applyAllowed ?? false,
+        sourceStatus: (sourceStatus ?? null) as CopywriterFieldDto["sourceStatus"],
+        ...(nutritionUnit[field] ? { unit: nutritionUnit[field] } : {}),
       };
     }),
   };

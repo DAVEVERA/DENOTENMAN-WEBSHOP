@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { CopywriterProviderOutput } from "../lib/design-studio/copywriter/schema";
+import { copywriterPersistedProposalSchema, type CopywriterProviderOutput } from "../lib/design-studio/copywriter/schema";
 import {
   buildCopywriterSourceSnapshot,
   canonicalSourceHash,
@@ -17,6 +17,7 @@ import {
   buildGroundedCopywriterProposal,
   buildCopywriterPrompt,
 } from "../lib/design-studio/copywriter/style";
+import { missingNutrition } from "./copywriter-nutrition-fixture";
 
 function sourceInput(): CopywriterSourceInput {
   return {
@@ -100,6 +101,7 @@ function groundedProposal(): CopywriterProviderOutput {
         reason: "Een geverifieerde bron ontbreekt.",
         evidencePaths: ["facts.mayContainTraces"],
       },
+      ...missingNutrition(),
     },
   };
 }
@@ -170,6 +172,15 @@ test("the fact card exposes exact verified facts and closes missing facts", () =
     ingredients: { sourceStatus: "SOURCE_EXACT", value: "CASHEWNOTEN", sourcePath: "facts.ingredients" },
     allergens: { sourceStatus: "SOURCE_EXACT", value: "CASHEWNOTEN", sourcePath: "facts.allergens" },
     mayContainTraces: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "facts.mayContainTraces" },
+    nutritionEnergyKj: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "nutrition.energyKj", unit: "kJ per 100 g" },
+    nutritionEnergyKcal: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "nutrition.energyKcal", unit: "kcal per 100 g" },
+    nutritionFat: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "nutrition.fat", unit: "g per 100 g" },
+    nutritionSaturatedFat: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "nutrition.saturatedFat", unit: "g per 100 g" },
+    nutritionCarbohydrates: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "nutrition.carbohydrates", unit: "g per 100 g" },
+    nutritionSugars: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "nutrition.sugars", unit: "g per 100 g" },
+    nutritionFiber: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "nutrition.fiber", unit: "g per 100 g" },
+    nutritionProtein: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "nutrition.protein", unit: "g per 100 g" },
+    nutritionSalt: { sourceStatus: "MISSING_VERIFIED_SOURCE", value: null, sourcePath: "nutrition.salt", unit: "g per 100 g" },
   });
 
   const prompt = buildCopywriterPrompt(snapshot);
@@ -438,4 +449,88 @@ test("the style gate accepts authentic product-specific copy backed by its field
     buildCopywriterSourceSnapshot(source),
     proposal,
   ));
+});
+
+const estimate = (proposed: string, path: string) => ({
+  sourceStatus: "AI_ESTIMATE" as const,
+  proposed,
+  applyAllowed: true as const,
+  reason: "Realistische schatting voor dit product.",
+  evidencePaths: [path],
+});
+
+test("an empty product info field may get an AI estimate", () => {
+  const snapshot = buildCopywriterSourceSnapshot(sourceInput());
+  const proposal = groundedProposal();
+  proposal.fields.mayContainTraces = estimate("Kan sporen bevatten van pinda's en andere noten.", "facts.mayContainTraces");
+  proposal.fields.nutritionFat = estimate("43.9", "nutrition.fat");
+  const parsed = assertGroundedCopywriterProposal(snapshot, proposal);
+  assert.equal(parsed.fields.mayContainTraces.sourceStatus, "AI_ESTIMATE");
+  assert.equal(parsed.fields.nutritionFat.proposed, "43,9", "estimates use a Dutch decimal comma");
+});
+
+test("a stored fact is never replaced by an estimate", () => {
+  const snapshot = buildCopywriterSourceSnapshot(sourceInput());
+  const proposal = groundedProposal();
+  proposal.fields.ingredients = estimate("CASHEWNOTEN, ZONNEBLOEMOLIE", "facts.ingredients");
+  assert.throws(
+    () => assertGroundedCopywriterProposal(snapshot, proposal),
+    (error: unknown) => error instanceof CopywriterGroundingError && error.code === "FACT_NOT_SOURCE_EXACT",
+  );
+});
+
+test("only a manual edit may produce an admin-entered value", () => {
+  const snapshot = buildCopywriterSourceSnapshot(sourceInput());
+  const proposal = groundedProposal();
+  proposal.fields.nutritionSalt = { ...estimate("0,02", "nutrition.salt"), sourceStatus: "ADMIN_ENTERED" };
+  assert.throws(
+    () => assertGroundedCopywriterProposal(snapshot, proposal),
+    (error: unknown) => error instanceof CopywriterGroundingError && error.code === "FACT_SOURCE_STATUS_INVALID",
+  );
+  const edited = assertGroundedCopywriterProposal(snapshot, proposal, { allowAdminEntered: true });
+  assert.equal(edited.fields.nutritionSalt.sourceStatus, "ADMIN_ENTERED");
+});
+
+test("implausible nutrition estimates are dropped instead of saved", () => {
+  const snapshot = buildCopywriterSourceSnapshot(sourceInput());
+  const proposal = groundedProposal();
+  proposal.fields.nutritionEnergyKj = estimate("2400", "nutrition.energyKj");
+  proposal.fields.nutritionEnergyKcal = estimate("300", "nutrition.energyKcal");
+  proposal.fields.nutritionCarbohydrates = estimate("26", "nutrition.carbohydrates");
+  proposal.fields.nutritionSugars = estimate("30", "nutrition.sugars");
+  proposal.fields.nutritionProtein = estimate("140", "nutrition.protein");
+  const parsed = assertGroundedCopywriterProposal(snapshot, proposal);
+  assert.equal(parsed.fields.nutritionEnergyKj.sourceStatus, "MISSING_VERIFIED_SOURCE", "kJ and kcal disagree");
+  assert.equal(parsed.fields.nutritionEnergyKcal.sourceStatus, "MISSING_VERIFIED_SOURCE");
+  assert.equal(parsed.fields.nutritionSugars.sourceStatus, "MISSING_VERIFIED_SOURCE", "sugars above carbohydrates");
+  assert.equal(parsed.fields.nutritionCarbohydrates.sourceStatus, "AI_ESTIMATE");
+  assert.equal(parsed.fields.nutritionProtein.sourceStatus, "MISSING_VERIFIED_SOURCE", "more than 100 g per 100 g");
+});
+
+test("an estimated allergen statement must name every allergen the product reveals", () => {
+  const input = sourceInput();
+  input.attributes = [{ key: "ingredients", value: "CASHEWNOTEN, melkchocolade (suiker, cacaoboter, MELKpoeder)" }];
+  const snapshot = buildCopywriterSourceSnapshot(input);
+
+  const incomplete = groundedProposal();
+  incomplete.fields.ingredients = { ...estimate(input.attributes[0].value, "facts.ingredients"), sourceStatus: "SOURCE_EXACT" };
+  incomplete.fields.allergens = estimate("Bevat: melk.", "facts.allergens");
+  const dropped = assertGroundedCopywriterProposal(snapshot, incomplete);
+  assert.equal(dropped.fields.allergens.sourceStatus, "MISSING_VERIFIED_SOURCE");
+  assert.match(dropped.fields.allergens.reason, /noten/u);
+
+  const complete = groundedProposal();
+  complete.fields.ingredients = { ...estimate(input.attributes[0].value, "facts.ingredients"), sourceStatus: "SOURCE_EXACT" };
+  complete.fields.allergens = estimate("Bevat: cashewnoten en melk.", "facts.allergens");
+  assert.equal(assertGroundedCopywriterProposal(snapshot, complete).fields.allergens.sourceStatus, "AI_ESTIMATE");
+});
+
+test("a draft stored before nutrition existed still loads, with nutrition locked", () => {
+  const snapshot = buildCopywriterSourceSnapshot(sourceInput());
+  const persisted = buildGroundedCopywriterProposal(snapshot, groundedProposal());
+  const legacyFields: Record<string, unknown> = { ...persisted.fields };
+  for (const key of Object.keys(legacyFields)) if (key.startsWith("nutrition")) delete legacyFields[key];
+  const reloaded = copywriterPersistedProposalSchema.parse({ ...persisted, fields: legacyFields });
+  assert.equal(reloaded.fields.nutritionFat.applyAllowed, false);
+  assert.match(reloaded.fields.nutritionFat.reason, /nieuw voorstel/u);
 });

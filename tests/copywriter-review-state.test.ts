@@ -17,6 +17,7 @@ import {
   assertGroundedCopywriterProposal,
   buildGroundedCopywriterProposal,
 } from "../lib/design-studio/copywriter/style";
+import { exactNutrition, nutritionAttributes } from "./copywriter-nutrition-fixture";
 
 function source(overrides: { promotionText?: string | null; salePriceCents?: number | null; seoTitle?: string } = {}): CopywriterSourceInput {
   return {
@@ -45,6 +46,7 @@ function source(overrides: { promotionText?: string | null; salePriceCents?: num
       { key: "allergens", value: "CASHEWNOTEN" },
       { key: "ingredients", value: "CASHEWNOTEN" },
       { key: "mayContainTraces", value: "Kan sporen bevatten van andere NOTEN." },
+      ...nutritionAttributes(),
     ],
     categories: [{ id: "cat-1", slug: "noten", name: "Noten" }],
     variants: [
@@ -87,6 +89,7 @@ function modelOutput(): CopywriterProviderOutput {
       ingredients: exactFact("CASHEWNOTEN", "facts.ingredients"),
       allergens: exactFact("CASHEWNOTEN", "facts.allergens"),
       mayContainTraces: exactFact("Kan sporen bevatten van andere NOTEN.", "facts.mayContainTraces"),
+      ...exactNutrition(),
     },
   };
 }
