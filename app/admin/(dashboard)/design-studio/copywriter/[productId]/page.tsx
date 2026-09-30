@@ -2,9 +2,9 @@ import { CopyWriterWorkspace } from "@/components/admin-panel/design-studio/Copy
 
 export default async function CopyWriterProductPage({ params, searchParams }: {
   params: Promise<{ productId: string }>;
-  searchParams: Promise<{ locale?: string }>;
+  searchParams: Promise<{ locale?: string; filter?: string; q?: string }>;
 }) {
   const { productId } = await params;
-  await searchParams;
-  return <CopyWriterWorkspace mode="product" productId={productId} />;
+  const { filter, q } = await searchParams;
+  return <CopyWriterWorkspace mode="product" productId={productId} filter={filter} query={q} />;
 }

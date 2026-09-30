@@ -122,6 +122,16 @@ function editableFieldSchema<T extends z.ZodTypeAny>(proposedSchema: T) {
   }).strict();
 }
 
+// Proposed by the server (never the model) when a promotion text exists without a
+// verified lower sale price: applying it empties the stored promotion text.
+export const COPYWRITER_CLEAR_PROMOTION = "" as const;
+const clearPromotionSchema = z.object({
+  proposed: z.literal(COPYWRITER_CLEAR_PROMOTION),
+  applyAllowed: z.literal(true),
+  reason: reasonSchema,
+  evidencePaths: evidencePathsSchema,
+}).strict();
+
 const unavailablePromotionSchema = z.object({
   proposed: z.null(),
   applyAllowed: z.literal(false),
@@ -157,7 +167,7 @@ export const copywriterProposedFieldsSchema = z.object({
   descriptionHtml: editableFieldSchema(descriptionHtmlSchema),
   seoTitle: editableFieldSchema(seoTitleSchema),
   metaDescription: editableFieldSchema(metaDescriptionSchema),
-  promotionText: z.union([editableFieldSchema(promotionTextSchema), unavailablePromotionSchema]),
+  promotionText: z.union([editableFieldSchema(promotionTextSchema), clearPromotionSchema, unavailablePromotionSchema]),
   ingredients: copywriterFactProposalSchema,
   allergens: copywriterFactProposalSchema,
   mayContainTraces: copywriterFactProposalSchema,

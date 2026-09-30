@@ -300,6 +300,11 @@ export function canonicalSourceHash(value: unknown): string {
   return `sha256:${createHash("sha256").update(canonicalStringify(value)).digest("hex")}`;
 }
 
+/** Hash of one stored field value, used to expire a "kept as is" review once the text changes. */
+export function copywriterFieldValueHash(value: string | null): string {
+  return canonicalSourceHash({ value: value ?? "" });
+}
+
 export function protectedFactsHash(snapshot: CopywriterSourceSnapshot): string {
   return canonicalSourceHash({
     product: {

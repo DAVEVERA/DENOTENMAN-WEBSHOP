@@ -44,8 +44,14 @@ function hasText(value: string | null): value is string {
   return Boolean(value?.trim());
 }
 
+export const COPYWRITER_ACCEPTED_REASON = "Gecontroleerd en bewust zo gelaten.";
+
 export function assessCopywriterCompleteness(
   snapshot: CopywriterSourceSnapshot,
+  options: {
+    /** Review-flagged fields an admin chose to keep, still holding the reviewed value. */
+    acceptedFields?: ReadonlySet<CopywriterFieldName>;
+  } = {},
 ): CopywriterCompletenessResult {
   const states = Object.fromEntries(
     COPYWRITER_REQUIRED_FIELDS.map((field) => [field, {
@@ -62,6 +68,10 @@ export function assessCopywriterCompleteness(
     states[field] = { status: "MISSING", reason };
   };
   const markReview = (field: CopywriterFieldName, reason: string) => {
+    if (options.acceptedFields?.has(field)) {
+      states[field] = { status: "COMPLETE", reason: COPYWRITER_ACCEPTED_REASON };
+      return;
+    }
     review.add(field);
     states[field] = { status: "NEEDS_REVIEW", reason };
   };

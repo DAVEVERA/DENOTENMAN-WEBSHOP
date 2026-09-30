@@ -5,6 +5,7 @@ import { publicImageUrl } from "@/lib/storage";
 import { ProductEditForm } from "./ProductEditForm";
 import { ProductEditorNav } from "@/components/admin-panel/ProductEditorNav";
 import { sanitizeProductHtml, sanitizeProductShortHtml } from "@/lib/product-content";
+import { safeCopywriterReturnTo } from "@/lib/admin-return-to";
 
 const productLocales = ["nl", "en", "fr"] as const;
 
@@ -21,10 +22,13 @@ function plainTextEditorHtml(value: string | null | undefined): string {
 
 export default async function AdminProductEditPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ terug?: string | string[] }>;
 }) {
   const { id } = await params;
+  const returnTo = safeCopywriterReturnTo((await searchParams).terug);
 
   const [product, categories, productOptions] = await Promise.all([
     prisma.product.findUnique({
@@ -162,12 +166,21 @@ export default async function AdminProductEditPage({
 
   return (
     <div>
-      <Link
-        href="/admin/producten"
-        className="inline-flex min-h-11 items-center text-body-sm font-semibold text-text underline decoration-accent underline-offset-4"
-      >
-        ← Terug naar producten
-      </Link>
+      {returnTo ? (
+        <Link
+          href={returnTo}
+          className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast"
+        >
+          ← Terug naar CopyWriter
+        </Link>
+      ) : (
+        <Link
+          href="/admin/producten"
+          className="inline-flex min-h-11 items-center text-body-sm font-semibold text-text underline decoration-accent underline-offset-4"
+        >
+          ← Terug naar producten
+        </Link>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
         <div>

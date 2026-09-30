@@ -1,6 +1,7 @@
 import {
   copywriterPersistedProposalSchema,
   copywriterProviderOutputSchema,
+  COPYWRITER_CLEAR_PROMOTION,
   normalizeCopywriterText,
   type CopywriterFactFieldName,
   type CopywriterPersistedProposal,
@@ -271,12 +272,39 @@ function assertDeterministicFields(
 
   const hasRealSale = snapshot.product.salePriceCents !== null
     && snapshot.product.salePriceCents < snapshot.product.basePriceCents;
-  if (!hasRealSale && (
-    proposal.fields.promotionText.proposed !== null
-    || proposal.fields.promotionText.applyAllowed !== false
-  )) {
+  const promotion = proposal.fields.promotionText;
+  const unavailable = promotion.proposed === null && promotion.applyAllowed === false;
+  const clearing = promotion.proposed === COPYWRITER_CLEAR_PROMOTION && promotion.applyAllowed === true;
+  if (!hasRealSale && !unavailable && !clearing) {
     throw new CopywriterGroundingError("PROMOTION_NOT_VERIFIED", "promotionText");
   }
+}
+
+const notApplicablePromotion = new Set(["niet van toepassing", "n.v.t.", "nvt"]);
+
+// Without a verified lower sale price a stored promotion text is always flagged for
+// review. The model may not write promotion text then, so the server itself proposes
+// emptying it; otherwise the product could never leave the review state.
+function withPromotionClearing(
+  snapshot: CopywriterSourceSnapshot,
+  proposal: ParsedCopywriterProviderOutput,
+): ParsedCopywriterProviderOutput {
+  const hasRealSale = snapshot.product.salePriceCents !== null
+    && snapshot.product.salePriceCents < snapshot.product.basePriceCents;
+  const current = normalizeCopywriterText(snapshot.translation.promotionText).toLocaleLowerCase("nl-NL");
+  if (hasRealSale || !current || notApplicablePromotion.has(current)) return proposal;
+  return {
+    ...proposal,
+    fields: {
+      ...proposal.fields,
+      promotionText: {
+        proposed: COPYWRITER_CLEAR_PROMOTION,
+        applyAllowed: true,
+        reason: "Er is geen lagere actieprijs. Deze actietekst wordt leeggemaakt.",
+        evidencePaths: ["product.salePriceCents"],
+      },
+    },
+  };
 }
 
 function selectedVariantsForPath(
@@ -521,7 +549,7 @@ export function buildGroundedCopywriterProposal(
   input: CopywriterProviderOutput | unknown,
   options: { skipSlugDeterminism?: boolean } = {},
 ): CopywriterPersistedProposal {
-  const grounded = assertGroundedCopywriterProposal(snapshot, input, options);
+  const grounded = withPromotionClearing(snapshot, assertGroundedCopywriterProposal(snapshot, input, options));
   return copywriterPersistedProposalSchema.parse({
     ...grounded,
     sourceHash: canonicalSourceHash(snapshot),

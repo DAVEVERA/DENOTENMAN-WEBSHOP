@@ -259,6 +259,7 @@ model Product {
   designJobs             DesignJob[]
   designAssets           DesignAsset[]
   productCopyProposals   ProductCopyProposal[]
+  copyFieldReviews       ProductCopyFieldReview[]
   viewMetric             ProductViewMetric?
 }
 
@@ -608,11 +609,30 @@ model ProductCopyProposal {
   applyRequestHash         String?
   appliedFields            Json?
   appliedAt                DateTime?
+  /// Set when a newer draft for the same product replaces this one.
+  supersededAt             DateTime?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 
   @@index([productId, status, createdAt])
   @@index([requestedByAdminUserId, createdAt])
+}
+
+/// An admin looked at a field that the CopyWriter flags for review and chose to
+/// keep it. Valid only while the field still holds the reviewed value.
+model ProductCopyFieldReview {
+  id                    String    @id @default(cuid())
+  productId             String
+  product               Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  locale                Locale    @default(nl)
+  field                 String
+  valueHash             String
+  reviewedByAdminUserId String
+  reviewedBy            AdminUser @relation(fields: [reviewedByAdminUserId], references: [id])
+  reviewedAt            DateTime  @default(now())
+
+  @@unique([productId, locale, field])
+  @@index([reviewedByAdminUserId])
 }
 
 model ProductImageProcessing {
@@ -1034,6 +1054,7 @@ model AdminUser {
   uploadedMedia        MediaAsset[]
   requestedProductCopyProposals ProductCopyProposal[] @relation("ProductCopyProposalRequestedBy")
   appliedProductCopyProposals   ProductCopyProposal[] @relation("ProductCopyProposalAppliedBy")
+  copyFieldReviews              ProductCopyFieldReview[]
 }
 
 /**

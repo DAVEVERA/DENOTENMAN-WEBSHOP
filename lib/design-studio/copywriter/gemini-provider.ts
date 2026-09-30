@@ -86,7 +86,8 @@ function mapError(error: unknown): CopywriterProviderError {
     );
   }
   const candidate = error as { name?: string; code?: string; status?: number };
-  if (candidate?.name === "AbortError" || candidate?.code === "ABORT_ERR") {
+  // AbortSignal.timeout() rejects with a TimeoutError, a manual abort with an AbortError.
+  if (candidate?.name === "AbortError" || candidate?.name === "TimeoutError" || candidate?.code === "ABORT_ERR") {
     return new CopywriterProviderError(
       "PROVIDER_TIMEOUT",
       "Gemini reageerde niet op tijd.",
@@ -114,6 +115,8 @@ function mapError(error: unknown): CopywriterProviderError {
   );
 }
 
+const RETRY_DELAY_MS = 1_500;
+
 export async function runCopywriterGeneration(
   snapshot: CopywriterSourceSnapshot,
   generate: CopywriterGenerate = defaultGenerate,
@@ -131,21 +134,31 @@ export async function runCopywriterGeneration(
   }
   const prompt = buildCopywriterPrompt(snapshot);
   const model = modelId();
-  try {
-    const response = await generate({
-      model,
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt.system }, { text: prompt.prompt }],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseJsonSchema: copywriterProviderJsonSchema,
-        abortSignal: AbortSignal.timeout(60_000),
+  const request = () => generate({
+    model,
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt.system }, { text: prompt.prompt }],
       },
-    });
+    ],
+    config: {
+      responseMimeType: "application/json",
+      responseJsonSchema: copywriterProviderJsonSchema,
+      abortSignal: AbortSignal.timeout(60_000),
+    },
+  });
+  try {
+    let response: Awaited<ReturnType<CopywriterGenerate>>;
+    try {
+      response = await request();
+    } catch (error) {
+      // One retry for a busy (429) or failing (5xx) provider; everything else is final.
+      const status = (error as { status?: number } | null)?.status ?? 0;
+      if (status !== 429 && status < 500) throw error;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      response = await request();
+    }
     return {
       proposal: buildGroundedCopywriterProposal(
         snapshot,
