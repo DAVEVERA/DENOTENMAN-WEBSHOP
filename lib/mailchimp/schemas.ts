@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { newsletterDocumentSchema } from "@/lib/newsletter/document";
 
 export const newsletterAudienceSchema = z.enum(["all", "zakelijk", "particulier", "custom"]);
 
@@ -13,6 +14,8 @@ export const newsletterDraftSchema = z
     replyTo: z.string().trim().email(),
     contentHtml: z.string().trim().min(1).max(100_000),
     audience: newsletterAudienceSchema.default("custom"),
+    /** Block editor layout; when present the email is rendered from it on the server. */
+    document: newsletterDocumentSchema.optional(),
   })
   .strict();
 

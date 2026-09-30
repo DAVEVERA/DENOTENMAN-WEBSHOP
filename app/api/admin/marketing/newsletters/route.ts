@@ -6,7 +6,10 @@ import {
   createNewsletterCampaign,
   getAudienceRecipientCount,
   listNewsletterCampaigns,
+  newsletterHtml,
 } from "@/lib/mailchimp/newsletter";
+import { extractNewsletterContent } from "@/lib/mailchimp/template";
+import { saveNewsletterDocument } from "@/lib/newsletter/store";
 import { newsletterDraftSchema } from "@/lib/mailchimp/schemas";
 import { recordNewsletterShadow } from "@/lib/mailchimp/shadow";
 
@@ -38,8 +41,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const campaign = await createNewsletterCampaign(parsed.data);
-    await recordNewsletterShadow(admin, campaign, parsed.data, "CREATE");
+    // With blocks, the stored content is what the server renders, never the client's HTML.
+    const input = parsed.data.document ? { ...parsed.data, contentHtml: extractNewsletterContent(newsletterHtml(parsed.data)) } : parsed.data;
+    const campaign = await createNewsletterCampaign(input);
+    if (input.document) await saveNewsletterDocument(campaign.id, input.document);
+    await recordNewsletterShadow(admin, campaign, input, "CREATE");
     return NextResponse.json({ campaign }, { status: 201 });
   } catch (error) {
     return mailchimpErrorResponse(error);

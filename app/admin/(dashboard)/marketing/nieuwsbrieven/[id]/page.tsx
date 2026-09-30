@@ -6,6 +6,8 @@ import {
   getNewsletterReport,
 } from "@/lib/mailchimp/newsletter";
 import { getBusinessSegmentInfo } from "@/lib/mailchimp/business-segment";
+import { documentFromLegacyHtml } from "@/lib/newsletter/document";
+import { getNewsletterDocument } from "@/lib/newsletter/store";
 import { NewsletterEditorForm } from "../NewsletterEditorForm";
 
 export default async function NewsletterCampaignPage({
@@ -18,10 +20,11 @@ export default async function NewsletterCampaignPage({
 
   try {
     const campaign = await getNewsletterCampaign(id);
-    const [recipientCount, businessSegment, report] = await Promise.all([
+    const [recipientCount, businessSegment, report, document] = await Promise.all([
       getAudienceRecipientCount(),
       getBusinessSegmentInfo(),
       campaign.status === "sent" ? getNewsletterReport(id) : Promise.resolve(null),
+      getNewsletterDocument(id).catch(() => null),
     ]);
 
     return (
@@ -60,6 +63,7 @@ export default async function NewsletterCampaignPage({
             recipientCount={recipientCount}
             businessRecipientCount={businessSegment.memberCount}
             businessSegmentReady={businessSegment.segmentId !== null}
+            initialDocument={document ?? documentFromLegacyHtml(campaign.contentHtml)}
             initial={{
               subject: campaign.subject,
               previewText: campaign.previewText,

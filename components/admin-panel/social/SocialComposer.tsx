@@ -33,10 +33,11 @@ import {
 } from "@/lib/social/platforms";
 import type { SocialMediaDto } from "@/lib/social/media";
 import type { SocialAccountDto, SocialCampaignDto, SocialPostDto } from "@/lib/social/service";
+import { uploadMediaInChunks } from "../media/chunked-upload";
 import { PlatformIcon, platformTone } from "./PlatformIcon";
 
 const buttonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-button px-4 font-heading text-body-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
-const inputClass = "min-h-11 w-full rounded-button border border-border bg-surface px-3 text-base text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+const inputClass = "min-h-11 w-full min-w-0 rounded-button border border-border bg-surface px-3 text-base text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 const labelClass = "grid gap-1 text-body-sm font-semibold text-text";
 
 const youtubePrivacyLabels: Record<(typeof YOUTUBE_PRIVACY)[number], string> = { public: "Openbaar", unlisted: "Verborgen (met link)", private: "Privé" };
@@ -122,22 +123,8 @@ export function SocialComposer({ post, accounts, campaigns, defaultScheduledAt, 
     setUploads((current) => [...current, { key, name: file.name, progress: 0, error: null }]);
     const update = (patch: Partial<UploadState>) => setUploads((current) => current.map((item) => item.key === key ? { ...item, ...patch } : item));
     try {
-      if (!socialMediaKind(file.type)) throw new Error("Gebruik een JPG-, PNG- of WebP-foto, of een MP4-, MOV- of WebM-video.");
-      const start = await api<{ id: string; chunkBytes: number }>("/api/admin/social/media", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ filename: file.name, contentType: file.type, sizeBytes: file.size }),
-      });
-      for (let offset = 0; offset < file.size; offset += start.chunkBytes) {
-        const chunk = file.slice(offset, Math.min(offset + start.chunkBytes, file.size));
-        await api(`/api/admin/social/media/${encodeURIComponent(start.id)}`, {
-          method: "PUT",
-          headers: { "content-type": "application/octet-stream", "x-upload-offset": String(offset) },
-          body: chunk,
-        });
-        update({ progress: Math.round(((offset + chunk.size) / file.size) * 100) });
-      }
-      const done = await api<{ media: SocialMediaDto }>(`/api/admin/social/media/${encodeURIComponent(start.id)}`, { method: "POST" });
+      if (!socialMediaKind(file.type)) throw new Error("Gebruik een JPG-, PNG-, WebP- of GIF-afbeelding, of een MP4-, MOV- of WebM-video.");
+      const done = { media: await uploadMediaInChunks(file, (progress) => update({ progress })) };
       setMedia((current) => [...current, done.media]);
       setUploads((current) => current.filter((item) => item.key !== key));
     } catch (cause) {
@@ -329,7 +316,7 @@ export function SocialComposer({ post, accounts, campaigns, defaultScheduledAt, 
             </section>
           ) : null}
 
-          <fieldset disabled={readOnly} className="grid gap-5">
+          <fieldset disabled={readOnly} className="grid min-w-0 gap-5 [&>*]:min-w-0">
             <section className="grid gap-2" aria-labelledby="channels-title">
               <h3 id="channels-title" className="font-heading text-body-md font-bold text-text">Kanalen</h3>
               {connected.length ? (
@@ -423,7 +410,7 @@ export function SocialComposer({ post, accounts, campaigns, defaultScheduledAt, 
                   {upload.error ? <span className="text-red-700">{upload.error} <button type="button" onClick={() => setUploads((current) => current.filter((item) => item.key !== upload.key))} className="underline">Sluiten</button></span> : <progress value={upload.progress} max={100} className="h-2 w-full" aria-label={`Upload ${upload.name}`} />}
                 </div>
               ))}
-              <input ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" className="sr-only" onChange={(event) => { for (const file of Array.from(event.target.files ?? [])) void uploadFile(file); event.target.value = ""; }} />
+              <input ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm" className="sr-only" onChange={(event) => { for (const file of Array.from(event.target.files ?? [])) void uploadFile(file); event.target.value = ""; }} />
               <button type="button" onClick={() => fileInput.current?.click()} className={`${buttonClass} justify-self-start border border-dashed border-border bg-surface text-text`}><ImagePlus className="h-4 w-4" aria-hidden="true" />Foto of video toevoegen</button>
               <p className="text-xs text-muted">Foto&apos;s tot 20 MB, video&apos;s tot 1 GB. Instagram-foto&apos;s worden automatisch als JPG geplaatst.</p>
             </section>

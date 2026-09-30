@@ -61,7 +61,7 @@ export function socialMediaDto(asset: {
 
 export async function startSocialUpload(input: { filename: string; contentType: string; sizeBytes: number }) {
   const kind = socialMediaKind(input.contentType);
-  if (!kind) throw new SocialError("MEDIA_TYPE", "Gebruik een JPG-, PNG- of WebP-foto, of een MP4-, MOV- of WebM-video.", 422);
+  if (!kind) throw new SocialError("MEDIA_TYPE", "Gebruik een JPG-, PNG-, WebP- of GIF-afbeelding, of een MP4-, MOV- of WebM-video.", 422);
   const max = kind === "image" ? SOCIAL_MAX_IMAGE_BYTES : SOCIAL_MAX_VIDEO_BYTES;
   if (!Number.isInteger(input.sizeBytes) || input.sizeBytes <= 0 || input.sizeBytes > max) {
     throw new SocialError("MEDIA_SIZE", kind === "image" ? "Een foto mag maximaal 20 MB zijn." : "Een video mag maximaal 1 GB zijn.", 422);

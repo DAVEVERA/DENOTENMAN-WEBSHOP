@@ -3,6 +3,8 @@ import { getMailchimpEnvironment } from "@/lib/env";
 import { getMailchimpClient } from "@/lib/mailchimp/client";
 import { runMailchimpRequest } from "@/lib/mailchimp/limiter";
 import { buildNewsletterHtml, extractNewsletterContent } from "@/lib/mailchimp/template";
+import type { NewsletterDocument } from "@/lib/newsletter/document";
+import { renderNewsletterEmail } from "@/lib/newsletter/render";
 import { campaignSlug } from "@/lib/campaign-urls";
 import { buildAudienceSegmentOpts, getBusinessSegmentInfo } from "@/lib/mailchimp/business-segment";
 import { audienceFromRecipients } from "@/lib/mailchimp/business-segment-logic";
@@ -59,7 +61,15 @@ export type NewsletterDraftInput = {
   replyTo: string;
   contentHtml: string;
   audience: NewsletterAudience;
+  document?: NewsletterDocument;
 };
+
+/** Block-editor newsletters are rendered from their blocks; older ones from their HTML. */
+export function newsletterHtml(input: NewsletterDraftInput): string {
+  return input.document
+    ? renderNewsletterEmail(input.document, { subject: input.subject, previewText: input.previewText })
+    : buildNewsletterHtml(input);
+}
 
 export type NewsletterReport = {
   emailsSent: number;
@@ -225,7 +235,7 @@ export async function createNewsletterCampaign(
   );
   const { segmentId } = await getBusinessSegmentInfo();
   const summary = mapCampaign(created, segmentId);
-  const html = buildNewsletterHtml(input);
+  const html = newsletterHtml(input);
   await runMailchimpRequest(() => campaigns.setContent(summary.id, { html }));
   return { ...summary, contentHtml: html };
 }
@@ -242,7 +252,7 @@ export async function updateNewsletterCampaign(
   const updated = await runMailchimpRequest(() =>
     campaigns.update(campaignId, { ...recipientUpdate, settings: settings(input), tracking: tracking(input) })
   );
-  const html = buildNewsletterHtml(input);
+  const html = newsletterHtml(input);
   await runMailchimpRequest(() => campaigns.setContent(campaignId, { html }));
   const { segmentId } = await getBusinessSegmentInfo();
   return { ...mapCampaign(updated, segmentId), contentHtml: html };

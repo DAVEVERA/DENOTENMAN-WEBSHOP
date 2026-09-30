@@ -1970,3 +1970,11 @@ model SocialPostTarget {
 
   @@unique([postId, accountId])
 }
+
+/// The block layout behind a Mailchimp newsletter, so the block editor can reopen it.
+/// Mailchimp keeps the rendered HTML; this table keeps the editable blocks.
+model NewsletterDocument {
+  campaignId String   @id
+  document   Json
+  updatedAt  DateTime @updatedAt
+}

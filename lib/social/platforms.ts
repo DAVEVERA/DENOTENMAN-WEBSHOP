@@ -3,7 +3,7 @@
 export const SOCIAL_PLATFORMS = ["FACEBOOK", "INSTAGRAM", "TIKTOK", "YOUTUBE"] as const;
 export type SocialPlatformName = (typeof SOCIAL_PLATFORMS)[number];
 
-export const SOCIAL_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const SOCIAL_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 export const SOCIAL_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"] as const;
 export const SOCIAL_MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 export const SOCIAL_MAX_VIDEO_BYTES = 1024 * 1024 * 1024;

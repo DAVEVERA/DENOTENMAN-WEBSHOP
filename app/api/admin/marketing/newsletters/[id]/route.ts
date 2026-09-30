@@ -7,8 +7,11 @@ import { mailchimpErrorResponse } from "@/lib/mailchimp/admin-response";
 import {
   deleteNewsletterCampaign,
   getNewsletterCampaign,
+  newsletterHtml,
   updateNewsletterCampaign,
 } from "@/lib/mailchimp/newsletter";
+import { extractNewsletterContent } from "@/lib/mailchimp/template";
+import { deleteNewsletterDocument, saveNewsletterDocument } from "@/lib/newsletter/store";
 import { newsletterDraftSchema } from "@/lib/mailchimp/schemas";
 import { recordNewsletterShadow } from "@/lib/mailchimp/shadow";
 
@@ -44,8 +47,10 @@ export async function PATCH(request: NextRequest, context: Context) {
     if (existing.status !== "save") {
       return NextResponse.json({ error: "CAMPAIGN_NOT_EDITABLE" }, { status: 409 });
     }
-    const campaign = await updateNewsletterCampaign(id, parsed.data);
-    await recordNewsletterShadow(admin, campaign, parsed.data, "UPDATE");
+    const input = parsed.data.document ? { ...parsed.data, contentHtml: extractNewsletterContent(newsletterHtml(parsed.data)) } : parsed.data;
+    const campaign = await updateNewsletterCampaign(id, input);
+    if (input.document) await saveNewsletterDocument(id, input.document);
+    await recordNewsletterShadow(admin, campaign, input, "UPDATE");
     return NextResponse.json({ campaign });
   } catch (error) {
     return mailchimpErrorResponse(error);
@@ -64,6 +69,7 @@ export async function DELETE(request: NextRequest, context: Context) {
     }
 
     await deleteNewsletterCampaign(id);
+    await deleteNewsletterDocument(id);
     const existing = await prisma.newsletterCampaign.findUnique({ where: { id } });
     if (existing) {
       await prisma.$transaction(async (transaction) => {

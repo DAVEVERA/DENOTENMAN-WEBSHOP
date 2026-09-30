@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { getAudienceDetails } from "@/lib/mailchimp/newsletter";
 import { getBusinessSegmentInfo } from "@/lib/mailchimp/business-segment";
+import { starterNewsletterDocument } from "@/lib/newsletter/document";
 import { NewsletterEditorForm } from "../NewsletterEditorForm";
 
 export default async function NewNewsletterCampaignPage() {
@@ -19,7 +20,7 @@ export default async function NewNewsletterCampaignPage() {
       <div className="mt-3">
         <h1 className="text-heading-xl text-text">Nieuwe nieuwsbrief</h1>
         <p className="mt-1 text-body-sm text-muted">
-          Maak eerst een concept. Testen, plannen en verzenden kan daarna vanuit de editor.
+          Bouw je nieuwsbrief met blokken en zie direct hoe hij eruitziet. Maak eerst een concept; testen, plannen en verzenden kan daarna vanuit de editor.
         </p>
       </div>
       <div className="mt-8">
@@ -28,6 +29,7 @@ export default async function NewNewsletterCampaignPage() {
           recipientCount={audience.recipientCount}
           businessRecipientCount={businessSegment.memberCount}
           businessSegmentReady={businessSegment.segmentId !== null}
+          initialDocument={starterNewsletterDocument()}
           initial={{
             subject: "",
             previewText: "",
