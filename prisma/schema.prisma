@@ -1776,3 +1776,77 @@ model Invoice {
 
   @@index([businessAccountId])
 }
+
+/// Developer invoicing: the developer bills De Notenman from a separate portal.
+enum DeveloperInvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  CANCELLED
+}
+
+model DeveloperInvoice {
+  id                      String                  @id @default(cuid())
+  number                  String                  @unique
+  title                   String
+  issueDate               DateTime
+  dueDate                 DateTime
+  currency                String                  @default("EUR")
+  /// [{ description, quantity, unitPriceCents, vatRate }]
+  lines                   Json
+  subtotalCents           Int
+  vatCents                Int
+  totalCents              Int
+  notes                   String?
+  status                  DeveloperInvoiceStatus  @default(DRAFT)
+  sentAt                  DateTime?
+  firstReminderAt         DateTime?
+  secondReminderAt        DateTime?
+  paidAt                  DateTime?
+  paidVia                 String?
+  stripeCheckoutSessionId String?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  events                  DeveloperInvoiceEvent[]
+
+  @@index([status, sentAt])
+}
+
+model DeveloperInvoiceEvent {
+  id        String           @id @default(cuid())
+  invoiceId String
+  invoice   DeveloperInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  type      String
+  detail    Json?
+  createdAt DateTime         @default(now())
+
+  @@index([invoiceId, createdAt])
+}
+
+/// Single row ("default"): the developer's billing details and payment methods.
+model DeveloperBillingProfile {
+  id                       String   @id @default("default")
+  businessName             String   @default("")
+  contactName              String   @default("")
+  email                    String   @default("")
+  address                  String   @default("")
+  postalCode               String   @default("")
+  city                     String   @default("")
+  country                  String   @default("Nederland")
+  kvkNumber                String   @default("")
+  vatNumber                String   @default("")
+  paymentTermDays          Int      @default(14)
+  /// Where "invoice ready" notices and reminders go; empty uses the shop's order address.
+  notificationEmail        String   @default("")
+  bankTransferEnabled      Boolean  @default(true)
+  iban                     String   @default("")
+  bic                      String   @default("")
+  accountHolder            String   @default("")
+  stripeEnabled            Boolean  @default(false)
+  /// AES-256-GCM encrypted Stripe secret or restricted key; never returned to a client.
+  stripeSecretKeyEncrypted String?
+  paymentLinkEnabled       Boolean  @default(false)
+  paymentLinkUrl           String   @default("")
+  paymentLinkLabel         String   @default("")
+  updatedAt                DateTime @updatedAt
+}
