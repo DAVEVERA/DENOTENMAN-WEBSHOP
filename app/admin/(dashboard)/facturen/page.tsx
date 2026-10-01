@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
+import { EXPORT_PERIOD_KINDS, recentPeriods } from "@/lib/invoice-export";
 
 const COUNTRY_TABS: { label: string; country: "NL" | "BE" | null }[] = [
   { label: "Alle", country: null },
@@ -88,7 +89,14 @@ export default async function FacturenPage({
     })),
   ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-  const exportHref = activeCountry ? `/api/admin/invoices/export?country=${activeCountry}` : "/api/admin/invoices/export";
+  const exportParams = new URLSearchParams({ type: activeType ?? "alle" });
+  if (activeCountry) exportParams.set("country", activeCountry);
+  const exportHref = `/api/admin/invoices/export?${exportParams}`;
+  const scopeLabel = [
+    activeType === "zakelijk" ? "zakelijke facturen" : activeType === "particulier" ? "particuliere bestellingen" : "alle facturen",
+    activeCountry ? `uit ${activeCountry === "NL" ? "Nederland" : "België"}` : null,
+  ].filter(Boolean).join(" ");
+  const now = new Date();
 
   return (
     <div>
@@ -99,14 +107,12 @@ export default async function FacturenPage({
             {rows.length} {rows.length === 1 ? "resultaat" : "resultaten"}
           </p>
         </div>
-        {activeType !== "particulier" ? (
-          <a
-            href={exportHref}
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-button border border-border bg-surface px-5 font-heading font-bold text-text shadow-card sm:w-auto"
-          >
-            <Download className="h-5 w-5" aria-hidden="true" /> Exporteren (CSV)
-          </a>
-        ) : null}
+        <a
+          href={exportHref}
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-button border border-border bg-surface px-5 font-heading font-bold text-text shadow-card sm:w-auto"
+        >
+          <Download className="h-5 w-5" aria-hidden="true" /> Exporteren (CSV)
+        </a>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -154,6 +160,34 @@ export default async function FacturenPage({
           );
         })}
       </div>
+
+      <section className="mt-5 rounded-panel border border-border bg-surface p-4 shadow-card" aria-labelledby="quick-export-title">
+        <h2 id="quick-export-title" className="font-heading text-body-md font-bold text-text">Snel exporteren</h2>
+        <p className="mt-1 text-xs text-muted">Exporteert {scopeLabel} over de gekozen periode (Nederlandse tijd).</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {EXPORT_PERIOD_KINDS.map(({ kind, label, count }) => {
+            const periods = recentPeriods(kind, now, count);
+            return (
+              <form key={kind} action="/api/admin/invoices/export" method="get" className="grid gap-2 rounded-card border border-border bg-background p-3">
+                <input type="hidden" name="type" value={activeType ?? "alle"} />
+                {activeCountry ? <input type="hidden" name="country" value={activeCountry} /> : null}
+                <label className="grid gap-1 text-body-sm font-semibold text-text">
+                  {label}
+                  {/* The last completed period is preselected: that is what the bookkeeping needs. */}
+                  <select name="periode" defaultValue={periods[1]?.value} className="min-h-11 w-full min-w-0 rounded-button border border-border bg-surface px-3 text-base text-text">
+                    {periods.map((period, index) => (
+                      <option key={period.value} value={period.value}>{period.label}{index === 0 ? " (lopend)" : ""}</option>
+                    ))}
+                  </select>
+                </label>
+                <button type="submit" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast">
+                  <Download className="h-4 w-4" aria-hidden="true" /> Exporteren
+                </button>
+              </form>
+            );
+          })}
+        </div>
+      </section>
 
       {rows.length === 0 ? (
         <p className="mt-6 text-body-sm text-muted">Geen resultaten gevonden.</p>
