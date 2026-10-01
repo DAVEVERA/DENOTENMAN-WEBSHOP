@@ -100,6 +100,25 @@ export function recentPeriods(kind: ExportPeriodKind, now: Date, count: number):
   return periods;
 }
 
+// ---------- VAT for private orders ----------
+
+/** VAT rate on private orders: 6% to Belgium, 9% in the Netherlands (food, low rate). */
+export function privateVatRatePercent(country: string): number {
+  return country.trim().toUpperCase() === "BE" ? 6 : 9;
+}
+
+export type VatBreakdown = { ratePercent: number; subtotalCents: number; vatCents: number; totalCents: number };
+
+/**
+ * Consumers pay prices including VAT: the paid total is split into the amount
+ * excluding VAT and the VAT itself (shipping follows the rate of the goods).
+ */
+export function privateOrderVat(country: string, totalCents: number): VatBreakdown {
+  const ratePercent = privateVatRatePercent(country);
+  const subtotalCents = Math.round((totalCents * 100) / (100 + ratePercent));
+  return { ratePercent, subtotalCents, vatCents: totalCents - subtotalCents, totalCents };
+}
+
 // ---------- CSV ----------
 
 export type ExportType = "alle" | "zakelijk" | "particulier";
@@ -149,8 +168,8 @@ export type PrivateOrderRow = {
 };
 
 const BUSINESS_HEADER = ["Factuurnummer", "Land", "Klantnummer", "Bedrijf", "Factuurdatum", "Subtotaal excl. BTW", "BTW-percentage", "BTW-bedrag", "Totaal incl. BTW", "BTW-regeling", "Peppol-status"];
-const PRIVATE_HEADER = ["Bestelnummer", "Land", "Klant", "E-mail", "Besteldatum", "Betaaldatum", "Status", "Subtotaal incl. BTW", "Korting", "Verzendkosten", "Totaal incl. BTW", "Terugbetaald", "Netto incl. BTW"];
-const COMBINED_HEADER = ["Type", "Nummer", "Land", "Klant", "Datum", "Excl. BTW", "BTW", "Totaal incl. BTW", "Terugbetaald"];
+const PRIVATE_HEADER = ["Bestelnummer", "Land", "Klant", "E-mail", "Besteldatum", "Betaaldatum", "Status", "Korting", "Verzendkosten", "Subtotaal excl. BTW", "BTW-percentage", "BTW-bedrag", "Totaal incl. BTW", "Terugbetaald", "Netto incl. BTW"];
+const COMBINED_HEADER = ["Type", "Nummer", "Land", "Klant", "Datum", "Subtotaal excl. BTW", "BTW-percentage", "BTW-bedrag", "Totaal incl. BTW", "Terugbetaald"];
 
 function line(cells: Array<string | number>): string {
   return cells.map((cell) => csvCell(String(cell))).join(",");
@@ -165,16 +184,22 @@ export function buildInvoiceCsv(type: ExportType, business: BusinessInvoiceRow[]
       invoice.vatRegime === "REVERSE_CHARGE" ? "BTW verlegd" : "Standaard", invoice.peppolStatus,
     ]))];
   } else if (type === "particulier") {
-    rows = [line(PRIVATE_HEADER), ...orders.map((order) => line([
-      order.orderNumber, order.country, order.contactName, order.contactEmail, amsterdamDate(order.createdAt), amsterdamDate(order.paidAt),
-      order.status === "FULFILLED" ? "Verzonden" : "Betaald", centsToAmount(order.subtotalCents), centsToAmount(order.discountCents),
-      centsToAmount(order.shippingCents), centsToAmount(order.totalCents), centsToAmount(order.refundedCents), centsToAmount(order.totalCents - order.refundedCents),
-    ]))];
+    rows = [line(PRIVATE_HEADER), ...orders.map((order) => {
+      const vat = privateOrderVat(order.country, order.totalCents);
+      return line([
+        order.orderNumber, order.country, order.contactName, order.contactEmail, amsterdamDate(order.createdAt), amsterdamDate(order.paidAt),
+        order.status === "FULFILLED" ? "Verzonden" : "Betaald", centsToAmount(order.discountCents), centsToAmount(order.shippingCents),
+        centsToAmount(vat.subtotalCents), String(vat.ratePercent), centsToAmount(vat.vatCents), centsToAmount(vat.totalCents),
+        centsToAmount(order.refundedCents), centsToAmount(order.totalCents - order.refundedCents),
+      ]);
+    })];
   } else {
     const combined = [
-      ...business.map((invoice) => ({ at: invoice.createdAt, cells: ["Zakelijk", invoice.invoiceNumber, invoice.country, invoice.companyName, amsterdamDate(invoice.createdAt), centsToAmount(invoice.subtotalCents), centsToAmount(invoice.vatAmountCents), centsToAmount(invoice.totalCents), centsToAmount(0)] })),
-      // Consumer prices include VAT; no split is stored per order, so those cells stay empty.
-      ...orders.map((order) => ({ at: order.createdAt, cells: ["Particulier", order.orderNumber, order.country, order.contactName, amsterdamDate(order.createdAt), "", "", centsToAmount(order.totalCents), centsToAmount(order.refundedCents)] })),
+      ...business.map((invoice) => ({ at: invoice.createdAt, cells: ["Zakelijk", invoice.invoiceNumber, invoice.country, invoice.companyName, amsterdamDate(invoice.createdAt), centsToAmount(invoice.subtotalCents), String(invoice.vatRatePercent), centsToAmount(invoice.vatAmountCents), centsToAmount(invoice.totalCents), centsToAmount(0)] })),
+      ...orders.map((order) => {
+        const vat = privateOrderVat(order.country, order.totalCents);
+        return { at: order.createdAt, cells: ["Particulier", order.orderNumber, order.country, order.contactName, amsterdamDate(order.createdAt), centsToAmount(vat.subtotalCents), String(vat.ratePercent), centsToAmount(vat.vatCents), centsToAmount(vat.totalCents), centsToAmount(order.refundedCents)] };
+      }),
     ].sort((left, right) => left.at.getTime() - right.at.getTime());
     rows = [line(COMBINED_HEADER), ...combined.map((row) => line(row.cells))];
   }

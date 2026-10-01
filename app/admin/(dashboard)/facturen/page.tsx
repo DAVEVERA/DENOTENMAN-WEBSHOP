@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
-import { EXPORT_PERIOD_KINDS, recentPeriods } from "@/lib/invoice-export";
+import { EXPORT_PERIOD_KINDS, privateOrderVat, recentPeriods } from "@/lib/invoice-export";
 
 const COUNTRY_TABS: { label: string; country: "NL" | "BE" | null }[] = [
   { label: "Alle", country: null },
@@ -26,9 +26,23 @@ type Row = {
   number: string;
   customer: string;
   createdAt: Date;
+  subtotalCents: number;
+  vatLabel: string;
+  vatCents: number;
   totalCents: number;
   href: string;
 };
+
+/** Subtotal, VAT and total, stacked. */
+function Amounts({ row, align = "right" }: { row: Row; align?: "left" | "right" }) {
+  return (
+    <dl className={cn("grid gap-0.5 text-body-sm", align === "right" ? "justify-items-end" : "")}>
+      <div className="flex gap-3"><dt className="text-muted">Subtotaal</dt><dd className="text-text">{formatPrice(row.subtotalCents, "nl")}</dd></div>
+      <div className="flex gap-3"><dt className="text-muted">{row.vatLabel}</dt><dd className="text-text">{formatPrice(row.vatCents, "nl")}</dd></div>
+      <div className="flex gap-3 font-semibold"><dt className="text-text">Totaal</dt><dd className="text-text">{formatPrice(row.totalCents, "nl")}</dd></div>
+    </dl>
+  );
+}
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
@@ -64,7 +78,7 @@ export default async function FacturenPage({
             ...(activeCountry ? { shippingCountry: activeCountry } : {}),
           },
           orderBy: { createdAt: "desc" },
-          select: { id: true, orderNumber: true, contactName: true, totalCents: true, createdAt: true },
+          select: { id: true, orderNumber: true, contactName: true, totalCents: true, createdAt: true, shippingCountry: true },
         }),
   ]);
 
@@ -75,18 +89,29 @@ export default async function FacturenPage({
       number: invoice.invoiceNumber,
       customer: invoice.businessAccount.companyName,
       createdAt: invoice.createdAt,
+      // Business invoices carry their own VAT: 9% in the Netherlands, 0% (reverse charge) in Belgium.
+      subtotalCents: invoice.subtotalCents,
+      vatLabel: invoice.vatRegime === "REVERSE_CHARGE" ? "BTW 0% (verlegd)" : `BTW ${Number(invoice.vatRatePercent)}%`,
+      vatCents: invoice.vatAmountCents,
       totalCents: invoice.totalCents,
       href: `/admin/zakelijk/${invoice.businessAccountId}`,
     })),
-    ...privateOrders.map((order) => ({
-      key: `order-${order.id}`,
-      kind: "particulier" as const,
-      number: order.orderNumber ?? order.id,
-      customer: order.contactName,
-      createdAt: order.createdAt,
-      totalCents: order.totalCents,
-      href: `/admin/bestellingen/${order.id}`,
-    })),
+    ...privateOrders.map((order) => {
+      // Consumers pay including VAT: 9% in the Netherlands, 6% to Belgium.
+      const vat = privateOrderVat(order.shippingCountry, order.totalCents);
+      return {
+        key: `order-${order.id}`,
+        kind: "particulier" as const,
+        number: order.orderNumber ?? order.id,
+        customer: order.contactName,
+        createdAt: order.createdAt,
+        subtotalCents: vat.subtotalCents,
+        vatLabel: `BTW ${vat.ratePercent}%`,
+        vatCents: vat.vatCents,
+        totalCents: vat.totalCents,
+        href: `/admin/bestellingen/${order.id}`,
+      };
+    }),
   ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   const exportParams = new URLSearchParams({ type: activeType ?? "alle" });
@@ -197,8 +222,8 @@ export default async function FacturenPage({
             {rows.map((row) => (
               <Link key={row.key} href={row.href} className="rounded-panel border border-border bg-surface p-4 shadow-card">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <span className="font-heading text-heading-sm text-text">{row.number}</span>
-                  <span className="font-semibold text-text">{formatPrice(row.totalCents, "nl")}</span>
+                  <span className="break-all font-heading text-heading-sm text-text">{row.number}</span>
+                  <Amounts row={row} />
                 </div>
                 <p className="mt-1 text-body-sm text-muted">{row.customer}</p>
                 <p className="mt-1 flex items-center gap-2 text-xs text-muted">
@@ -223,7 +248,7 @@ export default async function FacturenPage({
                   <th className="px-4 py-3 font-heading">Klant</th>
                   <th className="px-4 py-3 font-heading">Type</th>
                   <th className="px-4 py-3 font-heading">Datum</th>
-                  <th className="px-4 py-3 text-right font-heading">Totaal</th>
+                  <th className="px-4 py-3 text-right font-heading">Bedrag</th>
                 </tr>
               </thead>
               <tbody>
@@ -246,7 +271,7 @@ export default async function FacturenPage({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-muted">{formatDate(row.createdAt)}</td>
-                    <td className="px-4 py-3 text-right text-text">{formatPrice(row.totalCents, "nl")}</td>
+                    <td className="px-4 py-3"><Amounts row={row} /></td>
                   </tr>
                 ))}
               </tbody>

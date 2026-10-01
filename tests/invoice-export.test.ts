@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { amsterdamMidnight, buildInvoiceCsv, csvCell, exportFilename, parseExportPeriod, recentPeriods } from "../lib/invoice-export";
+import { amsterdamMidnight, buildInvoiceCsv, csvCell, exportFilename, parseExportPeriod, privateOrderVat, recentPeriods } from "../lib/invoice-export";
 
 test("periods start and end at midnight Dutch time, across summer and winter time", () => {
   const september = parseExportPeriod("2026-09")!;
@@ -43,12 +43,14 @@ test("each export type has its own columns", () => {
   const particulier = buildInvoiceCsv("particulier", [], orders).split("\n");
   assert.match(particulier[0], /Bestelnummer,Land,Klant,E-mail,Besteldatum,Betaaldatum,Status/u);
   assert.match(particulier[1], /^DN-2026-00042,BE,/u);
-  assert.match(particulier[1], /,Verzonden,24\.95,2\.50,6\.95,29\.40,5\.00,24\.40$/u);
+  // BE private: 29.40 incl. 6% VAT = 27.74 + 1.66.
+  assert.match(particulier[1], /,Verzonden,2\.50,6\.95,27\.74,6,1\.66,29\.40,5\.00,24\.40$/u);
 
   const alle = buildInvoiceCsv("alle", business, orders).split("\n");
   assert.equal(alle.length, 3);
-  assert.match(alle[1], /^Particulier,DN-2026-00042/u, "rows are in date order");
-  assert.match(alle[2], /^Zakelijk,NL-2026-001/u);
+  assert.match(alle[0], /Subtotaal excl\. BTW,BTW-percentage,BTW-bedrag,Totaal incl\. BTW/u);
+  assert.match(alle[1], /^Particulier,DN-2026-00042,BE,.*,27\.74,6,1\.66,29\.40,5\.00$/u, "rows are in date order");
+  assert.match(alle[2], /^Zakelijk,NL-2026-001,NL,.*,100\.00,9,9\.00,109\.00,0\.00$/u);
 });
 
 test("cells that a spreadsheet would run as a formula are defused", () => {
@@ -61,4 +63,16 @@ test("cells that a spreadsheet would run as a formula are defused", () => {
 test("file names say what is in the export", () => {
   assert.equal(exportFilename("particulier", "BE", parseExportPeriod("2026-Q3")), "facturen-particulier-be-2026-q3.csv");
   assert.equal(exportFilename("alle", null, null), "facturen-alle-alle-landen-alles.csv");
+});
+
+test("private orders split the paid total into amount excluding VAT and VAT: 9% NL, 6% BE", () => {
+  assert.deepEqual(privateOrderVat("NL", 10_900), { ratePercent: 9, subtotalCents: 10_000, vatCents: 900, totalCents: 10_900 });
+  assert.deepEqual(privateOrderVat("BE", 10_600), { ratePercent: 6, subtotalCents: 10_000, vatCents: 600, totalCents: 10_600 });
+  // Rounding never loses a cent: subtotal + VAT is always the paid total.
+  for (const total of [1, 99, 2_940, 3_795, 12_345]) {
+    for (const country of ["NL", "BE"]) {
+      const vat = privateOrderVat(country, total);
+      assert.equal(vat.subtotalCents + vat.vatCents, total, `${country} ${total}`);
+    }
+  }
 });
