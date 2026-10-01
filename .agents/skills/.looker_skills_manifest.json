@@ -1,0 +1,10 @@
+{
+  "bundleChecksum": "09d649a3bb9c94405c75b083fc08350d111a73f03299cc279e9540045a48e9f7",
+  "skills": {
+    "lookml-diagnostics": "46bc24a7edf125e4629b714bc8f320d7d088a5933cfe373aaf4490dd1ef09228",
+    "lookml-liquid-guidelines": "2dcc6795b3476e53a4dfd0919c6c9cfef04ea91fa6c11bb5319ecbe883125d4f",
+    "lookml-modeling-guidelines": "39bff9ef640fad97234d897dd1af78610525781cf64dd8244ffb1ee25d164f09",
+    "lookml-pdt-guidelines": "6ea604a771fb1cf302ccbde8227f35461e4fcd19e11be99d7fa1d6667f55e7b8",
+    "lookml-pop-guidelines": "49894e22c3a71419c6165a281d9330efbed104a0b818117ae193885ab59d1c2a"
+  }
+}
