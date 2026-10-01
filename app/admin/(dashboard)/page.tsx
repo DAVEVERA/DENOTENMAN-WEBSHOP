@@ -50,7 +50,7 @@ export default async function AdminDashboardPage() {
     {developerInvoices?.count ? (
       <p role="status" className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-amber-300 bg-amber-50 p-3 text-body-sm font-semibold text-amber-900">
         <span className="min-w-0 flex-1">
-          {developerInvoices.count === 1 ? "Er staat een factuur van de ontwikkelaar klaar" : `Er staan ${developerInvoices.count} facturen van de ontwikkelaar klaar`}: {formatPrice(developerInvoices.totalCents, "nl")}{developerInvoices.overdue ? `, waarvan ${developerInvoices.overdue} over de vervaldatum` : ""}.
+          {developerInvoices.count === 1 ? "Er staat een factuur van de ontwikkelaar klaar" : `Er staan ${developerInvoices.count} facturen van de ontwikkelaar klaar`}: {formatPrice(developerInvoices.totalCents, "nl")} (waarvan btw {formatPrice(developerInvoices.vatCents, "nl")}){developerInvoices.overdue ? `, waarvan ${developerInvoices.overdue} over de vervaldatum` : ""}.
         </span>
         <Link href="/admin/ontwikkelaarsfacturen" className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast">Bekijken en betalen</Link>
       </p>

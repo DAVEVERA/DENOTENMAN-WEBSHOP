@@ -6,6 +6,9 @@ import {
   Banknote,
   CheckCircle2,
   CreditCard,
+  Paperclip,
+  TriangleAlert,
+  Upload,
   ExternalLink,
   FileText,
   Link2,
@@ -20,7 +23,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { DeveloperInvoiceDto, DeveloperProfileDto } from "@/lib/developer-portal/service";
 import { computeDeveloperInvoiceTotals, type DeveloperInvoiceLine } from "@/lib/developer-portal/invoice-math";
@@ -65,6 +68,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
 
 const eventLabels: Record<string, string> = {
   CREATED: "Aangemaakt",
+  UPLOADED: "Geüpload en uitgelezen",
   UPDATED: "Aangepast",
   SENT: "Klaargezet",
   EMAIL_READY: "Melding verstuurd",
@@ -238,9 +242,11 @@ function InvoiceEditor({ invoice, defaultTermDays, onSaved, onClose }: {
 
 // ---------- Invoice list ----------
 
-function InvoiceCard({ invoice, busy, onEdit, onAction, onDelete }: {
+function InvoiceCard({ invoice, busy, selected, onSelect, onEdit, onAction, onDelete }: {
   invoice: DeveloperInvoiceDto;
   busy: boolean;
+  selected: boolean;
+  onSelect: (selected: boolean) => void;
   onEdit: () => void;
   onAction: (action: "send" | "resend" | "cancel" | "markPaid", via?: string) => void;
   onDelete: () => void;
@@ -250,7 +256,9 @@ function InvoiceCard({ invoice, busy, onEdit, onAction, onDelete }: {
   return (
     <li className={`${panelClass} grid gap-3`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="flex min-w-0 gap-3">
+          {invoice.status === "DRAFT" ? <input type="checkbox" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`${invoice.number} selecteren om klaar te zetten`} className="mt-1 h-5 w-5 shrink-0" /> : null}
+          <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2"><span className="font-heading text-body-md font-bold text-text">{invoice.number}</span><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${badge.className}`}>{badge.label}</span></p>
           <p className="mt-1 break-words text-body-sm text-text">{invoice.title}</p>
           <p className="mt-1 text-xs text-muted">Factuurdatum {dateLabel.format(new Date(invoice.issueDate))} · vervalt {dateLabel.format(new Date(invoice.dueDate))}{invoice.paidAt ? ` · betaald ${dateLabel.format(new Date(invoice.paidAt))}` : ""}</p>
@@ -259,9 +267,22 @@ function InvoiceCard({ invoice, busy, onEdit, onAction, onDelete }: {
               {invoice.secondReminderAt ? `Tweede herinnering verstuurd ${dateLabel.format(new Date(invoice.secondReminderAt))}.` : invoice.firstReminderAt ? `Eerste herinnering verstuurd ${dateLabel.format(new Date(invoice.firstReminderAt))}; de tweede volgt na 14 dagen.` : "Eerste herinnering volgt 7 dagen na klaarzetten als er niet is betaald."}
             </p>
           ) : null}
+          {invoice.attachment ? (
+            <a href={`/api/admin/developer-invoices/${encodeURIComponent(invoice.id)}/attachment`} target="_blank" rel="noopener" className="mt-1 inline-flex min-h-11 items-center gap-1 text-body-sm font-semibold text-accent-ink underline underline-offset-4"><Paperclip className="h-4 w-4" aria-hidden="true" />{invoice.attachment.filename}</a>
+          ) : null}
+          </div>
         </div>
-        <p className="font-heading text-heading-sm font-bold text-text">{formatCents(invoice.totalCents)}</p>
+        <dl className="grid justify-items-end gap-0.5 text-body-sm">
+          <div className="flex gap-3"><dt className="text-muted">Subtotaal</dt><dd>{formatCents(invoice.subtotalCents)}</dd></div>
+          <div className="flex gap-3"><dt className="text-muted">Btw</dt><dd>{formatCents(invoice.vatCents)}</dd></div>
+          <div className="flex gap-3 font-heading text-body-md font-bold"><dt>Totaal</dt><dd>{formatCents(invoice.totalCents)}</dd></div>
+        </dl>
       </div>
+      {invoice.status === "DRAFT" && invoice.attachment?.warnings.length ? (
+        <ul className="grid gap-1 rounded-card border border-amber-300 bg-amber-50 p-3 text-body-sm text-amber-900">
+          {invoice.attachment.warnings.map((warning) => <li key={warning} className="flex gap-2"><TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{warning}</li>)}
+        </ul>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {invoice.status === "DRAFT" ? (
@@ -443,7 +464,11 @@ function Portal({ initialInvoices, initialProfile }: { initialInvoices: Develope
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const open = invoices.filter((invoice) => invoice.status === "SENT");
-  const openTotal = open.reduce((sum, invoice) => sum + invoice.totalCents, 0);
+  const sum = (list: DeveloperInvoiceDto[], key: "subtotalCents" | "vatCents" | "totalCents") => list.reduce((total, invoice) => total + invoice[key], 0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [uploads, setUploads] = useState<Array<{ key: string; name: string; state: "busy" | "done" | "error"; text: string }>>([]);
+  const uploadInput = useRef<HTMLInputElement>(null);
+  const selectedDrafts = invoices.filter((invoice) => invoice.status === "DRAFT" && selected.has(invoice.id));
   const paymentReady = (profile.stripeEnabled && profile.stripeKeyReadable) || (profile.bankTransferEnabled && Boolean(profile.iban)) || (profile.paymentLinkEnabled && Boolean(profile.paymentLinkUrl));
 
   function replace(invoice: DeveloperInvoiceDto) {
@@ -468,6 +493,48 @@ function Portal({ initialInvoices, initialProfile }: { initialInvoices: Develope
         : { tone: "ok", text: { send: `${invoice.number} staat klaar; De Notenman heeft een melding gekregen.`, resend: "Melding opnieuw verstuurd.", cancel: `${invoice.number} is geannuleerd.`, markPaid: `${invoice.number} staat op betaald.` }[name] });
     } catch (cause) {
       setMessage({ tone: "error", text: cause instanceof Error ? cause.message : "Er ging iets mis." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function uploadFiles(files: File[]) {
+    // One at a time: each file is read by the AI and becomes a draft to check.
+    for (const file of files) {
+      const key = `${file.name}-${file.size}-${Date.now()}`;
+      setUploads((current) => [...current, { key, name: file.name, state: "busy", text: "Uitlezen…" }]);
+      const update = (state: "done" | "error", text: string) => setUploads((current) => current.map((item) => item.key === key ? { ...item, state, text } : item));
+      try {
+        const form = new FormData();
+        form.set("file", file);
+        const response = await fetch("/api/admin/developer/invoices/upload", { method: "POST", body: form });
+        const body = await response.json().catch(() => ({})) as { invoice?: DeveloperInvoiceDto; warnings?: string[]; message?: string };
+        if (!response.ok || !body.invoice) throw new Error(body.message || "Uitlezen mislukt.");
+        replace(body.invoice);
+        setSelected((current) => new Set(current).add(body.invoice!.id));
+        update("done", `${body.invoice.number}: ${formatCents(body.invoice.totalCents)}${body.warnings?.length ? " · controleer de waarschuwing" : ""}`);
+      } catch (cause) {
+        update("error", cause instanceof Error ? cause.message : "Uitlezen mislukt.");
+      }
+    }
+  }
+
+  async function sendSelected() {
+    if (!selectedDrafts.length) return;
+    const total = formatCents(sum(selectedDrafts, "totalCents"));
+    if (!window.confirm(`${selectedDrafts.length} ${selectedDrafts.length === 1 ? "factuur" : "facturen"} klaarzetten (${total})? De Notenman krijgt één melding.`)) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const body = await api<{ invoices: DeveloperInvoiceDto[] }>("/api/admin/developer/invoices/send", { method: "POST", body: JSON.stringify({ ids: selectedDrafts.map((invoice) => invoice.id) }) });
+      body.invoices.forEach(replace);
+      setSelected(new Set());
+      const failed = body.invoices.some((invoice) => invoice.events.at(-1)?.type === "EMAIL_FAILED");
+      setMessage(failed
+        ? { tone: "error", text: "Klaargezet, maar de e-mail kon niet worden verstuurd. Probeer \"Melding opnieuw sturen\"." }
+        : { tone: "ok", text: `${body.invoices.length} ${body.invoices.length === 1 ? "factuur staat" : "facturen staan"} klaar; De Notenman heeft één melding gekregen.` });
+    } catch (cause) {
+      setMessage({ tone: "error", text: cause instanceof Error ? cause.message : "Klaarzetten mislukt." });
     } finally {
       setBusy(false);
     }
@@ -516,7 +583,11 @@ function Portal({ initialInvoices, initialProfile }: { initialInvoices: Develope
             <p role="alert" className="rounded-card border border-amber-300 bg-amber-50 p-3 text-body-sm font-semibold text-amber-900">Stel eerst een betaalmogelijkheid in (Stripe, overmaken of een betaallink) voordat je een factuur klaarzet. <button type="button" onClick={() => setTab("settings")} className="underline underline-offset-4">Naar instellingen</button></p>
           ) : null}
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Samenvatting">
-            <div className={panelClass}><p className="text-xs text-muted">Openstaand</p><p className="font-heading text-heading-md text-text">{formatCents(openTotal)}</p></div>
+            <div className={`${panelClass} col-span-2 sm:col-span-1`}>
+              <p className="text-xs text-muted">Openstaand</p>
+              <p className="font-heading text-heading-md text-text">{formatCents(sum(open, "totalCents"))}</p>
+              <p className="text-xs text-muted">{formatCents(sum(open, "subtotalCents"))} + btw {formatCents(sum(open, "vatCents"))}</p>
+            </div>
             <div className={panelClass}><p className="text-xs text-muted">Open facturen</p><p className="font-heading text-heading-md text-text">{open.length}</p></div>
             <div className={`${panelClass} col-span-2 sm:col-span-1`}><p className="text-xs text-muted">Te laat</p><p className="font-heading text-heading-md text-text">{open.filter((invoice) => invoice.overdue).length}</p></div>
           </section>
@@ -530,8 +601,38 @@ function Portal({ initialInvoices, initialProfile }: { initialInvoices: Develope
               onSaved={(invoice) => { replace(invoice); setEditing(null); setMessage({ tone: "ok", text: `Concept ${invoice.number} opgeslagen.` }); }}
             />
           ) : (
-            <button type="button" onClick={() => setEditing("new")} className={`${buttonClass} justify-self-start bg-accent text-contrast`}><Plus className="h-4 w-4" aria-hidden="true" />Nieuwe factuur</button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => uploadInput.current?.click()} className={`${buttonClass} bg-accent text-contrast`}><Upload className="h-4 w-4" aria-hidden="true" />Facturen uploaden (PDF of foto)</button>
+              <button type="button" onClick={() => setEditing("new")} className={`${buttonClass} border border-border bg-surface text-text`}><Plus className="h-4 w-4" aria-hidden="true" />Zelf een factuur maken</button>
+              <input ref={uploadInput} type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ""; void uploadFiles(files); }} />
+            </div>
           )}
+
+          {uploads.length ? (
+            <section className={`${panelClass} grid gap-2`} aria-label="Uploads">
+              <div className="flex items-center justify-between gap-2"><h2 className="font-heading text-body-md font-bold text-text">Geüpload</h2><button type="button" onClick={() => setUploads((current) => current.filter((item) => item.state === "busy"))} className="min-h-11 text-body-sm font-semibold text-muted underline">Lijst wissen</button></div>
+              <ul className="grid gap-1 text-body-sm">
+                {uploads.map((item) => (
+                  <li key={item.key} className={`flex flex-wrap gap-2 ${item.state === "error" ? "text-red-700" : "text-text"}`}>
+                    {item.state === "busy" ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : item.state === "done" ? <CheckCircle2 className="h-4 w-4 text-green-700" aria-hidden="true" /> : <TriangleAlert className="h-4 w-4" aria-hidden="true" />}
+                    <span className="font-semibold">{item.name}</span><span className="text-muted">{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted">Elke upload wordt een concept met het origineel erbij. Controleer de bedragen en zet ze daarna klaar.</p>
+            </section>
+          ) : null}
+
+          {selectedDrafts.length ? (
+            <section className="sticky bottom-3 z-20 flex flex-wrap items-center gap-3 rounded-panel border border-accent-ink bg-surface/95 p-3 shadow-card backdrop-blur" aria-label="Selectie klaarzetten">
+              <dl className="grid min-w-0 flex-1 grid-cols-3 gap-2 text-body-sm">
+                <div><dt className="text-xs text-muted">Subtotaal</dt><dd className="font-semibold">{formatCents(sum(selectedDrafts, "subtotalCents"))}</dd></div>
+                <div><dt className="text-xs text-muted">Btw</dt><dd className="font-semibold">{formatCents(sum(selectedDrafts, "vatCents"))}</dd></div>
+                <div><dt className="text-xs text-muted">Totaal ({selectedDrafts.length})</dt><dd className="font-heading font-bold">{formatCents(sum(selectedDrafts, "totalCents"))}</dd></div>
+              </dl>
+              <button type="button" disabled={busy || !paymentReady} onClick={() => void sendSelected()} className={`${buttonClass} bg-accent text-contrast`}><Send className="h-4 w-4" aria-hidden="true" />Klaarzetten en melden ({selectedDrafts.length})</button>
+            </section>
+          ) : null}
 
           {invoices.length ? (
             <ul className="grid gap-3">
@@ -540,6 +641,8 @@ function Portal({ initialInvoices, initialProfile }: { initialInvoices: Develope
                   key={invoice.id}
                   invoice={invoice}
                   busy={busy}
+                  selected={selected.has(invoice.id)}
+                  onSelect={(checked) => setSelected((current) => { const next = new Set(current); if (checked) next.add(invoice.id); else next.delete(invoice.id); return next; })}
                   onEdit={() => setEditing(invoice)}
                   onAction={(name, via) => void action(invoice, name, via)}
                   onDelete={() => void remove(invoice)}
@@ -547,7 +650,7 @@ function Portal({ initialInvoices, initialProfile }: { initialInvoices: Develope
               ))}
             </ul>
           ) : (
-            <p className="rounded-panel border border-dashed border-border bg-background p-6 text-center text-body-sm text-muted">Nog geen facturen. Maak je eerste factuur aan.</p>
+            <p className="rounded-panel border border-dashed border-border bg-background p-6 text-center text-body-sm text-muted">Nog geen facturen. Upload een factuur of maak er zelf een.</p>
           )}
         </div>
       )}

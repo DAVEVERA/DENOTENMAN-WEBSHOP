@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { Prisma, type DeveloperBillingProfile, type DeveloperInvoice } from "@prisma/client";
 import { z } from "zod";
 
@@ -24,8 +25,10 @@ import {
   DeveloperStripeError,
   looksLikeStripeSecretKey,
   retrieveStripeCheckoutSession,
+  sessionInvoiceIds,
   verifyStripeKey,
 } from "./stripe";
+import { extractInvoiceFromFile, InvoiceExtractionError, type GenerateFn } from "./extract";
 
 export class DeveloperInvoiceError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 400) {
@@ -38,6 +41,8 @@ export type DeveloperInvoiceDeps = {
   now: () => Date;
   sendMail: typeof sendAftersalesMail;
   stripeFetch?: typeof fetch;
+  /** Reading uploaded invoices; injected in tests. */
+  generate?: GenerateFn;
 };
 
 const defaultDeps: DeveloperInvoiceDeps = { now: () => new Date(), sendMail: sendAftersalesMail };
@@ -151,6 +156,8 @@ export type DeveloperInvoiceDto = {
   paidAt: string | null;
   paidVia: string | null;
   events: Array<{ type: string; createdAt: string; detail: unknown }>;
+  /** The uploaded original, if the invoice came from a file. */
+  attachment: { filename: string; contentType: string; sizeBytes: number; printedTotalCents: number | null; warnings: string[] } | null;
 };
 
 function storedLines(value: Prisma.JsonValue): DeveloperInvoiceLine[] {
@@ -158,8 +165,22 @@ function storedLines(value: Prisma.JsonValue): DeveloperInvoiceLine[] {
   return parsed.success ? parsed.data : [];
 }
 
+type AttachmentSummary = { filename: string; contentType: string; sizeBytes: number; extracted: Prisma.JsonValue };
+
+function attachmentDto(attachment: AttachmentSummary | null | undefined): DeveloperInvoiceDto["attachment"] {
+  if (!attachment) return null;
+  const extracted = (attachment.extracted ?? {}) as { printed?: { totalCents?: number }; warnings?: unknown };
+  return {
+    filename: attachment.filename,
+    contentType: attachment.contentType,
+    sizeBytes: attachment.sizeBytes,
+    printedTotalCents: typeof extracted.printed?.totalCents === "number" ? extracted.printed.totalCents : null,
+    warnings: Array.isArray(extracted.warnings) ? extracted.warnings.filter((item): item is string => typeof item === "string") : [],
+  };
+}
+
 export function developerInvoiceDto(
-  invoice: DeveloperInvoice & { events?: Array<{ type: string; createdAt: Date; detail: Prisma.JsonValue }> },
+  invoice: DeveloperInvoice & { events?: Array<{ type: string; createdAt: Date; detail: Prisma.JsonValue }>; attachment?: AttachmentSummary | null },
   now = new Date(),
 ): DeveloperInvoiceDto {
   const lines = storedLines(invoice.lines);
@@ -184,6 +205,7 @@ export function developerInvoiceDto(
     paidAt: invoice.paidAt?.toISOString() ?? null,
     paidVia: invoice.paidVia,
     events: (invoice.events ?? []).map((event) => ({ type: event.type, createdAt: event.createdAt.toISOString(), detail: event.detail })),
+    attachment: attachmentDto(invoice.attachment),
   };
 }
 
@@ -213,7 +235,11 @@ async function nextInvoiceNumber(year: number): Promise<string> {
   return formatDeveloperInvoiceNumber(year, Number.isFinite(sequence) ? sequence : 1);
 }
 
-const withEvents = { events: { orderBy: { createdAt: "asc" as const } } };
+const withEvents = {
+  events: { orderBy: { createdAt: "asc" as const } },
+  // Never load the file itself into a list; it is served by its own route.
+  attachment: { select: { filename: true, contentType: true, sizeBytes: true, extracted: true } },
+};
 
 export async function listDeveloperInvoices(options: { publishedOnly?: boolean } = {}): Promise<DeveloperInvoiceDto[]> {
   const invoices = await prisma.developerInvoice.findMany({
@@ -267,6 +293,79 @@ export async function deleteDeveloperInvoice(id: string): Promise<void> {
   if (deleted.count !== 1) throw new DeveloperInvoiceError("INVOICE_NOT_DELETABLE", "Alleen een concept kan worden verwijderd. Annuleer een verstuurde factuur.", 409);
 }
 
+function todayInAmsterdam(now: Date): string {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Amsterdam" }).format(now);
+}
+
+/**
+ * Turns an uploaded invoice file into a draft: the AI reads number, dates and amounts,
+ * the original is kept with it, and the developer checks it before setting it ready.
+ */
+export async function createDeveloperInvoiceFromUpload(
+  file: { filename: string; contentType: string; bytes: Buffer },
+  deps: Partial<DeveloperInvoiceDeps> = {},
+): Promise<{ invoice: DeveloperInvoiceDto; warnings: string[] }> {
+  const now = (deps.now ?? defaultDeps.now)();
+  const extracted = await extractInvoiceFromFile({ bytes: file.bytes, contentType: file.contentType }, deps.generate);
+  const profile = await getDeveloperProfile();
+  const issueDate = extracted.issueDate ?? todayInAmsterdam(now);
+  const issue = invoiceDateFromInput(issueDate);
+  const dueFromFile = extracted.dueDate ? invoiceDateFromInput(extracted.dueDate) : null;
+  const termDays = dueFromFile && dueFromFile >= issue ? Math.round((dueFromFile.getTime() - issue.getTime()) / 86_400_000) : profile.paymentTermDays;
+  const input = developerInvoiceInputSchema.parse({
+    title: extracted.title,
+    issueDate,
+    paymentTermDays: Math.min(termDays, 120),
+    lines: extracted.lines,
+    notes: null,
+  });
+  const data = invoiceData(input);
+
+  // Keep the number printed on the invoice when it is free; otherwise give it our own.
+  const printedNumber = extracted.invoiceNumber?.replace(/\s+/gu, " ").slice(0, 60) ?? null;
+  const warnings = [...extracted.warnings];
+  let number = printedNumber;
+  if (number && await prisma.developerInvoice.findUnique({ where: { number }, select: { id: true } })) {
+    warnings.push(`Factuurnummer ${number} bestaat al; deze factuur heeft een eigen nummer gekregen. Controleer of hij niet dubbel is geüpload.`);
+    number = null;
+  }
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const invoice = await prisma.developerInvoice.create({
+        data: {
+          ...data,
+          number: number ?? await nextInvoiceNumber(data.issueDate.getUTCFullYear()),
+          attachment: {
+            create: {
+              filename: file.filename.slice(0, 200),
+              contentType: file.contentType,
+              sizeBytes: file.bytes.length,
+              data: new Uint8Array(file.bytes),
+              extracted: { invoiceNumber: extracted.invoiceNumber, printed: extracted.printed, warnings } as Prisma.InputJsonValue,
+            },
+          },
+        },
+      });
+      await logEvent(invoice.id, "UPLOADED", { filename: file.filename.slice(0, 200), warnings } as Prisma.InputJsonValue);
+      return { invoice: await getDeveloperInvoice(invoice.id), warnings };
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") || attempt === 2) throw error;
+      number = null;
+    }
+  }
+  throw new DeveloperInvoiceError("NUMBER_CONFLICT", "Er kon geen factuurnummer worden toegekend.", 409);
+}
+
+/** The original file of an invoice; De Notenman only sees files of invoices set ready. */
+export async function getDeveloperInvoiceAttachment(id: string, options: { publishedOnly?: boolean } = {}) {
+  const attachment = await prisma.developerInvoiceAttachment.findUnique({ where: { invoiceId: id }, include: { invoice: { select: { status: true } } } });
+  if (!attachment || (options.publishedOnly && !["SENT", "PAID"].includes(attachment.invoice.status))) {
+    throw new DeveloperInvoiceError("ATTACHMENT_NOT_FOUND", "Dit bestand bestaat niet.", 404);
+  }
+  return { filename: attachment.filename, contentType: attachment.contentType, data: Buffer.from(attachment.data) };
+}
+
 function paymentSummary(profile: DeveloperBillingProfile) {
   return {
     stripe: profile.stripeEnabled && Boolean(openSecret(profile.stripeSecretKeyEncrypted)),
@@ -279,18 +378,23 @@ export function developerInvoiceUrl(id: string): string {
   return `${BASE_URL}/admin/ontwikkelaarsfacturen/${encodeURIComponent(id)}`;
 }
 
-async function sendNotice(invoice: DeveloperInvoice, kind: DeveloperInvoiceNoticeKind, deps: DeveloperInvoiceDeps) {
+export function developerInvoicesOverviewUrl(): string {
+  return `${BASE_URL}/admin/ontwikkelaarsfacturen`;
+}
+
+async function sendNotice(invoices: DeveloperInvoice[], kind: DeveloperInvoiceNoticeKind, deps: DeveloperInvoiceDeps, deliverySuffix = "") {
   const profile = await getDeveloperProfile();
   const to = profile.notificationEmail || merchantOrderNotificationRecipient();
   const notice = buildDeveloperInvoiceNotice({
     kind,
-    invoice,
+    invoices: invoices.map((invoice) => ({ number: invoice.number, title: invoice.title, subtotalCents: invoice.subtotalCents, vatCents: invoice.vatCents, totalCents: invoice.totalCents, issueDate: invoice.issueDate, dueDate: invoice.dueDate })),
     developerName: profile.businessName || profile.contactName,
-    invoiceUrl: developerInvoiceUrl(invoice.id),
+    invoiceUrl: invoices.length === 1 ? developerInvoiceUrl(invoices[0].id) : developerInvoicesOverviewUrl(),
     payment: paymentSummary(profile),
   });
+  const ids = invoices.map((invoice) => invoice.id).sort().join(",");
   const result = await deps.sendMail({
-    deliveryId: `developer-invoice-${invoice.id}-${kind}`,
+    deliveryId: `developer-invoice-${kind}-${createHash("sha256").update(ids).digest("hex").slice(0, 24)}${deliverySuffix}`,
     orderId: "",
     trigger: "DEVELOPER_INVOICE",
     to,
@@ -298,34 +402,53 @@ async function sendNotice(invoice: DeveloperInvoice, kind: DeveloperInvoiceNotic
     html: notice.html,
     text: notice.text,
   });
-  await logEvent(invoice.id, `EMAIL_${kind}`, { to, messageId: result.messageId });
+  for (const invoice of invoices) await logEvent(invoice.id, `EMAIL_${kind}`, { to, messageId: result.messageId, together: invoices.length });
 }
 
-/** Sets a draft ready: De Notenman gets an e-mail and sees the invoice in the admin. */
-export async function sendDeveloperInvoice(id: string, deps: DeveloperInvoiceDeps = defaultDeps): Promise<DeveloperInvoiceDto> {
+/**
+ * Sets one or more drafts ready. De Notenman gets one e-mail listing them with the combined
+ * subtotal, VAT and total, and sees them in the admin.
+ */
+export async function sendDeveloperInvoices(ids: string[], deps: DeveloperInvoiceDeps = defaultDeps): Promise<DeveloperInvoiceDto[]> {
+  const unique = [...new Set(ids)];
+  if (!unique.length) throw new DeveloperInvoiceError("NOTHING_SELECTED", "Kies ten minste één concept.", 422);
+  if (unique.length > 15) throw new DeveloperInvoiceError("TOO_MANY", "Zet maximaal 15 facturen tegelijk klaar.", 422);
   const profile = await getDeveloperProfile();
   const methods = paymentSummary(profile);
   if (!methods.stripe && !methods.bankTransfer && !methods.link) {
     throw new DeveloperInvoiceError("NO_PAYMENT_METHOD", "Stel eerst minimaal één betaalmogelijkheid in.", 422);
   }
-  const claimed = await prisma.developerInvoice.updateMany({ where: { id, status: "DRAFT" }, data: { status: "SENT", sentAt: deps.now() } });
-  if (claimed.count !== 1) throw new DeveloperInvoiceError("INVOICE_NOT_SENDABLE", "Deze factuur is al verstuurd of geannuleerd.", 409);
-  await logEvent(id, "SENT");
-  const invoice = await prisma.developerInvoice.findUniqueOrThrow({ where: { id } });
-  try {
-    await sendNotice(invoice, "READY", deps);
-  } catch (error) {
-    // The invoice is visible in the admin either way; the next reminder run retries nothing,
-    // so the failure is logged for the developer to see and resend.
-    await logEvent(id, "EMAIL_FAILED", { kind: "READY", message: error instanceof Error ? error.message : String(error) });
+  const drafts = await prisma.developerInvoice.count({ where: { id: { in: unique }, status: "DRAFT" } });
+  if (drafts !== unique.length) throw new DeveloperInvoiceError("INVOICE_NOT_SENDABLE", "Een of meer facturen zijn al verstuurd of geannuleerd.", 409);
+  const now = deps.now();
+  const claimed: string[] = [];
+  for (const id of unique) {
+    const result = await prisma.developerInvoice.updateMany({ where: { id, status: "DRAFT" }, data: { status: "SENT", sentAt: now } });
+    if (result.count === 1) {
+      claimed.push(id);
+      await logEvent(id, "SENT", unique.length > 1 ? { together: unique.length } : undefined);
+    }
   }
-  return getDeveloperInvoice(id);
+  if (!claimed.length) throw new DeveloperInvoiceError("INVOICE_NOT_SENDABLE", "Deze facturen zijn al verstuurd of geannuleerd.", 409);
+  const invoices = await prisma.developerInvoice.findMany({ where: { id: { in: claimed } }, orderBy: { number: "asc" } });
+  try {
+    await sendNotice(invoices, "READY", deps);
+  } catch (error) {
+    // The invoices are visible in the admin either way; the failure is logged so the developer can resend.
+    for (const id of claimed) await logEvent(id, "EMAIL_FAILED", { kind: "READY", message: error instanceof Error ? error.message : String(error) });
+  }
+  return Promise.all(claimed.map((id) => getDeveloperInvoice(id)));
+}
+
+/** Sets one draft ready: De Notenman gets an e-mail and sees the invoice in the admin. */
+export async function sendDeveloperInvoice(id: string, deps: DeveloperInvoiceDeps = defaultDeps): Promise<DeveloperInvoiceDto> {
+  return (await sendDeveloperInvoices([id], deps))[0];
 }
 
 export async function resendDeveloperInvoiceNotice(id: string, deps: DeveloperInvoiceDeps = defaultDeps): Promise<DeveloperInvoiceDto> {
   const invoice = await prisma.developerInvoice.findUnique({ where: { id } });
   if (!invoice || invoice.status !== "SENT") throw new DeveloperInvoiceError("INVOICE_NOT_OPEN", "Alleen een openstaande factuur kan opnieuw worden gemeld.", 409);
-  await sendNotice(invoice, "READY", { ...deps, sendMail: (payload) => deps.sendMail({ ...payload, deliveryId: `${payload.deliveryId}-${deps.now().getTime()}` }) });
+  await sendNotice([invoice], "READY", deps, `-${deps.now().getTime()}`);
   return getDeveloperInvoice(id);
 }
 
@@ -355,25 +478,52 @@ async function stripeKeyOrThrow(): Promise<string> {
   return key;
 }
 
-export async function startDeveloperInvoiceCheckout(id: string, deps: Partial<DeveloperInvoiceDeps> = {}): Promise<{ url: string }> {
-  const invoice = await prisma.developerInvoice.findUnique({ where: { id } });
-  if (!invoice || invoice.status !== "SENT") throw new DeveloperInvoiceError("INVOICE_NOT_OPEN", "Deze factuur staat niet open.", 409);
+/**
+ * Starts one Stripe payment for one or more open invoices. Fedor returns to the page he
+ * came from, where the payment is confirmed.
+ */
+export async function startDeveloperInvoicesCheckout(ids: string[], returnPath: "overview" | "detail", deps: Partial<DeveloperInvoiceDeps> = {}): Promise<{ url: string }> {
+  const unique = [...new Set(ids)];
+  if (!unique.length) throw new DeveloperInvoiceError("NOTHING_SELECTED", "Kies ten minste één factuur.", 422);
+  if (unique.length > 15) throw new DeveloperInvoiceError("TOO_MANY", "Betaal maximaal 15 facturen tegelijk.", 422);
+  const invoices = await prisma.developerInvoice.findMany({ where: { id: { in: unique } }, orderBy: { number: "asc" } });
+  if (invoices.length !== unique.length || invoices.some((invoice) => invoice.status !== "SENT")) {
+    throw new DeveloperInvoiceError("INVOICE_NOT_OPEN", "Een of meer facturen staan niet meer open. Ververs de pagina.", 409);
+  }
   const secretKey = await stripeKeyOrThrow();
-  const url = developerInvoiceUrl(id);
+  const back = returnPath === "detail" && invoices.length === 1 ? developerInvoiceUrl(invoices[0].id) : developerInvoicesOverviewUrl();
   const session = await createStripeCheckoutSession({
     secretKey,
-    invoiceId: id,
-    invoiceNumber: invoice.number,
-    title: invoice.title,
-    totalCents: invoice.totalCents,
-    currency: invoice.currency,
-    successUrl: `${url}?betaling=gelukt&session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${url}?betaling=geannuleerd`,
+    invoices: invoices.map((invoice) => ({ id: invoice.id, number: invoice.number, title: invoice.title, totalCents: invoice.totalCents })),
+    currency: invoices[0].currency,
+    successUrl: `${back}?betaling=gelukt&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${back}?betaling=geannuleerd`,
   }, deps.stripeFetch);
   if (!session.url) throw new DeveloperInvoiceError("STRIPE_NO_URL", "Stripe gaf geen betaalpagina terug.", 502);
-  await prisma.developerInvoice.update({ where: { id }, data: { stripeCheckoutSessionId: session.id } });
-  await logEvent(id, "CHECKOUT_STARTED", { sessionId: session.id });
+  for (const invoice of invoices) {
+    await prisma.developerInvoice.update({ where: { id: invoice.id }, data: { stripeCheckoutSessionId: session.id } });
+    await logEvent(invoice.id, "CHECKOUT_STARTED", { sessionId: session.id, together: invoices.length });
+  }
   return { url: session.url };
+}
+
+export async function startDeveloperInvoiceCheckout(id: string, deps: Partial<DeveloperInvoiceDeps> = {}): Promise<{ url: string }> {
+  return startDeveloperInvoicesCheckout([id], "detail", deps);
+}
+
+/** Confirms a Stripe payment; marks every invoice it covers as paid. Returns the paid ids. */
+export async function confirmDeveloperInvoiceSession(sessionId: string, deps: Partial<DeveloperInvoiceDeps> = {}): Promise<string[]> {
+  const session = await retrieveStripeCheckoutSession(await stripeKeyOrThrow(), sessionId, deps.stripeFetch);
+  if (session.payment_status !== "paid") return [];
+  const ids = sessionInvoiceIds(session);
+  // Only invoices that were actually sent to checkout with this session count as paid.
+  const invoices = await prisma.developerInvoice.findMany({ where: { id: { in: ids }, stripeCheckoutSessionId: session.id } });
+  const paid: string[] = [];
+  for (const invoice of invoices) {
+    if (invoice.status === "SENT") await markDeveloperInvoicePaid(invoice.id, "stripe", { now: deps.now ?? defaultDeps.now });
+    if (invoice.status === "SENT" || invoice.status === "PAID") paid.push(invoice.id);
+  }
+  return paid;
 }
 
 /** Confirms a Stripe payment for this invoice; returns true once the invoice is paid. */
@@ -382,10 +532,7 @@ export async function confirmDeveloperInvoiceCheckout(id: string, sessionId: str
   if (!invoice) return false;
   if (invoice.status === "PAID") return true;
   if (invoice.status !== "SENT") return false;
-  const session = await retrieveStripeCheckoutSession(await stripeKeyOrThrow(), sessionId, deps.stripeFetch);
-  if (session.metadata?.developer_invoice_id !== id || session.payment_status !== "paid") return false;
-  await markDeveloperInvoicePaid(id, "stripe", { now: deps.now ?? defaultDeps.now });
-  return true;
+  return (await confirmDeveloperInvoiceSession(sessionId, deps)).includes(id);
 }
 
 // ---------- Reminders ----------
@@ -399,49 +546,61 @@ export type ReminderRunResult = { checked: number; paid: number; firstReminders:
  */
 export async function processDeveloperInvoiceReminders(deps: DeveloperInvoiceDeps = defaultDeps): Promise<ReminderRunResult> {
   const now = deps.now();
-  const open = await prisma.developerInvoice.findMany({ where: { status: "SENT" } });
+  const open = await prisma.developerInvoice.findMany({ where: { status: "SENT" }, orderBy: { number: "asc" } });
   const result: ReminderRunResult = { checked: open.length, paid: 0, firstReminders: 0, secondReminders: 0, failures: 0 };
 
-  for (const invoice of open) {
-    if (invoice.stripeCheckoutSessionId) {
-      try {
-        if (await confirmDeveloperInvoiceCheckout(invoice.id, invoice.stripeCheckoutSessionId, deps)) {
-          result.paid += 1;
-          continue;
-        }
-      } catch (error) {
-        if (!(error instanceof DeveloperStripeError || error instanceof DeveloperInvoiceError)) throw error;
-      }
+  // Payments first: one Stripe session can cover several invoices.
+  const paidIds = new Set<string>();
+  for (const sessionId of new Set(open.map((invoice) => invoice.stripeCheckoutSessionId).filter((id): id is string => Boolean(id)))) {
+    try {
+      for (const id of await confirmDeveloperInvoiceSession(sessionId, deps)) paidIds.add(id);
+    } catch (error) {
+      if (!(error instanceof DeveloperStripeError || error instanceof DeveloperInvoiceError)) throw error;
     }
+  }
+  result.paid = paidIds.size;
 
+  // Due reminders are claimed one by one, then sent together: one e-mail per kind per run.
+  const claimed: Record<"FIRST" | "SECOND", DeveloperInvoice[]> = { FIRST: [], SECOND: [] };
+  for (const invoice of open) {
+    if (paidIds.has(invoice.id)) continue;
     const reminder = dueReminder(invoice, now);
     if (!reminder) continue;
     const first = reminder === "FIRST";
-    const claimed = await prisma.developerInvoice.updateMany({
+    const claim = await prisma.developerInvoice.updateMany({
       where: first ? { id: invoice.id, status: "SENT", firstReminderAt: null } : { id: invoice.id, status: "SENT", secondReminderAt: null },
       data: first ? { firstReminderAt: now } : { secondReminderAt: now },
     });
-    if (claimed.count !== 1) continue;
+    if (claim.count === 1) claimed[reminder].push(invoice);
+  }
+
+  for (const kind of ["FIRST", "SECOND"] as const) {
+    const invoices = claimed[kind];
+    if (!invoices.length) continue;
     try {
-      await sendNotice(invoice, first ? "FIRST_REMINDER" : "SECOND_REMINDER", deps);
-      if (first) result.firstReminders += 1;
-      else result.secondReminders += 1;
+      await sendNotice(invoices, kind === "FIRST" ? "FIRST_REMINDER" : "SECOND_REMINDER", deps);
+      if (kind === "FIRST") result.firstReminders += invoices.length;
+      else result.secondReminders += invoices.length;
     } catch (error) {
-      // Release the claim so the next run tries again.
-      await prisma.developerInvoice.update({ where: { id: invoice.id }, data: first ? { firstReminderAt: null } : { secondReminderAt: null } });
-      await logEvent(invoice.id, "EMAIL_FAILED", { kind: reminder, message: error instanceof Error ? error.message : String(error) });
-      result.failures += 1;
+      // Release the claims so the next run tries again.
+      for (const invoice of invoices) {
+        await prisma.developerInvoice.update({ where: { id: invoice.id }, data: kind === "FIRST" ? { firstReminderAt: null } : { secondReminderAt: null } });
+        await logEvent(invoice.id, "EMAIL_FAILED", { kind, message: error instanceof Error ? error.message : String(error) });
+      }
+      result.failures += invoices.length;
     }
   }
   return result;
 }
 
 /** Open invoices for the admin banner. */
-export async function openDeveloperInvoiceSummary(): Promise<{ count: number; totalCents: number; overdue: number }> {
-  const open = await prisma.developerInvoice.findMany({ where: { status: "SENT" }, select: { totalCents: true, dueDate: true } });
+export async function openDeveloperInvoiceSummary(): Promise<{ count: number; subtotalCents: number; vatCents: number; totalCents: number; overdue: number }> {
+  const open = await prisma.developerInvoice.findMany({ where: { status: "SENT" }, select: { subtotalCents: true, vatCents: true, totalCents: true, dueDate: true } });
   const now = Date.now();
   return {
     count: open.length,
+    subtotalCents: open.reduce((sum, invoice) => sum + invoice.subtotalCents, 0),
+    vatCents: open.reduce((sum, invoice) => sum + invoice.vatCents, 0),
     totalCents: open.reduce((sum, invoice) => sum + invoice.totalCents, 0),
     overdue: open.filter((invoice) => invoice.dueDate.getTime() < now).length,
   };
@@ -466,7 +625,7 @@ export function publicDeveloperProfile(profile: DeveloperBillingProfile) {
 export type PublicDeveloperProfile = ReturnType<typeof publicDeveloperProfile>;
 
 export function mapDeveloperError(error: unknown): { status: number; body: { error: string; message: string; fields?: Record<string, string> } } {
-  if (error instanceof DeveloperInvoiceError || error instanceof DeveloperStripeError) {
+  if (error instanceof DeveloperInvoiceError || error instanceof DeveloperStripeError || error instanceof InvoiceExtractionError) {
     return { status: error.status, body: { error: error.code, message: error.message } };
   }
   if (error instanceof z.ZodError) {

@@ -25,7 +25,8 @@ const previousSecret = process.env.ADMIN_SESSION_SECRET;
 
 const allSent: AftersalesMailPayload[] = [];
 // Other invoices in the database may be processed too; only look at this test's mail.
-const ours = () => allSent.filter((payload) => createdIds.some((id) => payload.deliveryId.includes(id)));
+const createdNumbers: string[] = [];
+const ours = () => allSent.filter((payload) => createdNumbers.some((number) => payload.text.includes(number)));
 let clock = new Date("2099-03-01T09:00:00.000Z");
 const deps: DeveloperInvoiceDeps = {
   now: () => clock,
@@ -99,6 +100,7 @@ after(async () => {
 test("a draft is numbered, totalled and only editable while it is a draft", async () => {
   const draft = await createDeveloperInvoice(invoiceInput("Onderhoud maart"));
   createdIds.push(draft.id);
+  createdNumbers.push(draft.number);
   assert.match(draft.number, /^MNRV-2099-\d{3}$/u);
   assert.equal(draft.status, "DRAFT");
   assert.equal(draft.subtotalCents, 102_500);
@@ -169,6 +171,7 @@ test("paying with Stripe marks the invoice paid only once Stripe confirms it", a
 test("only drafts can be deleted; sent invoices are cancelled instead", async () => {
   const draft = await createDeveloperInvoice(invoiceInput("Tweede factuur"));
   createdIds.push(draft.id);
+  createdNumbers.push(draft.number);
   await sendDeveloperInvoice(draft.id, deps);
   await assert.rejects(deleteDeveloperInvoice(draft.id), (error: Error & { code?: string }) => error.code === "INVOICE_NOT_DELETABLE");
   assert.equal((await cancelDeveloperInvoice(draft.id)).status, "CANCELLED");

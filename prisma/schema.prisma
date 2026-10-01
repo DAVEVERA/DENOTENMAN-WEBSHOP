@@ -1808,8 +1808,23 @@ model DeveloperInvoice {
   createdAt               DateTime                @default(now())
   updatedAt               DateTime                @updatedAt
   events                  DeveloperInvoiceEvent[]
+  attachment              DeveloperInvoiceAttachment?
 
   @@index([status, sentAt])
+}
+
+/// The original invoice file the developer uploaded. Kept in the database, not in the
+/// public media bucket, and only served to logged-in admins.
+model DeveloperInvoiceAttachment {
+  invoiceId   String           @id
+  invoice     DeveloperInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  filename    String
+  contentType String
+  sizeBytes   Int
+  data        Bytes
+  /// What the AI read from the file: amounts, dates and number, for checking.
+  extracted   Json?
+  createdAt   DateTime         @default(now())
 }
 
 model DeveloperInvoiceEvent {

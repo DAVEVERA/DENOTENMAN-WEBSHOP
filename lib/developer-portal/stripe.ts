@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 
 // Minimal Stripe REST client for the developer's own Stripe account. The shop itself
 // takes payments through Mollie; this key belongs to the developer and is only used
@@ -65,37 +66,48 @@ export type StripeCheckoutSession = {
   metadata?: Record<string, string>;
 };
 
+export type CheckoutInvoice = { id: string; number: string; title: string; totalCents: number };
+
+/** One Checkout Session for one or more invoices, each as its own line on the Stripe page. */
 export async function createStripeCheckoutSession(input: {
   secretKey: string;
-  invoiceId: string;
-  invoiceNumber: string;
-  title: string;
-  totalCents: number;
+  invoices: CheckoutInvoice[];
   currency: string;
   successUrl: string;
   cancelUrl: string;
-  customerEmail?: string;
 }, fetchImpl?: StripeFetch): Promise<StripeCheckoutSession> {
+  const ids = input.invoices.map((invoice) => invoice.id);
+  const total = input.invoices.reduce((sum, invoice) => sum + invoice.totalCents, 0);
+  const numbers = input.invoices.map((invoice) => invoice.number).join(", ");
+  const form: Record<string, string> = {
+    mode: "payment",
+    client_reference_id: ids.join(",").slice(0, 200),
+    // Stripe metadata values hold 500 characters: enough for about 18 invoice ids.
+    "metadata[developer_invoice_ids]": ids.join(","),
+    "metadata[invoice_numbers]": numbers.slice(0, 500),
+    "payment_intent_data[description]": `Facturen ${numbers}`.slice(0, 1000),
+    success_url: input.successUrl,
+    cancel_url: input.cancelUrl,
+  };
+  input.invoices.forEach((invoice, index) => {
+    form[`line_items[${index}][quantity]`] = "1";
+    form[`line_items[${index}][price_data][currency]`] = input.currency.toLowerCase();
+    form[`line_items[${index}][price_data][unit_amount]`] = String(invoice.totalCents);
+    form[`line_items[${index}][price_data][product_data][name]`] = `Factuur ${invoice.number}`;
+    form[`line_items[${index}][price_data][product_data][description]`] = invoice.title.slice(0, 250) || `Factuur ${invoice.number}`;
+  });
   return stripeRequest<StripeCheckoutSession>(input.secretKey, "/checkout/sessions", {
     method: "POST",
-    // One session per invoice and amount per day: a double click reuses the same session.
-    idempotencyKey: `developer-invoice-${input.invoiceId}-${input.totalCents}-${new Date().toISOString().slice(0, 10)}`,
-    form: {
-      mode: "payment",
-      "line_items[0][quantity]": "1",
-      "line_items[0][price_data][currency]": input.currency.toLowerCase(),
-      "line_items[0][price_data][unit_amount]": String(input.totalCents),
-      "line_items[0][price_data][product_data][name]": `Factuur ${input.invoiceNumber}`,
-      "line_items[0][price_data][product_data][description]": input.title.slice(0, 250),
-      client_reference_id: input.invoiceId,
-      "metadata[developer_invoice_id]": input.invoiceId,
-      "metadata[invoice_number]": input.invoiceNumber,
-      "payment_intent_data[description]": `Factuur ${input.invoiceNumber}`,
-      success_url: input.successUrl,
-      cancel_url: input.cancelUrl,
-      ...(input.customerEmail ? { customer_email: input.customerEmail } : {}),
-    },
+    // The same selection and amount on the same day reuses one session; a double click never pays twice.
+    idempotencyKey: `developer-invoices-${createHash("sha256").update(ids.slice().sort().join(",")).digest("hex").slice(0, 32)}-${total}-${new Date().toISOString().slice(0, 10)}`,
+    form,
   }, fetchImpl);
+}
+
+/** The invoice ids a Checkout Session pays for. */
+export function sessionInvoiceIds(session: StripeCheckoutSession): string[] {
+  const list = session.metadata?.developer_invoice_ids ?? session.metadata?.developer_invoice_id ?? "";
+  return list.split(",").map((id) => id.trim()).filter(Boolean);
 }
 
 export async function retrieveStripeCheckoutSession(

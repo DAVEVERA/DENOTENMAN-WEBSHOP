@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { ArrowLeft, Banknote, CheckCircle2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Banknote, CheckCircle2, ExternalLink, Paperclip } from "lucide-react";
 
 import { DeveloperInvoiceDocument } from "@/components/admin-panel/developer/DeveloperInvoiceDocument";
 import { PayDeveloperInvoiceButton, PrintInvoiceButton } from "@/components/admin-panel/developer/PayDeveloperInvoice";
@@ -81,7 +81,12 @@ export default async function DeveloperInvoicePage({ params, searchParams }: {
         </section>
       ) : null}
 
-      <div className="print:hidden"><PrintInvoiceButton /></div>
+      <div className="flex flex-wrap gap-2 print:hidden">
+        <PrintInvoiceButton />
+        {invoice.attachment ? (
+          <a href={`/api/admin/developer-invoices/${encodeURIComponent(invoice.id)}/attachment`} target="_blank" rel="noopener" className={`${buttonClass} border border-border bg-surface text-text`}><Paperclip className="h-4 w-4" aria-hidden="true" />Originele factuur ({invoice.attachment.filename})</a>
+        ) : null}
+      </div>
       <DeveloperInvoiceDocument invoice={invoice} developer={developer} />
     </div>
   );
