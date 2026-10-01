@@ -33,7 +33,7 @@ const deps: DeveloperInvoiceDeps = {
 };
 const ours = () => sent.filter((payload) => payload.text.includes(run));
 
-function reading(number: string, subtotal: number, vatRate: number) {
+function reading(number: string, subtotal: number, vatRate: number, currency = "EUR") {
   const vat = Math.round(subtotal * vatRate) / 100;
   return async () => ({
     text: JSON.stringify({
@@ -42,7 +42,7 @@ function reading(number: string, subtotal: number, vatRate: number) {
       issueDate: "2098-05-01",
       dueDate: "2098-05-15",
       description: `Werk ${run}`,
-      currency: "EUR",
+      currency,
       lines: [{ description: `Werk ${run}`, amountExclVat: subtotal, vatRatePercent: vatRate }],
       subtotalExclVat: subtotal,
       vatAmount: vat,
@@ -159,4 +159,19 @@ test("due reminders for several invoices go out as one e-mail", async () => {
   assert.match(reminders[0].subject, /^Herinnering: 2 facturen staan nog open$/u);
   assert.match(reminders[0].text, new RegExp(`C-${run}`, "u"));
   assert.match(reminders[0].text, new RegExp(`D-${run}`, "u"));
+});
+
+test("a dollar invoice is converted to euros at the ECB rate of its date, with the original kept", async () => {
+  const result = await createDeveloperInvoiceFromUpload(
+    { filename: "aws.pdf", contentType: "application/pdf", bytes: pdf },
+    { ...deps, generate: reading(`USD-${run}`, 112.98, 0, "USD"), rateFor: async (currency, date) => ({ currency, rate: 1.1298, rateDate: date }) },
+  );
+  ids.push(result.invoice.id);
+  const invoice = result.invoice;
+  assert.equal(invoice.totalCents, 10_000, "$ 112,98 at 1,1298 is € 100,00");
+  assert.equal(invoice.vatCents, 0);
+  assert.match(invoice.lines[0].description, /\(\$ 112,98\)$/u);
+  assert.match(invoice.notes ?? "", /Omgerekend van \$ 112,98 tegen de ECB-koers van 1 mei 2098: 1 euro = 1,1298 dollar\./u);
+  assert.deepEqual(invoice.attachment?.conversion, { currency: "USD", rate: 1.1298, rateDate: "2098-05-01", originalTotalCents: 11_298 });
+  assert.equal(invoice.attachment?.printedTotalCents, 10_000, "the printed total is compared in euros");
 });

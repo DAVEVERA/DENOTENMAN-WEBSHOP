@@ -47,7 +47,7 @@ test("unsupported invoices are refused with a clear reason", () => {
   const code = (raw: unknown) => { try { interpretExtraction(raw); return "OK"; } catch (error) { return (error as InvoiceExtractionError).code; } };
   assert.equal(code(reading({ lines: [{ description: "Iets", amountExclVat: 100, vatRatePercent: 6 }] })), "VAT_RATE");
   assert.equal(code(reading({ isInvoice: false })), "NOT_AN_INVOICE");
-  assert.equal(code(reading({ currency: "USD" })), "CURRENCY");
+  assert.equal(code(reading({ currency: "GBP" })), "CURRENCY");
   assert.equal(code(reading({ lines: [{ description: "Credit", amountExclVat: -50, vatRatePercent: 21 }] })), "NEGATIVE");
   assert.equal(code({ nonsense: true }), "EXTRACTION_INVALID");
 });
@@ -61,4 +61,12 @@ test("files are checked before anything is sent to the AI", async () => {
   const result = await extractInvoiceFromFile({ bytes: Buffer.from("%PDF-1.7 test"), contentType: "application/pdf" }, generate);
   assert.equal(called, true);
   assert.equal(result.printed.totalCents, 105_875);
+});
+
+test("dollar invoices are read in dollars, to be converted to euros afterwards", () => {
+  const result = interpretExtraction(reading({ currency: "USD", lines: [{ description: "Server", amountExclVat: 100, vatRatePercent: 0 }], subtotalExclVat: 100, vatAmount: 0, totalInclVat: 100 }));
+  assert.equal(result.currency, "USD");
+  assert.equal(result.lines[0].unitPriceCents, 10_000);
+  assert.equal(interpretExtraction(reading({ currency: "$" })).currency, "USD");
+  assert.equal(interpretExtraction(reading()).currency, "EUR");
 });

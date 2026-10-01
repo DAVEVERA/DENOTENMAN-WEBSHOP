@@ -29,6 +29,7 @@ import {
   verifyStripeKey,
 } from "./stripe";
 import { extractInvoiceFromFile, InvoiceExtractionError, type GenerateFn } from "./extract";
+import { eurRateFor, ExchangeRateError, toEuroCents, type EurRate, type ForeignCurrency } from "./fx";
 
 export class DeveloperInvoiceError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 400) {
@@ -43,6 +44,8 @@ export type DeveloperInvoiceDeps = {
   stripeFetch?: typeof fetch;
   /** Reading uploaded invoices; injected in tests. */
   generate?: GenerateFn;
+  /** ECB exchange rates; injected in tests. */
+  rateFor?: (currency: ForeignCurrency, date: string) => Promise<EurRate>;
 };
 
 const defaultDeps: DeveloperInvoiceDeps = { now: () => new Date(), sendMail: sendAftersalesMail };
@@ -157,7 +160,15 @@ export type DeveloperInvoiceDto = {
   paidVia: string | null;
   events: Array<{ type: string; createdAt: string; detail: unknown }>;
   /** The uploaded original, if the invoice came from a file. */
-  attachment: { filename: string; contentType: string; sizeBytes: number; printedTotalCents: number | null; warnings: string[] } | null;
+  attachment: {
+    filename: string;
+    contentType: string;
+    sizeBytes: number;
+    printedTotalCents: number | null;
+    warnings: string[];
+    /** Set when the uploaded invoice was in dollars and has been converted to euros. */
+    conversion: { currency: string; rate: number; rateDate: string; originalTotalCents: number } | null;
+  } | null;
 };
 
 function storedLines(value: Prisma.JsonValue): DeveloperInvoiceLine[] {
@@ -169,13 +180,21 @@ type AttachmentSummary = { filename: string; contentType: string; sizeBytes: num
 
 function attachmentDto(attachment: AttachmentSummary | null | undefined): DeveloperInvoiceDto["attachment"] {
   if (!attachment) return null;
-  const extracted = (attachment.extracted ?? {}) as { printed?: { totalCents?: number }; warnings?: unknown };
+  const extracted = (attachment.extracted ?? {}) as {
+    printed?: { totalCents?: number };
+    warnings?: unknown;
+    conversion?: { currency?: unknown; rate?: unknown; rateDate?: unknown; originalTotalCents?: unknown };
+  };
+  const conversion = extracted.conversion;
   return {
     filename: attachment.filename,
     contentType: attachment.contentType,
     sizeBytes: attachment.sizeBytes,
     printedTotalCents: typeof extracted.printed?.totalCents === "number" ? extracted.printed.totalCents : null,
     warnings: Array.isArray(extracted.warnings) ? extracted.warnings.filter((item): item is string => typeof item === "string") : [],
+    conversion: conversion && typeof conversion.rate === "number" && typeof conversion.rateDate === "string" && typeof conversion.originalTotalCents === "number"
+      ? { currency: String(conversion.currency ?? "USD"), rate: conversion.rate, rateDate: conversion.rateDate, originalTotalCents: conversion.originalTotalCents }
+      : null,
   };
 }
 
@@ -293,6 +312,14 @@ export async function deleteDeveloperInvoice(id: string): Promise<void> {
   if (deleted.count !== 1) throw new DeveloperInvoiceError("INVOICE_NOT_DELETABLE", "Alleen een concept kan worden verwijderd. Annuleer een verstuurde factuur.", 409);
 }
 
+function formatForeign(cents: number): string {
+  return new Intl.NumberFormat("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
+}
+
+function dutchDate(date: string): string {
+  return new Intl.DateTimeFormat("nl-NL", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
+}
+
 function todayInAmsterdam(now: Date): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Amsterdam" }).format(now);
 }
@@ -312,12 +339,35 @@ export async function createDeveloperInvoiceFromUpload(
   const issue = invoiceDateFromInput(issueDate);
   const dueFromFile = extracted.dueDate ? invoiceDateFromInput(extracted.dueDate) : null;
   const termDays = dueFromFile && dueFromFile >= issue ? Math.round((dueFromFile.getTime() - issue.getTime()) / 86_400_000) : profile.paymentTermDays;
+
+  // Dollar invoices are converted with the ECB rate of the invoice date; the original
+  // amounts stay visible on the invoice and in the record.
+  let lines = extracted.lines;
+  let printed = extracted.printed;
+  let notes: string | null = null;
+  let conversion: { currency: string; rate: number; rateDate: string; originalTotalCents: number; originalPrinted: typeof extracted.printed } | null = null;
+  if (extracted.currency === "USD") {
+    const rate = await (deps.rateFor ?? eurRateFor)("USD", issueDate);
+    lines = extracted.lines.map((line) => ({
+      ...line,
+      description: `${line.description} ($ ${formatForeign(line.unitPriceCents * line.quantity)})`.slice(0, 300),
+      unitPriceCents: toEuroCents(line.unitPriceCents, rate.rate),
+    }));
+    printed = {
+      subtotalCents: toEuroCents(extracted.printed.subtotalCents, rate.rate),
+      vatCents: toEuroCents(extracted.printed.vatCents, rate.rate),
+      totalCents: toEuroCents(extracted.printed.totalCents, rate.rate),
+    };
+    conversion = { currency: "USD", rate: rate.rate, rateDate: rate.rateDate, originalTotalCents: extracted.printed.totalCents, originalPrinted: extracted.printed };
+    notes = `Omgerekend van $ ${formatForeign(extracted.printed.totalCents)} tegen de ECB-koers van ${dutchDate(rate.rateDate)}: 1 euro = ${String(rate.rate).replace(".", ",")} dollar.`;
+  }
+
   const input = developerInvoiceInputSchema.parse({
     title: extracted.title,
     issueDate,
     paymentTermDays: Math.min(termDays, 120),
-    lines: extracted.lines,
-    notes: null,
+    lines,
+    notes,
   });
   const data = invoiceData(input);
 
@@ -342,7 +392,7 @@ export async function createDeveloperInvoiceFromUpload(
               contentType: file.contentType,
               sizeBytes: file.bytes.length,
               data: new Uint8Array(file.bytes),
-              extracted: { invoiceNumber: extracted.invoiceNumber, printed: extracted.printed, warnings } as Prisma.InputJsonValue,
+              extracted: { invoiceNumber: extracted.invoiceNumber, printed, warnings, conversion } as Prisma.InputJsonValue,
             },
           },
         },
@@ -625,7 +675,7 @@ export function publicDeveloperProfile(profile: DeveloperBillingProfile) {
 export type PublicDeveloperProfile = ReturnType<typeof publicDeveloperProfile>;
 
 export function mapDeveloperError(error: unknown): { status: number; body: { error: string; message: string; fields?: Record<string, string> } } {
-  if (error instanceof DeveloperInvoiceError || error instanceof DeveloperStripeError || error instanceof InvoiceExtractionError) {
+  if (error instanceof DeveloperInvoiceError || error instanceof DeveloperStripeError || error instanceof InvoiceExtractionError || error instanceof ExchangeRateError) {
     return { status: error.status, body: { error: error.code, message: error.message } };
   }
   if (error instanceof z.ZodError) {

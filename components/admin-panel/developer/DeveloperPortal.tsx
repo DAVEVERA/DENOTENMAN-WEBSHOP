@@ -23,7 +23,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { DeveloperInvoiceDto, DeveloperProfileDto } from "@/lib/developer-portal/service";
 import { computeDeveloperInvoiceTotals, type DeveloperInvoiceLine } from "@/lib/developer-portal/invoice-math";
@@ -124,19 +124,24 @@ function LoginForm({ configured }: { configured: boolean }) {
 
 // ---------- Invoice editor ----------
 
-type LineDraft = { description: string; quantity: string; unitPrice: string; vatRate: 0 | 9 | 21 };
+type LineDraft = { description: string; quantity: string; unitPrice: string; vatRate: 0 | 9 | 21; currency: "EUR" | "USD" };
+type UsdRate = { rate: number; rateDate: string };
+
+const plainAmount = new Intl.NumberFormat("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const rateDateLabel = new Intl.DateTimeFormat("nl-NL", { dateStyle: "long", timeZone: "UTC" });
 
 function todayInput() {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Amsterdam" }).format(new Date());
 }
 
 function draftLines(invoice?: DeveloperInvoiceDto): LineDraft[] {
-  if (!invoice) return [{ description: "", quantity: "1", unitPrice: "", vatRate: 21 }];
+  if (!invoice) return [{ description: "", quantity: "1", unitPrice: "", vatRate: 21, currency: "EUR" }];
   return invoice.lines.map((line) => ({
     description: line.description,
     quantity: String(line.quantity).replace(".", ","),
     unitPrice: (line.unitPriceCents / 100).toFixed(2).replace(".", ","),
     vatRate: line.vatRate,
+    currency: "EUR" as const,
   }));
 }
 
@@ -154,13 +159,42 @@ function InvoiceEditor({ invoice, defaultTermDays, onSaved, onClose }: {
   const [notes, setNotes] = useState(invoice?.notes ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const usesDollars = lines.some((line) => line.currency === "USD");
+  const [usdRate, setUsdRate] = useState<{ date: string; rate: UsdRate | null; error: string | null } | null>(null);
+  const rate = usdRate?.date === issueDate ? usdRate.rate : null;
+
+  // Dollar prices use the ECB rate of the invoice date.
+  useEffect(() => {
+    if (!usesDollars || !issueDate || usdRate?.date === issueDate) return;
+    let cancelled = false;
+    fetch(`/api/admin/developer/fx?currency=USD&date=${encodeURIComponent(issueDate)}`)
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({})) as UsdRate & { message?: string };
+        if (cancelled) return;
+        setUsdRate(response.ok ? { date: issueDate, rate: { rate: body.rate, rateDate: body.rateDate }, error: null } : { date: issueDate, rate: null, error: body.message || "Wisselkoers niet beschikbaar." });
+      })
+      .catch(() => { if (!cancelled) setUsdRate({ date: issueDate, rate: null, error: "Wisselkoers niet beschikbaar." }); });
+    return () => { cancelled = true; };
+  }, [usesDollars, issueDate, usdRate?.date]);
+
+  /** Euro cents for a line's price, converting dollars with the loaded rate. */
+  function euroCents(line: LineDraft): number | null {
+    const cents = parseEuroToCents(line.unitPrice);
+    if (cents === null) return null;
+    if (line.currency === "EUR") return cents;
+    return rate ? Math.round(cents / rate.rate) : null;
+  }
 
   const parsedLines = lines.map((line) => {
     const quantity = parseQuantity(line.quantity);
-    const unitPriceCents = parseEuroToCents(line.unitPrice);
-    return quantity !== null && unitPriceCents !== null && line.description.trim()
-      ? { description: line.description.trim(), quantity, unitPriceCents, vatRate: line.vatRate } satisfies DeveloperInvoiceLine
-      : null;
+    const unitPriceCents = euroCents(line);
+    if (quantity === null || unitPriceCents === null || !line.description.trim()) return null;
+    const original = parseEuroToCents(line.unitPrice) ?? 0;
+    // The dollar amount stays visible on the invoice next to the line.
+    const description = line.currency === "USD" && !/\(\$ [\d.,]+\)$/u.test(line.description.trim())
+      ? `${line.description.trim()} ($ ${plainAmount.format((original * quantity) / 100)})`
+      : line.description.trim();
+    return { description: description.slice(0, 300), quantity, unitPriceCents, vatRate: line.vatRate } satisfies DeveloperInvoiceLine;
   });
   const validLines = parsedLines.filter((line): line is DeveloperInvoiceLine => line !== null);
   const totals = computeDeveloperInvoiceTotals(validLines);
@@ -171,6 +205,10 @@ function InvoiceEditor({ invoice, defaultTermDays, onSaved, onClose }: {
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
+    if (usesDollars && !rate) {
+      setError(usdRate?.error ?? "De wisselkoers wordt nog geladen. Probeer het zo opnieuw.");
+      return;
+    }
     if (parsedLines.some((line) => line === null)) {
       setError("Vul bij elke regel een omschrijving, een aantal en een bedrag in.");
       return;
@@ -183,7 +221,9 @@ function InvoiceEditor({ invoice, defaultTermDays, onSaved, onClose }: {
         issueDate,
         paymentTermDays: Number(termDays) || 0,
         lines: validLines,
-        notes: notes.trim() || null,
+        notes: (usesDollars && rate && !notes.includes("ECB-koers")
+          ? [notes.trim(), `Dollarbedragen omgerekend tegen de ECB-koers van ${rateDateLabel.format(new Date(`${rate.rateDate}T00:00:00Z`))}: 1 euro = ${String(rate.rate).replace(".", ",")} dollar.`].filter(Boolean).join("\n")
+          : notes.trim()) || null,
       };
       const body = await api<{ invoice: DeveloperInvoiceDto }>(
         invoice ? `/api/admin/developer/invoices/${encodeURIComponent(invoice.id)}` : "/api/admin/developer/invoices",
@@ -212,16 +252,29 @@ function InvoiceEditor({ invoice, defaultTermDays, onSaved, onClose }: {
       <fieldset className="grid gap-3">
         <legend className="font-heading text-body-md font-bold text-text">Regels</legend>
         {lines.map((line, index) => (
-          <div key={index} className="grid gap-2 rounded-card border border-border bg-background p-3 sm:grid-cols-[minmax(0,3fr)_5rem_8rem_6rem_auto] sm:items-end">
+          <div key={index} className="grid gap-2 rounded-card border border-border bg-background p-3 sm:grid-cols-[minmax(0,3fr)_5rem_5rem_8rem_6rem_auto] sm:items-end">
             <label className={labelClass}>Omschrijving<input value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} maxLength={300} className={inputClass} /></label>
             <label className={labelClass}>Aantal<input inputMode="decimal" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} className={inputClass} /></label>
-            <label className={labelClass}>Prijs (excl.)<input inputMode="decimal" value={line.unitPrice} onChange={(event) => updateLine(index, { unitPrice: event.target.value })} placeholder="0,00" className={inputClass} /></label>
+            <label className={labelClass}>Valuta<select value={line.currency} onChange={(event) => updateLine(index, { currency: event.target.value as "EUR" | "USD" })} className={inputClass}><option value="EUR">€</option><option value="USD">$</option></select></label>
+            <label className={labelClass}>
+              Prijs (excl.)
+              <input inputMode="decimal" value={line.unitPrice} onChange={(event) => updateLine(index, { unitPrice: event.target.value })} placeholder="0,00" className={inputClass} />
+              {line.currency === "USD" && parseEuroToCents(line.unitPrice) !== null ? <span className="text-xs font-normal text-muted">{rate ? `≈ ${formatCents(euroCents(line) ?? 0)}` : "koers laden…"}</span> : null}
+            </label>
             <label className={labelClass}>Btw<select value={line.vatRate} onChange={(event) => updateLine(index, { vatRate: Number(event.target.value) as 0 | 9 | 21 })} className={inputClass}><option value={21}>21%</option><option value={9}>9%</option><option value={0}>0%</option></select></label>
             <button type="button" disabled={lines.length === 1} onClick={() => setLines((current) => current.filter((_, position) => position !== index))} aria-label={`Regel ${index + 1} verwijderen`} className={`${buttonClass} border border-border bg-surface text-text`}><Trash2 className="h-4 w-4" aria-hidden="true" /><span className="sm:sr-only">Verwijderen</span></button>
           </div>
         ))}
-        <button type="button" onClick={() => setLines((current) => [...current, { description: "", quantity: "1", unitPrice: "", vatRate: 21 }])} className={`${buttonClass} justify-self-start border border-border bg-surface text-text`}><Plus className="h-4 w-4" aria-hidden="true" />Regel toevoegen</button>
+        <button type="button" onClick={() => setLines((current) => [...current, { description: "", quantity: "1", unitPrice: "", vatRate: 21, currency: "EUR" }])} className={`${buttonClass} justify-self-start border border-border bg-surface text-text`}><Plus className="h-4 w-4" aria-hidden="true" />Regel toevoegen</button>
       </fieldset>
+
+      {usesDollars ? (
+        <p role="status" className={`rounded-card border p-3 text-body-sm ${usdRate?.error && !rate ? "border-red-200 bg-red-50 text-red-800" : "border-border bg-background text-text"}`}>
+          {rate
+            ? `Dollars worden omgerekend tegen de ECB-koers van ${rateDateLabel.format(new Date(`${rate.rateDate}T00:00:00Z`))}: 1 euro = ${String(rate.rate).replace(".", ",")} dollar. De factuur wordt in euro's opgeslagen; het dollarbedrag blijft bij de regel staan.`
+            : usdRate?.error ?? "ECB-koers laden…"}
+        </p>
+      ) : null}
 
       <label className={labelClass}>Opmerking op de factuur (optioneel)<textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={2000} rows={3} className={`${inputClass} py-3`} /></label>
 
@@ -266,6 +319,9 @@ function InvoiceCard({ invoice, busy, selected, onSelect, onEdit, onAction, onDe
             <p className="mt-1 text-xs text-muted">
               {invoice.secondReminderAt ? `Tweede herinnering verstuurd ${dateLabel.format(new Date(invoice.secondReminderAt))}.` : invoice.firstReminderAt ? `Eerste herinnering verstuurd ${dateLabel.format(new Date(invoice.firstReminderAt))}; de tweede volgt na 14 dagen.` : "Eerste herinnering volgt 7 dagen na klaarzetten als er niet is betaald."}
             </p>
+          ) : null}
+          {invoice.attachment?.conversion ? (
+            <p className="mt-1 text-xs text-muted">Omgerekend van $ {plainAmount.format(invoice.attachment.conversion.originalTotalCents / 100)} (1 euro = {String(invoice.attachment.conversion.rate).replace(".", ",")} dollar, ECB {rateDateLabel.format(new Date(`${invoice.attachment.conversion.rateDate}T00:00:00Z`))})</p>
           ) : null}
           {invoice.attachment ? (
             <a href={`/api/admin/developer-invoices/${encodeURIComponent(invoice.id)}/attachment`} target="_blank" rel="noopener" className="mt-1 inline-flex min-h-11 items-center gap-1 text-body-sm font-semibold text-accent-ink underline underline-offset-4"><Paperclip className="h-4 w-4" aria-hidden="true" />{invoice.attachment.filename}</a>
