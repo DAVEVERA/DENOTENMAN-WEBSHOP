@@ -43,7 +43,17 @@ async function stripeRequest<T>(
   } catch {
     throw new DeveloperStripeError("STRIPE_UNAVAILABLE", "Stripe is niet bereikbaar. Probeer het later opnieuw.", 503);
   }
-  const body = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+  const body = await response.json().catch(() => null) as { error?: { message?: string; type?: string; code?: string; param?: string } } | null;
+  if (!response.ok) {
+    // Codes only: never the key, never the request body.
+    console.warn("Developer invoices: Stripe request failed", {
+      path: path.split("?")[0].replace(/\/(?:cs|we)_[A-Za-z0-9_]+/gu, "/:id"),
+      status: response.status,
+      type: body?.error?.type,
+      code: body?.error?.code,
+      param: body?.error?.param,
+    });
+  }
   if (response.status === 401 || response.status === 403) {
     throw new DeveloperStripeError("STRIPE_KEY_REJECTED", "Stripe weigert de sleutel. Controleer de sleutel in de instellingen.", 502);
   }
@@ -67,6 +77,15 @@ export type StripeCheckoutSession = {
 };
 
 export type CheckoutInvoice = { id: string; number: string; title: string; totalCents: number };
+
+// Payment methods are named explicitly: without them Stripe falls back to the dashboard's
+// automatic selection, which may have nothing active for euros. When iDEAL is not
+// activated on the account, the session is created with cards only.
+export const DEVELOPER_CHECKOUT_METHOD_SETS = [["card", "ideal"], ["card"]] as const;
+
+function isPaymentMethodRejection(error: unknown): boolean {
+  return error instanceof DeveloperStripeError && error.code === "STRIPE_REJECTED" && /payment[ _]method/iu.test(error.message);
+}
 
 /** One Checkout Session for one or more invoices, each as its own line on the Stripe page. */
 export async function createStripeCheckoutSession(input: {
@@ -96,12 +115,28 @@ export async function createStripeCheckoutSession(input: {
     form[`line_items[${index}][price_data][product_data][name]`] = `Factuur ${invoice.number}`;
     form[`line_items[${index}][price_data][product_data][description]`] = invoice.title.slice(0, 250) || `Factuur ${invoice.number}`;
   });
-  return stripeRequest<StripeCheckoutSession>(input.secretKey, "/checkout/sessions", {
-    method: "POST",
-    // The same selection and amount on the same day reuses one session; a double click never pays twice.
-    idempotencyKey: `developer-invoices-${createHash("sha256").update(ids.slice().sort().join(",")).digest("hex").slice(0, 32)}-${total}-${new Date().toISOString().slice(0, 10)}`,
-    form,
-  }, fetchImpl);
+  let lastError: unknown = null;
+  for (const methods of DEVELOPER_CHECKOUT_METHOD_SETS) {
+    const attempt = { ...form };
+    methods.forEach((method, index) => { attempt[`payment_method_types[${index}]`] = method; });
+    // The same request on the same day reuses one session, so a double click never pays twice;
+    // any change (selection, amount, return page, methods) is a new request.
+    const fingerprint = createHash("sha256")
+      .update(JSON.stringify(Object.entries(attempt).sort(([a], [b]) => a.localeCompare(b))))
+      .digest("hex")
+      .slice(0, 40);
+    try {
+      return await stripeRequest<StripeCheckoutSession>(input.secretKey, "/checkout/sessions", {
+        method: "POST",
+        idempotencyKey: `developer-invoices-${fingerprint}-${total}-${new Date().toISOString().slice(0, 10)}`,
+        form: attempt,
+      }, fetchImpl);
+    } catch (error) {
+      if (!isPaymentMethodRejection(error)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 /** The invoice ids a Checkout Session pays for. */
