@@ -70,3 +70,16 @@ test("dollar invoices are read in dollars, to be converted to euros afterwards",
   assert.equal(interpretExtraction(reading({ currency: "$" })).currency, "USD");
   assert.equal(interpretExtraction(reading()).currency, "EUR");
 });
+
+test("a busy AI model hands the invoice to the next model", async () => {
+  const models: string[] = [];
+  const generate = async (request: { model: string }) => {
+    models.push(request.model);
+    if (models.length === 1) throw Object.assign(new Error("high demand"), { status: 503 });
+    return { text: JSON.stringify(reading()) };
+  };
+  const result = await extractInvoiceFromFile({ bytes: Buffer.from("%PDF-1.7 test"), contentType: "application/pdf" }, generate);
+  assert.equal(result.printed.totalCents, 105_875);
+  assert.equal(models.length, 2);
+  assert.notEqual(models[0], models[1]);
+});

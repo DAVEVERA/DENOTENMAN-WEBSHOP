@@ -1,5 +1,7 @@
 import { ZodError } from "zod";
 
+import { withGeminiModelFallback } from "@/lib/gemini-fallback";
+
 import {
   copywriterProviderJsonSchema,
   type CopywriterPersistedProposal,
@@ -135,7 +137,7 @@ function mapError(error: unknown): CopywriterProviderError {
 
 const RETRY_DELAY_MS = 1_500;
 const MAX_ATTEMPTS = 3;
-const RETRY_BUDGET_MS = 150_000;
+const RETRY_BUDGET_MS = 120_000;
 
 export async function runCopywriterGeneration(
   snapshot: CopywriterSourceSnapshot,
@@ -153,8 +155,8 @@ export async function runCopywriterGeneration(
     );
   }
   const prompt = buildCopywriterPrompt(snapshot);
-  const model = modelId();
-  const request = (feedback: string | null) => generate({
+  const primaryModel = modelId();
+  const request = (feedback: string | null, model: string) => generate({
     model,
     contents: [
       {
@@ -168,23 +170,18 @@ export async function runCopywriterGeneration(
       abortSignal: AbortSignal.timeout(60_000),
     },
   });
-  const send = async (feedback: string | null) => {
-    try {
-      return await request(feedback);
-    } catch (error) {
-      // One retry for a busy (429) or failing (5xx) provider; everything else is final.
-      const status = (error as { status?: number } | null)?.status ?? 0;
-      if (status !== 429 && status < 500) throw error;
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-      return request(feedback);
-    }
-  };
+  // A busy model (429, 5xx, too slow) hands over to the next model in the chain.
+  const send = (feedback: string | null) => withGeminiModelFallback(primaryModel, (model) => request(feedback, model), {
+    budgetMs: 80_000,
+    pauseMs: RETRY_DELAY_MS,
+    onFailure: (model, error) => console.warn("CopyWriter: model busy", { productId: snapshot.product.id, model, ...failureSummary(error) }),
+  });
 
   const startedAt = Date.now();
   let feedback: string | null = null;
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const response = await send(feedback);
+      const { result: response, model } = await send(feedback);
       const repaired = repairCopywriterProviderOutput(snapshot, parseResponse(response.text));
       return {
         proposal: buildGroundedCopywriterProposal(snapshot, repaired),

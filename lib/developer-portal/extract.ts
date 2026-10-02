@@ -1,6 +1,8 @@
 import "server-only";
 import { z } from "zod";
 
+import { withGeminiModelFallback } from "@/lib/gemini-fallback";
+
 import { computeDeveloperInvoiceTotals, DEVELOPER_VAT_RATES, type DeveloperInvoiceLine } from "./invoice-math";
 
 // Reads an uploaded invoice (PDF or photo) with Gemini: number, dates and the amounts
@@ -148,10 +150,11 @@ export async function extractInvoiceFromFile(
     throw new InvoiceExtractionError("FILE_TYPE", "Dit bestand is geen geldige PDF.");
   }
 
+  const primary = process.env.INVOICE_GEMINI_MODEL?.trim() || process.env.COPYWRITER_GEMINI_MODEL?.trim() || "gemini-3.6-flash";
   let text: string | undefined;
   try {
-    const response = await generate({
-      model: process.env.INVOICE_GEMINI_MODEL?.trim() || process.env.COPYWRITER_GEMINI_MODEL?.trim() || "gemini-3.6-flash",
+    const { result } = await withGeminiModelFallback(primary, (model) => generate({
+      model,
       contents: [{
         role: "user",
         parts: [
@@ -159,12 +162,16 @@ export async function extractInvoiceFromFile(
           { inlineData: { mimeType: file.contentType, data: file.bytes.toString("base64") } },
         ],
       }],
-      config: { responseMimeType: "application/json", responseJsonSchema: jsonSchema, abortSignal: AbortSignal.timeout(60_000) },
+      config: { responseMimeType: "application/json", responseJsonSchema: jsonSchema, abortSignal: AbortSignal.timeout(40_000) },
+    }), {
+      budgetMs: 75_000,
+      onFailure: (model, error) => console.warn("Developer invoice: reading failed", { model, status: (error as { status?: unknown } | null)?.status ?? (error as { name?: unknown } | null)?.name }),
     });
-    text = response.text;
+    text = result.text;
   } catch (error) {
     if (error instanceof InvoiceExtractionError) throw error;
-    throw new InvoiceExtractionError("AI_UNAVAILABLE", "Het uitlezen lukte nu niet. Probeer het zo opnieuw of vul de factuur handmatig in.", 503);
+    console.warn("Developer invoice: reading gave up", { status: (error as { status?: unknown } | null)?.status ?? (error as { name?: unknown } | null)?.name });
+    throw new InvoiceExtractionError("AI_UNAVAILABLE", "De AI is nu te druk om de factuur uit te lezen. Probeer het over een paar minuten opnieuw of vul de factuur handmatig in.", 503);
   }
   let raw: unknown = null;
   try {
