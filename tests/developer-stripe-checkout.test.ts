@@ -47,3 +47,23 @@ test("another return page is a new request, not a replay of the first", async ()
   await createStripeCheckoutSession({ ...input, successUrl: `${input.successUrl}&detail=1` }, fetchImpl);
   assert.notEqual(calls[0].key, calls[1].key);
 });
+
+test("a refusal Stripe replays from an earlier request is asked again under a fresh key", async () => {
+  const keys: string[] = [];
+  const fetchImpl: typeof fetch = async (_url, init) => {
+    keys.push(new Headers(init?.headers).get("idempotency-key") ?? "");
+    if (keys.length === 1) {
+      return Response.json({ error: { message: "The payment method type provided: ideal is invalid." } }, { status: 400, headers: { "idempotent-replayed": "true" } });
+    }
+    return Response.json({ id: "cs_test_fresh", url: "https://checkout.stripe.com/c/pay/fresh", payment_status: "unpaid", status: "open" });
+  };
+  const session = await createStripeCheckoutSession(input, fetchImpl);
+  assert.equal(session.id, "cs_test_fresh");
+  assert.equal(keys.length, 2);
+  assert.ok(keys[1].startsWith(`${keys[0]}-retry-`));
+
+  let calls = 0;
+  const fresh: typeof fetch = async () => { calls += 1; return Response.json({ error: { message: "The payment method type provided: ideal is invalid." } }, { status: 400 }); };
+  await assert.rejects(createStripeCheckoutSession(input, fresh), /ideal is invalid/u);
+  assert.equal(calls, 1, "a fresh refusal is not asked again");
+});

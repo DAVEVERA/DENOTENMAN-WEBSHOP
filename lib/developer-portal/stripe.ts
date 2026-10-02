@@ -43,6 +43,12 @@ async function stripeRequest<T>(
   } catch {
     throw new DeveloperStripeError("STRIPE_UNAVAILABLE", "Stripe is niet bereikbaar. Probeer het later opnieuw.", 503);
   }
+  // Stripe stores the answer to an idempotency key, errors included, and replays it. A
+  // stored refusal (for example from before a payment method was activated) is asked
+  // again once under a fresh key.
+  if (!response.ok && init.idempotencyKey && response.headers.get("idempotent-replayed") === "true") {
+    return stripeRequest<T>(secretKey, path, { ...init, idempotencyKey: `${init.idempotencyKey}-retry-${Date.now().toString(36)}` }, fetchImpl);
+  }
   const body = await response.json().catch(() => null) as { error?: { message?: string; type?: string; code?: string; param?: string } } | null;
   if (!response.ok) {
     // Codes only: never the key, never the request body.
@@ -119,8 +125,8 @@ export async function createStripeCheckoutSession(input: {
   for (const methods of DEVELOPER_CHECKOUT_METHOD_SETS) {
     const attempt = { ...form };
     methods.forEach((method, index) => { attempt[`payment_method_types[${index}]`] = method; });
-    // The same request on the same day reuses one session, so a double click never pays twice;
-    // any change (selection, amount, return page, methods) is a new request.
+    // The same request within ten minutes reuses one session, so a double click never pays
+    // twice; any change (selection, amount, return page, methods) is a new request.
     const fingerprint = createHash("sha256")
       .update(JSON.stringify(Object.entries(attempt).sort(([a], [b]) => a.localeCompare(b))))
       .digest("hex")
@@ -128,7 +134,7 @@ export async function createStripeCheckoutSession(input: {
     try {
       return await stripeRequest<StripeCheckoutSession>(input.secretKey, "/checkout/sessions", {
         method: "POST",
-        idempotencyKey: `developer-invoices-${fingerprint}-${total}-${new Date().toISOString().slice(0, 10)}`,
+        idempotencyKey: `developer-invoices-${fingerprint}-${total}-${Math.floor(Date.now() / 600_000)}`,
         form: attempt,
       }, fetchImpl);
     } catch (error) {
