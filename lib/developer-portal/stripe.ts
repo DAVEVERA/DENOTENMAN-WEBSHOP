@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 // Minimal Stripe REST client for the developer's own Stripe account. The shop itself
 // takes payments through Mollie; this key belongs to the developer and is only used
@@ -24,7 +24,7 @@ type StripeFetch = typeof fetch;
 async function stripeRequest<T>(
   secretKey: string,
   path: string,
-  init: { method: "GET" | "POST"; form?: Record<string, string>; idempotencyKey?: string },
+  init: { method: "GET" | "POST" | "DELETE"; form?: Record<string, string>; idempotencyKey?: string },
   fetchImpl: StripeFetch = fetch,
 ): Promise<T> {
   let response: Response;
@@ -119,4 +119,44 @@ export async function retrieveStripeCheckoutSession(
     throw new DeveloperStripeError("STRIPE_SESSION_INVALID", "Onbekende Stripe-betaling.", 400);
   }
   return stripeRequest<StripeCheckoutSession>(secretKey, `/checkout/sessions/${sessionId}`, { method: "GET" }, fetchImpl);
+}
+
+// ---------- Webhook: Stripe reports a payment even when nobody returns to the page ----------
+
+export const DEVELOPER_STRIPE_WEBHOOK_EVENTS = ["checkout.session.completed", "checkout.session.async_payment_succeeded"] as const;
+
+type StripeWebhookEndpoint = { id: string; url: string; secret?: string };
+
+export async function listStripeWebhookEndpoints(secretKey: string, fetchImpl?: StripeFetch): Promise<StripeWebhookEndpoint[]> {
+  const body = await stripeRequest<{ data?: StripeWebhookEndpoint[] }>(secretKey, "/webhook_endpoints?limit=100", { method: "GET" }, fetchImpl);
+  return body.data ?? [];
+}
+
+export async function deleteStripeWebhookEndpoint(secretKey: string, id: string, fetchImpl?: StripeFetch): Promise<void> {
+  if (!/^we_[A-Za-z0-9]+$/u.test(id)) return;
+  await stripeRequest(secretKey, `/webhook_endpoints/${id}`, { method: "DELETE" }, fetchImpl);
+}
+
+/** Creates the webhook; Stripe returns its signing secret only now. */
+export async function createStripeWebhookEndpoint(secretKey: string, url: string, fetchImpl?: StripeFetch): Promise<{ id: string; secret: string }> {
+  const form: Record<string, string> = { url, description: "De Notenman: ontwikkelaarsfacturen automatisch op betaald" };
+  DEVELOPER_STRIPE_WEBHOOK_EVENTS.forEach((event, index) => { form[`enabled_events[${index}]`] = event; });
+  const endpoint = await stripeRequest<StripeWebhookEndpoint>(secretKey, "/webhook_endpoints", { method: "POST", form }, fetchImpl);
+  if (!endpoint.secret) throw new DeveloperStripeError("STRIPE_WEBHOOK_NO_SECRET", "Stripe gaf geen webhookgeheim terug.", 502);
+  return { id: endpoint.id, secret: endpoint.secret };
+}
+
+/** Checks the Stripe-Signature header (t=…,v1=…) against the raw body, within five minutes. */
+export function verifyStripeSignature(payload: string, header: string | null, secret: string, nowMs = Date.now(), toleranceSeconds = 300): boolean {
+  if (!header) return false;
+  const parts = header.split(",").map((part) => part.trim().split("="));
+  const timestamp = Number(parts.find(([key]) => key === "t")?.[1]);
+  const signatures = parts.filter(([key, value]) => key === "v1" && value).map(([, value]) => value);
+  if (!Number.isFinite(timestamp) || !signatures.length) return false;
+  if (Math.abs(nowMs / 1000 - timestamp) > toleranceSeconds) return false;
+  const expected = createHmac("sha256", secret).update(`${timestamp}.${payload}`).digest();
+  return signatures.some((signature) => {
+    const given = Buffer.from(signature, "hex");
+    return given.length === expected.length && timingSafeEqual(given, expected);
+  });
 }

@@ -469,10 +469,17 @@ function ProfileSettings({ profile, onSaved }: { profile: DeveloperProfileDto; o
             {form.stripeKeyConfigured
               ? form.stripeKeyReadable ? `Sleutel ingesteld (${form.stripeKeyMode === "live" ? "live" : "test"}, ${form.stripeKeyHint}).` : "De opgeslagen sleutel kan niet meer worden gelezen. Vul hem opnieuw in."
               : "Nog geen sleutel ingesteld."}
-            {" "}Gebruik bij voorkeur een restricted key (rk_…) met alleen schrijfrechten op Checkout Sessions.
+            {" "}Gebruik bij voorkeur een restricted key (rk_…) met schrijfrechten op Checkout Sessions en Webhook Endpoints.
           </p>
           <label className={labelClass}>{form.stripeKeyConfigured ? "Nieuwe sleutel (laat leeg om te houden)" : "Stripe secret of restricted key"}<input type="password" value={form.stripeSecretKey} onChange={(event) => set("stripeSecretKey", event.target.value)} autoComplete="off" spellCheck={false} placeholder="rk_live_…" className={inputClass} /></label>
           {form.stripeKeyConfigured ? <label className="flex min-h-11 items-center gap-2 text-body-sm text-text"><input type="checkbox" checked={form.removeStripeKey} onChange={(event) => set("removeStripeKey", event.target.checked)} />Opgeslagen sleutel verwijderen</label> : null}
+          {form.stripeEnabled && form.stripeKeyReadable ? (
+            <p role="status" className={`rounded-card border p-3 text-body-sm ${form.stripeWebhookActive ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>
+              {form.stripeWebhookActive
+                ? "Automatisch op betaald: Stripe meldt elke betaling direct, ook als niemand terugkeert naar de factuurpagina."
+                : form.stripeWebhookNotice ?? "Automatisch op betaald is nog niet gekoppeld. Sla de instellingen op om de koppeling met Stripe te maken."}
+            </p>
+          ) : null}
         </div>
 
         <div className="grid gap-3 rounded-card border border-border bg-background p-3">

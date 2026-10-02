@@ -1860,6 +1860,10 @@ model DeveloperBillingProfile {
   stripeEnabled            Boolean  @default(false)
   /// AES-256-GCM encrypted Stripe secret or restricted key; never returned to a client.
   stripeSecretKeyEncrypted String?
+  /// Stripe webhook that reports payments; created through the API with the key above.
+  stripeWebhookEndpointId      String?
+  /// AES-256-GCM encrypted signing secret (whsec_…) of that webhook.
+  stripeWebhookSecretEncrypted String?
   paymentLinkEnabled       Boolean  @default(false)
   paymentLinkUrl           String   @default("")
   paymentLinkLabel         String   @default("")

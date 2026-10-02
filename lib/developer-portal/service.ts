@@ -22,11 +22,16 @@ import { buildDeveloperInvoiceNotice, type DeveloperInvoiceNoticeKind } from "./
 import { openSecret, sealSecret } from "./secret-box";
 import {
   createStripeCheckoutSession,
+  createStripeWebhookEndpoint,
+  deleteStripeWebhookEndpoint,
+  DEVELOPER_STRIPE_WEBHOOK_EVENTS,
   DeveloperStripeError,
+  listStripeWebhookEndpoints,
   looksLikeStripeSecretKey,
   retrieveStripeCheckoutSession,
   sessionInvoiceIds,
   verifyStripeKey,
+  verifyStripeSignature,
 } from "./stripe";
 import { extractInvoiceFromFile, InvoiceExtractionError, type GenerateFn } from "./extract";
 import { eurRateFor, ExchangeRateError, toEuroCents, type EurRate, type ForeignCurrency } from "./fx";
@@ -81,8 +86,12 @@ export const developerProfileInputSchema = z.object({
 
 export type DeveloperProfileInput = z.input<typeof developerProfileInputSchema>;
 
-export type DeveloperProfileDto = Omit<DeveloperBillingProfile, "stripeSecretKeyEncrypted" | "updatedAt"> & {
+export type DeveloperProfileDto = Omit<DeveloperBillingProfile, "stripeSecretKeyEncrypted" | "stripeWebhookEndpointId" | "stripeWebhookSecretEncrypted" | "updatedAt"> & {
   stripeKeyConfigured: boolean;
+  /** Stripe reports payments to the shop, so paid invoices are marked paid automatically. */
+  stripeWebhookActive: boolean;
+  /** Why the webhook could not be set up on the last save, in Dutch. */
+  stripeWebhookNotice: string | null;
   /** False when a stored key can no longer be decrypted and must be entered again. */
   stripeKeyReadable: boolean;
   stripeKeyHint: string | null;
@@ -94,12 +103,14 @@ export async function getDeveloperProfile(): Promise<DeveloperBillingProfile> {
   return prisma.developerBillingProfile.upsert({ where: { id: PROFILE_ID }, update: {}, create: { id: PROFILE_ID } });
 }
 
-export function developerProfileDto(profile: DeveloperBillingProfile): DeveloperProfileDto {
-  const { stripeSecretKeyEncrypted, updatedAt, ...rest } = profile;
+export function developerProfileDto(profile: DeveloperBillingProfile, stripeWebhookNotice: string | null = null): DeveloperProfileDto {
+  const { stripeSecretKeyEncrypted, stripeWebhookEndpointId, stripeWebhookSecretEncrypted, updatedAt, ...rest } = profile;
   const key = openSecret(stripeSecretKeyEncrypted);
   return {
     ...rest,
     stripeKeyConfigured: Boolean(stripeSecretKeyEncrypted),
+    stripeWebhookActive: Boolean(key && stripeWebhookEndpointId && openSecret(stripeWebhookSecretEncrypted)),
+    stripeWebhookNotice,
     stripeKeyReadable: Boolean(key),
     stripeKeyHint: key ? `…${key.slice(-4)}` : null,
     stripeKeyMode: key ? (key.includes("_live_") ? "live" : "test") : null,
@@ -129,11 +140,72 @@ export async function updateDeveloperProfile(candidate: unknown, deps: Partial<D
   if (input.paymentLinkEnabled && !input.paymentLinkUrl) {
     throw new DeveloperInvoiceError("PAYMENT_LINK_MISSING", "Vul een betaallink in of zet deze optie uit.", 422);
   }
+  const keyChanged = stripeSecretKeyEncrypted !== current.stripeSecretKeyEncrypted;
+  if (keyChanged && current.stripeWebhookEndpointId) {
+    // The old webhook belongs to the old key (maybe another account): remove it where possible.
+    const oldKey = openSecret(current.stripeSecretKeyEncrypted);
+    if (oldKey) await deleteStripeWebhookEndpoint(oldKey, current.stripeWebhookEndpointId, deps.stripeFetch).catch(() => undefined);
+  }
   const saved = await prisma.developerBillingProfile.update({
     where: { id: PROFILE_ID },
-    data: { ...fields, stripeSecretKeyEncrypted },
+    data: { ...fields, stripeSecretKeyEncrypted, ...(keyChanged ? { stripeWebhookEndpointId: null, stripeWebhookSecretEncrypted: null } : {}) },
   });
-  return developerProfileDto(saved);
+  if (!saved.stripeEnabled || !stripeSecretKeyEncrypted) return developerProfileDto(saved);
+  const webhook = await ensureDeveloperStripeWebhook(deps);
+  return developerProfileDto(await getDeveloperProfile(), webhook.active ? null : webhook.message);
+}
+
+export function developerStripeWebhookUrl(): string {
+  return `${BASE_URL}/api/webhooks/developer-stripe`;
+}
+
+/**
+ * Makes sure Stripe reports payments to the shop. The webhook is created with the stored
+ * key; an earlier one for the same address (whose secret is gone) is replaced. Never
+ * throws: without a webhook, payments are still confirmed on return and on page loads.
+ */
+export async function ensureDeveloperStripeWebhook(deps: Partial<DeveloperInvoiceDeps> = {}): Promise<{ active: boolean; message: string | null }> {
+  const profile = await getDeveloperProfile();
+  const key = openSecret(profile.stripeSecretKeyEncrypted);
+  if (!profile.stripeEnabled || !key) return { active: false, message: null };
+  if (profile.stripeWebhookEndpointId && openSecret(profile.stripeWebhookSecretEncrypted)) return { active: true, message: null };
+  const url = developerStripeWebhookUrl();
+  if (!url.startsWith("https://")) return { active: false, message: "Automatisch op betaald zetten werkt alleen op de live site." };
+  try {
+    for (const endpoint of await listStripeWebhookEndpoints(key, deps.stripeFetch)) {
+      if (endpoint.url === url) await deleteStripeWebhookEndpoint(key, endpoint.id, deps.stripeFetch);
+    }
+    const created = await createStripeWebhookEndpoint(key, url, deps.stripeFetch);
+    await prisma.developerBillingProfile.update({
+      where: { id: PROFILE_ID },
+      data: { stripeWebhookEndpointId: created.id, stripeWebhookSecretEncrypted: sealSecret(created.secret) },
+    });
+    return { active: true, message: null };
+  } catch (error) {
+    console.warn("Developer invoices: Stripe webhook setup failed", { code: error instanceof DeveloperStripeError ? error.code : "UNKNOWN" });
+    return {
+      active: false,
+      message: "Stripe liet de webhook niet aanmaken. Geef de sleutel ook schrijfrechten op Webhook Endpoints en sla opnieuw op. Tot die tijd worden betalingen gecontroleerd zodra iemand de factuurpagina opent.",
+    };
+  }
+}
+
+/** Handles one Stripe webhook call. Only the session id is used; its status is fetched from Stripe. */
+export async function handleDeveloperStripeWebhook(payload: string, signature: string | null, deps: Partial<DeveloperInvoiceDeps> = {}): Promise<{ ok: boolean; paid: string[] }> {
+  const profile = await getDeveloperProfile();
+  const secret = openSecret(profile.stripeWebhookSecretEncrypted);
+  if (!secret || !verifyStripeSignature(payload, signature, secret, (deps.now ?? defaultDeps.now)().getTime())) return { ok: false, paid: [] };
+  let event: { type?: unknown; data?: { object?: { id?: unknown } } };
+  try {
+    event = JSON.parse(payload);
+  } catch {
+    return { ok: false, paid: [] };
+  }
+  const sessionId = event.data?.object?.id;
+  if (!(DEVELOPER_STRIPE_WEBHOOK_EVENTS as readonly unknown[]).includes(event.type) || typeof sessionId !== "string" || !sessionId.startsWith("cs_")) {
+    return { ok: true, paid: [] };
+  }
+  return { ok: true, paid: await confirmDeveloperInvoiceSession(sessionId, deps) };
 }
 
 // ---------- Invoices ----------
@@ -541,6 +613,7 @@ export async function startDeveloperInvoicesCheckout(ids: string[], returnPath: 
     throw new DeveloperInvoiceError("INVOICE_NOT_OPEN", "Een of meer facturen staan niet meer open. Ververs de pagina.", 409);
   }
   const secretKey = await stripeKeyOrThrow();
+  await ensureDeveloperStripeWebhook(deps);
   const back = returnPath === "detail" && invoices.length === 1 ? developerInvoiceUrl(invoices[0].id) : developerInvoicesOverviewUrl();
   const session = await createStripeCheckoutSession({
     secretKey,
@@ -576,6 +649,26 @@ export async function confirmDeveloperInvoiceSession(sessionId: string, deps: Pa
   return paid;
 }
 
+/**
+ * Asks Stripe about every open invoice with a started payment and marks the paid ones.
+ * A safety net next to the webhook: runs on page loads and in the daily reminder run.
+ */
+export async function confirmOpenDeveloperInvoicePayments(deps: Partial<DeveloperInvoiceDeps> = {}): Promise<Set<string>> {
+  const open = await prisma.developerInvoice.findMany({
+    where: { status: "SENT", stripeCheckoutSessionId: { not: null } },
+    select: { stripeCheckoutSessionId: true },
+  });
+  const paid = new Set<string>();
+  for (const sessionId of new Set(open.map((invoice) => invoice.stripeCheckoutSessionId!))) {
+    try {
+      for (const id of await confirmDeveloperInvoiceSession(sessionId, deps)) paid.add(id);
+    } catch (error) {
+      if (!(error instanceof DeveloperStripeError || error instanceof DeveloperInvoiceError)) throw error;
+    }
+  }
+  return paid;
+}
+
 /** Confirms a Stripe payment for this invoice; returns true once the invoice is paid. */
 export async function confirmDeveloperInvoiceCheckout(id: string, sessionId: string, deps: Partial<DeveloperInvoiceDeps> = {}): Promise<boolean> {
   const invoice = await prisma.developerInvoice.findUnique({ where: { id } });
@@ -600,14 +693,7 @@ export async function processDeveloperInvoiceReminders(deps: DeveloperInvoiceDep
   const result: ReminderRunResult = { checked: open.length, paid: 0, firstReminders: 0, secondReminders: 0, failures: 0 };
 
   // Payments first: one Stripe session can cover several invoices.
-  const paidIds = new Set<string>();
-  for (const sessionId of new Set(open.map((invoice) => invoice.stripeCheckoutSessionId).filter((id): id is string => Boolean(id)))) {
-    try {
-      for (const id of await confirmDeveloperInvoiceSession(sessionId, deps)) paidIds.add(id);
-    } catch (error) {
-      if (!(error instanceof DeveloperStripeError || error instanceof DeveloperInvoiceError)) throw error;
-    }
-  }
+  const paidIds = await confirmOpenDeveloperInvoicePayments(deps);
   result.paid = paidIds.size;
 
   // Due reminders are claimed one by one, then sent together: one e-mail per kind per run.

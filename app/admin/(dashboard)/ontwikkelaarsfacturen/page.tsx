@@ -8,6 +8,7 @@ import { statusBadgeFor } from "@/components/admin-panel/developer/invoice-statu
 import { requireAdminPage } from "@/lib/developer-portal/page-auth";
 import {
   confirmDeveloperInvoiceSession,
+  confirmOpenDeveloperInvoicePayments,
   getDeveloperProfile,
   listDeveloperInvoices,
   processDeveloperInvoiceReminders,
@@ -32,6 +33,8 @@ export default async function DeveloperInvoicesPage({ searchParams }: { searchPa
     paymentPending = paidNow.length === 0;
   }
 
+  // Payments that came in elsewhere (webhook missed, page closed) show as paid right away.
+  await confirmOpenDeveloperInvoicePayments().catch(() => undefined);
   const [invoices, profile] = await Promise.all([listDeveloperInvoices({ publishedOnly: true }), getDeveloperProfile()]);
   const developer = publicDeveloperProfile(profile);
   // Safety net next to the daily job: confirms payments and sends due reminders.

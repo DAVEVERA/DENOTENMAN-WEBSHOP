@@ -10,6 +10,7 @@ import { statusBadgeFor } from "@/components/admin-panel/developer/invoice-statu
 import { requireAdminPage } from "@/lib/developer-portal/page-auth";
 import {
   confirmDeveloperInvoiceCheckout,
+  confirmOpenDeveloperInvoicePayments,
   DeveloperInvoiceError,
   getDeveloperInvoice,
   getDeveloperProfile,
@@ -35,6 +36,8 @@ export default async function DeveloperInvoicePage({ params, searchParams }: {
   let paymentCheckFailed = false;
   if (betaling === "gelukt" && sessionId) {
     paymentCheckFailed = !(await confirmDeveloperInvoiceCheckout(id, sessionId).catch(() => false));
+  } else {
+    await confirmOpenDeveloperInvoicePayments().catch(() => undefined);
   }
 
   let invoice;

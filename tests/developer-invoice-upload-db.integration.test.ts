@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { after, before, test } from "node:test";
 
 import type { AftersalesMailPayload } from "../lib/aftersales/provider";
+import { sealSecret } from "../lib/developer-portal/secret-box";
 import { prisma } from "../lib/prisma";
 import {
   confirmDeveloperInvoiceSession,
   createDeveloperInvoiceFromUpload,
   getDeveloperInvoice,
   getDeveloperInvoiceAttachment,
+  handleDeveloperStripeWebhook,
   processDeveloperInvoiceReminders,
   sendDeveloperInvoices,
   startDeveloperInvoicesCheckout,
@@ -174,4 +176,25 @@ test("a dollar invoice is converted to euros at the ECB rate of its date, with t
   assert.match(invoice.notes ?? "", /Omgerekend van \$ 112,98 tegen de ECB-koers van 1 mei 2098: 1 euro = 1,1298 dollar\./u);
   assert.deepEqual(invoice.attachment?.conversion, { currency: "USD", rate: 1.1298, rateDate: "2098-05-01", originalTotalCents: 11_298 });
   assert.equal(invoice.attachment?.printedTotalCents, 10_000, "the printed total is compared in euros");
+});
+
+test("a signed Stripe webhook marks the invoices of a paid session paid, a forged one does nothing", async () => {
+  const fifth = await upload(`E-${run}`, 70);
+  await sendDeveloperInvoices([fifth.invoice.id], deps);
+  await startDeveloperInvoicesCheckout([fifth.invoice.id], "overview", { stripeFetch });
+  const webhookSecret = "whsec_integration_test";
+  await prisma.developerBillingProfile.update({ where: { id: "default" }, data: { stripeWebhookEndpointId: "we_test", stripeWebhookSecretEncrypted: sealSecret(webhookSecret) } });
+  const payload = JSON.stringify({ type: "checkout.session.completed", data: { object: { id: `cs_test_multi${run}`, object: "checkout.session" } } });
+  const at = Math.floor(clock.getTime() / 1000);
+  const signature = (key: string) => `t=${at},v1=${createHmac("sha256", key).update(`${at}.${payload}`).digest("hex")}`;
+
+  assert.deepEqual(await handleDeveloperStripeWebhook(payload, signature("whsec_forged"), { ...deps, stripeFetch }), { ok: false, paid: [] });
+  assert.equal((await getDeveloperInvoice(fifth.invoice.id)).status, "SENT");
+
+  const result = await handleDeveloperStripeWebhook(payload, signature(webhookSecret), { ...deps, stripeFetch });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.paid, [fifth.invoice.id]);
+  const invoice = await getDeveloperInvoice(fifth.invoice.id);
+  assert.equal(invoice.status, "PAID");
+  assert.equal(invoice.paidVia, "stripe");
 });
