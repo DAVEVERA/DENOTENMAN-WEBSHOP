@@ -7,7 +7,7 @@ const busy = (status: number) => Object.assign(new Error("busy"), { status });
 const noSleep = async () => {};
 
 test("the model chain starts with the primary model and can be configured", () => {
-  assert.deepEqual(geminiModelChain("gemini-3.6-flash", undefined), ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest"]);
+  assert.deepEqual(geminiModelChain("gemini-3.6-flash", undefined), ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-3.8-flash", "gemini-3.5-flash-lite"]);
   assert.deepEqual(geminiModelChain("a", "b, a ,c"), ["a", "b", "c"]);
 });
 
@@ -30,7 +30,7 @@ test("the chain is tried again after a pause, then the last error is thrown", as
     withGeminiModelFallback("a", async () => { calls += 1; throw busy(429); }, { sleep: async (ms) => { pauses.push(ms); }, pauseMs: 5 }),
     (error: unknown) => (error as { status?: number }).status === 429,
   );
-  assert.equal(calls, 8);
+  assert.equal(calls, 10);
   assert.deepEqual(pauses, [5]);
 });
 
@@ -43,7 +43,7 @@ test("a real error is not retried, a retired fallback model is skipped", async (
     if (name === "gemini-3.5-flash") throw busy(404);
     return "ok";
   }, { sleep: noSleep });
-  assert.equal(model, "gemini-3.8-flash");
+  assert.equal(model, "gemini-flash-latest");
 });
 
 test("no new model is started once the time budget is spent", async () => {

@@ -135,9 +135,13 @@ function mapError(error: unknown): CopywriterProviderError {
   );
 }
 
-const RETRY_DELAY_MS = 1_500;
+const RETRY_DELAY_MS = 3_000;
 const MAX_ATTEMPTS = 3;
+// A rejected proposal is only written again within this time.
 const RETRY_BUDGET_MS = 120_000;
+// Busy models are tried within this time; the request stays under Cloud Run's 300 s limit.
+const TOTAL_BUDGET_MS = 200_000;
+const CALL_TIMEOUT_MS = 45_000;
 
 export async function runCopywriterGeneration(
   snapshot: CopywriterSourceSnapshot,
@@ -156,6 +160,7 @@ export async function runCopywriterGeneration(
   }
   const prompt = buildCopywriterPrompt(snapshot);
   const primaryModel = modelId();
+  const startedAt = Date.now();
   const request = (feedback: string | null, model: string) => generate({
     model,
     contents: [
@@ -167,17 +172,17 @@ export async function runCopywriterGeneration(
     config: {
       responseMimeType: "application/json",
       responseJsonSchema: copywriterProviderJsonSchema,
-      abortSignal: AbortSignal.timeout(60_000),
+      abortSignal: AbortSignal.timeout(CALL_TIMEOUT_MS),
     },
   });
   // A busy model (429, 5xx, too slow) hands over to the next model in the chain.
   const send = (feedback: string | null) => withGeminiModelFallback(primaryModel, (model) => request(feedback, model), {
-    budgetMs: 80_000,
+    budgetMs: Math.max(0, TOTAL_BUDGET_MS - (Date.now() - startedAt)),
+    rounds: 3,
     pauseMs: RETRY_DELAY_MS,
     onFailure: (model, error) => console.warn("CopyWriter: model busy", { productId: snapshot.product.id, model, ...failureSummary(error) }),
   });
 
-  const startedAt = Date.now();
   let feedback: string | null = null;
   for (let attempt = 1; ; attempt += 1) {
     try {

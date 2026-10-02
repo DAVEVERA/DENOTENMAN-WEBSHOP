@@ -2,7 +2,8 @@
 // a time. A busy model is skipped for the next one in the chain, and the chain is tried
 // again after a short pause, as long as the time budget allows.
 
-export const GEMINI_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest"] as const;
+// Slow or often hung models go last; the lite model is the last resort.
+export const GEMINI_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.8-flash", "gemini-3.5-flash-lite"] as const;
 
 /** The primary model first, then the fallbacks (GEMINI_FALLBACK_MODELS overrides them, comma-separated). */
 export function geminiModelChain(primary: string, configured = process.env.GEMINI_FALLBACK_MODELS): string[] {

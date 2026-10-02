@@ -5,7 +5,7 @@ import { developerErrorResponse, developerJson, requireDeveloper } from "@/lib/d
 import { createDeveloperInvoiceFromUpload } from "@/lib/developer-portal/service";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 // One invoice file per request: the AI reads it and a draft is created to check.
 export async function POST(request: NextRequest) {

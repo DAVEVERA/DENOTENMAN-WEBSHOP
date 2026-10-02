@@ -164,7 +164,9 @@ export async function extractInvoiceFromFile(
       }],
       config: { responseMimeType: "application/json", responseJsonSchema: jsonSchema, abortSignal: AbortSignal.timeout(40_000) },
     }), {
-      budgetMs: 75_000,
+      budgetMs: 150_000,
+      rounds: 3,
+      pauseMs: 3_000,
       onFailure: (model, error) => console.warn("Developer invoice: reading failed", { model, status: (error as { status?: unknown } | null)?.status ?? (error as { name?: unknown } | null)?.name }),
     });
     text = result.text;
