@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { after, connection } from "next/server";
+import { connection } from "next/server";
 import { ArrowLeft, Banknote, CheckCircle2, ExternalLink, Paperclip } from "lucide-react";
 
 import { DeveloperInvoiceDocument } from "@/components/admin-panel/developer/DeveloperInvoiceDocument";
+import { InvoiceViewBeacon } from "@/components/admin-panel/developer/InvoiceViewBeacon";
 import { PayDeveloperInvoiceButton, PrintInvoiceButton } from "@/components/admin-panel/developer/PayDeveloperInvoice";
 import { statusBadgeFor } from "@/components/admin-panel/developer/invoice-status";
-import { hasDeveloperPageSession, requireAdminPage } from "@/lib/developer-portal/page-auth";
+import { requireAdminPage } from "@/lib/developer-portal/page-auth";
 import {
   confirmDeveloperInvoiceCheckout,
   confirmOpenDeveloperInvoicePayments,
@@ -15,7 +16,6 @@ import {
   getDeveloperInvoice,
   getDeveloperProfile,
   publicDeveloperProfile,
-  recordDeveloperInvoiceView,
 } from "@/lib/developer-portal/service";
 import { formatPrice } from "@/lib/format";
 import { formatIban } from "@/lib/developer-portal/invoice-math";
@@ -29,7 +29,7 @@ export default async function DeveloperInvoicePage({ params, searchParams }: {
   searchParams: Promise<{ betaling?: string; session_id?: string }>;
 }) {
   await connection();
-  const { adminUserId } = await requireAdminPage();
+  await requireAdminPage();
   const { id } = await params;
   const { betaling, session_id: sessionId } = await searchParams;
 
@@ -48,9 +48,6 @@ export default async function DeveloperInvoicePage({ params, searchParams }: {
     if (error instanceof DeveloperInvoiceError && error.status === 404) notFound();
     throw error;
   }
-  if (!(await hasDeveloperPageSession(adminUserId))) {
-    after(() => recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId, invoiceId: id }).catch((error) => console.error("Developer invoice view not recorded", error)));
-  }
   const developer = publicDeveloperProfile(await getDeveloperProfile());
   const badge = statusBadgeFor(invoice);
   const open = invoice.status === "SENT";
@@ -58,6 +55,7 @@ export default async function DeveloperInvoicePage({ params, searchParams }: {
 
   return (
     <div className="grid gap-5">
+      <InvoiceViewBeacon kind="INVOICE" invoiceId={invoice.id} />
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/admin/ontwikkelaarsfacturen" className="inline-flex min-h-11 items-center gap-2 font-heading text-body-sm font-bold text-accent-ink underline-offset-4 hover:underline"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Alle facturen</Link>
         <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${badge.className}`}>{badge.label}</span>

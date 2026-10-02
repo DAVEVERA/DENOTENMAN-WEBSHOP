@@ -3,16 +3,16 @@ import Link from "next/link";
 import { after, connection } from "next/server";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
+import { InvoiceViewBeacon } from "@/components/admin-panel/developer/InvoiceViewBeacon";
 import { OpenInvoicesPayPanel } from "@/components/admin-panel/developer/OpenInvoicesPayPanel";
 import { statusBadgeFor } from "@/components/admin-panel/developer/invoice-status";
-import { hasDeveloperPageSession, requireAdminPage } from "@/lib/developer-portal/page-auth";
+import { requireAdminPage } from "@/lib/developer-portal/page-auth";
 import {
   confirmDeveloperInvoiceSession,
   confirmOpenDeveloperInvoicePayments,
   getDeveloperProfile,
   listDeveloperInvoices,
   processDeveloperInvoiceReminders,
-  recordDeveloperInvoiceView,
   publicDeveloperProfile,
 } from "@/lib/developer-portal/service";
 import { formatPrice } from "@/lib/format";
@@ -23,7 +23,7 @@ const dateLabel = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeZo
 
 export default async function DeveloperInvoicesPage({ searchParams }: { searchParams: Promise<{ betaling?: string; session_id?: string }> }) {
   await connection();
-  const { adminUserId } = await requireAdminPage();
+  await requireAdminPage();
   const { betaling, session_id: sessionId } = await searchParams;
 
   // Back from Stripe: confirm the payment of every invoice it covered before listing.
@@ -40,15 +40,12 @@ export default async function DeveloperInvoicesPage({ searchParams }: { searchPa
   const developer = publicDeveloperProfile(profile);
   // Safety net next to the daily job: confirms payments and sends due reminders.
   after(() => processDeveloperInvoiceReminders().catch((error) => console.error("Developer invoice reminders failed", error)));
-  // The developer sees who opened the invoices; their own visits do not count.
-  if (!(await hasDeveloperPageSession(adminUserId))) {
-    after(() => recordDeveloperInvoiceView({ kind: "OVERVIEW", adminUserId }).catch((error) => console.error("Developer invoice view not recorded", error)));
-  }
   const open = invoices.filter((invoice) => invoice.status === "SENT");
   const paid = invoices.filter((invoice) => invoice.status === "PAID");
 
   return (
     <div className="grid gap-5">
+      <InvoiceViewBeacon kind="OVERVIEW" />
       <div>
         <h1 className="text-heading-lg text-text sm:text-heading-xl">Facturen ontwikkelaar</h1>
         <p className="mt-2 max-w-3xl text-body-sm text-muted">Facturen van de ontwikkelaar van de webshop. Kies welke je betaalt; alles gaat in één betaling.</p>

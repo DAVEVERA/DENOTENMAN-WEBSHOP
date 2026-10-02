@@ -1849,6 +1849,17 @@ model DeveloperInvoiceView {
   invoice     DeveloperInvoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   adminUserId String?
   viewerName  String
+  /// Device as recognised from the browser, e.g. "iPhone"; only shown to the developer.
+  device      String?
+  /// Model or model family (iPhones: from the screen size).
+  deviceModel String?
+  os          String?
+  browser     String?
+  /// Portrait screen size in points and pixel ratio, e.g. "393×852 @3x".
+  screen      String?
+  /// The network without the last part of the address (IPv4 /24, IPv6 /48).
+  network     String?
+  userAgent   String?
   createdAt   DateTime          @default(now())
 
   @@index([createdAt])

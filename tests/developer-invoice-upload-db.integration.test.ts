@@ -11,6 +11,7 @@ import {
   getDeveloperInvoice,
   getDeveloperInvoiceAttachment,
   handleDeveloperStripeWebhook,
+  listDeveloperDevices,
   listDeveloperInvoiceViews,
   recordDeveloperInvoiceView,
   processDeveloperInvoiceReminders,
@@ -205,20 +206,38 @@ test("views by De Notenman are recorded once per visit and shown with the invoic
   const admin = await prisma.adminUser.create({ data: { username: `viewer-${run}`, passwordHash: "x", name: `Fedor ${run}` } });
   try {
     const invoiceId = ids[0];
-    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId }, deps), true);
-    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId }, deps), false, "a reload is the same visit");
+    const iphone = {
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6.1 Mobile/15E148 Safari/604.1",
+      forwardedFor: "2a02:a420:243f:1:2:3:4:5, 10.0.0.1",
+      screen: { width: 393, height: 852, pixelRatio: 3 },
+    };
+    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId, client: iphone }, deps), true);
+    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId, client: iphone }, deps), false, "a reload is the same visit");
+    const laptop = { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36", forwardedFor: "84.29.10.20" };
+    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId, client: laptop }, deps), true, "another device on the same login is its own visit");
     assert.equal(await recordDeveloperInvoiceView({ kind: "OVERVIEW", adminUserId: admin.id }, deps), true);
     clock = new Date(clock.getTime() + 16 * 60 * 1000);
-    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId }, deps), true, "a later visit counts again");
+    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId, client: iphone }, deps), true, "a later visit counts again");
 
     const invoice = await getDeveloperInvoice(invoiceId);
-    assert.equal(invoice.views.count, 2);
-    assert.equal(invoice.views.lastBy, `Fedor ${run}`);
-    assert.equal(invoice.views.lastAt, clock.toISOString());
+    assert.equal(invoice.views?.count, 3);
+    assert.equal(invoice.views?.lastBy, `Fedor ${run}`);
+    assert.equal(invoice.views?.lastAt, clock.toISOString());
+    assert.equal((await getDeveloperInvoice(invoiceId, { publishedOnly: true })).views, null, "De Notenman's pages never get the views");
 
     const mine = (await listDeveloperInvoiceViews(500)).filter((view) => view.viewerName === `Fedor ${run}`);
-    assert.deepEqual(mine.map((view) => view.kind).sort(), ["INVOICE", "INVOICE", "OVERVIEW"]);
-    assert.equal(mine.find((view) => view.kind === "INVOICE")?.invoiceNumber, invoice.number);
+    assert.deepEqual(mine.map((view) => view.kind).sort(), ["INVOICE", "INVOICE", "INVOICE", "OVERVIEW"]);
+    const phoneView = mine.find((view) => view.device === "iPhone")!;
+    assert.equal(phoneView.invoiceNumber, invoice.number);
+    assert.equal(phoneView.deviceModel, "iPhone 14 Pro/15/15 Pro of 16");
+    assert.equal(phoneView.os, "iOS 26.6");
+    assert.equal(phoneView.network, "2a02:a420:243f::/48");
+
+    const devices = await listDeveloperDevices();
+    const phone = devices.find((device) => device.deviceModel === "iPhone 14 Pro/15/15 Pro of 16" && device.screen === "393×852 @3x");
+    assert.ok(phone, "the iPhone is listed as a device");
+    assert.ok(phone.visits >= 2);
+    assert.ok(devices.some((device) => device.device === "Windows-pc" && device.networks.includes("84.29.10.0/24")));
   } finally {
     await prisma.developerInvoiceView.deleteMany({ where: { adminUserId: admin.id } });
     await prisma.adminUser.delete({ where: { id: admin.id } });

@@ -35,6 +35,7 @@ import {
 } from "./stripe";
 import { extractInvoiceFromFile, InvoiceExtractionError, type GenerateFn } from "./extract";
 import { eurRateFor, ExchangeRateError, toEuroCents, type EurRate, type ForeignCurrency } from "./fx";
+import { describeDevice, networkOf, type DeviceScreen } from "./device";
 
 export class DeveloperInvoiceError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 400) {
@@ -231,8 +232,8 @@ export type DeveloperInvoiceDto = {
   paidAt: string | null;
   paidVia: string | null;
   events: Array<{ type: string; createdAt: string; detail: unknown }>;
-  /** How often De Notenman opened this invoice or its file, and the last time. */
-  views: { count: number; lastAt: string | null; lastBy: string | null };
+  /** How often De Notenman opened this invoice or its file; only for the developer, null elsewhere. */
+  views: { count: number; lastAt: string | null; lastBy: string | null } | null;
   /** The uploaded original, if the invoice came from a file. */
   attachment: {
     filename: string;
@@ -280,6 +281,7 @@ export function developerInvoiceDto(
     _count?: { views: number };
   },
   now = new Date(),
+  options: { includeViews?: boolean } = {},
 ): DeveloperInvoiceDto {
   const lines = storedLines(invoice.lines);
   return {
@@ -303,11 +305,13 @@ export function developerInvoiceDto(
     paidAt: invoice.paidAt?.toISOString() ?? null,
     paidVia: invoice.paidVia,
     events: (invoice.events ?? []).map((event) => ({ type: event.type, createdAt: event.createdAt.toISOString(), detail: event.detail })),
-    views: {
-      count: invoice._count?.views ?? 0,
-      lastAt: invoice.views?.[0]?.createdAt.toISOString() ?? null,
-      lastBy: invoice.views?.[0]?.viewerName ?? null,
-    },
+    views: options.includeViews
+      ? {
+        count: invoice._count?.views ?? 0,
+        lastAt: invoice.views?.[0]?.createdAt.toISOString() ?? null,
+        lastBy: invoice.views?.[0]?.viewerName ?? null,
+      }
+      : null,
     attachment: attachmentDto(invoice.attachment),
   };
 }
@@ -352,7 +356,8 @@ export async function listDeveloperInvoices(options: { publishedOnly?: boolean }
     orderBy: [{ issueDate: "desc" }, { number: "desc" }],
     include: withEvents,
   });
-  return invoices.map((invoice) => developerInvoiceDto(invoice));
+  // Who looked at the invoices is for the developer only, never for De Notenman's pages.
+  return invoices.map((invoice) => developerInvoiceDto(invoice, new Date(), { includeViews: !options.publishedOnly }));
 }
 
 export async function getDeveloperInvoice(id: string, options: { publishedOnly?: boolean } = {}): Promise<DeveloperInvoiceDto> {
@@ -360,7 +365,7 @@ export async function getDeveloperInvoice(id: string, options: { publishedOnly?:
   if (!invoice || (options.publishedOnly && !["SENT", "PAID"].includes(invoice.status))) {
     throw new DeveloperInvoiceError("INVOICE_NOT_FOUND", "Deze factuur bestaat niet.", 404);
   }
-  return developerInvoiceDto(invoice);
+  return developerInvoiceDto(invoice, new Date(), { includeViews: !options.publishedOnly });
 }
 
 async function logEvent(invoiceId: string, type: string, detail?: Prisma.InputJsonValue) {
@@ -806,24 +811,56 @@ export type DeveloperInvoiceViewDto = {
   invoiceId: string | null;
   invoiceNumber: string | null;
   viewerName: string;
+  device: string | null;
+  deviceModel: string | null;
+  os: string | null;
+  browser: string | null;
+  screen: string | null;
+  network: string | null;
   createdAt: string;
+};
+
+/** What the browser tells about itself; recorded with a view and only shown to the developer. */
+export type DeveloperViewClient = {
+  userAgent?: string | null;
+  forwardedFor?: string | null;
+  screen?: DeviceScreen | null;
+  hints?: { model?: string | null; platformVersion?: string | null } | null;
 };
 
 /** Records that an admin opened the overview, an invoice or its file. Returns false when it repeats a recent visit. */
 export async function recordDeveloperInvoiceView(
-  input: { kind: DeveloperInvoiceViewKind; adminUserId: string; invoiceId?: string | null },
+  input: { kind: DeveloperInvoiceViewKind; adminUserId: string; invoiceId?: string | null; client?: DeveloperViewClient },
   deps: Partial<DeveloperInvoiceDeps> = {},
 ): Promise<boolean> {
   const now = (deps.now ?? defaultDeps.now)();
   const invoiceId = input.invoiceId ?? null;
+  const userAgent = input.client?.userAgent?.slice(0, 500) || null;
+  const screen = input.client?.screen ?? null;
+  const device = describeDevice(userAgent ?? "", screen, input.client?.hints ?? undefined);
+  const network = networkOf(input.client?.forwardedFor);
+  // Several people may share one admin login: a visit repeats only on the same device.
   const recent = await prisma.developerInvoiceView.findFirst({
-    where: { kind: input.kind, invoiceId, adminUserId: input.adminUserId, createdAt: { gte: new Date(now.getTime() - VIEW_REPEAT_MS) } },
+    where: { kind: input.kind, invoiceId, adminUserId: input.adminUserId, userAgent, network, createdAt: { gte: new Date(now.getTime() - VIEW_REPEAT_MS) } },
     select: { id: true },
   });
   if (recent) return false;
   const admin = await prisma.adminUser.findUnique({ where: { id: input.adminUserId }, select: { name: true, username: true } });
   await prisma.developerInvoiceView.create({
-    data: { kind: input.kind, invoiceId, adminUserId: input.adminUserId, viewerName: admin?.name?.trim() || admin?.username || "Onbekende beheerder", createdAt: now },
+    data: {
+      kind: input.kind,
+      invoiceId,
+      adminUserId: input.adminUserId,
+      viewerName: admin?.name?.trim() || admin?.username || "Onbekende beheerder",
+      device: device.device,
+      deviceModel: device.model,
+      os: device.os,
+      browser: device.browser,
+      screen: screen ? `${Math.min(screen.width, screen.height)}×${Math.max(screen.width, screen.height)} @${Math.round(screen.pixelRatio)}x` : null,
+      network,
+      userAgent,
+      createdAt: now,
+    },
   });
   return true;
 }
@@ -840,6 +877,44 @@ export async function listDeveloperInvoiceViews(limit = 100): Promise<DeveloperI
     invoiceId: view.invoiceId,
     invoiceNumber: view.invoice?.number ?? null,
     viewerName: view.viewerName,
+    device: view.device,
+    deviceModel: view.deviceModel,
+    os: view.os,
+    browser: view.browser,
+    screen: view.screen,
+    network: view.network,
     createdAt: view.createdAt.toISOString(),
   }));
+}
+
+export type DeveloperDeviceDto = {
+  key: string;
+  device: string;
+  deviceModel: string | null;
+  os: string | null;
+  browser: string | null;
+  screen: string | null;
+  networks: string[];
+  visits: number;
+  firstAt: string;
+  lastAt: string;
+};
+
+/** The devices De Notenman used, newest first: one entry per device, model, system and browser. */
+export async function listDeveloperDevices(): Promise<DeveloperDeviceDto[]> {
+  const views = await prisma.developerInvoiceView.findMany({ orderBy: { createdAt: "desc" }, take: 2000 });
+  const devices = new Map<string, DeveloperDeviceDto>();
+  for (const view of views) {
+    const device = view.device ?? "Onbekend apparaat (van voor het apparatenlogboek)";
+    const key = [device, view.deviceModel, view.os, view.browser, view.screen].join("|");
+    const entry = devices.get(key) ?? {
+      key, device, deviceModel: view.deviceModel, os: view.os, browser: view.browser, screen: view.screen,
+      networks: [], visits: 0, firstAt: view.createdAt.toISOString(), lastAt: view.createdAt.toISOString(),
+    };
+    entry.visits += 1;
+    entry.firstAt = view.createdAt.toISOString();
+    if (view.network && !entry.networks.includes(view.network)) entry.networks.push(view.network);
+    devices.set(key, entry);
+  }
+  return [...devices.values()];
 }

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   CreditCard,
   Eye,
+  Smartphone,
   Paperclip,
   TriangleAlert,
   Upload,
@@ -26,7 +27,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import type { DeveloperInvoiceDto, DeveloperInvoiceViewDto, DeveloperProfileDto } from "@/lib/developer-portal/service";
+import type { DeveloperDeviceDto, DeveloperInvoiceDto, DeveloperInvoiceViewDto, DeveloperProfileDto } from "@/lib/developer-portal/service";
 import { computeDeveloperInvoiceTotals, type DeveloperInvoiceLine } from "@/lib/developer-portal/invoice-math";
 import { statusBadgeFor } from "./invoice-status";
 
@@ -322,7 +323,7 @@ function InvoiceCard({ invoice, busy, selected, onSelect, onEdit, onAction, onDe
               {invoice.secondReminderAt ? `Tweede herinnering verstuurd ${dateLabel.format(new Date(invoice.secondReminderAt))}.` : invoice.firstReminderAt ? `Eerste herinnering verstuurd ${dateLabel.format(new Date(invoice.firstReminderAt))}; de tweede volgt na 14 dagen.` : "Eerste herinnering volgt 7 dagen na klaarzetten als er niet is betaald."}
             </p>
           ) : null}
-          {invoice.status !== "DRAFT" ? (
+          {invoice.status !== "DRAFT" && invoice.views ? (
             <p className="mt-1 flex items-center gap-1 text-xs text-muted">
               <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               {invoice.views.count && invoice.views.lastAt
@@ -524,6 +525,37 @@ const viewKindLabel: Record<DeveloperInvoiceViewDto["kind"], string> = {
   ATTACHMENT: "Opende het originele bestand van",
 };
 
+function deviceLine(item: { device: string | null; deviceModel: string | null; os: string | null; browser: string | null }) {
+  return [item.deviceModel ?? item.device, item.os, item.browser].filter(Boolean).join(" · ");
+}
+
+function DevicesPanel({ devices }: { devices: DeveloperDeviceDto[] }) {
+  return (
+    <section className={`${panelClass} grid gap-3`} aria-labelledby="devices-title">
+      <div>
+        <h2 id="devices-title" className="text-heading-sm font-bold text-text">Apparaten</h2>
+        <p className="mt-1 text-body-sm text-muted">Met welke apparaten De Notenman de facturen bekeek. Bij een iPhone volgt het type uit de schermmaat (Safari geeft het model niet door); het netwerk staat er zonder het laatste deel van het adres.</p>
+      </div>
+      {devices.length ? (
+        <ul className="grid gap-2">
+          {devices.map((device) => (
+            <li key={device.key} className="grid gap-1 rounded-card border border-border bg-background p-3 text-body-sm">
+              <p className="flex flex-wrap items-center gap-2 font-semibold text-text"><Smartphone className="h-4 w-4 shrink-0" aria-hidden="true" />{device.deviceModel ?? device.device}</p>
+              <p className="text-muted">{[device.deviceModel ? device.device : null, device.os, device.browser, device.screen ? `scherm ${device.screen}` : null].filter(Boolean).join(" · ") || "Geen details bekend"}</p>
+              <p className="text-xs text-muted">
+                {device.visits}× · eerst {dateTimeLabel.format(new Date(device.firstAt))} · laatst {dateTimeLabel.format(new Date(device.lastAt))}
+                {device.networks.length ? ` · netwerk ${device.networks.join(", ")}` : ""}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-body-sm text-muted">Nog geen apparaten gezien.</p>
+      )}
+    </section>
+  );
+}
+
 function ViewsPanel({ views }: { views: DeveloperInvoiceViewDto[] }) {
   return (
     <section className={`${panelClass} grid gap-3`} aria-labelledby="views-title">
@@ -535,10 +567,13 @@ function ViewsPanel({ views }: { views: DeveloperInvoiceViewDto[] }) {
         <ol className="grid gap-2">
           {views.map((view) => (
             <li key={view.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-card border border-border bg-background p-3 text-body-sm">
-              <span className="min-w-0 text-text">
-                <span className="font-semibold">{view.viewerName}</span>{" "}
-                {viewKindLabel[view.kind].toLowerCase()}
-                {view.invoiceNumber ? <> <span className="font-semibold">{view.invoiceNumber}</span></> : null}
+              <span className="grid min-w-0 gap-0.5 text-text">
+                <span>
+                  <span className="font-semibold">{view.viewerName}</span>{" "}
+                  {viewKindLabel[view.kind].toLowerCase()}
+                  {view.invoiceNumber ? <> <span className="font-semibold">{view.invoiceNumber}</span></> : null}
+                </span>
+                {view.device ? <span className="text-xs text-muted">{deviceLine(view)}{view.network ? ` · ${view.network}` : ""}</span> : null}
               </span>
               <time dateTime={view.createdAt} className="text-xs text-muted">{dateTimeLabel.format(new Date(view.createdAt))}</time>
             </li>
@@ -555,14 +590,14 @@ function ViewsPanel({ views }: { views: DeveloperInvoiceViewDto[] }) {
 
 type PortalProps =
   | { mode: "login"; configured: boolean }
-  | { mode: "portal"; configured: true; initialInvoices: DeveloperInvoiceDto[]; initialProfile: DeveloperProfileDto; initialViews: DeveloperInvoiceViewDto[] };
+  | { mode: "portal"; configured: true; initialInvoices: DeveloperInvoiceDto[]; initialProfile: DeveloperProfileDto; initialViews: DeveloperInvoiceViewDto[]; initialDevices: DeveloperDeviceDto[] };
 
 export function DeveloperPortal(props: PortalProps) {
   if (props.mode === "login") return <LoginForm configured={props.configured} />;
-  return <Portal initialInvoices={props.initialInvoices} initialProfile={props.initialProfile} views={props.initialViews} />;
+  return <Portal initialInvoices={props.initialInvoices} initialProfile={props.initialProfile} views={props.initialViews} devices={props.initialDevices} />;
 }
 
-function Portal({ initialInvoices, initialProfile, views }: { initialInvoices: DeveloperInvoiceDto[]; initialProfile: DeveloperProfileDto; views: DeveloperInvoiceViewDto[] }) {
+function Portal({ initialInvoices, initialProfile, views, devices }: { initialInvoices: DeveloperInvoiceDto[]; initialProfile: DeveloperProfileDto; views: DeveloperInvoiceViewDto[]; devices: DeveloperDeviceDto[] }) {
   const router = useRouter();
   const [tab, setTab] = useState<"invoices" | "views" | "settings">("invoices");
   // Rendered once on the server: "this week" is fixed for the lifetime of the page.
@@ -690,7 +725,7 @@ function Portal({ initialInvoices, initialProfile, views }: { initialInvoices: D
       {tab === "settings" ? (
         <div className="mt-5"><ProfileSettings profile={profile} onSaved={setProfile} /></div>
       ) : tab === "views" ? (
-        <div className="mt-5"><ViewsPanel views={views} /></div>
+        <div className="mt-5 grid gap-4"><DevicesPanel devices={devices} /><ViewsPanel views={views} /></div>
       ) : (
         <div className="mt-5 grid gap-4">
           {!paymentReady ? (

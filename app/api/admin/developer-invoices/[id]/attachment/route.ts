@@ -16,7 +16,8 @@ export async function GET(request: NextRequest, context: Context) {
     const file = await getDeveloperInvoiceAttachment(id, { publishedOnly: !developer });
     if (!developer) {
       const adminUserId = guard.admin.id;
-      after(() => recordDeveloperInvoiceView({ kind: "ATTACHMENT", adminUserId, invoiceId: id }).catch((error) => console.error("Developer invoice view not recorded", error)));
+      const client = { userAgent: request.headers.get("user-agent"), forwardedFor: request.headers.get("x-forwarded-for") };
+      after(() => recordDeveloperInvoiceView({ kind: "ATTACHMENT", adminUserId, invoiceId: id, client }).catch((error) => console.error("Developer invoice view not recorded", error)));
     }
     const safeName = file.filename.replace(/[^\w.\- ]+/gu, "_").slice(0, 120) || "factuur";
     return new NextResponse(new Uint8Array(file.data), {
