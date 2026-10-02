@@ -1,3 +1,5 @@
+import { ZodError } from "zod";
+
 import {
   copywriterProviderJsonSchema,
   type CopywriterPersistedProposal,
@@ -7,6 +9,8 @@ import {
   CopywriterGroundingError,
   buildCopywriterPrompt,
   buildGroundedCopywriterProposal,
+  copywriterGroundingFeedback,
+  repairCopywriterProviderOutput,
 } from "./style";
 
 type CopywriterGeminiRequest = {
@@ -76,8 +80,22 @@ function parseResponse(text: string | undefined): unknown {
   }
 }
 
+// Codes only, never product text, so the logs show why an attempt failed.
+function failureSummary(error: unknown): { code: string; field?: string; detail?: string } {
+  if (error instanceof CopywriterGroundingError) return { code: error.code, field: error.field, detail: error.detail };
+  if (error instanceof ZodError) return { code: "SCHEMA_INVALID", field: error.issues[0]?.path.join(".") };
+  const candidate = error as { code?: unknown; status?: unknown; name?: unknown } | null;
+  return { code: String(candidate?.code ?? candidate?.status ?? candidate?.name ?? "UNKNOWN") };
+}
+
 function mapError(error: unknown): CopywriterProviderError {
   if (error instanceof CopywriterProviderError) return error;
+  if (error instanceof ZodError) {
+    return new CopywriterProviderError(
+      "INVALID_PROVIDER_RESPONSE",
+      "Gemini gaf geen geldig CopyWriter-voorstel terug. Probeer het opnieuw.",
+    );
+  }
   if (error instanceof CopywriterGroundingError) {
     return new CopywriterProviderError(
       "UNSAFE_PROPOSAL_REJECTED",
@@ -116,6 +134,8 @@ function mapError(error: unknown): CopywriterProviderError {
 }
 
 const RETRY_DELAY_MS = 1_500;
+const MAX_ATTEMPTS = 3;
+const RETRY_BUDGET_MS = 150_000;
 
 export async function runCopywriterGeneration(
   snapshot: CopywriterSourceSnapshot,
@@ -134,12 +154,12 @@ export async function runCopywriterGeneration(
   }
   const prompt = buildCopywriterPrompt(snapshot);
   const model = modelId();
-  const request = () => generate({
+  const request = (feedback: string | null) => generate({
     model,
     contents: [
       {
         role: "user",
-        parts: [{ text: prompt.system }, { text: prompt.prompt }],
+        parts: [{ text: prompt.system }, { text: prompt.prompt }, ...(feedback ? [{ text: feedback }] : [])],
       },
     ],
     config: {
@@ -148,26 +168,38 @@ export async function runCopywriterGeneration(
       abortSignal: AbortSignal.timeout(60_000),
     },
   });
-  try {
-    let response: Awaited<ReturnType<CopywriterGenerate>>;
+  const send = async (feedback: string | null) => {
     try {
-      response = await request();
+      return await request(feedback);
     } catch (error) {
       // One retry for a busy (429) or failing (5xx) provider; everything else is final.
       const status = (error as { status?: number } | null)?.status ?? 0;
       if (status !== 429 && status < 500) throw error;
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-      response = await request();
+      return request(feedback);
     }
-    return {
-      proposal: buildGroundedCopywriterProposal(
-        snapshot,
-        parseResponse(response.text),
-      ),
-      modelId: model,
-      providerRequestId: response.requestId,
-    };
-  } catch (error) {
-    throw mapError(error);
+  };
+
+  const startedAt = Date.now();
+  let feedback: string | null = null;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const response = await send(feedback);
+      const repaired = repairCopywriterProviderOutput(snapshot, parseResponse(response.text));
+      return {
+        proposal: buildGroundedCopywriterProposal(snapshot, repaired),
+        modelId: model,
+        providerRequestId: response.requestId,
+      };
+    } catch (error) {
+      const rejected = error instanceof CopywriterGroundingError || error instanceof ZodError
+        || (error instanceof CopywriterProviderError && error.code === "INVALID_PROVIDER_RESPONSE");
+      console.warn("CopyWriter: generation attempt failed", { productId: snapshot.product.id, attempt, ...failureSummary(error) });
+      // A rejected proposal is written again with the reason, while there is time left.
+      if (!rejected || attempt >= MAX_ATTEMPTS || Date.now() - startedAt > RETRY_BUDGET_MS) throw mapError(error);
+      feedback = error instanceof CopywriterGroundingError
+        ? copywriterGroundingFeedback(error)
+        : "Je vorige antwoord paste niet in het gevraagde JSON-schema. Lever precies het schema, met alle velden.";
+    }
   }
 }

@@ -225,11 +225,11 @@ function assertSourceIsData(snapshot: CopywriterSourceSnapshot): void {
   }
 }
 
-function assertEvidencePaths(proposal: ParsedCopywriterProviderOutput): void {
-  const allowedPath = /^(?:translation\.(?:name|slug|shortDescription|description|descriptionHtml|seoTitle|metaDescription|promotionText)|product\.(?:id|sku|slug|updatedAt|basePriceCents|salePriceCents|currency|unit|isActive)|facts\.(?:ingredients|allergens|mayContainTraces)|nutrition\.(?:energyKj|energyKcal|fat|saturatedFat|carbohydrates|sugars|fiber|protein|salt)|categories(?:\.\d+)?(?:\.(?:id|slug|name|parentId|isPrimary|sortOrder))?|variants(?:\.\d+)?(?:\.(?:id|sku|weightGrams|preparation|salting|coating|priceCents|salePriceCents|stock|isActive))?)$/u;
+const ALLOWED_EVIDENCE_PATH = /^(?:translation\.(?:name|slug|shortDescription|description|descriptionHtml|seoTitle|metaDescription|promotionText)|product\.(?:id|sku|slug|updatedAt|basePriceCents|salePriceCents|currency|unit|isActive)|facts\.(?:ingredients|allergens|mayContainTraces)|nutrition\.(?:energyKj|energyKcal|fat|saturatedFat|carbohydrates|sugars|fiber|protein|salt)|categories(?:\.\d+)?(?:\.(?:id|slug|name|parentId|isPrimary|sortOrder))?|variants(?:\.\d+)?(?:\.(?:id|sku|weightGrams|preparation|salting|coating|priceCents|salePriceCents|stock|isActive))?)$/u;
 
+function assertEvidencePaths(proposal: ParsedCopywriterProviderOutput): void {
   for (const [field, value] of Object.entries(proposal.fields)) {
-    if (value.evidencePaths.some((path) => !allowedPath.test(path))) {
+    if (value.evidencePaths.some((path) => !ALLOWED_EVIDENCE_PATH.test(path))) {
       throw new CopywriterGroundingError("UNSUPPORTED_EVIDENCE_PATH", field);
     }
   }
@@ -516,61 +516,74 @@ function stockEvidence(snapshot: CopywriterSourceSnapshot, paths: readonly strin
   return stocks;
 }
 
+type EditorialFieldProposal = { proposed: string | null; evidencePaths: readonly string[] };
+
 function assertNoUnsupportedClaims(
   snapshot: CopywriterSourceSnapshot,
   proposal: ParsedCopywriterProviderOutput,
 ): void {
   for (const [field, fieldProposal] of publicEditorialFields(proposal)) {
-    if (fieldProposal.proposed === null) continue;
-    const proposed = normalizedForMatching(fieldProposal.proposed);
-    const evidence = evidenceText(snapshot, fieldProposal.evidencePaths);
+    const error = unsupportedClaimIn(snapshot, field, fieldProposal);
+    if (error) throw error;
+  }
+}
 
-    if (lowQualityPatterns.some((pattern) => pattern.test(proposed)) || hasKeywordStuffing(proposed)) {
-      throw new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "style-guardrail");
-    }
+/** The first claim in one public text that the product source does not support, or null. */
+function unsupportedClaimIn(
+  snapshot: CopywriterSourceSnapshot,
+  field: string,
+  fieldProposal: EditorialFieldProposal,
+): CopywriterGroundingError | null {
+  if (fieldProposal.proposed === null) return null;
+  const proposed = normalizedForMatching(fieldProposal.proposed);
+  const evidence = evidenceText(snapshot, fieldProposal.evidencePaths);
 
-    const existingSeoTitleHasDash = field === "seoTitle"
-      && snapshot.translation.seoTitle !== null
-      && formulaDashPattern.test(normalizedForMatching(snapshot.translation.seoTitle));
-    if (formulaDashPattern.test(proposed) && !existingSeoTitleHasDash) {
-      throw new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "style-guardrail");
-    }
+  if (lowQualityPatterns.some((pattern) => pattern.test(proposed)) || hasKeywordStuffing(proposed)) {
+    return new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "style-guardrail");
+  }
 
-    const factualClaims = matchesIn(proposed, factualClaimPatterns);
-    const unsupportedFactualClaim = factualClaims.find((claim) => !evidence.includes(claim));
-    if (unsupportedFactualClaim) {
-      throw new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, unsupportedFactualClaim);
-    }
+  const existingSeoTitleHasDash = field === "seoTitle"
+    && snapshot.translation.seoTitle !== null
+    && formulaDashPattern.test(normalizedForMatching(snapshot.translation.seoTitle));
+  if (formulaDashPattern.test(proposed) && !existingSeoTitleHasDash) {
+    return new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "style-guardrail");
+  }
 
-    const supportedPrices = priceEvidence(snapshot, fieldProposal.evidencePaths);
-    if (euroAmountsIn(proposed).some((amount) => !supportedPrices.has(amount))) {
-      throw new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "price");
-    }
+  const factualClaims = matchesIn(proposed, factualClaimPatterns);
+  const unsupportedFactualClaim = factualClaims.find((claim) => !evidence.includes(claim));
+  if (unsupportedFactualClaim) {
+    return new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, unsupportedFactualClaim);
+  }
 
-    const supportedWeights = weightEvidence(snapshot, fieldProposal.evidencePaths);
-    if (weightsIn(proposed).some((weight) => !supportedWeights.has(weight))) {
-      throw new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "weight");
-    }
+  const supportedPrices = priceEvidence(snapshot, fieldProposal.evidencePaths);
+  if (euroAmountsIn(proposed).some((amount) => !supportedPrices.has(amount))) {
+    return new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "price");
+  }
 
-    if (/\b(?:op voorraad|beschikbaar)\b/iu.test(proposed)) {
-      const evidencedStocks = stockEvidence(snapshot, fieldProposal.evidencePaths);
-      const actualPositiveStock = snapshot.variants.some(
-        (variant) => variant.isActive && (variant.stock ?? 0) > 0,
-      );
-      if (
-        !actualPositiveStock
-        || ![...evidencedStocks].some((stock) => stock > 0)
-        || stockCountsIn(proposed).some((count) => !evidencedStocks.has(count))
-      ) {
-        throw new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "stock");
-      }
-    }
+  const supportedWeights = weightEvidence(snapshot, fieldProposal.evidencePaths);
+  if (weightsIn(proposed).some((weight) => !supportedWeights.has(weight))) {
+    return new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "weight");
+  }
 
-    const timeClaims = matchesIn(proposed, timeBoundClaimPatterns);
-    if (timeClaims.some((claim) => !evidence.includes(claim))) {
-      throw new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "time-bound-promotion");
+  if (/\b(?:op voorraad|beschikbaar)\b/iu.test(proposed)) {
+    const evidencedStocks = stockEvidence(snapshot, fieldProposal.evidencePaths);
+    const actualPositiveStock = snapshot.variants.some(
+      (variant) => variant.isActive && (variant.stock ?? 0) > 0,
+    );
+    if (
+      !actualPositiveStock
+      || ![...evidencedStocks].some((stock) => stock > 0)
+      || stockCountsIn(proposed).some((count) => !evidencedStocks.has(count))
+    ) {
+      return new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "stock");
     }
   }
+
+  const timeClaims = matchesIn(proposed, timeBoundClaimPatterns);
+  if (timeClaims.some((claim) => !evidence.includes(claim))) {
+    return new CopywriterGroundingError("UNSUPPORTED_CLAIM", field, "time-bound-promotion");
+  }
+  return null;
 }
 
 export type CopywriterFactCard = {
@@ -730,3 +743,103 @@ export function buildGroundedCopywriterProposal(
 
 export const buildCopywriterStylePrompt = buildCopywriterPrompt;
 export const validateCopywriterGrounding = assertGroundedCopywriterProposal;
+
+
+const EDITORIAL_FIELDS = ["name", "shortDescription", "descriptionHtml", "seoTitle", "metaDescription"] as const;
+
+type RawField = { sourceStatus?: unknown; proposed?: unknown; applyAllowed?: unknown; reason?: unknown; evidencePaths?: unknown };
+
+function rawReason(field: RawField | undefined, fallback: string): string {
+  return typeof field?.reason === "string" && field.reason.trim() ? field.reason : fallback;
+}
+
+function validEvidencePaths(field: RawField | undefined, required: string[]): string[] {
+  const given = Array.isArray(field?.evidencePaths)
+    ? field.evidencePaths.filter((path): path is string => typeof path === "string" && ALLOWED_EVIDENCE_PATH.test(path.trim())).map((path) => path.trim())
+    : [];
+  return [...new Set([...required, ...given])].slice(0, 12);
+}
+
+/**
+ * Fixes what the server can decide itself before the strict checks run, so one model slip
+ * does not throw away a whole proposal: stored product info is copied exactly, the slug
+ * follows the proposed name, promotion text needs a real sale price, unknown evidence
+ * paths are dropped, and a public text with an unsupported claim falls back to the stored
+ * text. It never adds content of its own; the strict checks still run on the result.
+ */
+export function repairCopywriterProviderOutput(snapshot: CopywriterSourceSnapshot, raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const record = raw as { schemaVersion?: unknown; fields?: unknown };
+  if (!record.fields || typeof record.fields !== "object") return raw;
+  const fields: Record<string, RawField> = { ...(record.fields as Record<string, RawField>) };
+
+  for (const field of PRODUCT_INFO_FIELDS) {
+    const path = copywriterProductInfoPath(field);
+    const sourceValue = copywriterProductInfoValue(snapshot, field);
+    const proposed = fields[field];
+    if (sourceValue !== null) {
+      fields[field] = {
+        sourceStatus: "SOURCE_EXACT",
+        proposed: sourceValue,
+        applyAllowed: true,
+        reason: "Staat al bij het product en blijft zoals het is.",
+        evidencePaths: [path],
+      };
+      continue;
+    }
+    const estimate = proposed?.sourceStatus === "AI_ESTIMATE" && typeof proposed.proposed === "string" && proposed.proposed.trim();
+    fields[field] = estimate
+      ? { sourceStatus: "AI_ESTIMATE", proposed: (proposed.proposed as string).trim(), applyAllowed: true, reason: rawReason(proposed, "Inschatting van de AI. Controleer dit met het etiket."), evidencePaths: validEvidencePaths(proposed, [path]) }
+      : { sourceStatus: "MISSING_VERIFIED_SOURCE", proposed: null, applyAllowed: false, reason: rawReason(proposed, "Geen betrouwbare waarde gevonden. Vul dit in vanaf het etiket."), evidencePaths: [path] };
+  }
+
+  for (const field of [...EDITORIAL_FIELDS, "slug", "promotionText"] as const) {
+    const current = fields[field];
+    if (!current || typeof current !== "object") continue;
+    const paths = validEvidencePaths(current, []);
+    fields[field] = { ...current, evidencePaths: paths.length ? paths : [`translation.${field}`] };
+  }
+
+  // A text the source cannot back up falls back to the stored text, which backs itself up.
+  for (const field of EDITORIAL_FIELDS) {
+    const current = fields[field];
+    if (typeof current?.proposed !== "string") continue;
+    const proposal = { proposed: current.proposed, evidencePaths: current.evidencePaths as string[] };
+    if (!unsupportedClaimIn(snapshot, field, proposal)) continue;
+    const stored = snapshot.translation[field];
+    const storedProposal = { proposed: stored, evidencePaths: [`translation.${field}`] };
+    if (typeof stored === "string" && stored.trim() && !unsupportedClaimIn(snapshot, field, storedProposal)) {
+      fields[field] = {
+        proposed: stored,
+        applyAllowed: true,
+        reason: "De nieuwe tekst bevatte een claim die niet in de productgegevens staat; de huidige tekst blijft staan.",
+        evidencePaths: [`translation.${field}`],
+      };
+    }
+  }
+
+  const name = fields.name?.proposed;
+  if (typeof name === "string" && fields.slug && typeof fields.slug === "object") {
+    fields.slug = { ...fields.slug, proposed: deterministicProductSlug(name, snapshot.product.sku), applyAllowed: true };
+  }
+
+  const hasRealSale = snapshot.product.salePriceCents !== null
+    && snapshot.product.salePriceCents < snapshot.product.basePriceCents;
+  if (!hasRealSale) {
+    fields.promotionText = {
+      proposed: null,
+      applyAllowed: false,
+      reason: "Er is geen lagere actieprijs, dus geen actietekst.",
+      evidencePaths: ["product.salePriceCents"],
+    };
+  }
+
+  return { ...record, fields };
+}
+
+/** Short Dutch feedback for the model after a rejected attempt. */
+export function copywriterGroundingFeedback(error: CopywriterGroundingError): string {
+  const where = error.field ? `het veld ${error.field}` : "het voorstel";
+  const what = error.detail ? ` (${error.detail})` : "";
+  return `Je vorige voorstel is afgewezen: ${where} bevatte iets dat niet letterlijk in de brondata staat${what}. Schrijf dat veld opnieuw met alleen informatie uit de feitenkaart en noem alle bronpaden die je gebruikt.`;
+}

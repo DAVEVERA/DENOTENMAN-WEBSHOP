@@ -181,7 +181,7 @@ function proposalRecord(value: {
 }
 
 /** A GENERATING row older than this is treated as abandoned (for example a crashed request). */
-const GENERATION_STALE_AFTER_MS = 2 * 60 * 1000;
+const GENERATION_STALE_AFTER_MS = 5 * 60 * 1000;
 
 function acceptedFieldsFor(
   product: Pick<LoadedProduct, "copyFieldReviews">,

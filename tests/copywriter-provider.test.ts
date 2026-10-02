@@ -159,36 +159,66 @@ test("CopyWriter validates and grounds mocked structured output", async () => {
   }
 });
 
-test("CopyWriter rejects ungrounded or malformed provider output", async () => {
+async function withKey(run: () => Promise<void>) {
   const previous = process.env.GEMINI_API_KEY;
   process.env.GEMINI_API_KEY = "test-key";
   try {
-    const unsafe = candidate();
-    unsafe.fields.ingredients = {
-      sourceStatus: "SOURCE_EXACT",
-      proposed: "CASHEWNOTEN, pinda",
-      applyAllowed: true,
-      reason: "Aangevuld.",
-      evidencePaths: ["facts.ingredients"],
-    };
-    await assert.rejects(
-      () =>
-        runCopywriterGeneration(snapshot(), async () => ({
-          text: JSON.stringify(unsafe),
-        })),
-      (error: unknown) =>
-        error instanceof CopywriterProviderError &&
-        error.code === "UNSAFE_PROPOSAL_REJECTED",
-    );
-    await assert.rejects(
-      () =>
-        runCopywriterGeneration(snapshot(), async () => ({ text: "not-json" })),
-      (error: unknown) =>
-        error instanceof CopywriterProviderError &&
-        error.code === "INVALID_PROVIDER_RESPONSE",
-    );
+    await run();
   } finally {
     if (previous === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = previous;
   }
-});
+}
+
+test("CopyWriter repairs what the server decides itself instead of rejecting the proposal", () => withKey(async () => {
+  const slipped = candidate();
+  // Stored facts are copied exactly, even when the model reformats them.
+  slipped.fields.ingredients = { sourceStatus: "SOURCE_EXACT", proposed: "CASHEWNOTEN, pinda", applyAllowed: true, reason: "Aangevuld.", evidencePaths: ["facts.ingredients"] };
+  slipped.fields.allergens = { sourceStatus: "SOURCE_EXACT", proposed: "Bevat: noten.", applyAllowed: true, reason: "Opgemaakt.", evidencePaths: ["facts.allergens"] };
+  slipped.fields.slug = editorial("iets-anders");
+  slipped.fields.promotionText = editorial("Nu in de aanbieding");
+  slipped.fields.shortDescription = editorial("Ongebrande cashewnoten met een zachte beet, om zo te eten of door een gerecht.", ["translation.shortDescription", "factCard.product.currentName"]);
+  const result = await runCopywriterGeneration(snapshot(), async () => ({ text: JSON.stringify(slipped) }));
+  assert.equal(result.proposal.fields.ingredients.proposed, "CASHEWNOTEN");
+  assert.equal(result.proposal.fields.allergens.proposed, "CASHEWNOTEN");
+  assert.equal(result.proposal.fields.slug.proposed, "ongebrande-cashewnoten");
+  assert.equal(result.proposal.fields.promotionText.proposed, null);
+  assert.deepEqual(result.proposal.fields.shortDescription.evidencePaths, ["translation.shortDescription"]);
+}));
+
+test("CopyWriter keeps the stored text when a new text makes a claim the source does not support", () => withKey(async () => {
+  const claim = candidate();
+  claim.fields.descriptionHtml = editorial("<p>Biologische cashewnoten, rijk aan vitamines.</p>", ["translation.descriptionHtml"]);
+  const result = await runCopywriterGeneration(snapshot(), async () => ({ text: JSON.stringify(claim) }));
+  assert.equal(result.proposal.fields.descriptionHtml.proposed, snapshot().translation.descriptionHtml);
+  assert.match(result.proposal.fields.descriptionHtml.reason, /huidige tekst blijft staan/u);
+}));
+
+test("CopyWriter writes a rejected field again with the reason, and gives up after three attempts", () => withKey(async () => {
+  const source = snapshot();
+  const withoutSeoTitle = { ...source, translation: { ...source.translation, seoTitle: null } };
+  const claim = candidate();
+  claim.fields.seoTitle = editorial("Biologische cashewnoten | De Notenman");
+  const requests: string[] = [];
+  const result = await runCopywriterGeneration(withoutSeoTitle, async (input) => {
+    requests.push(JSON.stringify(input.contents));
+    return { text: JSON.stringify(requests.length === 1 ? claim : candidate()) };
+  });
+  assert.equal(requests.length, 2);
+  assert.match(requests[1], /vorige voorstel is afgewezen: het veld seoTitle/u);
+  assert.equal(result.proposal.fields.seoTitle.proposed, "Ongebrande cashewnoten | De Notenman");
+
+  let calls = 0;
+  await assert.rejects(
+    () => runCopywriterGeneration(withoutSeoTitle, async () => { calls += 1; return { text: JSON.stringify(claim) }; }),
+    (error: unknown) => error instanceof CopywriterProviderError && error.code === "UNSAFE_PROPOSAL_REJECTED",
+  );
+  assert.equal(calls, 3);
+
+  calls = 0;
+  await assert.rejects(
+    () => runCopywriterGeneration(snapshot(), async () => { calls += 1; return { text: "not-json" }; }),
+    (error: unknown) => error instanceof CopywriterProviderError && error.code === "INVALID_PROVIDER_RESPONSE",
+  );
+  assert.equal(calls, 3);
+}));
