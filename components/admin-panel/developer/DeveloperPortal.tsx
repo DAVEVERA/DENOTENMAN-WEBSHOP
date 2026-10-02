@@ -474,7 +474,7 @@ function ProfileSettings({ profile, onSaved }: { profile: DeveloperProfileDto; o
         <h2 id="profile-payment" className="text-heading-sm font-bold text-text">Betaalmogelijkheden</h2>
 
         <div className="grid gap-3 rounded-card border border-border bg-background p-3">
-          <label className="flex min-h-11 items-center gap-2 font-semibold text-text"><input type="checkbox" checked={form.stripeEnabled} onChange={(event) => set("stripeEnabled", event.target.checked)} /><CreditCard className="h-4 w-4" aria-hidden="true" />Online betalen via Stripe (iDEAL, kaart)</label>
+          <label className="flex min-h-11 items-center gap-2 font-semibold text-text"><input type="checkbox" checked={form.stripeEnabled} onChange={(event) => set("stripeEnabled", event.target.checked)} /><CreditCard className="h-4 w-4" aria-hidden="true" />Online betalen met iDEAL via Stripe</label>
           <p className="text-body-sm text-muted">
             {form.stripeKeyConfigured
               ? form.stripeKeyReadable ? `Sleutel ingesteld (${form.stripeKeyMode === "live" ? "live" : "test"}, ${form.stripeKeyHint}).` : "De opgeslagen sleutel kan niet meer worden gelezen. Vul hem opnieuw in."

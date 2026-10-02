@@ -28,7 +28,7 @@ export function PayDeveloperInvoiceButton({ invoiceId, amountLabel }: { invoiceI
     <div className="grid gap-2">
       <button type="button" disabled={busy} onClick={() => void pay()} className={`${buttonClass} bg-accent text-contrast`}>
         {busy ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <CreditCard className="h-4 w-4" aria-hidden="true" />}
-        Betaal {amountLabel} online
+        Betaal {amountLabel} met iDEAL
       </button>
       {error ? <p role="alert" className="text-body-sm font-semibold text-red-700">{error}</p> : null}
     </div>

@@ -106,7 +106,7 @@ export function OpenInvoicesPayPanel({ invoices, payment }: { invoices: OpenInvo
         {payment.stripe ? (
           <button type="button" disabled={busy || !chosen.length} onClick={() => void pay()} className={`${buttonClass} bg-accent text-contrast`}>
             {busy ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <CreditCard className="h-4 w-4" aria-hidden="true" />}
-            Betaal {money(sum("totalCents"))} online
+            Betaal {money(sum("totalCents"))} met iDEAL
           </button>
         ) : null}
         {payment.link ? <a href={payment.link.url} target="_blank" rel="noopener noreferrer" className={`${buttonClass} border border-border bg-surface text-text`}><ExternalLink className="h-4 w-4" aria-hidden="true" />{payment.link.label || "Betaallink openen"}</a> : null}

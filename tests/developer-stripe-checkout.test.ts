@@ -23,25 +23,17 @@ function stripeStub(accepts: (methods: string[]) => boolean) {
   return { calls, fetchImpl };
 }
 
-test("payment methods are named explicitly: card and iDEAL first", async () => {
+test("the payment page offers iDEAL only", async () => {
   const { calls, fetchImpl } = stripeStub(() => true);
   const session = await createStripeCheckoutSession(input, fetchImpl);
   assert.equal(session.id, "cs_test_ok");
-  assert.deepEqual(calls.map((call) => call.methods), [["card", "ideal"]]);
+  assert.deepEqual(calls.map((call) => call.methods), [["ideal"]]);
 });
 
-test("without iDEAL on the account the payment page falls back to cards", async () => {
-  const { calls, fetchImpl } = stripeStub((methods) => !methods.includes("ideal"));
-  const session = await createStripeCheckoutSession(input, fetchImpl);
-  assert.equal(session.url, "https://checkout.stripe.com/c/pay/ok");
-  assert.deepEqual(calls.map((call) => call.methods), [["card", "ideal"], ["card"]]);
-  assert.notEqual(calls[0].key, calls[1].key, "a changed request gets its own idempotency key");
-});
-
-test("when no method works, Stripe's reason is shown; other errors are not retried", async () => {
+test("without iDEAL on the account Stripe's reason is shown; other errors are not retried", async () => {
   const none = stripeStub(() => false);
   await assert.rejects(createStripeCheckoutSession(input, none.fetchImpl), (error: unknown) => error instanceof DeveloperStripeError && /No valid payment method types/u.test(error.message));
-  assert.equal(none.calls.length, 2);
+  assert.equal(none.calls.length, 1);
 
   let calls = 0;
   const rejected: typeof fetch = async () => { calls += 1; return Response.json({ error: { message: "Invalid currency" } }, { status: 400 }); };

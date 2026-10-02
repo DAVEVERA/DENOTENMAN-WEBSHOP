@@ -79,9 +79,9 @@ export type StripeCheckoutSession = {
 export type CheckoutInvoice = { id: string; number: string; title: string; totalCents: number };
 
 // Payment methods are named explicitly: without them Stripe falls back to the dashboard's
-// automatic selection, which may have nothing active for euros. When iDEAL is not
-// activated on the account, the session is created with cards only.
-export const DEVELOPER_CHECKOUT_METHOD_SETS = [["card", "ideal"], ["card"]] as const;
+// automatic selection, which may have nothing active for euros. De Notenman pays with
+// iDEAL only, so iDEAL must be activated on the Stripe account.
+export const DEVELOPER_CHECKOUT_METHOD_SETS: ReadonlyArray<readonly string[]> = [["ideal"]];
 
 function isPaymentMethodRejection(error: unknown): boolean {
   return error instanceof DeveloperStripeError && error.code === "STRIPE_REJECTED" && /payment[ _]method/iu.test(error.message);
