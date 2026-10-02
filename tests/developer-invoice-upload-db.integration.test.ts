@@ -11,6 +11,8 @@ import {
   getDeveloperInvoice,
   getDeveloperInvoiceAttachment,
   handleDeveloperStripeWebhook,
+  listDeveloperInvoiceViews,
+  recordDeveloperInvoiceView,
   processDeveloperInvoiceReminders,
   sendDeveloperInvoices,
   startDeveloperInvoicesCheckout,
@@ -197,4 +199,28 @@ test("a signed Stripe webhook marks the invoices of a paid session paid, a forge
   const invoice = await getDeveloperInvoice(fifth.invoice.id);
   assert.equal(invoice.status, "PAID");
   assert.equal(invoice.paidVia, "stripe");
+});
+
+test("views by De Notenman are recorded once per visit and shown with the invoice", async () => {
+  const admin = await prisma.adminUser.create({ data: { username: `viewer-${run}`, passwordHash: "x", name: `Fedor ${run}` } });
+  try {
+    const invoiceId = ids[0];
+    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId }, deps), true);
+    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId }, deps), false, "a reload is the same visit");
+    assert.equal(await recordDeveloperInvoiceView({ kind: "OVERVIEW", adminUserId: admin.id }, deps), true);
+    clock = new Date(clock.getTime() + 16 * 60 * 1000);
+    assert.equal(await recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId: admin.id, invoiceId }, deps), true, "a later visit counts again");
+
+    const invoice = await getDeveloperInvoice(invoiceId);
+    assert.equal(invoice.views.count, 2);
+    assert.equal(invoice.views.lastBy, `Fedor ${run}`);
+    assert.equal(invoice.views.lastAt, clock.toISOString());
+
+    const mine = (await listDeveloperInvoiceViews(500)).filter((view) => view.viewerName === `Fedor ${run}`);
+    assert.deepEqual(mine.map((view) => view.kind).sort(), ["INVOICE", "INVOICE", "OVERVIEW"]);
+    assert.equal(mine.find((view) => view.kind === "INVOICE")?.invoiceNumber, invoice.number);
+  } finally {
+    await prisma.developerInvoiceView.deleteMany({ where: { adminUserId: admin.id } });
+    await prisma.adminUser.delete({ where: { id: admin.id } });
+  }
 });

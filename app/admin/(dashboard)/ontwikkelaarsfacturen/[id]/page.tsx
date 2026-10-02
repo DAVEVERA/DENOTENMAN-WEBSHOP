@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
+import { after, connection } from "next/server";
 import { ArrowLeft, Banknote, CheckCircle2, ExternalLink, Paperclip } from "lucide-react";
 
 import { DeveloperInvoiceDocument } from "@/components/admin-panel/developer/DeveloperInvoiceDocument";
 import { PayDeveloperInvoiceButton, PrintInvoiceButton } from "@/components/admin-panel/developer/PayDeveloperInvoice";
 import { statusBadgeFor } from "@/components/admin-panel/developer/invoice-status";
-import { requireAdminPage } from "@/lib/developer-portal/page-auth";
+import { hasDeveloperPageSession, requireAdminPage } from "@/lib/developer-portal/page-auth";
 import {
   confirmDeveloperInvoiceCheckout,
   confirmOpenDeveloperInvoicePayments,
@@ -15,6 +15,7 @@ import {
   getDeveloperInvoice,
   getDeveloperProfile,
   publicDeveloperProfile,
+  recordDeveloperInvoiceView,
 } from "@/lib/developer-portal/service";
 import { formatPrice } from "@/lib/format";
 import { formatIban } from "@/lib/developer-portal/invoice-math";
@@ -28,7 +29,7 @@ export default async function DeveloperInvoicePage({ params, searchParams }: {
   searchParams: Promise<{ betaling?: string; session_id?: string }>;
 }) {
   await connection();
-  await requireAdminPage();
+  const { adminUserId } = await requireAdminPage();
   const { id } = await params;
   const { betaling, session_id: sessionId } = await searchParams;
 
@@ -46,6 +47,9 @@ export default async function DeveloperInvoicePage({ params, searchParams }: {
   } catch (error) {
     if (error instanceof DeveloperInvoiceError && error.status === 404) notFound();
     throw error;
+  }
+  if (!(await hasDeveloperPageSession(adminUserId))) {
+    after(() => recordDeveloperInvoiceView({ kind: "INVOICE", adminUserId, invoiceId: id }).catch((error) => console.error("Developer invoice view not recorded", error)));
   }
   const developer = publicDeveloperProfile(await getDeveloperProfile());
   const badge = statusBadgeFor(invoice);

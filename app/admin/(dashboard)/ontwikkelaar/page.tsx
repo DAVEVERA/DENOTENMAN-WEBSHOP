@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { DeveloperPortal } from "@/components/admin-panel/developer/DeveloperPortal";
 import { developerPortalConfigured } from "@/lib/developer-portal/auth";
 import { hasDeveloperPageSession, requireAdminPage } from "@/lib/developer-portal/page-auth";
-import { confirmOpenDeveloperInvoicePayments, developerProfileDto, getDeveloperProfile, listDeveloperInvoices } from "@/lib/developer-portal/service";
+import { confirmOpenDeveloperInvoicePayments, developerProfileDto, getDeveloperProfile, listDeveloperInvoices, listDeveloperInvoiceViews } from "@/lib/developer-portal/service";
 
 export const metadata: Metadata = { title: "Ontwikkelaar", robots: { index: false, follow: false } };
 
@@ -15,6 +15,6 @@ export default async function DeveloperPortalPage() {
     return <DeveloperPortal mode="login" configured={developerPortalConfigured()} />;
   }
   await confirmOpenDeveloperInvoicePayments().catch(() => undefined);
-  const [invoices, profile] = await Promise.all([listDeveloperInvoices(), getDeveloperProfile()]);
-  return <DeveloperPortal mode="portal" configured initialInvoices={invoices} initialProfile={developerProfileDto(profile)} />;
+  const [invoices, profile, views] = await Promise.all([listDeveloperInvoices(), getDeveloperProfile(), listDeveloperInvoiceViews()]);
+  return <DeveloperPortal mode="portal" configured initialInvoices={invoices} initialProfile={developerProfileDto(profile)} initialViews={views} />;
 }

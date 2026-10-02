@@ -6,6 +6,7 @@ import {
   Banknote,
   CheckCircle2,
   CreditCard,
+  Eye,
   Paperclip,
   TriangleAlert,
   Upload,
@@ -25,7 +26,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import type { DeveloperInvoiceDto, DeveloperProfileDto } from "@/lib/developer-portal/service";
+import type { DeveloperInvoiceDto, DeveloperInvoiceViewDto, DeveloperProfileDto } from "@/lib/developer-portal/service";
 import { computeDeveloperInvoiceTotals, type DeveloperInvoiceLine } from "@/lib/developer-portal/invoice-math";
 import { statusBadgeFor } from "./invoice-status";
 
@@ -36,6 +37,7 @@ const panelClass = "rounded-panel border border-border bg-surface p-4 shadow-car
 
 const euro = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 const dateLabel = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeZone: "Europe/Amsterdam" });
+const dateTimeLabel = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Amsterdam" });
 
 export function formatCents(cents: number) {
   return euro.format(cents / 100);
@@ -320,6 +322,14 @@ function InvoiceCard({ invoice, busy, selected, onSelect, onEdit, onAction, onDe
               {invoice.secondReminderAt ? `Tweede herinnering verstuurd ${dateLabel.format(new Date(invoice.secondReminderAt))}.` : invoice.firstReminderAt ? `Eerste herinnering verstuurd ${dateLabel.format(new Date(invoice.firstReminderAt))}; de tweede volgt na 14 dagen.` : "Eerste herinnering volgt 7 dagen na klaarzetten als er niet is betaald."}
             </p>
           ) : null}
+          {invoice.status !== "DRAFT" ? (
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted">
+              <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              {invoice.views.count && invoice.views.lastAt
+                ? `Ingezien door De Notenman: ${invoice.views.count}× · laatst ${dateTimeLabel.format(new Date(invoice.views.lastAt))}${invoice.views.lastBy ? ` door ${invoice.views.lastBy}` : ""}`
+                : "Nog niet geopend door De Notenman."}
+            </p>
+          ) : null}
           {invoice.attachment?.conversion ? (
             <p className="mt-1 text-xs text-muted">Omgerekend van $ {plainAmount.format(invoice.attachment.conversion.originalTotalCents / 100)} (1 euro = {String(invoice.attachment.conversion.rate).replace(".", ",")} dollar, ECB {rateDateLabel.format(new Date(`${invoice.attachment.conversion.rateDate}T00:00:00Z`))})</p>
           ) : null}
@@ -506,20 +516,58 @@ function ProfileSettings({ profile, onSaved }: { profile: DeveloperProfileDto; o
   );
 }
 
+// ---------- Views ----------
+
+const viewKindLabel: Record<DeveloperInvoiceViewDto["kind"], string> = {
+  OVERVIEW: "Opende het factuuroverzicht",
+  INVOICE: "Opende factuur",
+  ATTACHMENT: "Opende het originele bestand van",
+};
+
+function ViewsPanel({ views }: { views: DeveloperInvoiceViewDto[] }) {
+  return (
+    <section className={`${panelClass} grid gap-3`} aria-labelledby="views-title">
+      <div>
+        <h2 id="views-title" className="text-heading-sm font-bold text-text">Inzage door De Notenman</h2>
+        <p className="mt-1 text-body-sm text-muted">Wanneer iemand bij De Notenman de facturen bekijkt. Herladen binnen 15 minuten telt als één bezoek; je eigen bezoeken tellen niet mee.</p>
+      </div>
+      {views.length ? (
+        <ol className="grid gap-2">
+          {views.map((view) => (
+            <li key={view.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-card border border-border bg-background p-3 text-body-sm">
+              <span className="min-w-0 text-text">
+                <span className="font-semibold">{view.viewerName}</span>{" "}
+                {viewKindLabel[view.kind].toLowerCase()}
+                {view.invoiceNumber ? <> <span className="font-semibold">{view.invoiceNumber}</span></> : null}
+              </span>
+              <time dateTime={view.createdAt} className="text-xs text-muted">{dateTimeLabel.format(new Date(view.createdAt))}</time>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="text-body-sm text-muted">Nog niemand heeft de facturen bekeken.</p>
+      )}
+    </section>
+  );
+}
+
 // ---------- Portal ----------
 
 type PortalProps =
   | { mode: "login"; configured: boolean }
-  | { mode: "portal"; configured: true; initialInvoices: DeveloperInvoiceDto[]; initialProfile: DeveloperProfileDto };
+  | { mode: "portal"; configured: true; initialInvoices: DeveloperInvoiceDto[]; initialProfile: DeveloperProfileDto; initialViews: DeveloperInvoiceViewDto[] };
 
 export function DeveloperPortal(props: PortalProps) {
   if (props.mode === "login") return <LoginForm configured={props.configured} />;
-  return <Portal initialInvoices={props.initialInvoices} initialProfile={props.initialProfile} />;
+  return <Portal initialInvoices={props.initialInvoices} initialProfile={props.initialProfile} views={props.initialViews} />;
 }
 
-function Portal({ initialInvoices, initialProfile }: { initialInvoices: DeveloperInvoiceDto[]; initialProfile: DeveloperProfileDto }) {
+function Portal({ initialInvoices, initialProfile, views }: { initialInvoices: DeveloperInvoiceDto[]; initialProfile: DeveloperProfileDto; views: DeveloperInvoiceViewDto[] }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"invoices" | "settings">("invoices");
+  const [tab, setTab] = useState<"invoices" | "views" | "settings">("invoices");
+  // Rendered once on the server: "this week" is fixed for the lifetime of the page.
+  const [weekAgo] = useState(() => Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const recentViews = views.filter((view) => new Date(view.createdAt).getTime() >= weekAgo).length;
   const [invoices, setInvoices] = useState(initialInvoices);
   const [profile, setProfile] = useState(initialProfile);
   const [editing, setEditing] = useState<DeveloperInvoiceDto | "new" | null>(null);
@@ -633,6 +681,7 @@ function Portal({ initialInvoices, initialProfile }: { initialInvoices: Develope
 
       <div role="tablist" aria-label="Onderdelen" className="mt-5 flex gap-2">
         <button type="button" role="tab" aria-selected={tab === "invoices"} onClick={() => setTab("invoices")} className={`${buttonClass} border ${tab === "invoices" ? "border-accent-ink bg-accent/15 text-text" : "border-border bg-surface text-muted"}`}><FileText className="h-4 w-4" aria-hidden="true" />Facturen</button>
+        <button type="button" role="tab" aria-selected={tab === "views"} onClick={() => setTab("views")} className={`${buttonClass} border ${tab === "views" ? "border-accent-ink bg-accent/15 text-text" : "border-border bg-surface text-muted"}`}><Eye className="h-4 w-4" aria-hidden="true" />Inzage{recentViews ? <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-contrast" aria-label={`${recentViews} bezoeken deze week`}>{recentViews}</span> : null}</button>
         <button type="button" role="tab" aria-selected={tab === "settings"} onClick={() => setTab("settings")} className={`${buttonClass} border ${tab === "settings" ? "border-accent-ink bg-accent/15 text-text" : "border-border bg-surface text-muted"}`}><Settings className="h-4 w-4" aria-hidden="true" />Instellingen</button>
       </div>
 
@@ -640,6 +689,8 @@ function Portal({ initialInvoices, initialProfile }: { initialInvoices: Develope
 
       {tab === "settings" ? (
         <div className="mt-5"><ProfileSettings profile={profile} onSaved={setProfile} /></div>
+      ) : tab === "views" ? (
+        <div className="mt-5"><ViewsPanel views={views} /></div>
       ) : (
         <div className="mt-5 grid gap-4">
           {!paymentReady ? (

@@ -1809,6 +1809,7 @@ model DeveloperInvoice {
   updatedAt               DateTime                @updatedAt
   events                  DeveloperInvoiceEvent[]
   attachment              DeveloperInvoiceAttachment?
+  views                   DeveloperInvoiceView[]
 
   @@index([status, sentAt])
 }
@@ -1835,6 +1836,22 @@ model DeveloperInvoiceEvent {
   detail    Json?
   createdAt DateTime         @default(now())
 
+  @@index([invoiceId, createdAt])
+}
+
+/// Who at De Notenman opened the invoice overview, an invoice or an original file. The
+/// developer's own visits are not counted; reloads within a few minutes count once.
+model DeveloperInvoiceView {
+  id          String            @id @default(cuid())
+  /// OVERVIEW, INVOICE or ATTACHMENT
+  kind        String
+  invoiceId   String?
+  invoice     DeveloperInvoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  adminUserId String?
+  viewerName  String
+  createdAt   DateTime          @default(now())
+
+  @@index([createdAt])
   @@index([invoiceId, createdAt])
 }
 

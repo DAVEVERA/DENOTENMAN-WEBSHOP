@@ -1,7 +1,7 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 
 import { developerErrorResponse, getDeveloperAdmin, requireAdmin } from "@/lib/developer-portal/http";
-import { getDeveloperInvoiceAttachment } from "@/lib/developer-portal/service";
+import { getDeveloperInvoiceAttachment, recordDeveloperInvoiceView } from "@/lib/developer-portal/service";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
@@ -12,7 +12,12 @@ export async function GET(request: NextRequest, context: Context) {
   if (guard.response) return guard.response;
   try {
     const developer = await getDeveloperAdmin(request);
-    const file = await getDeveloperInvoiceAttachment((await context.params).id, { publishedOnly: !developer });
+    const id = (await context.params).id;
+    const file = await getDeveloperInvoiceAttachment(id, { publishedOnly: !developer });
+    if (!developer) {
+      const adminUserId = guard.admin.id;
+      after(() => recordDeveloperInvoiceView({ kind: "ATTACHMENT", adminUserId, invoiceId: id }).catch((error) => console.error("Developer invoice view not recorded", error)));
+    }
     const safeName = file.filename.replace(/[^\w.\- ]+/gu, "_").slice(0, 120) || "factuur";
     return new NextResponse(new Uint8Array(file.data), {
       headers: {

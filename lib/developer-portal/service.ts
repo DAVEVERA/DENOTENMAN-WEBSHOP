@@ -231,6 +231,8 @@ export type DeveloperInvoiceDto = {
   paidAt: string | null;
   paidVia: string | null;
   events: Array<{ type: string; createdAt: string; detail: unknown }>;
+  /** How often De Notenman opened this invoice or its file, and the last time. */
+  views: { count: number; lastAt: string | null; lastBy: string | null };
   /** The uploaded original, if the invoice came from a file. */
   attachment: {
     filename: string;
@@ -271,7 +273,12 @@ function attachmentDto(attachment: AttachmentSummary | null | undefined): Develo
 }
 
 export function developerInvoiceDto(
-  invoice: DeveloperInvoice & { events?: Array<{ type: string; createdAt: Date; detail: Prisma.JsonValue }>; attachment?: AttachmentSummary | null },
+  invoice: DeveloperInvoice & {
+    events?: Array<{ type: string; createdAt: Date; detail: Prisma.JsonValue }>;
+    attachment?: AttachmentSummary | null;
+    views?: Array<{ createdAt: Date; viewerName: string }>;
+    _count?: { views: number };
+  },
   now = new Date(),
 ): DeveloperInvoiceDto {
   const lines = storedLines(invoice.lines);
@@ -296,6 +303,11 @@ export function developerInvoiceDto(
     paidAt: invoice.paidAt?.toISOString() ?? null,
     paidVia: invoice.paidVia,
     events: (invoice.events ?? []).map((event) => ({ type: event.type, createdAt: event.createdAt.toISOString(), detail: event.detail })),
+    views: {
+      count: invoice._count?.views ?? 0,
+      lastAt: invoice.views?.[0]?.createdAt.toISOString() ?? null,
+      lastBy: invoice.views?.[0]?.viewerName ?? null,
+    },
     attachment: attachmentDto(invoice.attachment),
   };
 }
@@ -330,6 +342,8 @@ const withEvents = {
   events: { orderBy: { createdAt: "asc" as const } },
   // Never load the file itself into a list; it is served by its own route.
   attachment: { select: { filename: true, contentType: true, sizeBytes: true, extracted: true } },
+  views: { orderBy: { createdAt: "desc" as const }, take: 1, select: { createdAt: true, viewerName: true } },
+  _count: { select: { views: true } },
 };
 
 export async function listDeveloperInvoices(options: { publishedOnly?: boolean } = {}): Promise<DeveloperInvoiceDto[]> {
@@ -777,4 +791,55 @@ export function mapDeveloperError(error: unknown): { status: number; body: { err
   }
   console.error("Developer invoicing: unexpected error", error);
   return { status: 500, body: { error: "INTERNAL_ERROR", message: "Er ging iets mis. Probeer het opnieuw." } };
+}
+
+// ---------- Views: when De Notenman looks at the invoices ----------
+
+export type DeveloperInvoiceViewKind = "OVERVIEW" | "INVOICE" | "ATTACHMENT";
+
+// Reloads and clicking back and forth within this time count as one visit.
+const VIEW_REPEAT_MS = 15 * 60 * 1000;
+
+export type DeveloperInvoiceViewDto = {
+  id: string;
+  kind: DeveloperInvoiceViewKind;
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+  viewerName: string;
+  createdAt: string;
+};
+
+/** Records that an admin opened the overview, an invoice or its file. Returns false when it repeats a recent visit. */
+export async function recordDeveloperInvoiceView(
+  input: { kind: DeveloperInvoiceViewKind; adminUserId: string; invoiceId?: string | null },
+  deps: Partial<DeveloperInvoiceDeps> = {},
+): Promise<boolean> {
+  const now = (deps.now ?? defaultDeps.now)();
+  const invoiceId = input.invoiceId ?? null;
+  const recent = await prisma.developerInvoiceView.findFirst({
+    where: { kind: input.kind, invoiceId, adminUserId: input.adminUserId, createdAt: { gte: new Date(now.getTime() - VIEW_REPEAT_MS) } },
+    select: { id: true },
+  });
+  if (recent) return false;
+  const admin = await prisma.adminUser.findUnique({ where: { id: input.adminUserId }, select: { name: true, username: true } });
+  await prisma.developerInvoiceView.create({
+    data: { kind: input.kind, invoiceId, adminUserId: input.adminUserId, viewerName: admin?.name?.trim() || admin?.username || "Onbekende beheerder", createdAt: now },
+  });
+  return true;
+}
+
+export async function listDeveloperInvoiceViews(limit = 100): Promise<DeveloperInvoiceViewDto[]> {
+  const views = await prisma.developerInvoiceView.findMany({
+    orderBy: { createdAt: "desc" },
+    take: Math.min(Math.max(limit, 1), 500),
+    include: { invoice: { select: { number: true } } },
+  });
+  return views.map((view) => ({
+    id: view.id,
+    kind: (["OVERVIEW", "INVOICE", "ATTACHMENT"].includes(view.kind) ? view.kind : "OVERVIEW") as DeveloperInvoiceViewKind,
+    invoiceId: view.invoiceId,
+    invoiceNumber: view.invoice?.number ?? null,
+    viewerName: view.viewerName,
+    createdAt: view.createdAt.toISOString(),
+  }));
 }

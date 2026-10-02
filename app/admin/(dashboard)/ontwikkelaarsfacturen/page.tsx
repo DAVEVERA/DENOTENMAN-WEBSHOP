@@ -5,13 +5,14 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 import { OpenInvoicesPayPanel } from "@/components/admin-panel/developer/OpenInvoicesPayPanel";
 import { statusBadgeFor } from "@/components/admin-panel/developer/invoice-status";
-import { requireAdminPage } from "@/lib/developer-portal/page-auth";
+import { hasDeveloperPageSession, requireAdminPage } from "@/lib/developer-portal/page-auth";
 import {
   confirmDeveloperInvoiceSession,
   confirmOpenDeveloperInvoicePayments,
   getDeveloperProfile,
   listDeveloperInvoices,
   processDeveloperInvoiceReminders,
+  recordDeveloperInvoiceView,
   publicDeveloperProfile,
 } from "@/lib/developer-portal/service";
 import { formatPrice } from "@/lib/format";
@@ -22,7 +23,7 @@ const dateLabel = new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeZo
 
 export default async function DeveloperInvoicesPage({ searchParams }: { searchParams: Promise<{ betaling?: string; session_id?: string }> }) {
   await connection();
-  await requireAdminPage();
+  const { adminUserId } = await requireAdminPage();
   const { betaling, session_id: sessionId } = await searchParams;
 
   // Back from Stripe: confirm the payment of every invoice it covered before listing.
@@ -39,6 +40,10 @@ export default async function DeveloperInvoicesPage({ searchParams }: { searchPa
   const developer = publicDeveloperProfile(profile);
   // Safety net next to the daily job: confirms payments and sends due reminders.
   after(() => processDeveloperInvoiceReminders().catch((error) => console.error("Developer invoice reminders failed", error)));
+  // The developer sees who opened the invoices; their own visits do not count.
+  if (!(await hasDeveloperPageSession(adminUserId))) {
+    after(() => recordDeveloperInvoiceView({ kind: "OVERVIEW", adminUserId }).catch((error) => console.error("Developer invoice view not recorded", error)));
+  }
   const open = invoices.filter((invoice) => invoice.status === "SENT");
   const paid = invoices.filter((invoice) => invoice.status === "PAID");
 
