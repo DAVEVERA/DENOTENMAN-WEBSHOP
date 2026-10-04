@@ -11,6 +11,8 @@ import {
   Camera,
   ChevronDown,
   Copy,
+  GripVertical,
+  Grid3x3,
   Film,
   Grid2x2,
   Heading,
@@ -42,12 +44,10 @@ import { uploadMediaInChunks } from "@/components/admin-panel/media/chunked-uplo
 import { extractNewsletterContent } from "@/lib/mailchimp/template";
 import {
   createNewsletterBlock,
-  NEWSLETTER_FONTS,
   newBlockId,
   type NewsletterBlock,
   type NewsletterBlockType,
   type NewsletterDocument,
-  type NewsletterFont,
   type NewsletterTheme,
 } from "@/lib/newsletter/document";
 import { renderNewsletterEmail } from "@/lib/newsletter/render";
@@ -58,6 +58,7 @@ import {
   youtubeId,
 } from "@/lib/newsletter/video";
 import { VideoFramePicker } from "./VideoFramePicker";
+import { BlockStyleFields, BrandLogoButtons, FontSelect, LayoutFields, ThemePresetBar } from "./NewsletterStyleControls";
 import type { NewsletterAudience } from "@/lib/mailchimp/schemas";
 import { targetingProblem, type NewsletterTargeting } from "@/lib/mailchimp/targeting";
 import { AudienceSegmentPicker } from "./AudienceSegmentPicker";
@@ -403,7 +404,7 @@ function VideoEditor({ block, onChange }: { block: Extract<NewsletterBlock, { ty
   );
 }
 
-function BlockFields({ block, onChange }: { block: NewsletterBlock; onChange: (block: NewsletterBlock) => void }) {
+function BlockFields({ block, onChange, grid }: { block: NewsletterBlock; onChange: (block: NewsletterBlock) => void; grid: number }) {
   switch (block.type) {
     case "heading":
       return (
@@ -438,6 +439,7 @@ function BlockFields({ block, onChange }: { block: NewsletterBlock; onChange: (b
             <AlignField value={block.align} onChange={(align) => onChange({ ...block, align })} />
           </div>
           <label className="flex min-h-11 items-center gap-2 text-body-sm font-semibold"><input type="checkbox" checked={block.rounded} onChange={(event) => onChange({ ...block, rounded: event.target.checked })} />Afgeronde hoeken</label>
+          <label className="flex min-h-11 items-center gap-2 text-body-sm font-semibold"><input type="checkbox" checked={block.fullBleed} onChange={(event) => onChange({ ...block, fullBleed: event.target.checked })} />Van rand tot rand (banner)</label>
         </div>
       );
     case "video":
@@ -462,7 +464,11 @@ function BlockFields({ block, onChange }: { block: NewsletterBlock; onChange: (b
     case "columns":
       return (
         <div className="grid gap-3">
-          <label className={labelClass}>Aantal kolommen<select value={block.count} onChange={(event) => onChange({ ...block, count: Number(event.target.value) as 2 | 3 })} className={inputClass}><option value={2}>2</option><option value={3}>3</option></select></label>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className={labelClass}>Aantal kolommen<select value={block.count} onChange={(event) => onChange({ ...block, count: Number(event.target.value) as 2 | 3 })} className={inputClass}><option value={2}>2</option><option value={3}>3</option></select></label>
+            <label className={labelClass}>Verhouding<select value={block.count === 2 ? block.ratio : "equal"} disabled={block.count !== 2} onChange={(event) => onChange({ ...block, ratio: event.target.value as typeof block.ratio })} className={inputClass}><option value="equal">Even breed</option><option value="wide-left">Links breder (2:1)</option><option value="wide-right">Rechts breder (1:2)</option></select></label>
+            <Slider label="Tussenruimte" value={block.gap} min={0} max={48} step={grid} suffix="px" onChange={(gap) => onChange({ ...block, gap })} />
+          </div>
           {block.items.map((item, index) => (
             <fieldset key={index} className="grid min-w-0 gap-2 rounded-card border border-border bg-background p-3">
               <legend className="px-1 text-xs font-bold uppercase tracking-[0.08em] text-muted">Kolom {index + 1}</legend>
@@ -536,7 +542,7 @@ function BlockFields({ block, onChange }: { block: NewsletterBlock; onChange: (b
         </div>
       );
     case "spacer":
-      return <Slider label="Hoogte" value={block.height} min={8} max={96} step={4} suffix="px" onChange={(height) => onChange({ ...block, height })} />;
+      return <Slider label="Hoogte" value={Math.max(grid, Math.round(block.height / grid) * grid)} min={grid} max={96} step={grid} suffix="px" onChange={(height) => onChange({ ...block, height })} />;
     case "social":
       return (
         <div className="grid gap-3">
@@ -601,15 +607,20 @@ function ThemeEditor({ theme, onChange }: { theme: NewsletterTheme; onChange: (t
   const set = <K extends keyof NewsletterTheme>(key: K, value: NewsletterTheme[K]) => onChange({ ...theme, [key]: value });
   return (
     <div className="grid gap-4">
+      <ThemePresetBar theme={theme} onChange={onChange} />
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className={labelClass}>Lettertype<select value={theme.font} onChange={(event) => set("font", event.target.value as NewsletterFont)} className={inputClass}>{Object.entries(NEWSLETTER_FONTS).map(([key, font]) => <option key={key} value={key}>{font.label}</option>)}</select></label>
+        <FontSelect label="Lettertype tekst" value={theme.font} onChange={(value) => set("font", value ?? "arial")} />
+        <FontSelect label="Lettertype koppen" value={theme.headingFont} allowInherit onChange={(value) => set("headingFont", value)} />
         <Slider label="Breedte" value={theme.contentWidth} min={480} max={720} step={20} suffix="px" onChange={(value) => set("contentWidth", value)} />
         <Slider label="Afronding" value={theme.radius} min={0} max={24} suffix="px" onChange={(value) => set("radius", value)} />
       </div>
+      <p className="-mt-2 text-xs text-muted">Google Fonts tonen in Apple Mail en iPhone; Gmail en Outlook gebruiken een gelijkend standaardlettertype.</p>
+      <LayoutFields theme={theme} onChange={onChange} />
       <fieldset className="grid min-w-0 gap-3 rounded-card border border-border bg-background p-3">
         <legend className="px-1 text-xs font-bold uppercase tracking-[0.08em] text-muted">Kop van de mail</legend>
         <label className={labelClass}>Soort<select value={theme.header.mode} onChange={(event) => set("header", { ...theme.header, mode: event.target.value as NewsletterTheme["header"]["mode"] })} className={inputClass}><option value="text">Tekst</option><option value="logo">Logo</option><option value="none">Geen kop</option></select></label>
         {theme.header.mode !== "none" ? <label className={labelClass}>Tekst {theme.header.mode === "logo" ? "(alt-tekst van het logo)" : ""}<input value={theme.header.text} onChange={(event) => set("header", { ...theme.header, text: event.target.value })} maxLength={80} className={inputClass} /></label> : null}
+        {theme.header.mode !== "none" ? <BrandLogoButtons onLogo={(logoUrl) => set("header", { ...theme.header, mode: "logo", logoUrl, text: theme.header.text || "De Notenman" })} /> : null}
         {theme.header.mode === "logo" ? (
           <>
             <ImageField label="Logo" value={theme.header.logoUrl} onChange={(logoUrl) => set("header", { ...theme.header, logoUrl })} />
@@ -702,8 +713,11 @@ export function NewsletterEditorForm({
   const [testEmail, setTestEmail] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [showGrid, setShowGrid] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
   const editable = mode === "create" || campaignStatus === "save";
-  const preview = useMemo(() => renderNewsletterEmail(document, { subject: draft.subject, previewText: draft.previewText }, { preview: true }), [document, draft.subject, draft.previewText]);
+  const preview = useMemo(() => renderNewsletterEmail(document, { subject: draft.subject, previewText: draft.previewText }, { preview: true, showGrid }), [document, draft.subject, draft.previewText, showGrid]);
   const audienceRecipientCount = draft.audience === "custom" ? "bestaande selectie van" : draft.audience === "segment" ? "de gekozen" : recipientCountForAudience(draft.audience, recipientCount, businessRecipientCount);
 
   function setTargeting(targeting: NewsletterTargeting) {
@@ -744,6 +758,16 @@ export function NewsletterEditorForm({
     const [block] = blocks.splice(index, 1);
     blocks.splice(index + delta, 0, block);
     changeDocument({ ...document, blocks });
+  }
+
+  function dropBlock(target: number) {
+    if (dragIndex === null) return;
+    const blocks = [...document.blocks];
+    const [block] = blocks.splice(dragIndex, 1);
+    blocks.splice(target > dragIndex ? target - 1 : target, 0, block);
+    setDragIndex(null);
+    setDropIndex(null);
+    if (target !== dragIndex && target !== dragIndex + 1) changeDocument({ ...document, blocks });
   }
 
   function duplicateBlock(index: number) {
@@ -901,8 +925,24 @@ export function NewsletterEditorForm({
               return (
                 <div key={block.id} className="grid min-w-0 gap-2">
                   {editable && index > 0 ? <AddBlockMenu compact onAdd={(type) => insertBlock(type, index)} /> : null}
-                  <article className={`min-w-0 rounded-panel border bg-surface shadow-card ${open ? "border-accent-ink" : "border-border"}`}>
-                    <div className="flex items-center gap-2 p-2 pl-3">
+                  <article
+                    onDragOver={(event) => { if (dragIndex === null) return; event.preventDefault(); const box = event.currentTarget.getBoundingClientRect(); setDropIndex(event.clientY < box.top + box.height / 2 ? index : index + 1); }}
+                    onDrop={(event) => { event.preventDefault(); if (dropIndex !== null) dropBlock(dropIndex); }}
+                    className={`min-w-0 rounded-panel border bg-surface shadow-card ${open ? "border-accent-ink" : "border-border"} ${dragIndex === index ? "opacity-50" : ""} ${dropIndex === index && dragIndex !== null ? "border-t-4 border-t-accent" : ""} ${dropIndex === index + 1 && dragIndex !== null && index === document.blocks.length - 1 ? "border-b-4 border-b-accent" : ""}`}
+                  >
+                    <div className="flex items-center gap-2 p-2 pl-3 sm:pl-1">
+                      {editable ? (
+                        <span
+                          draggable
+                          onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", block.id); setDragIndex(index); }}
+                          onDragEnd={() => { setDragIndex(null); setDropIndex(null); }}
+                          className="hidden h-11 w-6 shrink-0 cursor-grab items-center justify-center text-muted active:cursor-grabbing sm:inline-flex"
+                          title="Sleep om te verplaatsen"
+                          aria-hidden="true"
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </span>
+                      ) : null}
                       <button type="button" onClick={() => setOpenBlock(open ? null : block.id)} aria-expanded={open} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left">
                         <Icon className="h-4 w-4 shrink-0 text-accent-ink" aria-hidden="true" />
                         <span className="min-w-0"><span className="block text-body-sm font-bold text-text">{blockLabel(block.type)}</span><span className="block truncate text-xs text-muted">{blockSummary(block)}</span></span>
@@ -916,7 +956,12 @@ export function NewsletterEditorForm({
                         </span>
                       ) : null}
                     </div>
-                    {open ? <div className="border-t border-border p-3 sm:p-4"><BlockFields block={block} onChange={updateBlock} /></div> : null}
+                    {open ? (
+                      <div className="border-t border-border p-3 sm:p-4">
+                        <BlockFields block={block} onChange={updateBlock} grid={document.theme.gridSize} />
+                        <BlockStyleFields style={block.style} grid={document.theme.gridSize} onChange={(style) => updateBlock({ ...block, style } as NewsletterBlock)} />
+                      </div>
+                    ) : null}
                   </article>
                 </div>
               );
@@ -964,7 +1009,8 @@ export function NewsletterEditorForm({
       <aside className="grid min-w-0 content-start gap-3 xl:sticky xl:top-20 xl:self-start" aria-label="Nieuwsbriefvoorbeeld">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-heading-md text-text">Live voorbeeld</h2>
-          <div className="flex gap-1" role="group" aria-label="Apparaat">
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Voorbeeldopties">
+            <button type="button" aria-pressed={showGrid} onClick={() => setShowGrid((value) => !value)} className={`${smallButton} min-h-11 ${showGrid ? "border-accent-ink bg-accent/15" : ""}`}><Grid3x3 className="h-4 w-4" aria-hidden="true" />Raster</button>
             <button type="button" aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")} className={`${smallButton} min-h-11 ${device === "desktop" ? "border-accent-ink bg-accent/15" : ""}`}><Monitor className="h-4 w-4" aria-hidden="true" />Desktop</button>
             <button type="button" aria-pressed={device === "mobile"} onClick={() => setDevice("mobile")} className={`${smallButton} min-h-11 ${device === "mobile" ? "border-accent-ink bg-accent/15" : ""}`}><Smartphone className="h-4 w-4" aria-hidden="true" />Mobiel</button>
           </div>

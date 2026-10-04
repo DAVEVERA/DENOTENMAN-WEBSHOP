@@ -11,18 +11,77 @@ const linkUrl = z.string().trim().max(2_000).regex(/^(?:https?:\/\/\S+|mailto:\S
 const align = z.enum(["left", "center", "right"]);
 const id = z.string().min(1).max(40);
 
+type FontDefinition = { label: string; stack: string; google?: string };
+
+// Web-safe fonts work everywhere. Google Fonts load in Apple Mail, iOS Mail, Samsung
+// Mail and Thunderbird; Gmail and Outlook show the fallback in the same stack.
 export const NEWSLETTER_FONTS = {
   arial: { label: "Arial", stack: "Arial, Helvetica, sans-serif" },
   helvetica: { label: "Helvetica", stack: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
   verdana: { label: "Verdana", stack: "Verdana, Geneva, sans-serif" },
   trebuchet: { label: "Trebuchet MS", stack: "'Trebuchet MS', Tahoma, sans-serif" },
   georgia: { label: "Georgia", stack: "Georgia, 'Times New Roman', serif" },
-} as const;
+  montserrat: { label: "Montserrat (huisstijl)", stack: "Montserrat, Arial, Helvetica, sans-serif", google: "Montserrat" },
+  dosis: { label: "Dosis (huisstijl)", stack: "Dosis, 'Trebuchet MS', Arial, sans-serif", google: "Dosis" },
+  inter: { label: "Inter", stack: "Inter, Arial, Helvetica, sans-serif", google: "Inter" },
+  roboto: { label: "Roboto", stack: "Roboto, Arial, Helvetica, sans-serif", google: "Roboto" },
+  "open-sans": { label: "Open Sans", stack: "'Open Sans', Arial, Helvetica, sans-serif", google: "Open Sans" },
+  lato: { label: "Lato", stack: "Lato, Arial, Helvetica, sans-serif", google: "Lato" },
+  poppins: { label: "Poppins", stack: "Poppins, Arial, Helvetica, sans-serif", google: "Poppins" },
+  nunito: { label: "Nunito", stack: "Nunito, Arial, Helvetica, sans-serif", google: "Nunito" },
+  "dm-sans": { label: "DM Sans", stack: "'DM Sans', Arial, Helvetica, sans-serif", google: "DM Sans" },
+  raleway: { label: "Raleway", stack: "Raleway, Arial, Helvetica, sans-serif", google: "Raleway" },
+  "work-sans": { label: "Work Sans", stack: "'Work Sans', Arial, Helvetica, sans-serif", google: "Work Sans" },
+  oswald: { label: "Oswald", stack: "Oswald, 'Arial Narrow', Arial, sans-serif", google: "Oswald" },
+  "playfair-display": { label: "Playfair Display", stack: "'Playfair Display', Georgia, serif", google: "Playfair Display" },
+  merriweather: { label: "Merriweather", stack: "Merriweather, Georgia, serif", google: "Merriweather" },
+  lora: { label: "Lora", stack: "Lora, Georgia, serif", google: "Lora" },
+  "libre-baskerville": { label: "Libre Baskerville", stack: "'Libre Baskerville', Georgia, serif", google: "Libre Baskerville" },
+} as const satisfies Record<string, FontDefinition>;
 
-export type NewsletterFont = keyof typeof NEWSLETTER_FONTS;
+export type NewsletterFontKey = keyof typeof NEWSLETTER_FONTS;
+/** A key from NEWSLETTER_FONTS, or "google:<Family Name>" for any other Google Font. */
+export type NewsletterFont = string;
+
+const CUSTOM_GOOGLE_FONT = /^google:[A-Za-z][A-Za-z0-9 ]{1,39}$/u;
+
+export function isNewsletterFont(value: string): boolean {
+  return Object.hasOwn(NEWSLETTER_FONTS, value) || CUSTOM_GOOGLE_FONT.test(value);
+}
+
+function fontDefinition(font: string | null | undefined): FontDefinition | null {
+  if (!font) return null;
+  if (Object.hasOwn(NEWSLETTER_FONTS, font)) return NEWSLETTER_FONTS[font as NewsletterFontKey];
+  if (CUSTOM_GOOGLE_FONT.test(font)) {
+    const family = font.slice("google:".length).trim();
+    return { label: family, stack: `'${family}', Arial, Helvetica, sans-serif`, google: family };
+  }
+  return null;
+}
+
+/** The CSS font-family stack for a font, falling back to Arial. */
+export function fontStack(font: string | null | undefined): string {
+  return fontDefinition(font)?.stack ?? NEWSLETTER_FONTS.arial.stack;
+}
+
+/** The Google Fonts family name to load for a font, or null for web-safe fonts. */
+export function googleFontFamily(font: string | null | undefined): string | null {
+  return fontDefinition(font)?.google ?? null;
+}
+
+export const NEWSLETTER_GRID_SIZES = [4, 8, 16] as const;
+
+/** Rounds a spacing value to the layout grid, so blocks line up. */
+export function snapToGrid(value: number, grid: number): number {
+  return grid > 0 ? Math.round(value / grid) * grid : value;
+}
+
+const fontField = z.string().refine(isNewsletterFont, "Kies een lettertype uit de lijst of een geldige Google Font-naam.");
 
 export const newsletterThemeSchema = z.object({
-  font: z.enum(Object.keys(NEWSLETTER_FONTS) as [NewsletterFont, ...NewsletterFont[]]),
+  font: fontField,
+  /** Font for headings; null uses the body font. */
+  headingFont: fontField.nullable().default(null),
   pageBackground: hex,
   contentBackground: hex,
   text: hex,
@@ -36,6 +95,13 @@ export const newsletterThemeSchema = z.object({
   footerText: hex,
   contentWidth: z.number().int().min(480).max(720),
   radius: z.number().int().min(0).max(24),
+  /** Side padding of the content, snapped to the grid. */
+  paddingX: z.number().int().min(16).max(48).default(32),
+  /** Spacing values snap to this grid. */
+  gridSize: z.union([z.literal(4), z.literal(8), z.literal(16)]).default(8),
+  buttonStyle: z.enum(["filled", "outline"]).default("filled"),
+  /** Button corner radius; null follows the general radius. */
+  buttonRadius: z.number().int().min(0).max(40).nullable().default(null),
   header: z.object({
     mode: z.enum(["text", "logo", "none"]),
     text: z.string().trim().max(80),
@@ -51,9 +117,32 @@ export const newsletterThemeSchema = z.object({
 
 export type NewsletterTheme = z.infer<typeof newsletterThemeSchema>;
 
+/** Optional per-block background and spacing, snapped to the theme grid when rendered. */
+export const newsletterBlockStyleSchema = z.object({
+  background: hex.nullable(),
+  paddingTop: z.number().int().min(0).max(96),
+  paddingBottom: z.number().int().min(0).max(96),
+}).strict();
+
+export type NewsletterBlockStyle = z.infer<typeof newsletterBlockStyleSchema>;
+
+export const DEFAULT_BLOCK_STYLE: NewsletterBlockStyle = { background: null, paddingTop: 0, paddingBottom: 0 };
+
 const headingBlock = z.object({ id, type: z.literal("heading"), text: z.string().trim().min(1, "Een kop mag niet leeg zijn.").max(200), level: z.union([z.literal(1), z.literal(2), z.literal(3)]), align, color: hex.nullable() }).strict();
 const textBlock = z.object({ id, type: z.literal("text"), text: z.string().max(10_000), align, fontSize: z.number().int().min(13).max(22) }).strict();
-const imageBlock = z.object({ id, type: z.literal("image"), url: httpsUrl.or(z.literal("")), alt: z.string().max(300), linkUrl: linkUrl.or(z.literal("")), width: z.number().int().min(20).max(100), align, rounded: z.boolean(), caption: z.string().max(300) }).strict();
+const imageBlock = z.object({
+  id,
+  type: z.literal("image"),
+  url: httpsUrl.or(z.literal("")),
+  alt: z.string().max(300),
+  linkUrl: linkUrl.or(z.literal("")),
+  width: z.number().int().min(20).max(100),
+  align,
+  rounded: z.boolean(),
+  caption: z.string().max(300),
+  /** Edge to edge, without the side padding; for banners and hero images. */
+  fullBleed: z.boolean().default(false),
+}).strict();
 const videoBlock = z.object({
   id,
   type: z.literal("video"),
@@ -77,6 +166,9 @@ const columnsBlock = z.object({
   id,
   type: z.literal("columns"),
   count: z.union([z.literal(2), z.literal(3)]),
+  /** Column widths for two columns. */
+  ratio: z.enum(["equal", "wide-left", "wide-right"]).default("equal"),
+  gap: z.number().int().min(0).max(48).default(16),
   items: z.array(z.object({
     imageUrl: httpsUrl.or(z.literal("")),
     heading: z.string().max(120),
@@ -116,9 +208,13 @@ const socialBlock = z.object({
 }).strict();
 const htmlBlock = z.object({ id, type: z.literal("html"), html: z.string().max(50_000) }).strict();
 
+const style = { style: newsletterBlockStyleSchema.optional() };
+
 export const newsletterBlockSchema = z.discriminatedUnion("type", [
-  headingBlock, textBlock, imageBlock, videoBlock, buttonBlock, iconsBlock, columnsBlock, productsBlock,
-  tableBlock, quoteBlock, dividerBlock, spacerBlock, socialBlock, htmlBlock,
+  headingBlock.extend(style), textBlock.extend(style), imageBlock.extend(style), videoBlock.extend(style),
+  buttonBlock.extend(style), iconsBlock.extend(style), columnsBlock.extend(style), productsBlock.extend(style),
+  tableBlock.extend(style), quoteBlock.extend(style), dividerBlock.extend(style), spacerBlock.extend(style),
+  socialBlock.extend(style), htmlBlock.extend(style),
 ]);
 
 export type NewsletterBlock = z.infer<typeof newsletterBlockSchema>;
@@ -134,6 +230,7 @@ export type NewsletterDocument = z.infer<typeof newsletterDocumentSchema>;
 
 export const DEFAULT_NEWSLETTER_THEME: NewsletterTheme = {
   font: "arial",
+  headingFont: null,
   pageBackground: "#f5f1e8",
   contentBackground: "#ffffff",
   text: "#24231f",
@@ -147,6 +244,10 @@ export const DEFAULT_NEWSLETTER_THEME: NewsletterTheme = {
   footerText: "#5d5a52",
   contentWidth: 640,
   radius: 16,
+  paddingX: 32,
+  gridSize: 8,
+  buttonStyle: "filled",
+  buttonRadius: null,
   header: { mode: "text", text: "De Notenman", logoUrl: "", logoWidth: 180, align: "left" },
   footer: { text: "Je ontvangt deze mail omdat je je hebt aangemeld voor de nieuwsbrief van De Notenman.", showArchiveLink: true },
 };
@@ -163,7 +264,7 @@ export function createNewsletterBlock(type: NewsletterBlockType): NewsletterBloc
   switch (type) {
     case "heading": return { id: blockId, type, text: "Nieuw in de kraam", level: 1, align: "left", color: null };
     case "text": return { id: blockId, type, text: "Hallo *|FNAME|*,\n\nSchrijf hier je bericht. Maak woorden **vet** of *cursief* en voeg een [link](https://denotenman.com) toe.", align: "left", fontSize: 16 };
-    case "image": return { id: blockId, type, url: "", alt: "", linkUrl: "", width: 100, align: "center", rounded: true, caption: "" };
+    case "image": return { id: blockId, type, url: "", alt: "", linkUrl: "", width: 100, align: "center", rounded: true, caption: "", fullBleed: false };
     case "video": return { id: blockId, type, videoUrl: "", thumbnailUrl: "", posterUrl: "", aspect: "16:9", width: 100, align: "center", title: "Bekijk de video", caption: "" };
     case "button": return { id: blockId, type, text: "Naar de webshop", url: "https://denotenman.com", align: "left", background: null, color: null, fullWidth: false };
     case "icons": return { id: blockId, type, items: [
@@ -171,7 +272,7 @@ export function createNewsletterBlock(type: NewsletterBlockType): NewsletterBloc
       { icon: "🚚", title: "Snel bezorgd", text: "Voor 16:00 besteld, morgen in huis." },
       { icon: "⭐", title: "Kwaliteit", text: "Met zorg geselecteerd." },
     ] };
-    case "columns": return { id: blockId, type, count: 2, items: [
+    case "columns": return { id: blockId, type, count: 2, ratio: "equal", gap: 16, items: [
       { imageUrl: "", heading: "Eerste onderwerp", text: "Korte omschrijving.", buttonText: "", buttonUrl: "" },
       { imageUrl: "", heading: "Tweede onderwerp", text: "Korte omschrijving.", buttonText: "", buttonUrl: "" },
     ] };
