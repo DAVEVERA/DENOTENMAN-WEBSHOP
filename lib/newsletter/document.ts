@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { VIDEO_THUMBNAIL_ASPECTS } from "./video";
+
 // The newsletter as editable blocks. The same document renders the live preview and
 // the HTML sent to Mailchimp, so what you see is what subscribers get.
 
@@ -52,7 +54,19 @@ export type NewsletterTheme = z.infer<typeof newsletterThemeSchema>;
 const headingBlock = z.object({ id, type: z.literal("heading"), text: z.string().trim().min(1, "Een kop mag niet leeg zijn.").max(200), level: z.union([z.literal(1), z.literal(2), z.literal(3)]), align, color: hex.nullable() }).strict();
 const textBlock = z.object({ id, type: z.literal("text"), text: z.string().max(10_000), align, fontSize: z.number().int().min(13).max(22) }).strict();
 const imageBlock = z.object({ id, type: z.literal("image"), url: httpsUrl.or(z.literal("")), alt: z.string().max(300), linkUrl: linkUrl.or(z.literal("")), width: z.number().int().min(20).max(100), align, rounded: z.boolean(), caption: z.string().max(300) }).strict();
-const videoBlock = z.object({ id, type: z.literal("video"), videoUrl: httpsUrl.or(z.literal("")), thumbnailUrl: httpsUrl.or(z.literal("")), title: z.string().max(200), caption: z.string().max(300) }).strict();
+const videoBlock = z.object({
+  id,
+  type: z.literal("video"),
+  videoUrl: httpsUrl.or(z.literal("")),
+  thumbnailUrl: httpsUrl.or(z.literal("")),
+  // The still the thumbnail was made from, so it can be remade in another shape.
+  posterUrl: httpsUrl.or(z.literal("")).default(""),
+  aspect: z.enum(VIDEO_THUMBNAIL_ASPECTS).default("16:9"),
+  width: z.number().int().min(20).max(100).default(100),
+  align: align.default("center"),
+  title: z.string().max(200),
+  caption: z.string().max(300),
+}).strict();
 const buttonBlock = z.object({ id, type: z.literal("button"), text: z.string().trim().min(1, "Geef de knop een tekst.").max(80), url: linkUrl, align, background: hex.nullable(), color: hex.nullable(), fullWidth: z.boolean() }).strict();
 const iconsBlock = z.object({
   id,
@@ -150,7 +164,7 @@ export function createNewsletterBlock(type: NewsletterBlockType): NewsletterBloc
     case "heading": return { id: blockId, type, text: "Nieuw in de kraam", level: 1, align: "left", color: null };
     case "text": return { id: blockId, type, text: "Hallo *|FNAME|*,\n\nSchrijf hier je bericht. Maak woorden **vet** of *cursief* en voeg een [link](https://denotenman.com) toe.", align: "left", fontSize: 16 };
     case "image": return { id: blockId, type, url: "", alt: "", linkUrl: "", width: 100, align: "center", rounded: true, caption: "" };
-    case "video": return { id: blockId, type, videoUrl: "", thumbnailUrl: "", title: "Bekijk de video", caption: "" };
+    case "video": return { id: blockId, type, videoUrl: "", thumbnailUrl: "", posterUrl: "", aspect: "16:9", width: 100, align: "center", title: "Bekijk de video", caption: "" };
     case "button": return { id: blockId, type, text: "Naar de webshop", url: "https://denotenman.com", align: "left", background: null, color: null, fullWidth: false };
     case "icons": return { id: blockId, type, items: [
       { icon: "🥜", title: "Vers gebrand", text: "Elke week uit eigen branderij." },

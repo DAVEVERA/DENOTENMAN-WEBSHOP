@@ -80,12 +80,28 @@ test("products, columns and video render as linked, stackable email blocks", () 
       { productId: "1", name: "Cashewnoten", imageUrl: "https://cdn.example.com/c.jpg", priceLabel: "vanaf € 4,95", url: "https://denotenman.com/nl/producten/cashewnoten" },
       { productId: "2", name: "Amandelen", imageUrl: "", priceLabel: "€ 3,95", url: "https://denotenman.com/nl/producten/amandelen" },
     ] },
-    { id: "v", type: "video", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", thumbnailUrl: "https://cdn.example.com/t.jpg", title: "Zo branden wij", caption: "" },
+    { id: "v", type: "video", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", thumbnailUrl: "https://cdn.example.com/t.jpg", posterUrl: "", aspect: "16:9", width: 60, align: "right", title: "Zo branden wij", caption: "" },
   ]), meta);
   assert.match(html, /class="dnm-col"/u, "columns stack on phones");
   assert.match(html, /vanaf € 4,95/u);
-  assert.match(html, /href="https:\/\/www\.youtube\.com\/watch\?v=dQw4w9WgXcQ"><img src="https:\/\/cdn\.example\.com\/t\.jpg"/u);
+  assert.match(html, /href="https:\/\/www\.youtube\.com\/watch\?v=dQw4w9WgXcQ" style="display:inline-block;width:60%;max-width:100%"><img src="https:\/\/cdn\.example\.com\/t\.jpg"/u);
+  assert.match(html, /text-align:right"><a href="https:\/\/www\.youtube/u, "the thumbnail follows the chosen alignment");
   assert.match(html, /▶ Zo branden wij/u);
+});
+
+test("video blocks saved before width, shape and alignment existed still open", () => {
+  const parsed = newsletterDocumentSchema.parse({
+    version: 1,
+    theme: DEFAULT_NEWSLETTER_THEME,
+    blocks: [{ id: "v", type: "video", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", thumbnailUrl: "https://cdn.example.com/t.jpg", title: "", caption: "" }],
+  });
+  const video = parsed.blocks[0];
+  assert.equal(video.type, "video");
+  if (video.type !== "video") return;
+  assert.equal(video.width, 100);
+  assert.equal(video.align, "center");
+  assert.equal(video.aspect, "16:9");
+  assert.equal(video.posterUrl, "");
 });
 
 test("older newsletters open as one HTML block and still extract their content", () => {

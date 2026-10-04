@@ -8,6 +8,7 @@ import {
   ArrowDown,
   ArrowUp,
   Bold,
+  Camera,
   ChevronDown,
   Copy,
   Film,
@@ -50,6 +51,13 @@ import {
   type NewsletterTheme,
 } from "@/lib/newsletter/document";
 import { renderNewsletterEmail } from "@/lib/newsletter/render";
+import {
+  VIDEO_THUMBNAIL_ASPECT_LABELS,
+  VIDEO_THUMBNAIL_ASPECTS,
+  type VideoThumbnailAspect,
+  youtubeId,
+} from "@/lib/newsletter/video";
+import { VideoFramePicker } from "./VideoFramePicker";
 import type { NewsletterAudience } from "@/lib/mailchimp/schemas";
 
 type NewsletterDraft = {
@@ -277,37 +285,116 @@ function ProductPicker({ block, onChange }: { block: Extract<NewsletterBlock, { 
 }
 
 function VideoEditor({ block, onChange }: { block: Extract<NewsletterBlock, { type: "video" }>; onChange: (block: NewsletterBlock) => void }) {
-  const [busy, setBusy] = useState(false);
+  // Uploads finish after the block may have changed; always build on the newest version.
+  const latest = useRef(block);
+  useEffect(() => {
+    latest.current = block;
+  }, [block]);
+  const videoInput = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState<"thumbnail" | "upload" | "frame" | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [poster, setPoster] = useState("");
-  async function makeThumbnail() {
-    setBusy(true);
+  const [frameSource, setFrameSource] = useState<File | string | null>(null);
+  const isYoutube = Boolean(youtubeId(block.videoUrl));
+
+  function patch(changes: Partial<Extract<NewsletterBlock, { type: "video" }>>) {
+    const next = { ...latest.current, ...changes };
+    latest.current = next;
+    onChange(next);
+  }
+
+  async function makeThumbnail(options: { posterUrl?: string; aspect?: VideoThumbnailAspect } = {}) {
+    const current = latest.current;
+    const posterUrl = options.posterUrl ?? current.posterUrl;
+    const aspect = options.aspect ?? current.aspect;
+    if (!current.videoUrl) {
+      setError("Vul eerst een videolink in of upload een video.");
+      return;
+    }
+    if (!posterUrl && !youtubeId(current.videoUrl)) {
+      setError("Kies eerst een stilstaand beeld: uit de video of als foto.");
+      return;
+    }
+    setBusy("thumbnail");
     setError(null);
     try {
       const response = await fetch("/api/admin/newsletter/video-thumbnail", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ videoUrl: block.videoUrl, ...(poster ? { imageUrl: poster } : {}) }),
+        body: JSON.stringify({ videoUrl: current.videoUrl, aspect, ...(posterUrl ? { imageUrl: posterUrl } : {}) }),
       });
       const body = await response.json().catch(() => ({})) as { thumbnailUrl?: string; message?: string };
       if (!response.ok || !body.thumbnailUrl) throw new Error(body.message || "Miniatuur maken mislukt.");
-      onChange({ ...block, thumbnailUrl: body.thumbnailUrl });
+      patch({ thumbnailUrl: body.thumbnailUrl });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Miniatuur maken mislukt.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
+
+  async function uploadVideo(file: File) {
+    setError(null);
+    setFrameSource(file);
+    setBusy("upload");
+    setProgress(0);
+    try {
+      const media = await uploadMediaInChunks(file, setProgress);
+      if (media.kind !== "video") throw new Error("Kies een MP4-, MOV- of WebM-video.");
+      patch({ videoUrl: media.url, posterUrl: "", thumbnailUrl: "" });
+    } catch (cause) {
+      setFrameSource(null);
+      setError(cause instanceof Error ? cause.message : "Uploaden mislukt.");
+    } finally {
+      setBusy(null);
+      setProgress(null);
+    }
+  }
+
+  async function captureFrame(frame: File) {
+    setBusy("frame");
+    setError(null);
+    try {
+      const media = await uploadMediaInChunks(frame, () => undefined);
+      patch({ posterUrl: media.url });
+      setFrameSource(null);
+      await makeThumbnail({ posterUrl: media.url });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Beeld opslaan mislukt.");
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="grid gap-3">
       <p className="text-xs text-muted">E-mailprogramma&apos;s spelen geen video af. Je lezer ziet een beeld met een afspeelknop dat naar de video linkt.</p>
-      <label className={labelClass}>Videolink (YouTube, TikTok of een geüploade video)<input value={block.videoUrl} onChange={(event) => onChange({ ...block, videoUrl: event.target.value })} placeholder="https://www.youtube.com/watch?v=…" className={inputClass} /></label>
-      <ImageField label="Stilstaand beeld (niet nodig bij YouTube)" value={poster} onChange={setPoster} />
-      <button type="button" onClick={() => void makeThumbnail()} disabled={busy || !block.videoUrl} className={`${smallButton} min-h-11 justify-self-start`}>{busy ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Film className="h-4 w-4" aria-hidden="true" />}Miniatuur met afspeelknop maken</button>
+      <label className={labelClass}>Videolink (YouTube, TikTok, Vimeo of je eigen video)<input value={block.videoUrl} onChange={(event) => patch({ videoUrl: event.target.value })} placeholder="https://www.youtube.com/watch?v=…" className={inputClass} /></label>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => videoInput.current?.click()} disabled={busy !== null} className={`${smallButton} min-h-11`}>
+          {busy === "upload" ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload className="h-4 w-4" aria-hidden="true" />}
+          {busy === "upload" && progress !== null ? `Video uploaden ${progress}%` : "Video uploaden"}
+        </button>
+        {block.videoUrl && !isYoutube && !frameSource ? (
+          <button type="button" onClick={() => setFrameSource(block.videoUrl)} disabled={busy !== null} className={`${smallButton} min-h-11`}><Camera className="h-4 w-4" aria-hidden="true" />Beeld uit video kiezen</button>
+        ) : null}
+        <input ref={videoInput} type="file" accept="video/mp4,video/quicktime,video/webm" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadVideo(file); event.target.value = ""; }} />
+      </div>
+      {frameSource ? <VideoFramePicker source={frameSource} onCapture={captureFrame} onClose={() => setFrameSource(null)} /> : null}
+      <ImageField label={isYoutube ? "Eigen stilstaand beeld (optioneel, anders de YouTube-miniatuur)" : "Of kies een foto als stilstaand beeld"} value={block.posterUrl} onChange={(posterUrl) => patch({ posterUrl })} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className={labelClass}>Vorm van de miniatuur
+          <select value={block.aspect} onChange={(event) => { const aspect = event.target.value as VideoThumbnailAspect; patch({ aspect }); if (block.thumbnailUrl) void makeThumbnail({ aspect }); }} className={inputClass}>
+            {VIDEO_THUMBNAIL_ASPECTS.map((option) => <option key={option} value={option}>{VIDEO_THUMBNAIL_ASPECT_LABELS[option]}</option>)}
+          </select>
+        </label>
+        <Slider label="Breedte" value={block.width} min={20} max={100} step={5} suffix="%" onChange={(width) => patch({ width })} />
+      </div>
+      <AlignField value={block.align} onChange={(align) => patch({ align })} />
+      <button type="button" onClick={() => void makeThumbnail()} disabled={busy !== null || !block.videoUrl} className={`${smallButton} min-h-11 justify-self-start`}>{busy === "thumbnail" || busy === "frame" ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Film className="h-4 w-4" aria-hidden="true" />}{block.thumbnailUrl ? "Miniatuur opnieuw maken" : "Miniatuur met afspeelknop maken"}</button>
       {error ? <p role="alert" className="text-xs font-semibold text-red-700">{error}</p> : null}
       {block.thumbnailUrl ? <img src={block.thumbnailUrl} alt="" className="w-full max-w-xs rounded-card border border-border" /> : null}
-      <label className={labelClass}>Titel onder de video<input value={block.title} onChange={(event) => onChange({ ...block, title: event.target.value })} maxLength={200} className={inputClass} /></label>
-      <label className={labelClass}>Onderschrift<input value={block.caption} onChange={(event) => onChange({ ...block, caption: event.target.value })} maxLength={300} className={inputClass} /></label>
+      <label className={labelClass}>Titel onder de video<input value={block.title} onChange={(event) => patch({ title: event.target.value })} maxLength={200} className={inputClass} /></label>
+      <label className={labelClass}>Onderschrift<input value={block.caption} onChange={(event) => patch({ caption: event.target.value })} maxLength={300} className={inputClass} /></label>
     </div>
   );
 }
@@ -628,7 +715,10 @@ export function NewsletterEditorForm({
   }
 
   function updateBlock(next: NewsletterBlock) {
-    changeDocument({ ...document, blocks: document.blocks.map((block) => block.id === next.id ? next : block) });
+    // Functional update: block editors may report results of uploads that finished later.
+    setDocument((current) => ({ ...current, blocks: current.blocks.map((block) => block.id === next.id ? next : block) }));
+    setDirty(true);
+    setMessage(null);
   }
 
   function insertBlock(type: NewsletterBlockType, index: number) {

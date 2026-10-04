@@ -111,9 +111,11 @@ function renderBlock(block: NewsletterBlock, theme: NewsletterTheme, preview: bo
       const thumb = httpsOnly(block.thumbnailUrl);
       const url = safeUrl(block.videoUrl);
       if (!thumb || !url) return preview ? row(`<div style="margin:0 0 16px;padding:40px 16px;border:2px dashed #cfc6b6;border-radius:12px;color:#8a8275;text-align:center;font-size:14px">Voeg een video en miniatuur toe</div>`) : "";
+      const widthPercent = block.width ?? 100;
+      const alignment = block.align ?? "center";
       const caption = block.caption ? `<p style="margin:6px 0 0;color:${theme.footerText};font-size:13px">${escapeHtml(block.caption)}</p>` : "";
       // Email clients do not play video: a thumbnail with a play button links to the video.
-      return row(`<div style="margin:0 0 16px;text-align:center"><a href="${escapeHtml(url)}"><img src="${escapeHtml(thumb)}" alt="${escapeHtml(block.title || "Bekijk de video")}" width="${theme.contentWidth - 64}" style="display:block;width:100%;height:auto;border:0;border-radius:${Math.min(theme.radius, 12)}px"></a>${block.title ? `<p style="margin:8px 0 0;font-weight:700;color:${theme.heading}"><a href="${escapeHtml(url)}" style="color:${theme.heading};text-decoration:none">▶ ${escapeHtml(block.title)}</a></p>` : ""}${caption}</div>`);
+      return row(`<div style="margin:0 0 16px;text-align:${alignment}"><a href="${escapeHtml(url)}" style="display:inline-block;width:${widthPercent}%;max-width:100%"><img src="${escapeHtml(thumb)}" alt="${escapeHtml(block.title || "Bekijk de video")}" width="${Math.round((theme.contentWidth - 64) * widthPercent / 100)}" style="display:block;width:100%;height:auto;border:0;border-radius:${Math.min(theme.radius, 12)}px"></a>${block.title ? `<p style="margin:8px 0 0;font-weight:700;color:${theme.heading}"><a href="${escapeHtml(url)}" style="color:${theme.heading};text-decoration:none">▶ ${escapeHtml(block.title)}</a></p>` : ""}${caption}</div>`);
     }
     case "button": {
       const url = safeUrl(block.url);
