@@ -6,9 +6,11 @@ import { CANVA_CALLBACK_PATH, canvaConfig } from "@/lib/canva/config";
 import { saveNewCanvaConnection } from "@/lib/canva/connection";
 import { CANVA_STATE_COOKIE } from "@/lib/canva/http";
 import { safeAdminPath } from "@/lib/canva/return-token";
+import { BASE_URL } from "@/lib/routes";
 import { openWithPurpose } from "@/lib/secret-box";
 
 export const runtime = "nodejs";
+// Redirects use SITE_URL: behind Cloud Run, request.nextUrl.origin is the container address (0.0.0.0:8080).
 
 type StoredState = { state: string; verifier: string; adminId: string; returnTo: string; expiresAt: number };
 
@@ -27,7 +29,7 @@ function readState(value: string | undefined): StoredState | null {
 // Canva sends the admin back here with a one-time code after they allow access.
 export async function GET(request: NextRequest) {
   const stored = readState(request.cookies.get(CANVA_STATE_COOKIE)?.value);
-  const back = new URL(stored?.returnTo ?? "/admin/instellingen/integraties", request.nextUrl.origin);
+  const back = new URL(stored?.returnTo ?? "/admin/instellingen/integraties", BASE_URL);
   const finish = (message: string) => {
     back.searchParams.set("canva", message);
     const response = NextResponse.redirect(back);
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
   };
 
   const admin = await getAdminSession(request);
-  if (!admin) return NextResponse.redirect(new URL("/admin/login", request.nextUrl.origin));
+  if (!admin) return NextResponse.redirect(new URL("/admin/login", BASE_URL));
   const params = request.nextUrl.searchParams;
   if (!stored || stored.adminId !== admin.id || stored.expiresAt < Date.now() || params.get("state") !== stored.state) {
     return finish("De Canva-koppeling is verlopen of kwam niet van dit portaal. Probeer het opnieuw.");

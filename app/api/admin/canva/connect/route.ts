@@ -6,16 +6,18 @@ import { buildAuthorizeUrl, createPkcePair } from "@/lib/canva/api";
 import { CANVA_CALLBACK_PATH, canvaConfig } from "@/lib/canva/config";
 import { CANVA_STATE_COOKIE } from "@/lib/canva/http";
 import { safeAdminPath } from "@/lib/canva/return-token";
+import { BASE_URL } from "@/lib/routes";
 import { sealWithPurpose } from "@/lib/secret-box";
 
 export const runtime = "nodejs";
+// Redirects use SITE_URL: behind Cloud Run, request.nextUrl.origin is the container address (0.0.0.0:8080).
 
 // Starts the Canva login (OAuth 2.0 with PKCE). The sealed cookie ties the callback to this admin.
 export async function GET(request: NextRequest) {
   const returnTo = safeAdminPath(request.nextUrl.searchParams.get("returnTo") ?? "/admin/instellingen/integraties");
-  const back = new URL(returnTo, request.nextUrl.origin);
+  const back = new URL(returnTo, BASE_URL);
   const admin = await getAdminSession(request);
-  if (!admin) return NextResponse.redirect(new URL("/admin/login", request.nextUrl.origin));
+  if (!admin) return NextResponse.redirect(new URL("/admin/login", BASE_URL));
   if (admin.role !== "OWNER" && admin.role !== "ADMIN") {
     back.searchParams.set("canva", "Alleen een owner of admin kan Canva koppelen.");
     return NextResponse.redirect(back);
