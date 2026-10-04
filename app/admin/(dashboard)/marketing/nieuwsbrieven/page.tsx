@@ -22,6 +22,7 @@ const AUDIENCE_LABELS: Record<NewsletterSummary["audience"], string> = {
   all: "Iedereen",
   zakelijk: "Zakelijk",
   particulier: "Particulier",
+  segment: "Segment of tags",
   custom: "Aangepaste selectie",
 };
 
@@ -66,7 +67,7 @@ function CampaignTable({ campaigns }: { campaigns: NewsletterSummary[] }) {
                   {STATUS_LABELS[campaign.status]}
                 </span>
               </td>
-              <td className="px-4 py-3 text-muted">{AUDIENCE_LABELS[campaign.audience]}</td>
+              <td className="px-4 py-3 text-muted">{campaign.audience === "custom" && campaign.targeting ? AUDIENCE_LABELS.segment : AUDIENCE_LABELS[campaign.audience]}</td>
               <td className="whitespace-nowrap px-4 py-3 text-muted">
                 {formatCampaignDate(campaign.sendTime ?? campaign.createdAt)}
               </td>

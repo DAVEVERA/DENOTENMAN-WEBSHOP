@@ -59,6 +59,8 @@ import {
 } from "@/lib/newsletter/video";
 import { VideoFramePicker } from "./VideoFramePicker";
 import type { NewsletterAudience } from "@/lib/mailchimp/schemas";
+import { targetingProblem, type NewsletterTargeting } from "@/lib/mailchimp/targeting";
+import { AudienceSegmentPicker } from "./AudienceSegmentPicker";
 
 type NewsletterDraft = {
   subject: string;
@@ -68,12 +70,14 @@ type NewsletterDraft = {
   replyTo: string;
   contentHtml: string;
   audience: NewsletterAudience;
+  targeting?: NewsletterTargeting;
 };
 
 const AUDIENCE_OPTIONS: Array<{ value: NewsletterAudience; label: string }> = [
   { value: "all", label: "Iedereen" },
   { value: "zakelijk", label: "Zakelijk" },
   { value: "particulier", label: "Particulier" },
+  { value: "segment", label: "Segment of tags" },
 ];
 
 const BLOCK_TYPES: Array<{ type: NewsletterBlockType; label: string; hint: string; icon: React.ComponentType<{ className?: string }> }> = [
@@ -700,9 +704,15 @@ export function NewsletterEditorForm({
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const editable = mode === "create" || campaignStatus === "save";
   const preview = useMemo(() => renderNewsletterEmail(document, { subject: draft.subject, previewText: draft.previewText }, { preview: true }), [document, draft.subject, draft.previewText]);
-  const audienceRecipientCount = draft.audience === "custom" ? "bestaande selectie van" : recipientCountForAudience(draft.audience, recipientCount, businessRecipientCount);
+  const audienceRecipientCount = draft.audience === "custom" ? "bestaande selectie van" : draft.audience === "segment" ? "de gekozen" : recipientCountForAudience(draft.audience, recipientCount, businessRecipientCount);
 
-  function update(field: keyof NewsletterDraft, value: string) {
+  function setTargeting(targeting: NewsletterTargeting) {
+    setDraft((current) => ({ ...current, targeting }));
+    setDirty(true);
+    setMessage(null);
+  }
+
+  function update(field: Exclude<keyof NewsletterDraft, "targeting">, value: string) {
     setDraft((current) => ({ ...current, [field]: value }));
     setDirty(true);
     setMessage(null);
@@ -752,6 +762,13 @@ export function NewsletterEditorForm({
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (draft.audience === "segment") {
+      const problem = targetingProblem(draft.targeting);
+      if (problem) {
+        setError(problem);
+        return;
+      }
+    }
     setBusy("save");
     setError(null);
     setMessage(null);
@@ -762,7 +779,7 @@ export function NewsletterEditorForm({
       const response = await fetch(endpoint, {
         method: mode === "create" ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...draft, contentHtml, document }),
+        body: JSON.stringify({ ...draft, targeting: draft.audience === "segment" ? draft.targeting : undefined, contentHtml, document }),
       });
       if (!response.ok) {
         setError(await responseError(response));
@@ -814,11 +831,16 @@ export function NewsletterEditorForm({
   }
 
   async function sendTest() {
-    if (!testEmail.trim()) {
-      setError("Vul een geldig testadres in.");
+    const emails = [...new Set(testEmail.split(/[\s,;]+/u).map((value) => value.trim()).filter(Boolean))];
+    if (!emails.length || emails.some((value) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value))) {
+      setError("Vul geldige testadressen in, gescheiden door komma's.");
       return;
     }
-    await postAction("test", { email: testEmail.trim() });
+    if (emails.length > 10) {
+      setError("Stuur een testmail naar maximaal 10 adressen tegelijk.");
+      return;
+    }
+    await postAction("test", { emails });
   }
 
   async function schedule() {
@@ -851,7 +873,7 @@ export function NewsletterEditorForm({
               </div>
               <div>
                 <p className="text-body-sm font-semibold text-text">Doelgroep</p>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {[...(mode === "edit" ? [{ value: "custom" as const, label: "Bestaande selectie behouden" }] : []), ...AUDIENCE_OPTIONS].map((option) => {
                     const disabled = (option.value === "zakelijk" || option.value === "particulier") && !businessSegmentReady;
                     return (
@@ -862,8 +884,9 @@ export function NewsletterEditorForm({
                     );
                   })}
                 </div>
+                {draft.audience === "segment" ? <AudienceSegmentPicker value={draft.targeting} onChange={setTargeting} disabled={!editable} /> : null}
                 <p className="mt-1 text-xs text-muted">
-                  {draft.audience === "custom" ? "De bestaande Mailchimp-selectie blijft behouden." : `${audienceRecipientCount} ontvangers bij deze keuze.`}
+                  {draft.audience === "custom" ? "De bestaande Mailchimp-selectie blijft behouden." : draft.audience === "segment" ? "" : `${audienceRecipientCount} ontvangers bij deze keuze.`}
                   {!businessSegmentReady ? " Synchroniseer eerst de zakelijke contacten om op zakelijk/particulier te kunnen richten." : ""}
                 </p>
               </div>
@@ -926,7 +949,7 @@ export function NewsletterEditorForm({
               <p className="mt-1 text-xs text-muted">Test eerst. Definitief versturen kan niet ongedaan worden gemaakt.</p>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
-              <input type="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} placeholder="test@voorbeeld.nl" aria-label="Testmailadres" className={inputClass} />
+              <input type="text" inputMode="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} placeholder="test@voorbeeld.nl, collega@voorbeeld.nl" aria-label="Testmailadressen, gescheiden door komma's" className={inputClass} />
               <button type="button" onClick={sendTest} disabled={busy !== null} className="min-h-11 rounded-button border border-border px-4 font-heading text-body-sm font-semibold">Testmail sturen</button>
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_auto]">

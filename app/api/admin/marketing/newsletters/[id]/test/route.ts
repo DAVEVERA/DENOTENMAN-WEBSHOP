@@ -19,7 +19,7 @@ export async function POST(
 
   const { id } = await params;
   try {
-    await sendNewsletterTest(id, parsed.data.email);
+    await sendNewsletterTest(id, parsed.data.emails);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return mailchimpErrorResponse(error);

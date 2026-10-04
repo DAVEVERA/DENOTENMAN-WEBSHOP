@@ -71,7 +71,9 @@ export default async function NewsletterCampaignPage({
               fromName: campaign.fromName,
               replyTo: campaign.replyTo,
               contentHtml: campaign.contentHtml,
-              audience: campaign.audience,
+              // A segment or tag selection made here opens as such; anything else stays "custom".
+              audience: campaign.audience === "custom" && campaign.targeting ? "segment" : campaign.audience,
+              targeting: campaign.targeting ?? undefined,
             }}
           />
         </div>
