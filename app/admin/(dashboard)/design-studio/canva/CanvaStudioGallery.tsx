@@ -26,6 +26,7 @@ export function CanvaStudioGallery({ initial, connected }: { initial: Imported[]
         <CanvaPicker
           label={connected ? "Canva openen" : "Canva"}
           defaultSize="square"
+          editorWindow="popup"
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast"
           onSelect={(_url, images) => setItems((current) => [
             ...images.map((image) => ({ id: image.id, url: image.url, title: "Zojuist geïmporteerd", createdAt: new Date().toISOString() })),

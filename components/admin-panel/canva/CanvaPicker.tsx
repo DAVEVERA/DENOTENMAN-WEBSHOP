@@ -14,6 +14,19 @@ export type CanvaImportedImage = { id: string; url: string; width: number | null
 export const CANVA_CHANNEL = "denotenman-canva";
 export type CanvaChannelMessage = { type: "imported"; pickerId: string | null; images: CanvaImportedImage[] };
 
+/** Sent by the return page to the window that opened Canva; answered with an ack. */
+export type CanvaReturnMessage = { type: "canva-return"; designId: string };
+export type CanvaReturnAck = { type: "canva-return-ack"; designId: string };
+
+export const CANVA_POPUP_NAME = "canva-editor";
+const CANVA_POPUP_FEATURES = "popup,width=1440,height=900";
+const DESIGN_ID = /^[\w-]{1,64}$/u;
+
+/** Phones and narrow windows keep the tab flow: a pop-up there is a full-screen tab anyway. */
+function prefersPopup(): boolean {
+  return !window.matchMedia("(max-width: 767px)").matches;
+}
+
 const smallButton = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-button border border-border bg-background px-3 text-xs font-semibold text-text disabled:opacity-40";
 const primaryButton = "inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast disabled:opacity-50";
 
@@ -59,6 +72,7 @@ export function CanvaPicker({
   designTitle = "De Notenman",
   label = "Canva",
   className = smallButton,
+  editorWindow = "tab",
 }: {
   onSelect: (url: string, images: CanvaImportedImage[]) => void;
   sourceImageUrl?: string;
@@ -66,6 +80,8 @@ export function CanvaPicker({
   designTitle?: string;
   label?: string;
   className?: string;
+  /** "popup" opens the Canva editor in a pop-up window on wide screens and imports on return. */
+  editorWindow?: "tab" | "popup";
 }) {
   const pickerId = `p${useId().replace(/[^\w-]/gu, "")}`;
   const [open, setOpen] = useState(false);
@@ -80,15 +96,58 @@ export function CanvaPicker({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<CanvaDesign | null>(null);
+  /** "open" while our pop-up is up; "closed" when it closed without reporting back. */
+  const [editorState, setEditorState] = useState<"idle" | "open" | "closed">("idle");
   const onSelectRef = useRef(onSelect);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  const editorRef = useRef<Window | null>(null);
+  const watchRef = useRef<number | null>(null);
+  const pendingRef = useRef<CanvaDesign | null>(null);
+  useEffect(() => { pendingRef.current = pending; }, [pending]);
+
+  const stopWatching = useCallback(() => {
+    if (watchRef.current !== null) window.clearInterval(watchRef.current);
+    watchRef.current = null;
+  }, []);
+  useEffect(() => stopWatching, [stopWatching]);
 
   const deliver = useCallback((images: CanvaImportedImage[]) => {
     if (!images.length) return;
     onSelectRef.current(images[0].url, images);
+    stopWatching();
+    editorRef.current = null;
+    setEditorState("idle");
     setPending(null);
     setOpen(false);
-  }, []);
+  }, [stopWatching]);
+
+  /** Remembers the window Canva runs in, and notices when a pop-up closes without reporting back. */
+  const watchEditor = useCallback((editor: Window, design: CanvaDesign | null, popup: boolean) => {
+    editorRef.current = editor;
+    if (design) setPending(design);
+    stopWatching();
+    if (!popup) return;
+    setEditorState("open");
+    watchRef.current = window.setInterval(() => {
+      if (!editor.closed) return;
+      stopWatching();
+      setEditorState((current) => (current === "open" ? "closed" : current));
+    }, 1_000);
+  }, [stopWatching]);
+
+  /** Opens an edit URL from a click handler, so the browser allows the pop-up. */
+  function launchEditor(url: string, design: CanvaDesign) {
+    if (editorWindow === "popup" && prefersPopup()) {
+      const popup = window.open(url, CANVA_POPUP_NAME, CANVA_POPUP_FEATURES);
+      if (popup) {
+        popup.focus();
+        watchEditor(popup, design, true);
+        return;
+      }
+    }
+    setPending(design);
+    window.open(url, "_blank", "noopener");
+  }
 
   // The return page in the Canva tab reports the import back to the field that asked.
   useEffect(() => {
@@ -129,6 +188,26 @@ export function CanvaPicker({
     }
   }
 
+  // The return page hands the design to the window that opened Canva. Only our own
+  // origin and the window we opened are trusted; the ack tells it to close itself.
+  const importRef = useRef<(design: CanvaDesign) => Promise<void>>(async () => undefined);
+  useEffect(() => {
+    function onMessage(event: MessageEvent<CanvaReturnMessage>) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "canva-return" || typeof event.data.designId !== "string" || !DESIGN_ID.test(event.data.designId)) return;
+      if (!editorRef.current || event.source !== editorRef.current) return;
+      const designId = event.data.designId;
+      (event.source as Window).postMessage({ type: "canva-return-ack", designId } satisfies CanvaReturnAck, event.origin);
+      stopWatching();
+      setEditorState("idle");
+      setOpen(true);
+      const known = pendingRef.current?.id === designId ? pendingRef.current : null;
+      void importRef.current(known ?? { id: designId, title: "Canva-design", thumbnailUrl: null, editUrl: null, pageCount: null, updatedAt: null });
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [stopWatching]);
+
   async function importDesign(design: CanvaDesign) {
     setBusy(`import-${design.id}`);
     setError(null);
@@ -144,11 +223,14 @@ export function CanvaPicker({
       setBusy(null);
     }
   }
+  useEffect(() => { importRef.current = importDesign; });
 
   async function createDesign(fromImage: boolean) {
     const preset = CANVA_DESIGN_SIZES.find((item) => item.id === size) ?? CANVA_DESIGN_SIZES[0];
-    // Open the tab synchronously so pop-up blockers allow it; point it at Canva once ready.
-    const tabWindow = window.open("about:blank", "_blank");
+    // Open the window synchronously so pop-up blockers allow it; point it at Canva once
+    // the design exists. The edit URL is only known after the API call.
+    const popup = editorWindow === "popup" && prefersPopup();
+    const tabWindow = popup ? window.open("about:blank", CANVA_POPUP_NAME, CANVA_POPUP_FEATURES) : window.open("about:blank", "_blank");
     setBusy(fromImage ? "from-image" : "create");
     setError(null);
     try {
@@ -162,9 +244,13 @@ export function CanvaPicker({
         }),
       });
       if (!body.design.editUrl) throw new Error("Canva gaf geen bewerklink terug.");
-      if (tabWindow) tabWindow.location.href = body.design.editUrl;
-      else window.open(body.design.editUrl, "_blank", "noopener");
-      setPending(body.design);
+      if (tabWindow) {
+        tabWindow.location.href = body.design.editUrl;
+        watchEditor(tabWindow, body.design, popup);
+      } else {
+        window.open(body.design.editUrl, "_blank", "noopener");
+        setPending(body.design);
+      }
     } catch (cause) {
       tabWindow?.close();
       setError(cause instanceof Error ? cause.message : "Design maken mislukt.");
@@ -227,13 +313,23 @@ export function CanvaPicker({
 
               {status?.connected ? (
                 <div className="grid gap-4">
-                  {pending ? (
+                  {pending && editorState === "open" ? (
+                    <div className="grid gap-2 rounded-card border border-accent/60 bg-accent/10 p-3 text-body-sm" role="status">
+                      <p className="font-semibold">“{pending.title}” staat open in een Canva-venster.</p>
+                      <p className="text-muted">Klik in Canva op terug naar De Notenman; het design wordt dan automatisch geïmporteerd.</p>
+                      <button type="button" onClick={() => editorRef.current?.focus()} className={`${smallButton} justify-self-start`}><ExternalLink className="h-4 w-4" aria-hidden="true" />Canva-venster tonen</button>
+                    </div>
+                  ) : pending ? (
                     <div className="grid gap-2 rounded-card border border-accent/60 bg-accent/10 p-3 text-body-sm">
-                      <p className="font-semibold">“{pending.title}” staat open in Canva.</p>
+                      <p className="font-semibold">{editorState === "closed" ? `Het Canva-venster voor “${pending.title}” is dicht.` : `“${pending.title}” staat open in Canva.`}</p>
                       <p className="text-muted">Klaar met ontwerpen? Klik in Canva op terug naar De Notenman, of importeer het hier.</p>
                       <div className="flex flex-wrap gap-2">
                         <button type="button" onClick={() => void importDesign(pending)} disabled={busy !== null} className={primaryButton}>{busy === `import-${pending.id}` ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}Nu importeren</button>
-                        {pending.editUrl ? <a href={editLink(pending.editUrl, pickerId)} target="_blank" rel="noopener noreferrer" className={smallButton}><ExternalLink className="h-4 w-4" aria-hidden="true" />Opnieuw openen</a> : null}
+                        {pending.editUrl ? (
+                          editorWindow === "popup"
+                            ? <button type="button" onClick={() => launchEditor(editLink(pending.editUrl as string, pickerId), pending)} className={smallButton}><ExternalLink className="h-4 w-4" aria-hidden="true" />Opnieuw openen</button>
+                            : <a href={editLink(pending.editUrl, pickerId)} target="_blank" rel="noopener noreferrer" className={smallButton}><ExternalLink className="h-4 w-4" aria-hidden="true" />Opnieuw openen</a>
+                        ) : null}
                       </div>
                     </div>
                   ) : null}
@@ -270,7 +366,11 @@ export function CanvaPicker({
                               <button type="button" onClick={() => void importDesign(design)} disabled={busy !== null} className={`${smallButton} flex-1`}>
                                 {busy === `import-${design.id}` ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}Gebruiken
                               </button>
-                              {design.editUrl ? <a href={editLink(design.editUrl, pickerId)} target="_blank" rel="noopener noreferrer" onClick={() => setPending(design)} className={smallButton} aria-label={`${design.title} bewerken in Canva`}><ExternalLink className="h-4 w-4" aria-hidden="true" /></a> : null}
+                              {design.editUrl ? (
+                                editorWindow === "popup"
+                                  ? <button type="button" onClick={() => launchEditor(editLink(design.editUrl as string, pickerId), design)} className={smallButton} aria-label={`${design.title} bewerken in Canva`}><ExternalLink className="h-4 w-4" aria-hidden="true" /></button>
+                                  : <a href={editLink(design.editUrl, pickerId)} target="_blank" rel="noopener noreferrer" onClick={() => setPending(design)} className={smallButton} aria-label={`${design.title} bewerken in Canva`}><ExternalLink className="h-4 w-4" aria-hidden="true" /></a>
+                              ) : null}
                             </div>
                           </li>
                         ))}
