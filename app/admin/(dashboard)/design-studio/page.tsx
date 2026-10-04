@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, FilePenLine, Images, ImageIcon, LockKeyhole, WandSparkles } from "lucide-react";
+import { ArrowRight, FilePenLine, Images, ImageIcon, LockKeyhole, Palette, WandSparkles } from "lucide-react";
+import { canvaConnectionSummary } from "@/lib/canva/connection";
 import { designStudioModules } from "@/lib/design-studio/modules";
 import { getDesignStudioProviderStatuses } from "@/lib/design-studio/provider-status";
 import { copywriterBadge, photoRoomBadge, plannedBadge, vModelBadge, type DesignStudioBadge } from "@/lib/design-studio/provider-badges";
@@ -11,14 +12,23 @@ const moduleIcons = {
   "campaign-assets": WandSparkles,
   labels: LockKeyhole,
   copywriter: FilePenLine,
+  canva: Palette,
 } as const;
 
 export default async function DesignStudioPage() {
-  const statuses = await getDesignStudioProviderStatuses();
+  const [statuses, canva] = await Promise.all([
+    getDesignStudioProviderStatuses(),
+    canvaConnectionSummary().catch(() => ({ configured: false, connected: false, displayName: null, connectedAt: null })),
+  ]);
   const badges: Record<string, DesignStudioBadge> = {
     "product-photos": photoRoomBadge(statuses.photoroom),
     "campaign-assets": vModelBadge(statuses.vmodel),
     copywriter: copywriterBadge(statuses.copywriter),
+    canva: !canva.configured
+      ? { className: "bg-red-50 text-red-800", label: "Niet geconfigureerd" }
+      : canva.connected
+        ? { className: "bg-green-100 text-green-800", label: "Gekoppeld", detail: canva.displayName ?? undefined }
+        : { className: "bg-amber-100 text-amber-900", label: "Nog niet gekoppeld" },
   };
 
   return (

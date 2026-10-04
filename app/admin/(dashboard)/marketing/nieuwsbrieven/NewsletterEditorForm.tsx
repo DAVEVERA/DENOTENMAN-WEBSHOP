@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 
 import { MediaPickerButton } from "@/components/admin-panel/MediaPickerButton";
+import { CanvaPicker } from "@/components/admin-panel/canva/CanvaPicker";
 import { uploadMediaInChunks } from "@/components/admin-panel/media/chunked-upload";
 import { extractNewsletterContent } from "@/lib/mailchimp/template";
 import {
@@ -211,6 +212,7 @@ function ImageField({ label, value, onChange }: { label: string; value: string; 
       <div className="flex flex-wrap items-center gap-2">
         {value ? <img src={value} alt="" className="h-14 w-14 rounded-card border border-border object-cover" /> : null}
         <MediaPickerButton onSelect={onChange} label="Mediabibliotheek" className={smallButton} />
+        <CanvaPicker onSelect={(url) => onChange(url)} sourceImageUrl={value || undefined} designTitle={label} className={smallButton} />
         <button type="button" onClick={() => input.current?.click()} disabled={progress !== null} className={smallButton}>{progress !== null ? <LoaderCircle className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload className="h-3.5 w-3.5" aria-hidden="true" />}{progress !== null ? `${progress}%` : "Uploaden (ook GIF)"}</button>
         {value ? <button type="button" onClick={() => onChange("")} className={smallButton}>Verwijderen</button> : null}
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />

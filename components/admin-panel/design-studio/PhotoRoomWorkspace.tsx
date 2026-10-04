@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ArrowLeft, Check, ImagePlus, ShieldCheck, Sparkles } from "lucide-react";
+import { CanvaPicker } from "@/components/admin-panel/canva/CanvaPicker";
 import type { PhotoRoomJobInput } from "@/lib/design-studio/photoroom-schema";
 import type { DesignAssetDto, DesignStudioProduct, PhotoRoomAvailability } from "@/lib/design-studio/types";
 
@@ -267,6 +268,7 @@ export function PhotoRoomWorkspace({
             <figure className="min-w-0"><div className="overflow-hidden rounded-card border border-border bg-[linear-gradient(45deg,#eee_25%,transparent_25%),linear-gradient(-45deg,#eee_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#eee_75%),linear-gradient(-45deg,transparent_75%,#eee_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px] p-3">{selectedAsset ? <img src={selectedAsset.url} alt={`PhotoRoom-concept voor ${selectedProduct?.name || "product"}`} className="aspect-square w-full object-contain" /> : <div className="flex aspect-square items-center justify-center bg-surface/80 px-6 text-center text-body-sm text-muted">Hier verschijnt het nieuwe concept.</div>}</div><figcaption className="mt-2 text-xs font-bold uppercase tracking-[0.1em] text-muted">Na · concept</figcaption></figure>
           </div>
           {selectedAsset ? <button type="button" onClick={() => void publish(selectedAsset)} disabled={busy || selectedAsset.status !== "DRAFT" || !allowed} className={`${buttonClass} mt-6 bg-text text-surface hover:bg-contrast`}>{selectedAsset.status === "PUBLISHED" ? <><Check className="h-4 w-4" />Al toegevoegd</> : "Als nieuwe productfoto toevoegen"}</button> : null}
+          {selectedAsset ? <div className="mt-3"><CanvaPicker sourceImageUrl={selectedAsset.url} defaultSize="product" designTitle={`${selectedProduct?.name || "Product"} · PhotoRoom`} label="Verder bewerken in Canva" className={`${buttonClass} w-full border border-border bg-surface text-text hover:border-border-hover`} onSelect={() => setMessage("De Canva-versie staat in Marketing → Mediabibliotheek.")} /></div> : null}
 
           {productAssets.length > 1 ? <div className="mt-8 border-t border-border pt-6"><h3 className="text-heading-sm text-text">Eerdere resultaten voor dit product</h3><div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">{productAssets.map((asset) => <button key={asset.id} type="button" onClick={() => setSelectedAssetId(asset.id)} aria-pressed={asset.id === selectedAssetId} className={`min-h-11 rounded-button border p-1 ${asset.id === selectedAssetId ? "border-accent-ink ring-2 ring-accent/30" : "border-border"}`}><img src={asset.url} alt="Eerder Studio-resultaat" className="aspect-square w-full rounded object-contain" /></button>)}</div></div> : null}
         </section>

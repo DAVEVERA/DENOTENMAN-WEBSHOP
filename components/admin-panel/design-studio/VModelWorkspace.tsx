@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ArrowLeft, Check, Download, ImagePlus, LoaderCircle, RefreshCw, ShieldCheck, Sparkles, WandSparkles } from "lucide-react";
+import { CanvaPicker } from "@/components/admin-panel/canva/CanvaPicker";
 import { vModelModels, type VModelModelId } from "@/lib/design-studio/vmodel-models";
 import type { VModelJobDto, VModelJobInput } from "@/lib/design-studio/vmodel-schema";
 import type { DesignAssetDto, DesignStudioProduct } from "@/lib/design-studio/types";
@@ -290,6 +291,7 @@ export function VModelWorkspace({
               <figure className="min-w-0"><div className="flex min-h-64 items-center justify-center overflow-hidden rounded-card border border-border bg-[linear-gradient(45deg,#eee_25%,transparent_25%),linear-gradient(-45deg,#eee_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#eee_75%),linear-gradient(-45deg,transparent_75%,#eee_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px] p-3">{selectedAsset ? <img src={selectedAsset.url} alt={`VModel-campagneconcept voor ${selectedProduct?.name || "product"}`} className="max-h-[40rem] w-full object-contain" /> : <div className="flex min-h-64 items-center justify-center bg-surface/80 px-6 text-center text-body-sm text-muted">Hier verschijnt het nieuwe campagneconcept.</div>}</div><figcaption className="mt-2 text-xs font-bold uppercase tracking-[0.1em] text-muted">Na · concept</figcaption></figure>
             </div>
             {selectedAsset ? <div className="mt-5 flex flex-col gap-3 sm:flex-row"><a href={selectedAsset.url} target="_blank" rel="noreferrer" className={`${buttonClass} flex-1 border border-border bg-surface text-text`}><Download className="h-4 w-4" aria-hidden="true" />Open of download</a><button type="button" disabled={busy || selectedAsset.status === "PUBLISHED" || !allowed} onClick={() => void publish(selectedAsset)} className={`${buttonClass} flex-1 bg-accent-ink text-white`}><Check className="h-4 w-4" aria-hidden="true" />{selectedAsset.status === "PUBLISHED" ? "Toegevoegd aan product" : "Aan productgalerij toevoegen"}</button></div> : null}
+            {selectedAsset ? <div className="mt-3"><CanvaPicker sourceImageUrl={selectedAsset.url} defaultSize="square" designTitle={`${selectedProduct?.name || "Campagne"} · VModel`} label="Tekst en huisstijl toevoegen in Canva" className={`${buttonClass} w-full border border-border bg-surface text-text`} onSelect={() => setMessage("De Canva-versie staat in Marketing → Mediabibliotheek.")} /></div> : null}
           </div>
 
           <div className="mt-6 rounded-panel border border-border bg-surface p-4 sm:p-6">

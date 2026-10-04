@@ -4,7 +4,7 @@ export type DesignStudioModule = {
   description: string;
   href: string;
   status: "ACTIVE" | "PLANNED";
-  provider?: "PhotoRoom" | "VModel" | "Gemini";
+  provider?: "PhotoRoom" | "VModel" | "Gemini" | "Canva";
 };
 
 export const designStudioModules: readonly DesignStudioModule[] = [
@@ -23,6 +23,14 @@ export const designStudioModules: readonly DesignStudioModule[] = [
     href: "/admin/design-studio/campagnebeelden",
     status: "ACTIVE",
     provider: "VModel",
+  },
+  {
+    id: "canva",
+    title: "Canva-designs",
+    description: "Ontwerp banners, socials en flyers in Canva en zet ze direct in de mediabibliotheek.",
+    href: "/admin/design-studio/canva",
+    status: "ACTIVE",
+    provider: "Canva",
   },
   {
     id: "labels",

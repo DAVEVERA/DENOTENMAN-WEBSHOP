@@ -2,11 +2,18 @@ import Link from "next/link";
 import { getProviderStatusReport } from "@/lib/provider-status";
 import { IntegrationStatusChip } from "./IntegrationStatusChip";
 import { formatAmsterdamDateTime } from "@/lib/amsterdam-calendar";
+import { canvaConnectionSummary } from "@/lib/canva/connection";
+import { BASE_URL } from "@/lib/routes";
+import { CanvaConnectionCard } from "@/components/admin-panel/canva/CanvaConnectionCard";
 
 export const dynamic = "force-dynamic";
 
-export default async function IntegratiesPage() {
-  const report = await getProviderStatusReport();
+export default async function IntegratiesPage({ searchParams }: { searchParams: Promise<{ canva?: string }> }) {
+  const [report, canva, { canva: canvaNotice }] = await Promise.all([
+    getProviderStatusReport(),
+    canvaConnectionSummary().catch(() => ({ configured: false, connected: false, displayName: null, connectedAt: null })),
+    searchParams,
+  ]);
 
   return (
     <div>
@@ -38,6 +45,7 @@ export default async function IntegratiesPage() {
             </ul>
           </section>
         ))}
+        <CanvaConnectionCard initial={canva} notice={canvaNotice ?? null} siteUrl={BASE_URL} returnTo="/admin/instellingen/integraties" />
       </div>
 
       <p className="mt-5 rounded-card border border-border bg-background p-4 text-body-sm text-muted">

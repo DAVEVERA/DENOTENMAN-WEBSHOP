@@ -2,6 +2,8 @@
 
 import { useCallback, useRef, useState, useTransition } from "react";
 
+import { CanvaPicker } from "@/components/admin-panel/canva/CanvaPicker";
+
 export type MediaAssetDto = {
   id: string;
   url: string;
@@ -52,6 +54,16 @@ export function MediaLibraryClient({ initialAssets, initialCursor }: { initialAs
     });
   }, []);
 
+  // Canva imports land in the library on the server; reload the first page to show them.
+  const refreshFirstPage = useCallback(async () => {
+    const response = await fetch("/api/admin/media", { cache: "no-store" });
+    const body = await response.json().catch(() => null) as { assets?: MediaAssetDto[]; nextCursor?: string | null } | null;
+    if (response.ok && body?.assets) {
+      setAssets(body.assets);
+      setCursor(body.nextCursor ?? null);
+    }
+  }, []);
+
   const loadMore = useCallback(() => {
     if (!cursor) return;
     startLoadMore(async () => {
@@ -82,6 +94,9 @@ export function MediaLibraryClient({ initialAssets, initialCursor }: { initialAs
 
   return (
     <div>
+      <div className="mb-3 flex justify-end">
+        <CanvaPicker label="Importeer uit Canva" defaultSize="square" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-semibold text-text" onSelect={() => void refreshFirstPage()} />
+      </div>
       <div
         onDragOver={(event) => {
           event.preventDefault();
