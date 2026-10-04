@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse, type NextRequest } from "next/server";
-import { hasAdminSession } from "@/lib/admin-api-auth";
+import { getAdminSession } from "@/lib/admin-api-auth";
+import {
+  hasProductWritePermission,
+  isSameOriginMutation,
+} from "@/lib/admin-request-security";
 import {
   getProductCategories,
   getProductTranslations,
@@ -16,6 +20,10 @@ import {
   scheduleIndexNowUrls,
 } from "@/lib/indexnow";
 import { BASE_URL } from "@/lib/routes";
+import {
+  getPublicationReadiness,
+  publicationBlockedContract,
+} from "@/lib/product-publication-readiness";
 import { prisma } from "@/lib/prisma";
 
 function translationData(translation: ProductTranslationInput) {
@@ -56,8 +64,15 @@ async function upsertNutrition(
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await hasAdminSession(request))) {
+  const admin = await getAdminSession(request);
+  if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!hasProductWritePermission(admin.role)) {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
+  if (!isSameOriginMutation(request)) {
+    return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
   }
   const parsed = productAdminInputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -91,6 +106,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         parentId: true,
+        isActive: true,
         translations: { select: { locale: true, slug: true } },
       },
     });
@@ -100,6 +116,19 @@ export async function POST(request: NextRequest) {
     for (const category of categories) {
       if (category.parentId && !requestedCategoryIds.includes(category.parentId)) {
         return NextResponse.json({ error: "CATEGORY_PARENT_REQUIRED" }, { status: 400 });
+      }
+    }
+    if (input.isActive) {
+      const readiness = getPublicationReadiness({
+        nlName: nlTranslation.name,
+        nlSlug: nlTranslation.slug,
+        variants: input.variants,
+        activeCategoryCount: categories.filter((category) => category.isActive).length,
+        hasPrimaryImage: false,
+      });
+      if (!readiness.ready) {
+        const contract = publicationBlockedContract(readiness.issues);
+        return NextResponse.json(contract.body, { status: contract.status });
       }
     }
     if (await prisma.product.count({ where: { id: { in: input.recommendationIds } } }) !== input.recommendationIds.length) {

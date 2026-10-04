@@ -11,6 +11,7 @@ import { OrderPakbonButton } from "./OrderPakbonButton";
 import { OrderRefundBadge } from "./OrderRefundBadge";
 import { MarketManifestPrint } from "./MarketManifestPrint";
 import { publicOrderNumber } from "@/lib/order-reference";
+import { formatAmsterdamDateTime } from "@/lib/amsterdam-calendar";
 
 const VALID_STATUSES = new Set<string>([
   "PENDING",
@@ -47,6 +48,7 @@ export default async function BestellingenPage({
       contactName: true,
       contactEmail: true,
       status: true,
+      deliveryMethod: true,
       isTest: true,
       totalCents: true,
       createdAt: true,
@@ -133,16 +135,16 @@ export default async function BestellingenPage({
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted">
-                    {new Intl.DateTimeFormat("nl-NL", {
+                    {formatAmsterdamDateTime(order.createdAt, "nl-NL", {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
-                    }).format(order.createdAt)}
+                    })}
                   </td>
                   <td className="px-4 py-3">
-                    {order.postnlTrackingCode ? (
+                    {order.deliveryMethod === "SHIPPING" && order.postnlTrackingCode ? (
                       <Link
                         href={`/admin/bestellingen/${order.id}`}
                         className="font-mono text-text underline decoration-border-hover underline-offset-4"
@@ -156,10 +158,12 @@ export default async function BestellingenPage({
                   <td className="px-4 py-3">
                     {!order.isTest && (order.status === "PAID" || order.status === "FULFILLED") ? (
                       <div className="flex flex-wrap gap-1.5">
-                        <OrderLabelButton
-                          orderId={order.id}
-                          hasLabel={Boolean(order.postnlLabelBase64)}
-                        />
+                        {order.deliveryMethod === "SHIPPING" ? (
+                          <OrderLabelButton
+                            orderId={order.id}
+                            hasLabel={Boolean(order.postnlLabelBase64)}
+                          />
+                        ) : null}
                         <OrderPakbonButton orderId={order.id} />
                       </div>
                     ) : (

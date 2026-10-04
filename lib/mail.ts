@@ -8,6 +8,7 @@ import { BASE_URL, orderConfirmation } from "@/lib/routes";
 import { formatPrice } from "@/lib/format";
 import { getPickupLocation } from "@/lib/pickup-locations";
 import { publicOrderNumber } from "@/lib/order-reference";
+import { formatAmsterdamDate } from "@/lib/amsterdam-calendar";
 
 type OrderCopy = {
   subject: (orderNumber: string) => string;
@@ -135,11 +136,11 @@ export async function renderOrderConfirmationEmail(
   const shippingHeading =
     order.deliveryMethod === "PICKUP" ? copy.pickupHeading : copy.shippingHeading;
   const greeting = copy.greeting(order.contactName);
-  const orderDate = new Intl.DateTimeFormat(locale, {
+  const orderDate = formatAmsterdamDate(order.createdAt, locale, {
     day: "numeric",
     month: "long",
     year: "numeric",
-  }).format(order.createdAt);
+  });
 
   const email = createElement(OrderConfirmationEmail, {
     locale,

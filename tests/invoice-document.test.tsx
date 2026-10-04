@@ -42,6 +42,13 @@ test("all required fiscal fields are present in the rendered markup", () => {
   assert.match(markup, /Testbedrijf BV/);
 });
 
+test("the invoice date uses the Amsterdam calendar day", () => {
+  const { canvas, blockText } = defaultCanvas();
+  const input = { ...sampleInput, createdAt: new Date("2026-03-28T23:30:00.000Z") };
+  const markup = renderToStaticMarkup(<InvoiceDocument input={input} canvas={canvas} blockText={blockText} />);
+  assert.match(markup, /29 maart 2026/);
+});
+
 test("a footer text override replaces the default thank-you line", () => {
   const { canvas, blockText } = defaultCanvas();
   blockText[blockTextKey("footer", "thankYouLine")] = "Bedankt voor je bestelling!";

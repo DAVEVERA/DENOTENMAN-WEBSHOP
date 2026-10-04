@@ -8,6 +8,7 @@ import { LEGAL_IDENTITY } from "@/lib/legal";
 import { prisma } from "@/lib/prisma";
 import { BASE_URL } from "@/lib/routes";
 import { publicOrderNumber } from "@/lib/order-reference";
+import { formatAmsterdamDateTime } from "@/lib/amsterdam-calendar";
 import {
   deliverTransactionalEmail,
   retryTransactionalEmail,
@@ -59,11 +60,10 @@ export async function sendMerchantNewOrderNotification(orderId: string): Promise
 
   const adminUrl = `${BASE_URL}/admin/bestellingen/${order.id}`;
   const orderNumber = publicOrderNumber(order);
-  const orderDate = new Intl.DateTimeFormat("nl-NL", {
+  const orderDate = formatAmsterdamDateTime(order.paidAt ?? order.createdAt, "nl-NL", {
     dateStyle: "medium",
     timeStyle: "short",
-    timeZone: "Europe/Amsterdam",
-  }).format(order.paidAt ?? order.createdAt);
+  });
   const items = order.items.map((item) => ({
     name: `${item.productName} (${item.variantLabel})`,
     quantity: item.quantity,

@@ -4,12 +4,18 @@ import { cn } from "@/lib/cn";
 import { RevertButton } from "./RevertButton";
 import { DiffView } from "./DiffView";
 import { canRevertAuditEntity } from "@/lib/admin-audit";
+import {
+  auditActionLabel,
+  auditEntityLabel,
+  auditSummary,
+} from "@/lib/admin-audit-display";
+import { formatAmsterdamDateTime } from "@/lib/amsterdam-calendar";
 
-const ACTION_LABELS: Record<string, string> = {
-  CREATE: "Aangemaakt",
-  UPDATE: "Gewijzigd",
-  DELETE: "Verwijderd",
-  RESTORE: "Teruggedraaid",
+const ACTION_STYLES: Record<string, string> = {
+  CREATE: "border-green-200 bg-green-50 text-green-800",
+  UPDATE: "border-blue-200 bg-blue-50 text-blue-800",
+  DELETE: "border-red-200 bg-red-50 text-red-800",
+  RESTORE: "border-violet-200 bg-violet-50 text-violet-800",
 };
 
 export default async function LogboekPage({
@@ -67,7 +73,7 @@ export default async function LogboekPage({
                 : "bg-surface text-text hover:border-border-hover"
             )}
           >
-            {row.entityType}
+            {auditEntityLabel(row.entityType)}
           </Link>
         ))}
       </div>
@@ -100,11 +106,10 @@ export default async function LogboekPage({
             >
               <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="font-heading text-body-sm font-semibold text-text">
-                    {ACTION_LABELS[entry.action] ?? entry.action}
+                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-heading font-semibold ${ACTION_STYLES[entry.action] ?? "border-border bg-background text-text"}`}>
+                    {auditActionLabel(entry.action)}
                   </span>
-                  <span className="text-body-sm text-muted">{entry.entityType}</span>
-                  <span className="font-mono text-xs text-muted">{entry.entityId.slice(0, 10)}…</span>
+                  <span className="text-body-sm font-semibold text-text">{auditSummary(entry)}</span>
                   {entry.reverted ? (
                     <span className="rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">
                       Teruggedraaid
@@ -114,19 +119,24 @@ export default async function LogboekPage({
                 <div className="flex items-center gap-3 text-body-sm text-muted">
                   <span>{entry.adminUser.name}</span>
                   <span>
-                    {new Intl.DateTimeFormat("nl-NL", {
+                    {formatAmsterdamDateTime(entry.createdAt, "nl-NL", {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
-                    }).format(entry.createdAt)}
+                    })}
                   </span>
                 </div>
               </summary>
 
               <div className="mt-3 border-t border-border pt-3">
-                <DiffView before={entry.before} after={entry.after} />
+                <DiffView
+                  entityType={entry.entityType}
+                  entityId={entry.entityId}
+                  before={entry.before}
+                  after={entry.after}
+                />
 
                 {!entry.reverted && entry.action !== "RESTORE" && canRevertAuditEntity(entry.entityType) ? (
                   <div className="mt-3 flex justify-end">

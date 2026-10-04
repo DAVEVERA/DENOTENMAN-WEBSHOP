@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  allowsPostnlForDeliveryMethod,
   isAllowedAdminOrderTransition,
   requiresTrackingForFulfillment,
 } from "../lib/aftersales/order-state";
@@ -17,4 +18,6 @@ test("admin statusovergangen volgen de bestel-state-machine", () => {
 test("alleen verzending vereist tracking bij fulfilment", () => {
   assert.equal(requiresTrackingForFulfillment("SHIPPING"), true);
   assert.equal(requiresTrackingForFulfillment("PICKUP"), false);
+  assert.equal(allowsPostnlForDeliveryMethod("SHIPPING"), true);
+  assert.equal(allowsPostnlForDeliveryMethod("PICKUP"), false);
 });

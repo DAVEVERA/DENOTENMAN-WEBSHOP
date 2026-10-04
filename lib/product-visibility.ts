@@ -6,6 +6,7 @@ export const productVisibilityInputSchema = z
   .object({
     isActive: z.boolean(),
     version: z.string().datetime(),
+    undoToken: z.string().min(1).optional(),
   })
   .strict();
 

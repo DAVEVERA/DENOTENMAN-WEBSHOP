@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { OrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
+import { getAdminSession } from "@/lib/admin-api-auth";
+import { isSameOriginMutation } from "@/lib/admin-request-security";
+import { can } from "@/lib/roles";
 import {
   prepareAftersalesEvent,
   processAftersalesDelivery,
@@ -10,6 +12,7 @@ import {
 } from "@/lib/aftersales/service";
 import { aftersalesTriggerForOrderTransition } from "@/lib/aftersales/events";
 import {
+  allowsPostnlForDeliveryMethod,
   isAllowedAdminOrderTransition,
   requiresTrackingForFulfillment,
 } from "@/lib/aftersales/order-state";
@@ -28,9 +31,15 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  if (!(await verifyAdminSessionToken(token))) {
+  const admin = await getAdminSession(request);
+  if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!can(admin.role, "orders", "write")) {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
+  if (!isSameOriginMutation(request)) {
+    return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
   }
 
   const { id } = await params;
@@ -72,6 +81,19 @@ export async function PATCH(
   const existing = await prisma.order.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  }
+  if (
+    data.postnlTrackingCode !== undefined &&
+    data.postnlTrackingCode !== null &&
+    !allowsPostnlForDeliveryMethod(existing.deliveryMethod)
+  ) {
+    return NextResponse.json(
+      {
+        error: "TRACKING_NOT_ALLOWED",
+        message: "Een afhaalbestelling krijgt geen PostNL-trackingcode.",
+      },
+      { status: 409 }
+    );
   }
   if (
     existing.isTest &&

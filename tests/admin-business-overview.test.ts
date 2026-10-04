@@ -7,6 +7,10 @@ const source = readFileSync(
   join(process.cwd(), "app/admin/(dashboard)/zakelijk/page.tsx"),
   "utf8",
 );
+const detailSource = readFileSync(
+  join(process.cwd(), "app/admin/(dashboard)/zakelijk/[id]/page.tsx"),
+  "utf8",
+);
 
 test("business accounts are shown before the collapsible notification inbox", () => {
   const accountsIndex = source.indexOf('id="klantaccounts"');
@@ -19,9 +23,18 @@ test("business accounts are shown before the collapsible notification inbox", ()
   assert.match(source, /Zakelijke meldingen/);
 });
 
-test("business account rows show order totals instead of account status", () => {
+test("business account rows show both operational order totals and readable status", () => {
   assert.match(source, />Bestellingen<\/th>/);
-  assert.doesNotMatch(source, />Status<\/th>/);
+  assert.match(source, />Status<\/th>/);
+  assert.match(source, /<BusinessAccountStatusChip status=\{account\.status\}/);
   assert.match(source, /orderCount/);
   assert.match(source, /orderLists\.reduce/);
+});
+
+test("business administration renders instants in the Amsterdam timezone", () => {
+  assert.match(source, /formatAmsterdamDateTime/);
+  assert.match(detailSource, /formatAmsterdamDateTime/);
+  assert.match(detailSource, /formatAmsterdamDate/);
+  assert.doesNotMatch(source, /\.toLocale(?:Date|Time)String\(/);
+  assert.doesNotMatch(detailSource, /\.toLocale(?:Date|Time)String\(/);
 });

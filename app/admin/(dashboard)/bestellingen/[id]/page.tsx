@@ -11,16 +11,7 @@ import { OrderEditForm } from "./OrderEditForm";
 import { OrderRefundPanel } from "./OrderRefundPanel";
 import { OrderTimeline } from "./OrderTimeline";
 import { publicOrderNumber } from "@/lib/order-reference";
-
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
+import { formatAmsterdamDateTime } from "@/lib/amsterdam-calendar";
 
 export default async function OrderDetailPage({
   params,
@@ -179,6 +170,7 @@ export default async function OrderDetailPage({
               initialTrackingCode={order.postnlTrackingCode ?? ""}
               hasLabel={Boolean(order.postnlLabelBase64)}
               currentStatus={order.status}
+              deliveryMethod={order.deliveryMethod}
               isTest={order.isTest}
             />
           </div>
@@ -248,12 +240,26 @@ export default async function OrderDetailPage({
               <div className="flex justify-between">
                 <dt className="text-muted">Betaald op</dt>
                 <dd className="text-text">
-                  {order.paidAt ? formatDateTime(order.paidAt) : "—"}
+                  {order.paidAt ? formatAmsterdamDateTime(order.paidAt, "nl-NL", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }) : "—"}
                 </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted">Besteld op</dt>
-                <dd className="text-text">{formatDateTime(order.createdAt)}</dd>
+                <dd className="text-text">
+                  {formatAmsterdamDateTime(order.createdAt, "nl-NL", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </dd>
               </div>
               {order.molliePaymentId ? (
                 <div className="flex justify-between gap-2">

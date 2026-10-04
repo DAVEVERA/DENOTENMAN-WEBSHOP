@@ -9,6 +9,7 @@ import type {
 } from "@prisma/client";
 import { cn } from "@/lib/cn";
 import { resolveVat, type BusinessVatCountry } from "@/lib/business-vat";
+import { BusinessAccountStatusChip } from "../BusinessAccountStatusChip";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -18,20 +19,6 @@ type AddressFields = {
   postalCode: string;
   city: string;
   country: string;
-};
-
-const STATUS_LABELS: Record<BusinessAccountStatus, string> = {
-  PENDING: "In afwachting",
-  APPROVED: "Goedgekeurd",
-  REJECTED: "Afgewezen",
-  SUSPENDED: "Geschorst",
-};
-
-const STATUS_BADGE_CLASSES: Record<BusinessAccountStatus, string> = {
-  PENDING: "bg-border text-muted",
-  APPROVED: "bg-accent/10 text-accent-hover",
-  REJECTED: "bg-red-50 text-red-700",
-  SUSPENDED: "bg-violet-50 text-violet-800",
 };
 
 const STATUS_ACTIONS: {
@@ -309,7 +296,6 @@ export function BusinessAccountSections({
   const [contactName, setContactName] = useState(currentContactName);
   const [email, setEmail] = useState(currentEmail);
   const [phone, setPhone] = useState(currentPhone);
-  const [customerNumber, setCustomerNumber] = useState(currentCustomerNumber);
   const [profileState, setProfileState] = useState<SaveState>("idle");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [vatNumber, setVatNumber] = useState(currentVatNumber);
@@ -344,8 +330,7 @@ export function BusinessAccountSections({
     companyName === currentCompanyName &&
     contactName === currentContactName &&
     email === currentEmail &&
-    phone === currentPhone &&
-    customerNumber === currentCustomerNumber;
+    phone === currentPhone;
   const taxUnchanged =
     vatNumber === currentVatNumber &&
     kvkNumber === currentKvkNumber &&
@@ -381,8 +366,6 @@ export function BusinessAccountSections({
         contactName: contactName.trim(),
         email: email.trim(),
         phone: phone.trim().length > 0 ? phone.trim() : null,
-        customerNumber:
-          customerNumber.trim().length > 0 ? customerNumber.trim() : null,
       });
       setProfileState("saved");
       router.refresh();
@@ -648,18 +631,15 @@ export function BusinessAccountSections({
                 className={inputClass}
               />
             </label>
-            <label className={labelClass}>
+            <div className={labelClass}>
               Klantnummer
-              <input
-                value={customerNumber}
-                onChange={(event) => {
-                  setCustomerNumber(event.target.value);
-                  setProfileState("idle");
-                }}
-                placeholder="Bijv. K1042"
-                className={inputClass}
-              />
-            </label>
+              <p className="mt-1 min-h-11 rounded-button border border-border bg-surface px-3 py-2 font-mono text-body-sm text-text">
+                {currentCustomerNumber}
+              </p>
+              <span className="mt-1 block text-xs font-normal text-muted">
+                Wordt automatisch toegekend en blijft aan dit klantdossier gekoppeld.
+              </span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -1003,14 +983,7 @@ export function BusinessAccountSections({
 
       <BusinessAccountSection title="Status" eyebrow="Accountstatus">
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <span
-            className={cn(
-              "inline-flex items-center rounded-button px-3 py-1 text-body-sm font-semibold",
-              STATUS_BADGE_CLASSES[currentStatus],
-            )}
-          >
-            {STATUS_LABELS[currentStatus]}
-          </span>
+          <BusinessAccountStatusChip status={currentStatus} className="px-3 text-body-sm" />
         </div>
         {isDeleted ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-red-300 bg-red-50 p-4">

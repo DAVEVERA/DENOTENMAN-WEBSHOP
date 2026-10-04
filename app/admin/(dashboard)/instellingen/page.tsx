@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSettings } from "@/lib/settings";
 import { SettingsForm } from "./SettingsForm";
 
@@ -18,6 +19,16 @@ export default async function AdminSettingsPage() {
   return (
     <div>
       <h1 className="text-heading-xl text-text">Instellingen</h1>
+
+      <section className="mt-6 max-w-3xl rounded-panel border border-border bg-surface p-5 shadow-card">
+        <h2 className="text-heading-lg text-text">Integraties</h2>
+        <p className="mt-1 text-body-sm text-muted">
+          Bekijk veilig of betaal-, verzend-, marketing-, opslag-, AI- en social-koppelingen zijn ingesteld, zonder sleutels te tonen of betaalde acties uit te voeren.
+        </p>
+        <Link href="/admin/instellingen/integraties" className="mt-4 inline-flex min-h-11 items-center rounded-button border border-accent bg-accent px-4 font-heading text-body-sm font-semibold text-contrast shadow-button">
+          Integratiestatus bekijken
+        </Link>
+      </section>
 
       <div className="mt-8 max-w-xl">
         <h2 className="text-heading-lg text-text">PostNL</h2>

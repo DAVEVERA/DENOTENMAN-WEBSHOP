@@ -7,6 +7,8 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth"
 import { cn } from "@/lib/cn";
 import { prisma } from "@/lib/prisma";
 import { MarkBusinessEventsReadButton } from "./BusinessEventInbox";
+import { BusinessAccountStatusChip } from "./BusinessAccountStatusChip";
+import { formatAmsterdamDateTime } from "@/lib/amsterdam-calendar";
 
 const VALID_STATUSES = new Set<string>(["PENDING", "APPROVED", "REJECTED", "SUSPENDED"]);
 
@@ -124,13 +126,13 @@ export default async function ZakelijkPage({
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <h3 className="font-heading text-heading-sm text-text">{account.companyName}</h3>
-                          <span className="rounded-button bg-accent/10 px-2 py-1 text-xs font-bold text-accent-hover">
-                            {orderCount} {orderCount === 1 ? "bestelling" : "bestellingen"}
-                          </span>
+                          <BusinessAccountStatusChip status={account.status} />
                         </div>
-                        {account.customerNumber ? <p className="mt-0.5 text-xs font-semibold text-muted">Klantnr. {account.customerNumber}</p> : null}
+                        <p className="mt-0.5 font-mono text-xs font-semibold text-muted">Klantnr. {account.customerNumber}</p>
                         <p className="mt-1 break-words text-body-sm text-muted">{account.contactName} · {account.email}</p>
-                        <p className="mt-3 text-xs font-semibold text-text">{account.orderLists.length} {account.orderLists.length === 1 ? "bestellijst" : "bestellijsten"}</p>
+                        <p className="mt-3 text-xs font-semibold text-text">
+                          {orderCount} {orderCount === 1 ? "bestelling" : "bestellingen"} · {account.orderLists.length} {account.orderLists.length === 1 ? "bestellijst" : "bestellijsten"}
+                        </p>
                       </div>
                     </div>
                   </Link>
@@ -145,6 +147,7 @@ export default async function ZakelijkPage({
                     <th className="px-4 py-3 font-heading">Bedrijf</th>
                     <th className="px-4 py-3 font-heading">Contactpersoon</th>
                     <th className="px-4 py-3 font-heading">E-mail</th>
+                    <th className="px-4 py-3 font-heading">Status</th>
                     <th className="px-4 py-3 text-right font-heading">Bestellingen</th>
                     <th className="px-4 py-3 text-right font-heading">Bestellijsten</th>
                   </tr>
@@ -154,7 +157,7 @@ export default async function ZakelijkPage({
                     const orderCount = account.orderLists.reduce((total, list) => total + list._count.orders, 0);
                     return (
                       <tr key={account.id} className="border-b border-border last:border-0 hover:bg-background">
-                        <td className="px-4 py-3 text-muted">{account.customerNumber ?? "—"}</td>
+                        <td className="px-4 py-3 font-mono text-muted">{account.customerNumber}</td>
                         <td className="px-4 py-3">
                           <Link href={`/admin/zakelijk/${account.id}`} className="font-semibold text-accent-hover underline underline-offset-4">
                             {account.companyName}
@@ -162,6 +165,7 @@ export default async function ZakelijkPage({
                         </td>
                         <td className="px-4 py-3 text-text">{account.contactName}</td>
                         <td className="px-4 py-3 text-muted">{account.email}</td>
+                        <td className="px-4 py-3"><BusinessAccountStatusChip status={account.status} /></td>
                         <td className="px-4 py-3 text-right font-bold text-text">{orderCount}</td>
                         <td className="px-4 py-3 text-right text-text">{account.orderLists.length}</td>
                       </tr>
@@ -208,5 +212,10 @@ export default async function ZakelijkPage({
 }
 
 function formatEventDate(date: Date) {
-  return new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(date);
+  return formatAmsterdamDateTime(date, "nl-NL", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

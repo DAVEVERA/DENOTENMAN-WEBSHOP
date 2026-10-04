@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse, type NextRequest } from "next/server";
-import { hasAdminSession } from "@/lib/admin-api-auth";
+import { getAdminSession } from "@/lib/admin-api-auth";
+import {
+  hasProductWritePermission,
+  isSameOriginMutation,
+} from "@/lib/admin-request-security";
 import {
   getProductCategories,
   getProductTranslations,
@@ -20,6 +24,13 @@ import { BASE_URL } from "@/lib/routes";
 import type { ProductRevalidationInput } from "@/lib/product-visibility";
 import { notifyPendingStockSubscribers } from "@/lib/stock-notifications";
 import { prisma } from "@/lib/prisma";
+import {
+  PublicationBlockedError,
+  getPublicationReadiness,
+  publicationReadinessRegressed,
+  publicationBlockedContract,
+} from "@/lib/product-publication-readiness";
+import { createProductVisibilityUndoToken } from "@/lib/product-visibility-undo";
 import {
   AdminProductMutationError,
   adminProductErrorContract,
@@ -44,6 +55,10 @@ function conflictTarget(error: Prisma.PrismaClientKnownRequestError): string {
 }
 
 function errorResponse(error: unknown, requestId: string, productId: string) {
+  if (error instanceof PublicationBlockedError) {
+    const contract = publicationBlockedContract(error.issues);
+    return NextResponse.json(contract.body, { status: contract.status });
+  }
   if (error instanceof AdminProductMutationError) {
     return jsonError(error.code === "VALIDATION_ERROR" ? "INTERNAL_ERROR" : error.code, {
       field: error.field,
@@ -73,6 +88,16 @@ type ExistingTranslationCopy = {
   shortDescriptionHtml: string | null;
   description: string | null;
   descriptionHtml: string | null;
+};
+
+type VisibilityUndoContext = {
+  currentIsActive: boolean;
+  targetIsActive: boolean;
+  version: string;
+};
+
+type ProductUpdateContext = ProductRevalidationInput & {
+  visibilityUndoContext: VisibilityUndoContext | null;
 };
 
 function translationData(translation: ProductTranslationInput, previous?: ExistingTranslationCopy) {
@@ -152,8 +177,15 @@ async function resolveCategoryAssignments(
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await hasAdminSession(request))) {
+  const admin = await getAdminSession(request);
+  if (!admin) {
     return jsonError("UNAUTHORIZED");
+  }
+  if (!hasProductWritePermission(admin.role)) {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
+  if (!isSameOriginMutation(request)) {
+    return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
   }
 
   const { id } = await params;
@@ -181,22 +213,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const requestedCategoryIds = requestedCategories.map((category) => category.categoryId);
   let shouldNotify = false;
   let shouldSubmitIndexNow = false;
-  let revalidationContext: ProductRevalidationInput | null = null;
+  let revalidationContext: ProductUpdateContext | null = null;
 
   try {
     revalidationContext = await prisma.$transaction(async (tx) => {
       const current = await tx.product.findUnique({
         where: { id },
         include: {
-          variants: { select: { id: true, sku: true, _count: { select: { orderItems: true } } } },
+          variants: {
+            select: {
+              id: true,
+              sku: true,
+              isActive: true,
+              priceCents: true,
+              salePriceCents: true,
+              _count: { select: { orderItems: true } },
+            },
+          },
           translations: true,
           productCategories: {
             include: {
               category: {
-                select: { translations: { select: { locale: true, slug: true } } },
+                select: {
+                  isActive: true,
+                  translations: { select: { locale: true, slug: true } },
+                },
               },
             },
           },
+          images: { select: { isPrimary: true } },
         },
       });
       if (!current) throw new AdminProductMutationError("PRODUCT_NOT_FOUND");
@@ -209,6 +254,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         select: {
           id: true,
           parentId: true,
+          isActive: true,
           translations: { select: { locale: true, slug: true } },
         },
       });
@@ -218,6 +264,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       for (const category of categories) {
         if (category.parentId && !requestedCategoryIds.includes(category.parentId)) {
           throw new AdminProductMutationError("CATEGORY_PARENT_REQUIRED", { field: "categories" });
+        }
+      }
+
+      if (input.isActive) {
+        const currentNlTranslation = current.translations.find(
+          (translation) => translation.locale === "nl",
+        );
+        const nextNlTranslation = translations.find((translation) => translation.locale === "nl");
+        const currentReadiness = getPublicationReadiness({
+          nlName: currentNlTranslation?.name,
+          nlSlug: currentNlTranslation?.slug,
+          variants: current.variants,
+          activeCategoryCount: current.productCategories.filter(
+            (assignment) => assignment.category.isActive,
+          ).length,
+          hasPrimaryImage: current.images.some((image) => image.isPrimary),
+        });
+        const nextReadiness = getPublicationReadiness({
+          nlName: nextNlTranslation?.name,
+          nlSlug: nextNlTranslation?.slug,
+          variants: input.variants,
+          activeCategoryCount: categories.filter((category) => category.isActive).length,
+          hasPrimaryImage: current.images.some((image) => image.isPrimary),
+        });
+        if (
+          (!current.isActive && !nextReadiness.ready)
+          || (current.isActive && publicationReadinessRegressed(currentReadiness, nextReadiness))
+        ) {
+          throw new PublicationBlockedError(nextReadiness.issues);
         }
       }
       if (await tx.product.count({ where: { id: { in: input.recommendationIds } } }) !== input.recommendationIds.length) {
@@ -265,7 +340,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
 
       const nlTranslation = translations.find((translation) => translation.locale === "nl");
-      await tx.product.update({
+      const updatedProduct = await tx.product.update({
         where: { id },
         data: {
           sku: input.sku,
@@ -276,6 +351,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           isActive: input.isActive,
         },
       });
+      const visibilityUndoContext: VisibilityUndoContext | null = current.isActive !== input.isActive
+        ? {
+          currentIsActive: input.isActive,
+          targetIsActive: current.isActive,
+          version: updatedProduct.updatedAt.toISOString(),
+        }
+        : null;
 
       for (const translation of translations) {
         const previous = current.translations.find((item) => item.locale === translation.locale);
@@ -386,6 +468,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           ),
           ...categories.flatMap((category) => category.translations),
         ],
+        visibilityUndoContext,
       };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (error) {
@@ -432,12 +515,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       images: { select: { id: true, sortOrder: true, isPrimary: true }, orderBy: { sortOrder: "asc" } },
     },
   });
+  const undoToken = revalidationContext.visibilityUndoContext
+    ? await createProductVisibilityUndoToken({
+        productId: id,
+        adminUserId: admin.id,
+        ...revalidationContext.visibilityUndoContext,
+      })
+    : null;
   return NextResponse.json({
     ok: true,
     version: updated?.updatedAt.toISOString(),
     variants: updated?.variants ?? [],
     images: updated?.images ?? [],
     translations: updated?.translations ?? [],
+    undoToken,
     frontendSynced: revalidation.frontendSynced,
   });
 }

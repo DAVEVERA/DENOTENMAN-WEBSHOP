@@ -2,26 +2,28 @@
 
 import { useState } from "react";
 import { Package } from "lucide-react";
+import {
+  amsterdamCalendarWeekday,
+  formatAmsterdamCalendarDate,
+  shiftAmsterdamCalendarDate,
+} from "@/lib/amsterdam-calendar";
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatAmsterdamCalendarDate();
 }
 
 function daysAgoIso(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
+  return shiftAmsterdamCalendarDate(new Date(), -days);
 }
 
 /** Most recently completed (or current) Saturday–Sunday. */
 function lastWeekendRange(): { from: string; to: string } {
   const today = new Date();
-  const daysSinceSaturday = (today.getDay() + 1) % 7; // Sun=0 -> 1, Mon=1 -> 2, ..., Sat=6 -> 0
-  const saturday = new Date(today);
-  saturday.setDate(today.getDate() - daysSinceSaturday);
-  const sunday = new Date(saturday);
-  sunday.setDate(saturday.getDate() + 1);
-  return { from: saturday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) };
+  const daysSinceSaturday = (amsterdamCalendarWeekday(today) + 1) % 7; // Sun=0 -> 1, Mon=1 -> 2, ..., Sat=6 -> 0
+  return {
+    from: shiftAmsterdamCalendarDate(today, -daysSinceSaturday),
+    to: shiftAmsterdamCalendarDate(today, 1 - daysSinceSaturday),
+  };
 }
 
 const PRESETS = [

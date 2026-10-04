@@ -1,4 +1,63 @@
-const AMSTERDAM_TIME_ZONE = "Europe/Amsterdam";
+export const AMSTERDAM_TIME_ZONE = "Europe/Amsterdam";
+
+type DateInput = Date | number | string;
+
+function dateValue(value: DateInput): Date | number {
+  return typeof value === "string" ? new Date(value) : value;
+}
+
+export function formatAmsterdamDate(
+  value: DateInput,
+  locale: string | string[] = "nl-NL",
+  options: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    ...options,
+    timeZone: AMSTERDAM_TIME_ZONE,
+  }).format(dateValue(value));
+}
+
+export function formatAmsterdamDateTime(
+  value: DateInput,
+  locale: string | string[] = "nl-NL",
+  options: Intl.DateTimeFormatOptions = {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    ...options,
+    timeZone: AMSTERDAM_TIME_ZONE,
+  }).format(dateValue(value));
+}
+
+export function formatAmsterdamCalendarDate(value: DateInput = new Date()): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: AMSTERDAM_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(dateValue(value));
+}
+
+export function shiftAmsterdamCalendarDate(value: DateInput, days: number): string {
+  const [year, month, day] = formatAmsterdamCalendarDate(value).split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day + days, 12));
+  return [
+    shifted.getUTCFullYear(),
+    String(shifted.getUTCMonth() + 1).padStart(2, "0"),
+    String(shifted.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+export function amsterdamCalendarWeekday(value: DateInput = new Date()): number {
+  const [year, month, day] = formatAmsterdamCalendarDate(value).split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+}
 
 const partsFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: AMSTERDAM_TIME_ZONE,

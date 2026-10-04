@@ -55,6 +55,12 @@ async function main() {
   assert.ok(numberedEmail.text.includes("Bestelnummer: DN-2026-00125"));
   assert.ok(!numberedEmail.text.includes("Bestelnummer: order-1"));
 
+  const amsterdamBoundaryEmail = await renderOrderConfirmationEmail(
+    baseOrder({ createdAt: new Date("2026-03-28T23:30:00.000Z") }),
+    []
+  );
+  assert.ok(amsterdamBoundaryEmail.text.includes("Besteldatum: 29 maart 2026"));
+
   // Pickup orders must never render the null address fields, and should
   // name the pickup location instead.
   const pickupEmail = await renderOrderConfirmationEmail(

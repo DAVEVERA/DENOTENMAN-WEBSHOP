@@ -1,3 +1,5 @@
+import { formatAmsterdamDate } from "@/lib/amsterdam-calendar";
+
 const PAGE_WIDTH_PT = 595;
 const GOLD = "#e0b200";
 const INK = "#333333";
@@ -48,7 +50,11 @@ export function PackingSlipDocument({ input }: { input: PackingSlipInput }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: "10pt" }}>
             <div style={{ fontWeight: 700, fontSize: "24pt" }}>Pakbon</div>
             <div style={{ fontSize: "9pt", color: MUTED }}>
-              {new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "long", year: "numeric" }).format(input.createdAt)}
+              {formatAmsterdamDate(input.createdAt, "nl-NL", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
             </div>
           </div>
           <div style={{ marginTop: "4pt", fontSize: "9pt", color: MUTED }}>

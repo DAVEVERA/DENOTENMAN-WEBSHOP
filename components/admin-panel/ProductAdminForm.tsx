@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { EyeOff, Globe2, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { EyeOff, Globe2, Plus, Save, Sparkles, Trash2, Undo2 } from "lucide-react";
 import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 import {
   ProductTranslationsEditor,
@@ -97,16 +97,29 @@ export function productSaveErrorMessage(cause: unknown): string {
       variantSku?: unknown;
       requestId?: unknown;
     };
-    const issue = Array.isArray(payload.issues)
-      ? payload.issues.find((candidate): candidate is { path: Array<string | number>; message: string } =>
+    const publicationIssues = payload.error === "PUBLICATION_BLOCKED" && Array.isArray(payload.issues)
+      ? payload.issues.filter((candidate): candidate is { message: string } =>
           Boolean(candidate)
           && typeof candidate === "object"
-          && Array.isArray((candidate as { path?: unknown }).path)
+          && typeof (candidate as { message?: unknown }).message === "string"
+        )
+      : [];
+    if (publicationIssues.length > 0) {
+      return `Publiceren geblokkeerd: ${publicationIssues
+        .map((issue) => issue.message.trim())
+        .join(" ")}`;
+    }
+    const issue = Array.isArray(payload.issues)
+      ? payload.issues.find((candidate): candidate is { path: Array<string | number> | string; message: string } =>
+          Boolean(candidate)
+          && typeof candidate === "object"
+          && (Array.isArray((candidate as { path?: unknown }).path)
+            || typeof (candidate as { path?: unknown }).path === "string")
           && typeof (candidate as { message?: unknown }).message === "string"
         )
       : undefined;
     if (issue) {
-      const path = issue.path.join(".");
+      const path = Array.isArray(issue.path) ? issue.path.join(".") : issue.path;
       return `${productFieldLabel(path)}: ${issue.message.trim()}`;
     }
     if (payload.issues && typeof payload.issues === "object") {
@@ -228,6 +241,51 @@ export function normalizeCategoryAssignments(
   }));
 }
 
+export const VISIBILITY_UNDO_WINDOW_MS = 10_000;
+
+export function productStatusMutationMode(
+  mode: "create" | "edit",
+  isDirty: boolean,
+): "local" | "full-save" | "direct" {
+  if (mode === "create") return "local";
+  return isDirty ? "full-save" : "direct";
+}
+
+function productDraftFingerprint(
+  product: InitialProduct,
+  translations: Record<ProductLocale, ProductTranslationDraft>,
+  nutrition: NutritionValues,
+  categoryAssignments: CategoryAssignment[],
+  categoryPlacementMode: "auto" | "manual",
+): string {
+  return JSON.stringify({
+    product: {
+      sku: product.sku,
+      basePriceEuro: product.basePriceEuro,
+      salePriceEuro: product.salePriceEuro,
+      unit: product.unit,
+      isActive: product.isActive,
+      recommendationIds: product.recommendationIds,
+      variants: product.variants.map((variant) => ({
+        sku: variant.sku,
+        label: variant.label,
+        weightGrams: variant.weightGrams,
+        preparation: variant.preparation,
+        salting: variant.salting,
+        coating: variant.coating,
+        isActive: variant.isActive,
+        priceEuro: variant.priceEuro,
+        salePriceEuro: variant.salePriceEuro,
+        stock: variant.stock,
+      })),
+    },
+    translations,
+    nutrition,
+    categoryAssignments,
+    categoryPlacementMode,
+  });
+}
+
 export function ProductAdminForm({ mode, productId, initial, categories, productOptions, images: initialImages }: {
   mode: "create" | "edit";
   productId?: string;
@@ -252,6 +310,24 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
   const [message, setMessage] = useState<string | null>(null);
   const [visibilityStatus, setVisibilityStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [visibilityMessage, setVisibilityMessage] = useState<string | null>(null);
+  const [savedFingerprint, setSavedFingerprint] = useState(() =>
+    productDraftFingerprint(
+      initial,
+      initialTranslations(initial),
+      initial.nutrition ?? emptyNutritionValues(),
+      normalizeCategoryAssignments(
+        initial.categories ?? initial.categoryIds.map((categoryId, index) => ({ categoryId, isPrimary: index === 0, sortOrder: index })),
+        categories,
+      ),
+      mode === "create" ? "auto" : "manual",
+    )
+  );
+  const [undoVisibility, setUndoVisibility] = useState<{
+    isActive: boolean;
+    version: string;
+    token: string;
+    expiresAt: number;
+  } | null>(null);
 
   const selectedMainId = categoryAssignments.find((item) => !categories.find((category) => category.id === item.categoryId)?.parentId)?.categoryId ?? "";
   const selectedSubId = categoryAssignments.find((item) => categories.find((category) => category.id === item.categoryId)?.parentId === selectedMainId)?.categoryId ?? "";
@@ -261,6 +337,20 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
   const subCategories = categories.filter((item) => item.parentId === selectedMainId);
   const productGroups = categories.filter((item) => item.parentId === selectedSubId);
   const availableRecommendations = useMemo(() => productOptions.filter((item) => item.id !== productId), [productOptions, productId]);
+  const currentFingerprint = useMemo(
+    () => productDraftFingerprint(product, translations, nutrition, categoryAssignments, categoryPlacementMode),
+    [product, translations, nutrition, categoryAssignments, categoryPlacementMode]
+  );
+  const isDirty = currentFingerprint !== savedFingerprint;
+
+  useEffect(() => {
+    if (!undoVisibility) return;
+    const timer = window.setTimeout(
+      () => setUndoVisibility(null),
+      Math.max(0, undoVisibility.expiresAt - Date.now()),
+    );
+    return () => window.clearTimeout(timer);
+  }, [undoVisibility]);
 
   function setField<K extends keyof InitialProduct>(key: K, value: InitialProduct[K]) {
     setStatus("idle");
@@ -283,46 +373,52 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
     );
   }
 
-  async function updateVisibility() {
-    const nextIsActive = !product.isActive;
-    setVisibilityMessage(null);
-
-    if (mode === "create") {
-      setField("isActive", nextIsActive);
-      setVisibilityStatus("idle");
-      return;
-    }
-    if (!productId || !product.version) {
-      setVisibilityStatus("error");
-      setVisibilityMessage("De productversie ontbreekt. Herlaad de pagina en probeer opnieuw.");
-      return;
-    }
-
+  async function updateVisibilityDirect(
+    nextIsActive: boolean,
+    version: string,
+    allowUndo: boolean,
+    undoToken?: string,
+  ): Promise<boolean> {
+    if (!productId) return false;
+    const previousIsActive = product.isActive;
     setVisibilityStatus("saving");
+    setVisibilityMessage(null);
     try {
       const response = await fetch(`/api/admin/products/${productId}/visibility`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: nextIsActive, version: product.version }),
+        body: JSON.stringify({ isActive: nextIsActive, version, undoToken }),
       });
       const body = await response.json().catch(() => null) as {
         isActive?: boolean;
         version?: string;
+        undoToken?: string | null;
         frontendSynced?: boolean;
         error?: string;
         message?: string;
+        issues?: unknown;
       } | null;
       if (!response.ok || typeof body?.isActive !== "boolean" || !body.version) {
         setVisibilityStatus("error");
         setVisibilityMessage(productSaveErrorMessage(body));
-        return;
+        return false;
       }
 
-      setProduct((current) => ({
-        ...current,
-        isActive: body.isActive as boolean,
+      const savedProduct = {
+        ...product,
+        isActive: body.isActive,
         version: body.version,
-      }));
+      };
+      setProduct(savedProduct);
+      setSavedFingerprint(
+        productDraftFingerprint(savedProduct, translations, nutrition, categoryAssignments, categoryPlacementMode)
+      );
+      setUndoVisibility(allowUndo && body.undoToken ? {
+        isActive: previousIsActive,
+        version: body.version,
+        token: body.undoToken,
+        expiresAt: Date.now() + VISIBILITY_UNDO_WINDOW_MS,
+      } : null);
       if (body.frontendSynced === false) {
         setVisibilityStatus("error");
         setVisibilityMessage("De status is opgeslagen, maar de webshop kon niet direct worden vernieuwd. Gebruik ‘Alles opslaan’ om opnieuw te synchroniseren.");
@@ -335,10 +431,54 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
         );
       }
       router.refresh();
+      return true;
     } catch (cause) {
       setVisibilityStatus("error");
       setVisibilityMessage(productSaveErrorMessage(cause));
+      return false;
     }
+  }
+
+  async function updateVisibility() {
+    const nextIsActive = !product.isActive;
+    const mutationMode = productStatusMutationMode(mode, isDirty);
+    const confirmation = nextIsActive
+      ? isDirty
+        ? "Product online zetten? Alle niet-opgeslagen wijzigingen worden eerst samen met de nieuwe status opgeslagen."
+        : "Product online zetten en direct zichtbaar maken in de webshop?"
+      : isDirty
+        ? "Product offline zetten? Alle niet-opgeslagen wijzigingen worden eerst samen met de nieuwe status opgeslagen."
+        : "Product offline zetten en direct verbergen in de webshop?";
+    if (!window.confirm(confirmation)) return;
+
+    setUndoVisibility(null);
+    setVisibilityMessage(null);
+    if (mutationMode === "local") {
+      setField("isActive", nextIsActive);
+      setVisibilityStatus("idle");
+      setVisibilityMessage("De gekozen status wordt opgeslagen zodra je het product aanmaakt.");
+      return;
+    }
+    if (mutationMode === "full-save") {
+      await persistProduct(nextIsActive, true);
+      return;
+    }
+    if (!product.version) {
+      setVisibilityStatus("error");
+      setVisibilityMessage("De productversie ontbreekt. Herlaad de pagina en probeer opnieuw.");
+      return;
+    }
+    await updateVisibilityDirect(nextIsActive, product.version, true);
+  }
+
+  async function undoLastVisibilityChange() {
+    if (!undoVisibility || undoVisibility.expiresAt <= Date.now()) {
+      setUndoVisibility(null);
+      return;
+    }
+    const undo = undoVisibility;
+    setUndoVisibility(null);
+    await updateVisibilityDirect(undo.isActive, undo.version, false, undo.token);
   }
 
   function updateTranslation(locale: ProductLocale, value: ProductTranslationDraft) {
@@ -370,23 +510,42 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
     setField("categoryIds", ids);
   }
 
-  async function saveProduct(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setStatus("saving"); setMessage(null);
-    if (visibilityStatus === "saving") {
+  async function persistProduct(
+    nextIsActive = product.isActive,
+    initiatedByVisibility = false,
+  ): Promise<boolean> {
+    const previousIsActive = product.isActive;
+    const fail = (failureMessage: string) => {
+      setStatus("error");
+      setMessage(failureMessage);
+      if (initiatedByVisibility) {
+        setVisibilityStatus("error");
+        setVisibilityMessage(failureMessage);
+      }
+      return false;
+    };
+
+    setStatus("saving");
+    setMessage(null);
+    if (initiatedByVisibility) {
+      setVisibilityStatus("saving");
+      setVisibilityMessage(null);
+    }
+    if (!initiatedByVisibility && visibilityStatus === "saving") {
       setStatus("error");
       setMessage("Wacht tot de productstatus is bijgewerkt en sla daarna opnieuw op.");
-      return;
+      return false;
     }
     const basePriceCents = euroToCents(product.basePriceEuro);
     const salePriceCents = product.salePriceEuro.trim() ? euroToCents(product.salePriceEuro) : null;
-    if (basePriceCents === null || (product.salePriceEuro.trim() && salePriceCents === null)) { setStatus("error"); setMessage("Controleer de basis- en actieprijs."); return; }
+    if (basePriceCents === null || (product.salePriceEuro.trim() && salePriceCents === null)) return fail("Controleer de basis- en actieprijs.");
     const variants = [];
     for (const variant of product.variants) {
       const priceCents = euroToCents(variant.priceEuro);
       const variantSale = variant.salePriceEuro.trim() ? euroToCents(variant.salePriceEuro) : null;
       const weightGrams = integer(variant.weightGrams, 1);
       const stock = integer(variant.stock, 0);
-      if (!variant.sku.trim() || priceCents === null || (variant.salePriceEuro.trim() && variantSale === null) || weightGrams === null || stock === null) { setStatus("error"); setMessage(`Controleer alle velden van variant ${variant.sku || "zonder SKU"}.`); return; }
+      if (!variant.sku.trim() || priceCents === null || (variant.salePriceEuro.trim() && variantSale === null) || weightGrams === null || stock === null) return fail(`Controleer alle velden van variant ${variant.sku || "zonder SKU"}.`);
       variants.push({ id: variant.id, sku: variant.sku.trim(), label: variant.label.trim() || null, weightGrams, preparation: variant.preparation, salting: variant.salting, coating: variant.coating, isActive: variant.isActive, priceCents, salePriceCents: variantSale, stock });
     }
     const localizedContent = (["nl", "en", "fr"] as const)
@@ -408,9 +567,7 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
         promotionText: translation.promotionText.trim() || null,
       }));
     if (localizedContent.some((translation) => !translation.slug || !translation.name)) {
-      setStatus("error");
-      setMessage("Elke ingevulde taal heeft een productnaam en slug nodig.");
-      return;
+      return fail("Elke ingevulde taal heeft een productnaam en slug nodig.");
     }
     try {
       const response = await fetch(mode === "create" ? "/api/admin/products" : `/api/admin/products/${productId}`, {
@@ -422,7 +579,7 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
           basePriceCents,
           salePriceCents,
           unit: product.unit,
-          isActive: product.isActive,
+          isActive: nextIsActive,
           translations: localizedContent,
           nutrition,
           categories: categoryAssignments,
@@ -434,6 +591,7 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
       const body = await response.json().catch(() => null) as {
         productId?: string;
         version?: string;
+        undoToken?: string | null;
         variants?: { id: string; sku: string }[];
         translations?: Array<{
           locale: ProductLocale;
@@ -450,44 +608,80 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
         frontendSynced?: boolean;
         error?: string;
         message?: string;
+        issues?: unknown;
       } | null;
-      if (!response.ok) { setStatus("error"); setMessage(productSaveErrorMessage(body)); return; }
-      if (mode === "create" && body?.productId) { router.push(`/admin/producten/${body.productId}`); return; }
-      if (body?.translations) {
-        setTranslations((current) => {
-          const next = { ...current };
-          for (const translation of body.translations ?? []) {
-            next[translation.locale] = {
-              locale: translation.locale,
-              slug: translation.slug,
-              name: translation.name,
-              shortDescription: translation.shortDescription ?? "",
-              shortDescriptionHtml: translation.shortDescriptionHtml ?? "",
-              description: translation.description ?? "",
-              descriptionHtml: translation.descriptionHtml ?? "",
-              seoTitle: translation.seoTitle ?? "",
-              metaDescription: translation.metaDescription ?? "",
-              promotionText: translation.promotionText ?? "",
-            };
-          }
-          return next;
-        });
+      if (!response.ok) return fail(productSaveErrorMessage(body));
+      if (mode === "create" && body?.productId) {
+        router.push(`/admin/producten/${body.productId}`);
+        return true;
       }
-      if (body?.version) setProduct((current) => ({
-        ...current,
+      if (!body?.version) return fail("De server retourneerde geen nieuwe productversie. Herlaad de pagina voordat je verdergaat.");
+      const savedTranslations = { ...translations };
+      for (const translation of body.translations ?? []) {
+        savedTranslations[translation.locale] = {
+          locale: translation.locale,
+          slug: translation.slug,
+          name: translation.name,
+          shortDescription: translation.shortDescription ?? "",
+          shortDescriptionHtml: translation.shortDescriptionHtml ?? "",
+          description: translation.description ?? "",
+          descriptionHtml: translation.descriptionHtml ?? "",
+          seoTitle: translation.seoTitle ?? "",
+          metaDescription: translation.metaDescription ?? "",
+          promotionText: translation.promotionText ?? "",
+        };
+      }
+      const savedProduct = {
+        ...product,
+        isActive: nextIsActive,
         version: body.version,
-        variants: current.variants.map((variant) => ({ ...variant, id: body.variants?.find((saved) => saved.sku === variant.sku)?.id ?? variant.id })),
-      }));
+        variants: product.variants.map((variant) => ({
+          ...variant,
+          id: body.variants?.find((saved) => saved.sku === variant.sku)?.id ?? variant.id,
+        })),
+      };
+      setTranslations(savedTranslations);
+      setProduct(savedProduct);
+      setSavedFingerprint(
+        productDraftFingerprint(savedProduct, savedTranslations, nutrition, categoryAssignments, categoryPlacementMode)
+      );
+      setUndoVisibility(initiatedByVisibility && body.undoToken ? {
+        isActive: previousIsActive,
+        version: body.version,
+        token: body.undoToken,
+        expiresAt: Date.now() + VISIBILITY_UNDO_WINDOW_MS,
+      } : null);
       if (body?.frontendSynced === false) {
         setStatus("error");
         setMessage("Het product is opgeslagen, maar de webshop kon niet direct worden vernieuwd. Klik opnieuw op ‘Alles opslaan’ om de synchronisatie te herhalen.");
-        return;
+        if (initiatedByVisibility) {
+          setVisibilityStatus("error");
+          setVisibilityMessage("De status en wijzigingen zijn opgeslagen, maar de webshop kon niet direct worden vernieuwd. Gebruik ‘Alles opslaan’ om opnieuw te synchroniseren.");
+        }
+        return true;
       }
-      setStatus("saved"); setMessage("Alle productinstellingen zijn opgeslagen."); router.refresh();
+      setStatus("saved");
+      setMessage(
+        initiatedByVisibility
+          ? `Alle wijzigingen zijn opgeslagen en het product staat nu ${nextIsActive ? "online" : "offline"}.`
+          : "Alle productinstellingen zijn opgeslagen."
+      );
+      if (initiatedByVisibility) {
+        setVisibilityStatus("saved");
+        setVisibilityMessage(
+          `Alle wijzigingen zijn opgeslagen. Het product staat nu ${nextIsActive ? "online" : "offline"}.`
+        );
+      }
+      router.refresh();
+      return true;
     } catch (cause) {
-      setStatus("error");
-      setMessage(productSaveErrorMessage(cause));
+      return fail(productSaveErrorMessage(cause));
     }
+  }
+
+  async function saveProduct(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await persistProduct();
   }
 
   return <form onSubmit={saveProduct} className="space-y-6 pb-28">
@@ -539,23 +733,38 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
               : "Product online zetten"}
         </button>
       </div>
-      <p
-        role="status"
-        aria-live="polite"
-        className={`mt-3 text-body-sm font-semibold ${
-          visibilityStatus === "error"
-            ? "text-red-800"
-            : visibilityStatus === "saved"
-              ? product.isActive
-                ? "text-green-800"
-                : "text-red-800"
-              : "text-muted"
-        }`}
-      >
-        {visibilityMessage ?? (mode === "edit"
-          ? "Zichtbaarheid wordt met deze knop direct opgeslagen. Andere wijzigingen pas met ‘Alles opslaan’."
-          : "Deze keuze wordt opgeslagen zodra je het product aanmaakt.")}
-      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <p
+          role="status"
+          aria-live="polite"
+          className={`text-body-sm font-semibold ${
+            visibilityStatus === "error"
+              ? "text-red-800"
+              : visibilityStatus === "saved"
+                ? product.isActive
+                  ? "text-green-800"
+                  : "text-red-800"
+                : "text-muted"
+          }`}
+        >
+          {visibilityMessage ?? (mode === "edit"
+            ? isDirty
+              ? "Er zijn niet-opgeslagen wijzigingen. Een statuswijziging slaat eerst het volledige formulier en de nieuwe status samen op."
+              : "Er zijn geen open wijzigingen. De status wordt na bevestiging direct opgeslagen."
+            : "Deze keuze wordt opgeslagen zodra je het product aanmaakt.")}
+        </p>
+        {undoVisibility ? (
+          <button
+            type="button"
+            onClick={undoLastVisibilityChange}
+            disabled={visibilityStatus === "saving" || status === "saving"}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button border border-border bg-surface px-4 text-body-sm font-semibold text-text disabled:opacity-60"
+          >
+            <Undo2 className="h-4 w-4" aria-hidden="true" />
+            Status ongedaan maken (10 sec.)
+          </button>
+        ) : null}
+      </div>
     </section>
     <section className="rounded-panel border border-border bg-surface p-4 shadow-card sm:p-6">
       <div><h2 className="text-heading-md text-text">Basisgegevens</h2><p className="mt-1 text-body-sm text-muted">Interne SKU en algemene productgegevens.</p></div>
@@ -599,7 +808,7 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
     ) : null}
 
     {mode === "edit" ? <div className="grid gap-3 sm:grid-cols-2"><a href={`/admin/producten/${productId}/audit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-button border border-accent bg-surface px-4 font-semibold text-text"><Sparkles className="h-5 w-5 text-accent-hover" />AI, SEO en vindbaarheidscontrole</a><a href={`/admin/marketing/advertenties?product=${productId}`} className="inline-flex min-h-12 items-center justify-center rounded-button border border-border bg-surface px-4 font-semibold text-text">Google Ads-instellingen</a></div> : null}
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 p-3 shadow-[0_-8px_24px_rgba(20,20,20,.12)] backdrop-blur sm:sticky sm:bottom-3 sm:rounded-panel sm:border"><div className="mx-auto flex max-w-6xl flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between"><p role="status" aria-live="polite" className={`text-body-sm ${status === "error" ? "text-red-700" : status === "saved" ? "text-green-700" : "text-muted"}`}>{status === "saving" ? "Veilig opslaan en webshop vernieuwen…" : message ?? "Nog niet opgeslagen wijzigingen blijven lokaal in dit formulier."}</p><button type="submit" disabled={status === "saving" || visibilityStatus === "saving"} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-button bg-accent px-6 font-heading font-bold text-contrast shadow-button disabled:opacity-60"><Save className="h-5 w-5" />{mode === "create" ? "Product aanmaken" : "Alles opslaan"}</button></div></div>
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 p-3 shadow-[0_-8px_24px_rgba(20,20,20,.12)] backdrop-blur sm:sticky sm:bottom-3 sm:rounded-panel sm:border"><div className="mx-auto flex max-w-6xl flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between"><p role="status" aria-live="polite" className={`text-body-sm ${status === "error" ? "text-red-700" : status === "saved" ? "text-green-700" : "text-muted"}`}>{status === "saving" ? "Veilig opslaan en webshop vernieuwen…" : message ?? (isDirty ? "Nog niet opgeslagen wijzigingen blijven lokaal in dit formulier." : "Alle wijzigingen zijn opgeslagen.")}</p><button type="submit" disabled={status === "saving" || visibilityStatus === "saving"} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-button bg-accent px-6 font-heading font-bold text-contrast shadow-button disabled:opacity-60"><Save className="h-5 w-5" />{mode === "create" ? "Product aanmaken" : "Alles opslaan"}</button></div></div>
   </form>;
 }
 

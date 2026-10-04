@@ -2,15 +2,14 @@
 
 import { useState } from "react";
 import { ClipboardList } from "lucide-react";
+import { formatAmsterdamCalendarDate, shiftAmsterdamCalendarDate } from "@/lib/amsterdam-calendar";
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatAmsterdamCalendarDate();
 }
 
 function daysAgoIso(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
+  return shiftAmsterdamCalendarDate(new Date(), -days);
 }
 
 const PRESETS = [

@@ -2,6 +2,7 @@ import { formatPrice } from "@/lib/format";
 import { invoiceRecipientLines, type InvoiceLine, type InvoicePdfInput } from "@/lib/business-invoice-pdf";
 import { LEGAL_IDENTITY } from "@/lib/legal";
 import { blockTextKey, type InvoiceBlock, type InvoiceCustomHtmlBlock, type InvoiceDataBlock, type InvoiceDividerBlock, type InvoiceImageBlock, type InvoiceSpacerBlock } from "@/lib/invoice-template-schema";
+import { formatAmsterdamDate } from "@/lib/amsterdam-calendar";
 
 const GOLD = "#e0b200";
 
@@ -88,7 +89,11 @@ export function renderDataBlock(
           <div style={{ marginRight: "40pt" }}>
             <div style={{ fontSize: "7.5pt", color: muted }}>Factuurdatum</div>
             <div style={{ fontSize: "10.5pt", fontWeight: 700, color: textColor }}>
-              {new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "long", year: "numeric" }).format(input.createdAt)}
+              {formatAmsterdamDate(input.createdAt, "nl-NL", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
             </div>
           </div>
           <div>

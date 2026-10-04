@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { OrderStatus } from "@prisma/client";
+import type { DeliveryMethod, OrderStatus } from "@prisma/client";
 import { cn } from "@/lib/cn";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -31,17 +31,21 @@ export function OrderEditForm({
   initialTrackingCode,
   hasLabel,
   currentStatus,
+  deliveryMethod,
   isTest,
 }: {
   orderId: string;
   initialTrackingCode: string;
   hasLabel: boolean;
   currentStatus: OrderStatus;
+  deliveryMethod: DeliveryMethod;
   isTest: boolean;
 }) {
   const router = useRouter();
+  const isShipping = deliveryMethod === "SHIPPING";
 
   const [trackingCode, setTrackingCode] = useState(initialTrackingCode);
+  const [savedTrackingCode, setSavedTrackingCode] = useState(initialTrackingCode);
   const [trackingState, setTrackingState] = useState<SaveState>("idle");
   const [trackingError, setTrackingError] = useState<string | null>(null);
 
@@ -49,7 +53,11 @@ export function OrderEditForm({
   const [labelError, setLabelError] = useState<string | null>(null);
   const [labelDetails, setLabelDetails] = useState<string | null>(null);
   const [labelReady, setLabelReady] = useState(hasLabel);
-  const canCreateLabel = !isTest && (currentStatus === "PAID" || currentStatus === "FULFILLED");
+  const canCreateLabel = isShipping && !isTest && (currentStatus === "PAID" || currentStatus === "FULFILLED");
+  const canFulfill =
+    !isTest &&
+    currentStatus === "PAID" &&
+    (!isShipping || savedTrackingCode.trim().length > 0);
   const canCancelWithoutRefund = !isTest && currentStatus === "PENDING";
 
   async function handleCreateLabel() {
@@ -74,6 +82,10 @@ export function OrderEditForm({
 
       setLabelState("saved");
       setLabelReady(true);
+      if (typeof data?.barcode === "string") {
+        setTrackingCode(data.barcode);
+        setSavedTrackingCode(data.barcode);
+      }
       router.refresh();
     } catch (error) {
       setLabelState("error");
@@ -92,7 +104,10 @@ export function OrderEditForm({
     setTrackingError(null);
 
     try {
-      await patchOrder(orderId, { postnlTrackingCode: trackingCode });
+      const normalizedTrackingCode = trackingCode.trim();
+      await patchOrder(orderId, { postnlTrackingCode: normalizedTrackingCode });
+      setTrackingCode(normalizedTrackingCode);
+      setSavedTrackingCode(normalizedTrackingCode);
       setTrackingState("saved");
       router.refresh();
     } catch (error) {
@@ -138,6 +153,8 @@ export function OrderEditForm({
 
   return (
     <div className="space-y-8">
+      {isShipping ? (
+        <>
       <div>
         <h2 className="font-heading text-heading-sm text-text">PostNL verzendlabel</h2>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -212,6 +229,8 @@ export function OrderEditForm({
           )}
         </form>
       </div>
+        </>
+      ) : null}
 
       <div>
         <h2 className="font-heading text-heading-sm text-text">Status handmatig aanpassen</h2>
@@ -221,18 +240,27 @@ export function OrderEditForm({
             onClick={() =>
               handleStatusChange(
                 "FULFILLED",
-                "Weet je zeker dat je deze bestelling wilt markeren als verzonden?"
+                isShipping
+                  ? "Weet je zeker dat je deze bestelling wilt markeren als verzonden?"
+                  : "Weet je zeker dat je deze bestelling wilt markeren als afgehaald?"
               )
             }
-            disabled={isTest || statusState === "saving" || currentStatus === "FULFILLED"}
+            disabled={!canFulfill || statusState === "saving"}
             className={cn(
               "inline-flex items-center justify-center rounded-button border border-border px-4 py-2 font-heading text-body-sm font-semibold text-text transition-colors duration-hover-fast hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50"
             )}
           >
             {statusState === "saving" && pendingStatus === "FULFILLED"
               ? "Bezig…"
-              : "Markeer als verzonden"}
+              : isShipping
+                ? "Markeer als verzonden"
+                : "Markeer als afgehaald"}
           </button>
+          {isShipping && !isTest && !savedTrackingCode.trim() && currentStatus === "PAID" ? (
+            <span className="text-body-sm text-muted">
+              Maak eerst een label aan of sla een trackingcode op.
+            </span>
+          ) : null}
           <button
             type="button"
             onClick={() =>

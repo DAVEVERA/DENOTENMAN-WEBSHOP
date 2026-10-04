@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { publicImageUrl } from "@/lib/storage";
 import { formatPrice } from "@/lib/format";
@@ -9,7 +10,7 @@ type ProductRow = {
   imageUrl: string | null;
   imageAlt: string | null;
   categoryName: string | null;
-  basePriceCents: number;
+  effectivePriceCents: number;
   activeVariantCount: number;
   totalVariantCount: number;
   isActive: boolean;
@@ -40,10 +41,13 @@ export default async function AdminProductsPage({
     select: {
       id: true,
       basePriceCents: true,
+      salePriceCents: true,
       isActive: true,
       translations: { where: { locale: "nl" }, select: { name: true } },
       images: { select: { storageKey: true, alt: true, isPrimary: true, sortOrder: true } },
-      variants: { select: { isActive: true } },
+      variants: {
+        select: { isActive: true, priceCents: true, salePriceCents: true },
+      },
       productCategories: {
         select: { category: { select: { isActive: true, translations: { where: { locale: "nl" }, select: { name: true } } } } },
         orderBy: [{ category: { type: "asc" } }, { category: { sortOrder: "asc" } }],
@@ -68,6 +72,12 @@ export default async function AdminProductsPage({
         product.productCategories.find((link) => link.category.isActive) ??
         product.productCategories[0];
       const categoryName = activeCategoryLink?.category.translations[0]?.name ?? null;
+      const activeVariantPrices = product.variants
+        .filter((variant) => variant.isActive)
+        .map((variant) => variant.salePriceCents ?? variant.priceCents);
+      const effectivePriceCents = activeVariantPrices.length > 0
+        ? Math.min(...activeVariantPrices)
+        : product.salePriceCents ?? product.basePriceCents;
 
       const row: ProductRow = {
         id: product.id,
@@ -75,7 +85,7 @@ export default async function AdminProductsPage({
         imageUrl: primaryImage ? publicImageUrl(primaryImage.storageKey) : null,
         imageAlt: primaryImage?.alt ?? translation.name,
         categoryName,
-        basePriceCents: product.basePriceCents,
+        effectivePriceCents,
         activeVariantCount: product.variants.filter((variant) => variant.isActive).length,
         totalVariantCount: product.variants.length,
         isActive: product.isActive,
@@ -123,7 +133,75 @@ export default async function AdminProductsPage({
         ) : null}
       </form>
 
-      <div className="mt-6 max-h-[75vh] overflow-y-auto rounded-panel border border-border bg-surface">
+      <div className="mt-6 grid gap-3 md:hidden" aria-label="Productoverzicht">
+        {rows.map((row) => (
+          <article key={row.id} className="rounded-panel border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-start gap-3">
+              {row.imageUrl ? (
+                <Image
+                  src={row.imageUrl}
+                  alt={row.imageAlt ?? row.name}
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 shrink-0 rounded-button border border-border object-cover"
+                />
+              ) : (
+                <span
+                  className="block h-16 w-16 shrink-0 rounded-button border border-border bg-background"
+                  aria-hidden="true"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h2 id={`product-${row.id}`} className="min-w-0 break-words text-heading-sm text-text [overflow-wrap:anywhere]">
+                    <Link href={`/admin/producten/${row.id}`} className="underline-offset-4 hover:underline">
+                      {row.name}
+                    </Link>
+                  </h2>
+                  <span
+                    className={
+                      row.isActive
+                        ? "inline-flex shrink-0 items-center rounded-button bg-accent/10 px-2 py-1 text-xs font-semibold text-accent-hover"
+                        : "inline-flex shrink-0 items-center rounded-button bg-border px-2 py-1 text-xs font-semibold text-muted"
+                    }
+                  >
+                    {row.isActive ? "Online" : "Offline"}
+                  </span>
+                </div>
+                <p className="mt-1 break-words text-body-sm text-muted">
+                  {row.categoryName ?? "Geen categorie"}
+                </p>
+              </div>
+            </div>
+            <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-3 text-body-sm">
+              <div>
+                <dt className="text-muted">Effectieve prijs</dt>
+                <dd className="mt-1 font-semibold text-text">{formatPrice(row.effectivePriceCents, "nl")}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Actieve varianten</dt>
+                <dd className="mt-1 font-semibold text-text">
+                  {row.activeVariantCount}<span className="font-normal text-muted"> / {row.totalVariantCount}</span>
+                </dd>
+              </div>
+            </dl>
+            <Link
+              href={`/admin/producten/${row.id}`}
+              aria-describedby={`product-${row.id}`}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-button border border-accent bg-surface px-4 font-heading text-body-sm font-semibold text-accent-hover"
+            >
+              Bewerken
+            </Link>
+          </article>
+        ))}
+        {rows.length === 0 ? (
+          <p className="rounded-panel border border-border bg-surface px-4 py-6 text-center text-muted">
+            Geen producten gevonden.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-6 hidden max-h-[75vh] overflow-y-auto rounded-panel border border-border bg-surface md:block">
         <table className="w-full text-body-sm">
           <thead className="sticky top-0 z-10 bg-surface">
             <tr className="border-b border-border text-left text-muted">
@@ -163,7 +241,7 @@ export default async function AdminProductsPage({
                 </td>
                 <td className="px-4 py-3 text-muted">{row.categoryName ?? "—"}</td>
                 <td className="px-4 py-3 text-right text-text">
-                  {formatPrice(row.basePriceCents, "nl")}
+                  {formatPrice(row.effectivePriceCents, "nl")}
                 </td>
                 <td className="px-4 py-3 text-right text-text">
                   {row.activeVariantCount}

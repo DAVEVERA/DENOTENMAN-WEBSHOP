@@ -15,6 +15,7 @@ import { merchantOrderNotificationRecipient } from "@/lib/merchant-order-notific
 import { BusinessInvoiceEmail } from "@/emails/BusinessInvoiceEmail";
 import { getBusinessLifecycleEmailContent, substituteBusinessLifecycleTokens } from "@/lib/business-lifecycle-email-content";
 import { createBusinessInvoiceDownloadUrl } from "@/lib/business-invoice-download";
+import { formatAmsterdamDate } from "@/lib/amsterdam-calendar";
 
 const REVERSE_CHARGE_NOTE =
   "BTW verlegd naar de afnemer (intracommunautaire levering, art. 138 Btw-richtlijn / art. 39bis Belgisch Btw-Wetboek).";
@@ -228,7 +229,7 @@ async function sendInvoiceEmailTo(
   downloadUrl: string
 ): Promise<void> {
   const vatLabel = invoice.vatRegime === "REVERSE_CHARGE" ? "BTW verlegd" : `BTW (${Number(invoice.vatRatePercent)}%)`;
-  const invoiceDate = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric" }).format(invoice.createdAt);
+  const invoiceDate = formatAmsterdamDate(invoice.createdAt);
   const tokens = { invoiceNumber: invoice.invoiceNumber, recipientName, companyName };
   const content = await getBusinessLifecycleEmailContent("INVOICE");
   const subject = substituteBusinessLifecycleTokens(content.subject, tokens);

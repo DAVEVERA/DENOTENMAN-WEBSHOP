@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
+import type { DeliveryMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   createShipmentBarcode,
   createShipmentLabel,
   determineLabelAction,
 } from "@/lib/postnl";
+import { allowsPostnlForDeliveryMethod } from "@/lib/aftersales/order-state";
 
 const CLAIM_STALE_AFTER_MS = 2 * 60 * 1_000;
 
@@ -20,7 +22,7 @@ export class PostnlLabelGuardError extends Error {
 
 function assertShippableAddress(
   order: {
-    deliveryMethod: string;
+    deliveryMethod: DeliveryMethod;
     shippingStreet: string | null;
     shippingHouseNumber: string | null;
     shippingPostalCode: string | null;
@@ -32,8 +34,13 @@ function assertShippableAddress(
   shippingPostalCode: string;
   shippingCity: string;
 } {
+  if (!allowsPostnlForDeliveryMethod(order.deliveryMethod)) {
+    throw new PostnlLabelGuardError(
+      "ORDER_NOT_SHIPPABLE",
+      "Alleen verzendbestellingen kunnen een PostNL-label krijgen."
+    );
+  }
   if (
-    order.deliveryMethod !== "SHIPPING" ||
     !order.shippingStreet ||
     !order.shippingHouseNumber ||
     !order.shippingPostalCode ||
@@ -41,7 +48,7 @@ function assertShippableAddress(
   ) {
     throw new PostnlLabelGuardError(
       "ORDER_NOT_SHIPPABLE",
-      "Deze bestelling wordt afgehaald en heeft geen verzendadres."
+      "Deze verzendbestelling heeft geen compleet verzendadres."
     );
   }
 }
@@ -99,6 +106,10 @@ export async function ensurePostnlLabel(orderId: string): Promise<EnsuredPostnlL
     throw new PostnlLabelGuardError("ORDER_NOT_FOUND", "Bestelling niet gevonden.");
   }
 
+  // Guard the delivery method before reusing a previously stored label. This
+  // also prevents legacy pickup data from leaking back through the label API.
+  assertShippableAddress(initialOrder);
+
   const action = determineLabelAction(
     initialOrder.status,
     Boolean(initialOrder.postnlLabelBase64),
@@ -120,7 +131,6 @@ export async function ensurePostnlLabel(orderId: string): Promise<EnsuredPostnlL
     };
   }
 
-  assertShippableAddress(initialOrder);
   assertWeighableItems(initialOrder.items);
 
   const claimToken = randomUUID();
@@ -129,6 +139,7 @@ export async function ensurePostnlLabel(orderId: string): Promise<EnsuredPostnlL
   const claim = await prisma.order.updateMany({
     where: {
       id: orderId,
+      deliveryMethod: "SHIPPING",
       isTest: false,
       status: { in: ["PAID", "FULFILLED"] },
       postnlLabelBase64: null,

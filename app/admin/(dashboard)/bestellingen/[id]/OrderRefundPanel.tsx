@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/format";
+import { formatAmsterdamDateTime } from "@/lib/amsterdam-calendar";
 import {
   calculateOrderRefund,
   isCommittedRefundStatus,
@@ -216,7 +217,7 @@ export function OrderRefundPanel({
                 <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-surface px-3 py-2 text-body-sm">
                   <div>
                     <p className="font-semibold text-text">{requestedQuantity} artikel(en) · {request.status === "PENDING" ? "In behandeling" : request.status === "PROCESSED" ? "Verwerkt" : "Afgewezen"}</p>
-                    <p className="text-muted">{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(request.createdAt))}{request.reason ? ` · ${request.reason}` : ""}</p>
+                    <p className="text-muted">{formatAmsterdamDateTime(request.createdAt)}{request.reason ? ` · ${request.reason}` : ""}</p>
                   </div>
                   {request.status === "PENDING" && canRefund ? (
                     <button type="button" onClick={() => loadCustomerRequest(request)} className="inline-flex min-h-11 items-center rounded-button border border-amber-300 px-4 font-heading font-bold text-amber-900">
@@ -333,7 +334,7 @@ export function OrderRefundPanel({
               <div key={refund.id} className="flex flex-wrap items-center justify-between gap-2 rounded-button bg-background px-3 py-2 text-body-sm">
                 <div>
                   <p className="font-semibold text-text">{formatPrice(refund.amountCents, "nl")} · {STATUS_LABELS[refund.status] ?? refund.status}</p>
-                  <p className="text-muted">{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(refund.createdAt))}{refund.reason ? ` · ${refund.reason}` : ""}</p>
+                  <p className="text-muted">{formatAmsterdamDateTime(refund.createdAt)}{refund.reason ? ` · ${refund.reason}` : ""}</p>
                 </div>
                 {refund.mollieRefundId ? <span className="font-mono text-xs text-muted">{refund.mollieRefundId}</span> : null}
               </div>

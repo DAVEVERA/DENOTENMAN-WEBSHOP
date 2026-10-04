@@ -7,6 +7,7 @@ import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { EXPORT_PERIOD_KINDS, privateOrderVat, recentPeriods } from "@/lib/invoice-export";
+import { formatAmsterdamDate } from "@/lib/amsterdam-calendar";
 
 const COUNTRY_TABS: { label: string; country: "NL" | "BE" | null }[] = [
   { label: "Alle", country: null },
@@ -45,7 +46,11 @@ function Amounts({ row, align = "right" }: { row: Row; align?: "left" | "right" 
 }
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  return formatAmsterdamDate(date, "nl-NL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 export default async function FacturenPage({

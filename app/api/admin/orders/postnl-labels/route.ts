@@ -2,17 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { PDFDocument } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
+import { getAdminSession } from "@/lib/admin-api-auth";
 import { PostnlError } from "@/lib/postnl";
 import { ensurePostnlLabel, PostnlLabelGuardError } from "@/lib/postnl-labels";
 import { isSameOriginMutation } from "@/lib/admin-request-security";
 import pLimit from "p-limit";
 import { parseAmsterdamCalendarDay } from "@/lib/amsterdam-calendar";
-
-async function requireAdmin(request: NextRequest): Promise<boolean> {
-  const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  return (await verifyAdminSessionToken(token)) !== null;
-}
+import { can } from "@/lib/roles";
 
 // Only these statuses represent something actually worth shipping.
 const SHIPPABLE_STATUSES = ["PAID", "FULFILLED"] as const;
@@ -20,8 +16,12 @@ const MAX_LABELS_PER_BATCH = 20;
 const LABEL_CONCURRENCY = 4;
 
 export async function POST(request: NextRequest) {
-  if (!(await requireAdmin(request))) {
+  const admin = await getAdminSession(request);
+  if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!can(admin.role, "orders", "write")) {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
   if (!isSameOriginMutation(request)) {
     return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
   const orders = await prisma.order.findMany({
     where: {
       isTest: false,
+      deliveryMethod: "SHIPPING",
       createdAt: { gte: from, lte: to },
       status: { in: [...SHIPPABLE_STATUSES] },
     },

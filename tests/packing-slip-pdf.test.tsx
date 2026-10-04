@@ -40,3 +40,12 @@ test("the packing slip uses the customer-facing order number", () => {
   assert.match(markup, /DN-2026-00125/);
   assert.doesNotMatch(markup, /cktest1234/);
 });
+
+test("the packing-slip date uses the Amsterdam calendar day", () => {
+  const markup = renderToStaticMarkup(
+    <PackingSlipDocument
+      input={{ ...sampleInput, createdAt: new Date("2026-10-24T22:30:00.000Z") }}
+    />
+  );
+  assert.match(markup, /25 oktober 2026/);
+});

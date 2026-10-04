@@ -13,5 +13,7 @@ node_modules/**
 .superpowers
 .playwright-cli
 output
-tsconfig.tsbuildinfo
+*.tsbuildinfo
+/TODO.md
+/DATABASE-ENVIRONMENTS.md
 gcp-credentials.json

@@ -82,6 +82,20 @@ test("known save error codes always produce actionable Dutch feedback", () => {
   }
 });
 
+test("structured publication blockers list every corrective action", () => {
+  assert.equal(
+    productSaveErrorMessage({
+      error: "PUBLICATION_BLOCKED",
+      message: "Dit product kan nog niet online worden gezet.",
+      issues: [
+        { code: "ACTIVE_CATEGORY_REQUIRED", path: "categories", message: "Koppel minimaal een actieve categorie aan het product." },
+        { code: "PRIMARY_IMAGE_REQUIRED", path: "images.primary", message: "Kies expliciet een primaire productafbeelding." },
+      ],
+    }),
+    "Publiceren geblokkeerd: Koppel minimaal een actieve categorie aan het product. Kies expliciet een primaire productafbeelding."
+  );
+});
+
 test("removing an unsaved or persisted variant removes it from the outgoing draft", () => {
   const module = productFormModule as unknown as {
     removeVariantFromDraft?: <T extends { clientKey: string; id?: string }>(variants: T[], clientKey: string) => T[];

@@ -14,6 +14,8 @@ const businessAccountPatchSchema = z
     contactName: z.string().trim().min(1).optional(),
     email: z.string().trim().email().optional(),
     phone: z.string().trim().nullable().optional(),
+    // Accepted for compatibility with admin tabs loaded before customer
+    // numbers became database-owned. It is intentionally never persisted.
     customerNumber: z.string().trim().nullable().optional(),
     vatNumber: z.string().trim().nullable().optional(),
     kvkNumber: z.string().trim().nullable().optional(),
@@ -90,7 +92,6 @@ export async function PATCH(
     contactName?: string;
     email?: string;
     phone?: string | null;
-    customerNumber?: string | null;
     vatNumber?: string | null;
     kvkNumber?: string | null;
     country?: "NL" | "BE";
@@ -121,7 +122,6 @@ export async function PATCH(
   if (input.contactName !== undefined) data.contactName = input.contactName;
   if (input.email !== undefined) data.email = input.email.toLowerCase();
   if (input.phone !== undefined) data.phone = input.phone?.trim() ? input.phone.trim() : null;
-  if (input.customerNumber !== undefined) data.customerNumber = input.customerNumber?.trim() ? input.customerNumber.trim() : null;
   if (input.vatNumber !== undefined) data.vatNumber = input.vatNumber?.trim() ? input.vatNumber.trim() : null;
   if (input.kvkNumber !== undefined) data.kvkNumber = input.kvkNumber?.trim() ? input.kvkNumber.trim() : null;
   if (input.country !== undefined) data.country = input.country;
@@ -185,10 +185,6 @@ export async function PATCH(
     return NextResponse.json({ ok: true, businessAccount: updated });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : String(error.meta?.target ?? "");
-      if (target.includes("customerNumber")) {
-        return NextResponse.json({ error: "CUSTOMER_NUMBER_ALREADY_EXISTS" }, { status: 409 });
-      }
       return NextResponse.json({ error: "EMAIL_ALREADY_EXISTS" }, { status: 409 });
     }
     throw error;

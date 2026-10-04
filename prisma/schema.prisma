@@ -1389,7 +1389,7 @@ enum BusinessPickupFrequency {
 
 model BusinessAccount {
   id                          String                   @id @default(cuid())
-  customerNumber              String?                  @unique
+  customerNumber              String                   @unique @default(dbgenerated("('ZK-' || lpad(nextval('\"BusinessAccount_customerNumber_seq\"'::regclass)::text, 5, '0'))"))
   companyName                 String
   contactName                 String
   // The raw partial unique index BusinessAccount_active_email_key keeps

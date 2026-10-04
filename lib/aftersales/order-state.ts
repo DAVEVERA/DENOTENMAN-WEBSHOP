@@ -16,5 +16,9 @@ export function isAllowedAdminOrderTransition(
 }
 
 export function requiresTrackingForFulfillment(deliveryMethod: DeliveryMethod): boolean {
+  return allowsPostnlForDeliveryMethod(deliveryMethod);
+}
+
+export function allowsPostnlForDeliveryMethod(deliveryMethod: DeliveryMethod): boolean {
   return deliveryMethod === "SHIPPING";
 }

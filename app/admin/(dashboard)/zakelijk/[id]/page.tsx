@@ -9,6 +9,11 @@ import { BusinessInvitationButton } from "./BusinessInvitationButton";
 import { BusinessOrderListActions } from "./BusinessOrderListActions";
 import { BusinessOrderRegenerateInvoiceButton } from "./BusinessOrderRegenerateInvoiceButton";
 import { RegenerateInvoicePdfButton } from "./RegenerateInvoicePdfButton";
+import { BusinessAccountStatusChip } from "../BusinessAccountStatusChip";
+import {
+  formatAmsterdamDate,
+  formatAmsterdamDateTime,
+} from "@/lib/amsterdam-calendar";
 
 const ORDER_LIST_STATUS_LABELS: Record<BusinessOrderListStatus, string> = {
   DRAFT: "Concept",
@@ -58,13 +63,13 @@ function formatAddress(
 }
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("nl-NL", {
+  return formatAmsterdamDateTime(date, "nl-NL", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(date);
+  });
 }
 
 export default async function ZakelijkDetailPage({
@@ -116,11 +121,12 @@ export default async function ZakelijkDetailPage({
         <h1 className="mt-2 text-heading-lg text-text">
           {businessAccount.companyName}
         </h1>
-        {businessAccount.customerNumber ? (
-          <p className="mt-1 text-body-sm font-semibold text-muted">
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <p className="font-mono text-body-sm font-semibold text-muted">
             Klantnr. {businessAccount.customerNumber}
           </p>
-        ) : null}
+          <BusinessAccountStatusChip status={businessAccount.status} />
+        </div>
       </div>
 
       <BusinessAccountSections
@@ -132,7 +138,7 @@ export default async function ZakelijkDetailPage({
         currentContactName={businessAccount.contactName}
         currentEmail={businessAccount.email}
         currentPhone={businessAccount.phone ?? ""}
-        currentCustomerNumber={businessAccount.customerNumber ?? ""}
+        currentCustomerNumber={businessAccount.customerNumber}
         currentVatNumber={businessAccount.vatNumber ?? ""}
         currentKvkNumber={businessAccount.kvkNumber ?? ""}
         currentCountry={businessAccount.country === "BE" ? "BE" : "NL"}
@@ -235,11 +241,11 @@ export default async function ZakelijkDetailPage({
                         {orderList.pickupDay ? (
                           <p className="mt-1 text-body-sm font-semibold text-accent-hover">
                             Voorkeursdag ophalen:{" "}
-                            {new Intl.DateTimeFormat("nl-NL", {
+                            {formatAmsterdamDate(orderList.pickupDay, "nl-NL", {
                               weekday: "long",
                               day: "numeric",
                               month: "long",
-                            }).format(orderList.pickupDay)}
+                            })}
                           </p>
                         ) : null}
                       </div>

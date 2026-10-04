@@ -80,6 +80,12 @@ const labelRuntimeSource = readFileSync(
 assert.doesNotMatch(labelRuntimeSource, /\$transaction/);
 assert.match(labelRuntimeSource, /postnlLabelClaimToken/);
 assert.match(labelRuntimeSource, /createShipmentBarcode/);
+assert.ok(
+  labelRuntimeSource.indexOf("assertShippableAddress(initialOrder)") <
+    labelRuntimeSource.indexOf("determineLabelAction("),
+  "pickup orders must be rejected before a legacy label can be reused"
+);
+assert.match(labelRuntimeSource, /deliveryMethod:\s*"SHIPPING"/);
 
 for (const route of [
   "../app/api/admin/orders/[id]/postnl-label/route.ts",
@@ -98,5 +104,10 @@ assert.match(bulkRouteSource, /BATCH_TOO_LARGE/);
 assert.match(bulkRouteSource, /parseAmsterdamCalendarDay\(fromRaw, false\)/);
 assert.match(bulkRouteSource, /parseAmsterdamCalendarDay\(toRaw, true\)/);
 assert.match(bulkRouteSource, /from\.getTime\(\) > to\.getTime\(\)/);
+assert.match(bulkRouteSource, /deliveryMethod:\s*"SHIPPING"/);
+
+const singleRouteSource = readFileSync(new URL("../app/api/admin/orders/[id]/postnl-label/route.ts", import.meta.url), "utf8");
+assert.match(singleRouteSource, /select:\s*\{ deliveryMethod: true, postnlLabelBase64: true \}/);
+assert.match(singleRouteSource, /allowsPostnlForDeliveryMethod\(order\.deliveryMethod\)/);
 
 console.log("postnl tests passed");
