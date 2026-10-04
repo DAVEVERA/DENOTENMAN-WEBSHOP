@@ -75,6 +75,8 @@ export function AudienceSegmentPicker({
   const tags = segments?.filter((segment) => segment.type === "static") ?? [];
   const saved = segments?.filter((segment) => segment.type === "saved") ?? [];
   const problem = targetingProblem(targeting);
+  // Before anything is chosen the problem is just a hint, not an error.
+  const nothingChosen = targeting.savedSegmentId === null && !targeting.includeTagIds.length && !targeting.excludeTagIds.length;
 
   function tagState(id: number): TagState {
     if (targeting.includeTagIds.includes(id)) return "include";
@@ -154,7 +156,7 @@ export function AudienceSegmentPicker({
         ) : <p className="text-body-sm text-muted">Er zijn nog geen tags in deze Mailchimp-audience.</p>
       ) : null}
 
-      <p className={`text-xs ${problem ? "font-semibold text-red-700" : "text-muted"}`}>{problem ?? estimate(targeting, segments ?? [])}</p>
+      <p className={`text-xs ${problem && !nothingChosen ? "font-semibold text-red-700" : "text-muted"}`}>{problem ?? estimate(targeting, segments ?? [])}</p>
     </div>
   );
 }

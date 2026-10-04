@@ -55,7 +55,7 @@ export function CanvaConnectionCard({ initial, notice, siteUrl, returnTo }: { in
           <li>Maak een <strong>Connect API</strong>-integratie (geen Apps SDK-app) en kopieer client ID en secret naar <code>CANVA_CLIENT_ID</code> en <code>CANVA_CLIENT_SECRET</code>.</li>
           <li>Redirect-URL: <code className="break-all">{base}{CANVA_CALLBACK_PATH}</code></li>
           <li>Return navigation aan, return-URL: <code className="break-all">{base}{CANVA_RETURN_PATH}</code></li>
-          <li>Scopes: {CANVA_SCOPES.map((scope) => <code key={scope} className="mr-1">{scope}</code>)}</li>
+          <li>Scopes: <span className="mt-1 flex flex-wrap gap-1">{CANVA_SCOPES.map((scope) => <code key={scope} className="rounded border border-border bg-background px-1 text-xs">{scope}</code>)}</span></li>
         </ol>
       </details>
       {summary.configured ? (
