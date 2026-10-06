@@ -8,6 +8,7 @@ export type OrderTimelineEventKind =
   | "ORDER_PLACED"
   | "PAYMENT_RECEIVED"
   | "STATUS_CHANGED"
+  | "HANDLING"
   | "EMAIL"
   | "REFUND"
   | "CANCELLATION_REQUEST";
@@ -99,6 +100,10 @@ export type TimelineOrderInput = {
   updatedAt: Date;
   paidAt: Date | null;
   status: string;
+  processedAt?: Date | null;
+  processedByName?: string | null;
+  readyForPickupAt?: Date | null;
+  readyForPickupByName?: string | null;
   emailDeliveryLogs: TimelineEmailLog[];
   refunds: TimelineRefund[];
   businessCancellationRequests: TimelineCancellationRequest[];
@@ -162,6 +167,21 @@ export function buildOrderTimeline(order: TimelineOrderInput): OrderTimelineEven
       at: order.updatedAt,
       kind: "STATUS_CHANGED",
       label: `Bestelling gemarkeerd als ${ORDER_STATUS_LABELS[order.status] ?? order.status}`,
+    });
+  }
+
+  if (order.readyForPickupAt) {
+    events.push({
+      at: order.readyForPickupAt,
+      kind: "HANDLING",
+      label: `Staat klaar voor afhaling${order.readyForPickupByName ? ` (${order.readyForPickupByName})` : ""}`,
+    });
+  }
+  if (order.processedAt) {
+    events.push({
+      at: order.processedAt,
+      kind: "HANDLING",
+      label: `Verwerkt${order.processedByName ? ` door ${order.processedByName}` : " (eerder verzonden)"}`,
     });
   }
 

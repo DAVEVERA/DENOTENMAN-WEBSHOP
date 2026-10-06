@@ -8,6 +8,8 @@ import { getPickupLocation } from "@/lib/pickup-locations";
 import { buildOrderTimeline } from "@/lib/order-timeline";
 import { StatusBadge } from "../StatusBadge";
 import { OrderEditForm } from "./OrderEditForm";
+import { OrderHandlingControls } from "../OrderHandlingControls";
+import { describeHandled, isHandleable } from "@/lib/order-handling";
 import { OrderRefundPanel } from "./OrderRefundPanel";
 import { OrderTimeline } from "./OrderTimeline";
 import { publicOrderNumber } from "@/lib/order-reference";
@@ -62,6 +64,10 @@ export default async function OrderDetailPage({
     updatedAt: order.updatedAt,
     paidAt: order.paidAt,
     status: order.status,
+    processedAt: order.processedAt,
+    processedByName: order.processedByName,
+    readyForPickupAt: order.readyForPickupAt,
+    readyForPickupByName: order.readyForPickupByName,
     emailDeliveryLogs: order.emailDeliveryLogs,
     refunds: order.refunds.map((refund) => ({
       status: refund.status,
@@ -164,6 +170,21 @@ export default async function OrderDetailPage({
             </div>
           </div>
 
+          {isHandleable(order) ? (
+            <div className="mt-6 rounded-panel border border-border bg-surface p-5">
+              <h2 className="font-heading text-heading-sm font-semibold text-text">Afhandeling</h2>
+              <div className="mt-3">
+                <OrderHandlingControls
+                  orderId={order.id}
+                  isPickup={order.deliveryMethod === "PICKUP"}
+                  processed={Boolean(order.processedAt)}
+                  ready={Boolean(order.readyForPickupAt)}
+                  processedNote={describeHandled(order.processedAt, order.processedByName, (date) => date.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}
+                  readyNote={describeHandled(order.readyForPickupAt, order.readyForPickupByName, (date) => date.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}
+                />
+              </div>
+            </div>
+          ) : null}
           <div className="mt-6 rounded-panel border border-border bg-surface p-5">
             <OrderEditForm
               orderId={order.id}

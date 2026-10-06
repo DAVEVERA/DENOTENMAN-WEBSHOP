@@ -781,6 +781,14 @@ model Order {
   /// The customer kept the newsletter box ticked at checkout (soft opt-in, applied after payment).
   newsletterOptIn Boolean   @default(false)
 
+  /// Internal hand-off: the shop marked this paid order as dealt with (shipped or handed over).
+  /// Independent of `status`, so ticking it never mails the customer.
+  processedAt     DateTime?
+  processedByName String?
+  /// Pickup orders only: the order is packed and waiting in the market van.
+  readyForPickupAt     DateTime?
+  readyForPickupByName String?
+
   // Not @unique: a business order list is continuous and can produce many
   // Orders over time (one per checkout round). A separate partial unique
   // index (Order_pending_business_order_list_unique, added via raw SQL in
@@ -809,6 +817,7 @@ model Order {
 
   @@index([userId])
   @@index([status])
+  @@index([processedAt])
   @@index([businessOrderListId])
 }
 

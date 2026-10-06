@@ -107,3 +107,17 @@ test("marks a notable status change (fulfilled/cancelled/refunded) but not plain
   const pending = buildOrderTimeline({ ...BASE_ORDER, status: "PENDING" });
   assert.ok(!pending.some((event) => event.kind === "STATUS_CHANGED"));
 });
+
+test("adds who handled the order and when a pickup order was ready", () => {
+  const events = buildOrderTimeline({
+    ...BASE_ORDER,
+    readyForPickupAt: new Date("2026-01-05T08:00:00Z"),
+    readyForPickupByName: "Anna",
+    processedAt: new Date("2026-01-05T09:00:00Z"),
+    processedByName: "Fedor",
+  });
+  const handling = events.filter((event) => event.kind === "HANDLING").map((event) => event.label);
+  assert.deepEqual(handling, ["Staat klaar voor afhaling (Anna)", "Verwerkt door Fedor"]);
+  const older = buildOrderTimeline({ ...BASE_ORDER, processedAt: new Date("2026-01-05T09:00:00Z"), processedByName: null });
+  assert.equal(older.find((event) => event.kind === "HANDLING")?.label, "Verwerkt (eerder verzonden)");
+});

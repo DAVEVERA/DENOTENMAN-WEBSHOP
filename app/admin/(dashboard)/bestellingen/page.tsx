@@ -12,6 +12,18 @@ import { OrderRefundBadge } from "./OrderRefundBadge";
 import { MarketManifestPrint } from "./MarketManifestPrint";
 import { publicOrderNumber } from "@/lib/order-reference";
 import { formatAmsterdamDateTime } from "@/lib/amsterdam-calendar";
+import {
+  HANDLING_FILTERS,
+  HANDLING_FILTER_LABELS,
+  describeHandled,
+  handlingWhere,
+  isHandleable,
+  parseHandlingFilter,
+} from "@/lib/order-handling";
+import { OrderHandlingControls } from "./OrderHandlingControls";
+
+const shortDateTime = (date: Date) =>
+  formatAmsterdamDateTime(date, "nl-NL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 const VALID_STATUSES = new Set<string>([
   "PENDING",
@@ -33,14 +45,19 @@ const STATUS_TABS: { label: string; status: OrderStatus | null }[] = [
 export default async function BestellingenPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; afhandeling?: string }>;
 }) {
-  const { status } = await searchParams;
+  const { status, afhandeling } = await searchParams;
+  const activeHandling = parseHandlingFilter(afhandeling);
   const activeStatus =
     status && VALID_STATUSES.has(status) ? (status as OrderStatus) : null;
 
-  const orders = await prisma.order.findMany({
-    where: activeStatus ? { status: activeStatus } : undefined,
+  const [orders, handlingCounts] = await Promise.all([
+    prisma.order.findMany({
+    where: {
+      ...(activeStatus ? { status: activeStatus } : {}),
+      ...(activeHandling ? handlingWhere(activeHandling) : {}),
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -54,9 +71,15 @@ export default async function BestellingenPage({
       createdAt: true,
       postnlTrackingCode: true,
       postnlLabelBase64: true,
+      processedAt: true,
+      processedByName: true,
+      readyForPickupAt: true,
+      readyForPickupByName: true,
       refunds: { select: { amountCents: true, status: true } },
     },
-  });
+    }),
+    Promise.all(HANDLING_FILTERS.map((filter) => prisma.order.count({ where: handlingWhere(filter) }))),
+  ]);
 
   return (
     <div>
@@ -92,6 +115,27 @@ export default async function BestellingenPage({
         })}
       </div>
 
+      <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Afhandeling">
+        <span className="mr-1 text-xs font-bold uppercase tracking-[0.12em] text-muted">Afhandeling</span>
+        {HANDLING_FILTERS.map((filter, index) => {
+          const active = filter === activeHandling;
+          return (
+            <Link
+              key={filter}
+              href={active ? "/admin/bestellingen" : `/admin/bestellingen?afhandeling=${filter}`}
+              aria-current={active ? "true" : undefined}
+              className={cn(
+                "inline-flex min-h-11 items-center gap-2 rounded-button border px-3 font-heading text-body-sm font-semibold transition-colors duration-hover-fast",
+                active ? "border-accent bg-accent text-contrast" : "border-border bg-surface text-text hover:border-border-hover"
+              )}
+            >
+              {HANDLING_FILTER_LABELS[filter]}
+              <span className={cn("rounded-full px-2 py-0.5 text-xs", active ? "bg-contrast/15" : "bg-background text-muted")}>{handlingCounts[index]}</span>
+            </Link>
+          );
+        })}
+      </div>
+
       {orders.length === 0 ? (
         <p className="mt-6 text-body-sm text-muted">Geen bestellingen gevonden.</p>
       ) : (
@@ -102,6 +146,7 @@ export default async function BestellingenPage({
                 <th className="px-4 py-3 font-heading">Bestelnummer</th>
                 <th className="px-4 py-3 font-heading">Klant</th>
                 <th className="px-4 py-3 font-heading">Status</th>
+                <th className="px-4 py-3 font-heading">Afhandeling</th>
                 <th className="px-4 py-3 font-heading">Datum</th>
                 <th className="px-4 py-3 font-heading">Trackingcode</th>
                 <th className="px-4 py-3 font-heading">Documenten</th>
@@ -134,7 +179,21 @@ export default async function BestellingenPage({
                       ) : null}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-muted">
+                  <td className="px-4 py-3">
+                    {isHandleable(order) ? (
+                      <OrderHandlingControls
+                        orderId={order.id}
+                        isPickup={order.deliveryMethod === "PICKUP"}
+                        processed={Boolean(order.processedAt)}
+                        ready={Boolean(order.readyForPickupAt)}
+                        processedNote={describeHandled(order.processedAt, order.processedByName, shortDateTime)}
+                        readyNote={describeHandled(order.readyForPickupAt, order.readyForPickupByName, shortDateTime)}
+                      />
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-muted">
                     {formatAmsterdamDateTime(order.createdAt, "nl-NL", {
                       day: "2-digit",
                       month: "2-digit",
