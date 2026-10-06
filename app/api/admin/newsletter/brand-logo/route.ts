@@ -18,7 +18,12 @@ export async function POST(request: NextRequest) {
   try {
     return NextResponse.json({ logoUrl: await brandLogoUrl(parsed.data.variant) }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
-    console.error("Newsletter brand logo failed", { name: error instanceof Error ? error.name : "UnknownError" });
+    // Storage and image errors carry no secrets; the message and code make failures traceable.
+    console.error("Newsletter brand logo failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      message: error instanceof Error ? error.message.slice(0, 300) : String(error).slice(0, 300),
+      code: typeof error === "object" && error !== null ? (error as { code?: unknown }).code ?? null : null,
+    });
     return NextResponse.json({ error: "LOGO_FAILED", message: "Het logo kon niet worden klaargezet." }, { status: 502 });
   }
 }

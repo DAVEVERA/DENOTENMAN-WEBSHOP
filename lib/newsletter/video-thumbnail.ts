@@ -155,6 +155,10 @@ export async function createNewsletterVideoThumbnail(
     return { thumbnailUrl: `${environment.CDN_BASE_URL.replace(/\/+$/u, "")}/${storageKey}` };
   } catch (error) {
     if (error instanceof VideoThumbnailError) throw error;
+    console.error("Newsletter thumbnail storage failed", {
+      message: error instanceof Error ? error.message.slice(0, 300) : String(error).slice(0, 300),
+      code: typeof error === "object" && error !== null ? (error as { code?: unknown }).code ?? null : null,
+    });
     throw new VideoThumbnailError("STORAGE_FAILED", "De miniatuur kon niet veilig worden opgeslagen.", 502);
   }
 }
