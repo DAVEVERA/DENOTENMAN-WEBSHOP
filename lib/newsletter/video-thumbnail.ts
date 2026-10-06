@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import sharp from "@/lib/sharp";
+import sharp, { withSvg } from "@/lib/sharp";
 
 import { sharpDiagnostics } from "@/lib/sharp-diagnostics";
 import { saveImmutableProductAsset } from "@/lib/storage";
@@ -123,10 +123,11 @@ async function renderThumbnail(bytes: Buffer, aspect: VideoThumbnailAspect): Pro
       ? await base.resize({ width: THUMBNAIL_WIDTH, withoutEnlargement: false }).toBuffer({ resolveWithObject: true })
       : await base.resize({ width: THUMBNAIL_WIDTH, height: ASPECT_HEIGHT[aspect], fit: "cover", position: "attention" }).toBuffer({ resolveWithObject: true });
     const { width, height } = resized.info;
-    return await sharp(resized.data)
+    // The play button is our own SVG; reading it needs the SVG loader.
+    return await withSvg(() => sharp(resized.data)
       .composite([{ input: playButton(width, height) }])
       .jpeg({ quality: 85, mozjpeg: true })
-      .toBuffer();
+      .toBuffer());
   } catch (error) {
     console.error("Newsletter thumbnail render failed", {
       message: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200),

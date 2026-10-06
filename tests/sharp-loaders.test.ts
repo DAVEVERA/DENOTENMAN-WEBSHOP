@@ -4,6 +4,7 @@ import test from "node:test";
 import rawSharp from "sharp";
 
 import sharp, { withSvg } from "../lib/sharp";
+import { createNewsletterVideoThumbnail } from "../lib/newsletter/video-thumbnail";
 
 // Mimics Next's image optimizer, which blocks every libvips loader for the whole process
 // and unblocks a few (next/dist/server/image-optimizer.js getSharp).
@@ -25,4 +26,22 @@ test("after Next blocks loaders, app sharp still reads raster images and SVG onl
   assert.equal((await rawSharp(png).metadata()).format, "png");
   await assert.rejects(rawSharp(svg).png().toBuffer(), /unsupported image format/u, "withSvg blocks SVG again afterwards");
   assert.ok(sharp.versions.vips, "static API is kept");
+});
+
+test("video thumbnails with their SVG play button still render after Next blocks loaders", async (t) => {
+  t.after(() => rawSharp.unblock({ operation: ["VipsForeignLoad"] }));
+  const poster = await rawSharp({ create: { width: 320, height: 180, channels: 3, background: "#336699" } }).jpeg().toBuffer();
+  blockLikeNext();
+  rawSharp.block({ operation: ["VipsForeignLoadSvg"] });
+  let saved: Buffer | null = null;
+  await createNewsletterVideoThumbnail(
+    { videoUrl: "https://example.com/v.mp4", imageUrl: "https://cdn.example.com/media/poster.jpg" },
+    { CDN_BASE_URL: "https://cdn.example.com/media", GCS_BUCKET: "bucket" },
+    {
+      fetchImpl: async () => new Response(new Uint8Array(poster), { status: 200, headers: { "content-type": "image/jpeg" } }),
+      save: async (_key, bytes) => { saved = bytes; },
+    },
+  );
+  assert.ok(saved);
+  assert.equal((await rawSharp(saved).metadata()).width, 1200);
 });

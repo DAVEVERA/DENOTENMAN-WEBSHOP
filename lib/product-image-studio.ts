@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Storage } from "@google-cloud/storage";
-import sharp from "@/lib/sharp";
+import sharp, { withSvg } from "@/lib/sharp";
 import { z } from "zod";
 
 const OPENAI_IMAGE_MODEL = "gpt-image-2";
@@ -489,11 +489,11 @@ export async function runDeterministicStudioOperation(
     const height = Math.ceil(request.fontSize * 1.5);
     const background = request.backgroundColor ? `<rect width="${estimatedWidth}" height="${height}" rx="${Math.max(4, Math.round(request.fontSize / 5))}" fill="${request.backgroundColor}"/>` : "";
     const overlay = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${estimatedWidth}" height="${height}">${background}<text x="${Math.round(request.fontSize / 4)}" y="${Math.round(request.fontSize * 1.05)}" font-family="Arial, sans-serif" font-size="${request.fontSize}" font-weight="700" fill="${request.color}">${escapeSvgText(request.text)}</text></svg>`);
-    bytes = await sharp(source).composite([{ input: overlay, left: request.x, top: request.y }]).png().toBuffer();
+    bytes = await withSvg(() => sharp(source).composite([{ input: overlay, left: request.x, top: request.y }]).png().toBuffer());
   } else {
     const path = iconPaths[request.icon];
     const overlay = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="${request.size}" height="${request.size}"><path d="${path}" fill="${request.color}"/></svg>`);
-    bytes = await sharp(source).composite([{ input: overlay, left: request.x, top: request.y }]).png().toBuffer();
+    bytes = await withSvg(() => sharp(source).composite([{ input: overlay, left: request.x, top: request.y }]).png().toBuffer());
   }
   return { bytes, contentType: "image/png", extension: "png" };
 }
