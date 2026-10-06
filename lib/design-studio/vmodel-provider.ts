@@ -1,6 +1,6 @@
 import "server-only";
 
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 import { z } from "zod";
 import { getVModelDescriptor } from "@/lib/design-studio/vmodel-models";
 import type { VModelJobInput } from "@/lib/design-studio/vmodel-schema";

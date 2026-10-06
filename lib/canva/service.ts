@@ -1,6 +1,6 @@
 import "server-only";
 
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 
 import { prisma } from "@/lib/prisma";
 import { buildMediaLibraryKey, hasValidImageSignature, publicImageUrl, saveProductImage } from "@/lib/storage";

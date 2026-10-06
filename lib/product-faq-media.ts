@@ -1,5 +1,5 @@
 import { PDFDocument } from "pdf-lib";
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 import type { ProductFaqMediaType } from "@prisma/client";
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);

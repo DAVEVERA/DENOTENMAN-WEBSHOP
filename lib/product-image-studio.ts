@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Storage } from "@google-cloud/storage";
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 import { z } from "zod";
 
 const OPENAI_IMAGE_MODEL = "gpt-image-2";

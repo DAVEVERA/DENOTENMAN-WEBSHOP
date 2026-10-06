@@ -117,7 +117,7 @@ export async function completeSocialUpload(id: string): Promise<SocialMediaDto> 
   let width: number | null = null;
   let height: number | null = null;
   if (socialMediaKind(asset.contentType) === "image") {
-    const sharp = (await import("sharp")).default;
+    const sharp = (await import("@/lib/sharp")).default;
     const [bytes] = await file.download();
     try {
       const info = await sharp(bytes, { failOn: "error", limitInputPixels: 80_000_000 }).metadata();
@@ -155,7 +155,7 @@ export async function jpegUrlFor(asset: { storageKey: string; contentType: strin
   const target = bucket().file(jpegKey);
   const [exists] = await target.exists();
   if (!exists) {
-    const sharp = (await import("sharp")).default;
+    const sharp = (await import("@/lib/sharp")).default;
     const [bytes] = await bucket().file(asset.storageKey).download();
     const jpeg = await sharp(bytes).rotate().flatten({ background: "#ffffff" }).jpeg({ quality: 90 }).toBuffer();
     await target.save(jpeg, { contentType: "image/jpeg", metadata: { cacheControl: "public, max-age=31536000, immutable" } });

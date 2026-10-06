@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
+import sharp, { withSvg } from "@/lib/sharp";
 
 import { sharpDiagnostics } from "@/lib/sharp-diagnostics";
 import { saveImmutableProductAsset } from "@/lib/storage";
@@ -17,7 +17,8 @@ const LOGO_WIDTH = 720;
  * visible pixel white for dark headers, keeping the shape through the alpha channel.
  */
 export async function renderBrandLogoPng(svg: Buffer, variant: BrandLogoVariant): Promise<Buffer> {
-  const dark = await sharp(svg, { density: 300 }).resize({ width: LOGO_WIDTH }).png().toBuffer();
+  // Reading SVG needs the SVG loader, which Next's image optimizer blocks for the process.
+  const dark = await withSvg(() => sharp(svg, { density: 300 }).resize({ width: LOGO_WIDTH }).png().toBuffer());
   if (variant === "dark") return dark;
   const { width = LOGO_WIDTH, height = 1 } = await sharp(dark).metadata();
   const alpha = await sharp(dark).ensureAlpha().extractChannel("alpha").toBuffer();

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Storage } from "@google-cloud/storage";
 import { PDFDocument } from "pdf-lib";
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 
 const MB = 1024 * 1024;
 export const COST_INVOICE_MAX_FILE_BYTES = 15 * MB;

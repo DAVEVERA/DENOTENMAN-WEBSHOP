@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 import type { PhotoRoomJobInput } from "@/lib/design-studio/photoroom-schema";
 import type { PhotoRoomAvailability } from "@/lib/design-studio/types";
 

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 
 import { sharpDiagnostics } from "@/lib/sharp-diagnostics";
 import { saveImmutableProductAsset } from "@/lib/storage";

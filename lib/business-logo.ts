@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 
 const MB = 1024 * 1024;
 

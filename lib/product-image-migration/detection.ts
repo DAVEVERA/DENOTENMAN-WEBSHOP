@@ -1,5 +1,5 @@
 import cvModule from "@techstark/opencv-js";
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 import type { ImageMigrationConfig } from "@/lib/product-image-migration/config";
 import type { Circle } from "@/lib/product-image-migration/crop";
 

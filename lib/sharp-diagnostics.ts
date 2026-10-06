@@ -1,6 +1,6 @@
 import "server-only";
 
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 
 // What the app's sharp can do and what it was given, for logs when an image fails to
 // decode. Holds no secrets: versions, supported input formats and the first bytes.
