@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronRight, type LucideIcon } from "lucide-react";
-import { cn } from "@/lib/cn";
+import { BASE_URL } from "@/lib/routes";
+import type { CategoryTileData } from "@/lib/category-tiles-core";
+import { CategoryTileGrid } from "@/components/category/CategoryTileGrid";
 
 export type CategoryStoryVariety = {
   name: string;
@@ -35,6 +37,10 @@ export type CategoryStoryPageProps = {
   assortmentLabel: string;
   heroImage?: { src: string; alt: string; objectPosition?: string };
   heroIcon?: LucideIcon;
+  /** Subcategory tiles from the menu data, with their headings. */
+  tiles?: { copy: { eyebrow: string; title: string; viewAllLabel: string }; items: CategoryTileData[] };
+  /** Path of this page, for the breadcrumb data. */
+  pageHref: string;
 };
 
 const primaryCta =
@@ -47,7 +53,17 @@ export function CategoryStoryPage({
   assortmentLabel,
   heroImage,
   heroIcon: HeroIcon,
+  tiles,
+  pageHref,
 }: CategoryStoryPageProps) {
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: assortmentLabel, item: `${BASE_URL}${assortmentHref}` },
+      { "@type": "ListItem", position: 2, name: content.shortLabel, item: `${BASE_URL}${pageHref}` },
+    ],
+  };
   const faqJsonLd =
     content.faqs.length > 0
       ? {
@@ -63,6 +79,10 @@ export function CategoryStoryPage({
 
   return (
     <article className="overflow-hidden bg-[#f8f5ef] text-text">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, "\u003c") }}
+      />
       {faqJsonLd ? (
         <script
           type="application/ld+json"
@@ -154,46 +174,16 @@ export function CategoryStoryPage({
         </div>
       </section>
 
-      <section className="bg-[linear-gradient(180deg,#f1e9de_0%,#faf8f4_11rem,#faf8f4_100%)]">
-        <div className="mx-auto w-full max-w-[88rem] px-4 py-14 sm:px-6 sm:py-16 lg:px-10 lg:py-24">
-          <div className="max-w-3xl">
-            <p className="font-heading text-xs font-bold uppercase tracking-[0.16em] text-accent-ink">
-              {content.varieties.eyebrow}
-            </p>
-            <h2 className="mt-3 text-[clamp(2rem,6vw,3.75rem)] leading-tight text-contrast">
-              {content.varieties.title}
-            </h2>
-            <p className="mt-5 text-base leading-7 text-muted sm:text-lg sm:leading-8">
-              {content.varieties.intro}
-            </p>
-          </div>
-
-          <ul
-            className={cn(
-              "mt-8 grid grid-cols-1 gap-3",
-              // A grid that always reaches for 3 columns leaves a dangling
-              // gap in the last row for categories with few varieties (e.g.
-              // 2 items on a 3-column desktop grid). Cap the column count at
-              // the item count so a short list reads as a deliberate, evenly
-              // filled row instead of a sparse, lopsided one, and keep very
-              // short lists from stretching into oversized cards.
-              content.varieties.items.length === 1 && "max-w-sm",
-              content.varieties.items.length === 2 && "max-w-2xl min-[430px]:grid-cols-2",
-              content.varieties.items.length >= 3 && "min-[430px]:grid-cols-2 lg:grid-cols-3",
-            )}
-          >
-            {content.varieties.items.map((item) => (
-              <li
-                key={item.name}
-                className="rounded-[1.25rem] bg-white/85 p-5 shadow-[0_12px_30px_rgba(62,45,27,0.08)]"
-              >
-                <p className="font-heading text-base font-bold text-contrast">{item.name}</p>
-                <p className="mt-2 text-sm leading-6 text-muted">{item.description}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      {tiles ? (
+        <CategoryTileGrid
+          sectionId="category-tiles-title"
+          eyebrow={tiles.copy.eyebrow}
+          title={tiles.copy.title}
+          viewAllLabel={tiles.copy.viewAllLabel}
+          viewAllHref={productsHref}
+          tiles={tiles.items}
+        />
+      ) : null}
 
       <section className="bg-[linear-gradient(180deg,#faf8f4_0%,#eee6da_100%)]" data-content-section="story">
         <div className="mx-auto grid w-full max-w-[88rem] gap-10 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-10 lg:py-24">

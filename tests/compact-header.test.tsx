@@ -4,6 +4,7 @@ import test from "node:test";
 
 const compactHeader = readFileSync("components/layout/CompactHeader.tsx", "utf8");
 const header = readFileSync("components/layout/Header.tsx", "utf8");
+const submenu = readFileSync("lib/category-submenu.ts", "utf8");
 
 test("the production header uses the compact live-navigation component", () => {
   assert.match(header, /getCategoryNavigation\(locale\)/);
@@ -28,7 +29,10 @@ test("requested categories are prominent while baking remains under More", () =>
   assert.match(compactHeader, /canonicalSlug === "notenpasta-s"/);
   assert.match(compactHeader, /rootBySlug\.get\("bakproducten"\)/);
   assert.match(compactHeader, /category\.canonicalSlug !== "bakproducten"/);
-  assert.match(compactHeader, /catalogSearchHref/);
+  // The filter lists and links live in one shared module that the category pages use too.
+  assert.match(compactHeader, /from "@\/lib\/category-submenu"/);
+  assert.match(compactHeader, /searchSubmenuItems/);
+  assert.match(submenu, /export function catalogSearchHref/);
   assert.match(compactHeader, /driedFruitSubcategories/);
   assert.match(compactHeader, /honeySubcategories/);
   assert.match(compactHeader, /nutButterSubcategories/);

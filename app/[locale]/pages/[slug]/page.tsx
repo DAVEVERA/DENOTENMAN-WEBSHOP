@@ -5,6 +5,7 @@ import { locales, isLocale, type Locale } from "@/lib/i18n";
 import {
   categoryStoryCanonicalSlug,
   isCategoryStoryPageKey,
+  pagePath,
   pageKeys,
   pageRobots,
   pageSlugs,
@@ -15,6 +16,7 @@ import { getAlternates } from "@/lib/alternates";
 import { Container } from "@/components/ui/Container";
 import { getCategoryNavigation, getPageBySlug } from "@/lib/queries";
 import { findCategoryByCanonicalSlug } from "@/lib/categoryGroups";
+import { getCategoryTiles } from "@/lib/category-tiles";
 import { publicImageUrl } from "@/lib/storage";
 import { categories as categoriesPath, category as categoryPath } from "@/lib/routes";
 import { Terms } from "./_components/Terms";
@@ -306,6 +308,9 @@ export default async function ContentPage({
     const content = getCategoryStoryContent(locale, key);
     const navigation = await getCategoryNavigation(locale);
     const liveCategory = findCategoryByCanonicalSlug(navigation.categories, canonicalSlug);
+    // Same submenu data as the header, so the tiles and the menu cannot drift apart.
+    const { tiles, root: tilesRoot } = await getCategoryTiles(locale, canonicalSlug);
+    const tilesCopy = categoryStoryDictionaries[locale].categoryTiles;
     const productsHref = liveCategory
       ? categoryPath(locale, liveCategory.slug)
       : categoriesPath(locale);
@@ -327,6 +332,19 @@ export default async function ContentPage({
             : undefined
         }
         heroIcon={categoryStoryHeroIcon[key]}
+        pageHref={pagePath(key, locale)}
+        tiles={
+          tilesRoot
+            ? {
+                copy: {
+                  eyebrow: tilesCopy.eyebrow,
+                  title: tilesCopy.title,
+                  viewAllLabel: tilesCopy.viewAll.replace("{name}", tilesRoot.name),
+                },
+                items: tiles,
+              }
+            : undefined
+        }
       />
     );
   }

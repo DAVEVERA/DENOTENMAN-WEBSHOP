@@ -459,6 +459,7 @@
     "resultsCountPlural": "{count} products found",
     "loadMore": "Show more ({remaining} remaining)"
   },
+  "categoryTiles": { "eyebrow": "The range", "title": "Explore the range", "viewAll": "View all {name}" },
   "categoryStories": {
     "categoryNuts": {
       "shortLabel": "Nuts",
