@@ -41,6 +41,9 @@ import {
   settleDiscountRedemption,
 } from "@/lib/discount-usage";
 
+import { priceCartWithPromotions } from "@/lib/promotions/engine";
+import { loadActivePromotionRules, paidOrderCount, productCategoryIds } from "@/lib/promotions/store";
+
 export class CheckoutError extends Error {
   constructor(
     public code:
@@ -162,7 +165,8 @@ export async function priceCartLines(
   discountCode?: string,
   hasPreviousPaidOrder = false,
   deliveryMethod: "SHIPPING" | "PICKUP" = "SHIPPING",
-  shippingCountry: ShippingCountryCode = "NL"
+  shippingCountry: ShippingCountryCode = "NL",
+  options: { email?: string | null; now?: Date } = {}
 ) {
   if (lines.length === 0) {
     throw new CheckoutError("EMPTY_CART", "Cart is empty");
@@ -193,7 +197,7 @@ export async function priceCartLines(
     },
   });
 
-  const priced = lines.map((line) => {
+  const resolved = lines.map((line) => {
     const variant = resolveCheckoutVariant(line, variants, locale);
 
     if (!variant) {
@@ -222,18 +226,61 @@ export async function priceCartLines(
 
     return {
       variantId: variant.id,
+      productId: variant.productId,
       productName,
       variantLabel,
       quantity,
-      // Action prices are resolved exclusively from the database; the cart's
-      // client-side amount is never trusted during checkout.
-      unitPriceCents: variant.salePriceCents ?? variant.priceCents,
+      regularCents: variant.priceCents,
+      saleCents: variant.salePriceCents,
       weightGrams: variant.weightGrams,
+    };
+  });
+
+  // Action prices, volume tiers and loyalty discounts come exclusively from the
+  // database through the promotion engine; the cart's client-side amount is never
+  // trusted during checkout.
+  const now = options.now ?? new Date();
+  const rules = await loadActivePromotionRules();
+  const [categoryIds, paidOrders] = await Promise.all([
+    productCategoryIds(resolved.map((line) => line.productId), rules),
+    rules.some((rule) => rule.kind === "LOYALTY") ? paidOrderCount(options.email) : Promise.resolve(null),
+  ]);
+  const promotionPrices = priceCartWithPromotions(
+    resolved.map((line, index) => ({
+      lineId: String(index),
+      productId: line.productId,
+      categoryIds: categoryIds.get(line.productId) ?? [],
+      variantId: line.variantId,
+      regularCents: line.regularCents,
+      saleCents: line.saleCents,
+      quantity: line.quantity,
+    })),
+    rules,
+    now,
+    { locale, paidOrders }
+  );
+  const priced = resolved.map((line, index) => {
+    const promotion = promotionPrices[index];
+    return {
+      variantId: line.variantId,
+      productName: line.productName,
+      variantLabel: line.variantLabel,
+      quantity: line.quantity,
+      unitPriceCents: promotion.unitPriceCents,
+      regularUnitPriceCents: promotion.promotionLabel ? promotion.regularUnitPriceCents : null,
+      promotionLabel: promotion.promotionLabel,
+      allowsDiscountCodes: promotion.allowsDiscountCodes,
+      weightGrams: line.weightGrams,
     };
   });
 
   const subtotalCents = priced.reduce(
     (sum, line) => sum + line.unitPriceCents * line.quantity,
+    0
+  );
+  // A promotion can exclude discount codes; such lines do not count for the code.
+  const codeEligibleSubtotalCents = priced.reduce(
+    (sum, line) => sum + (line.allowsDiscountCodes ? line.unitPriceCents * line.quantity : 0),
     0
   );
   const totalWeightGrams = calculateTotalWeightGrams(priced);
@@ -261,8 +308,9 @@ export async function priceCartLines(
         },
       })
     : null;
+  const isTestCode = Boolean(process.env.TEST_ORDER_DISCOUNT_CODE?.trim()) && discountCode?.trim() === process.env.TEST_ORDER_DISCOUNT_CODE?.trim();
   const discountEvaluation = evaluateCheckoutDiscount(
-    subtotalCents,
+    isTestCode ? subtotalCents : codeEligibleSubtotalCents,
     discountCode,
     hasPreviousPaidOrder,
     process.env.TEST_ORDER_DISCOUNT_CODE,
@@ -327,7 +375,8 @@ export async function createOrderWithPayment(
     discountCode,
     false,
     contact.deliveryMethod,
-    isShippingCountryCode(contact.country) ? contact.country : "NL"
+    isShippingCountryCode(contact.country) ? contact.country : "NL",
+    { email: normalizedEmail }
   );
 
   const user = existingUser
@@ -374,6 +423,8 @@ export async function createOrderWithPayment(
           variantLabel: line.variantLabel,
           quantity: line.quantity,
           unitPriceCents: line.unitPriceCents,
+          regularUnitPriceCents: line.regularUnitPriceCents,
+          promotionLabel: line.promotionLabel,
         })),
       },
         },

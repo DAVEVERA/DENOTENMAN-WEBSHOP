@@ -27,6 +27,8 @@ export type HomeSliderProductDto = HomeSliderDefinition & {
   salePriceCents: number | null;
   hasVariablePrice: boolean;
   defaultVariant: HomeSliderVariantDto | null;
+  /** Labels from active promotions; null when none apply. */
+  promotion?: import("@/lib/promotions/storefront").ProductPromotionDto | null;
 };
 
 export type OfferedHomeSliderProduct = Omit<

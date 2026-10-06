@@ -28,6 +28,22 @@ type AppliedDiscountPreview = {
   isTest: boolean;
 };
 
+/** The server's price for this cart: identical to what the payment will charge. */
+type CheckoutQuote = {
+  lines: Array<{ variantId: string; quantity: number; unitPriceCents: number; regularUnitPriceCents: number | null; promotionLabel: string | null }>;
+  subtotalCents: number;
+  discountCode: string | null;
+  discountCents: number;
+  shippingCents: number;
+  totalCents: number;
+};
+
+const PROMOTION_COPY: Record<Locale, { saving: string }> = {
+  nl: { saving: "Actievoordeel" },
+  en: { saving: "Promotion savings" },
+  fr: { saving: "Économie promo" },
+};
+
 function legacyCartWeightGrams(item: CartItem): number | null {
   if (
     typeof item.weightGrams === "number" &&
@@ -82,21 +98,66 @@ export function CheckoutForm({
   const [pickupLocationId, setPickupLocationId] = useState<string>("");
   const [pickupPostalCode, setPickupPostalCode] = useState("");
   const trackedCheckoutKey = useRef<string | null>(null);
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null);
 
   const pickupLocations = getPickupLocationsForCountry(country);
   const isPickup = deliveryMethod === "PICKUP";
 
-  const subtotalCents = cart.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
+  const cartSubtotalCents = cart.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
   const totalWeightGrams = checkoutCartWeightGrams(cart);
   const regularShippingCents = calculateShippingCents({
     country,
-    subtotalCents,
+    subtotalCents: cartSubtotalCents,
     totalWeightGrams,
     deliveryMethod,
   });
-  const discountCents = appliedDiscount?.discountCents ?? 0;
-  const shippingCents = appliedDiscount?.isTest ? 0 : regularShippingCents;
-  const totalCents = subtotalCents - discountCents + shippingCents;
+  // Until the server quote arrives, show the cart's own numbers.
+  const subtotalCents = quote?.subtotalCents ?? cartSubtotalCents;
+  const discountCents = quote ? quote.discountCents : appliedDiscount?.discountCents ?? 0;
+  const shippingCents = quote ? quote.shippingCents : appliedDiscount?.isTest ? 0 : regularShippingCents;
+  const totalCents = quote ? quote.totalCents : subtotalCents - discountCents + shippingCents;
+  const promotionSavingCents = quote?.lines.reduce(
+    (sum, line) => sum + (line.regularUnitPriceCents !== null ? (line.regularUnitPriceCents - line.unitPriceCents) * line.quantity : 0),
+    0,
+  ) ?? 0;
+  const promotionLabels = [...new Set(quote?.lines.map((line) => line.promotionLabel).filter((label): label is string => Boolean(label)) ?? [])];
+  const quoteKey = JSON.stringify({
+    lines: cart.map((item) => [item.variantId, item.quantity]),
+    code: appliedDiscount?.code ?? "",
+    deliveryMethod,
+    country,
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(contactEmail.trim()) ? contactEmail.trim().toLowerCase() : "",
+  });
+
+  // Ask the server what this cart costs, so action prices, volume tiers and loyalty
+  // discounts show before paying. Debounced; the latest request wins.
+  useEffect(() => {
+    if (cart.length === 0) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      const request = JSON.parse(quoteKey) as { code: string; deliveryMethod: DeliveryMethod; country: CountryCode; email: string };
+      fetch("/api/checkout/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          locale,
+          lines: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity, productSlug: item.slug, variantLabel: item.variantLabel })),
+          ...(request.code ? { discountCode: request.code } : {}),
+          deliveryMethod: request.deliveryMethod,
+          country: request.country,
+          ...(request.email ? { email: request.email } : {}),
+        }),
+      })
+        .then(async (response) => (response.ok ? ((await response.json()) as CheckoutQuote) : null))
+        .then((next) => { if (next) setQuote(next); })
+        .catch(() => undefined);
+    }, 350);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [quoteKey, cart, locale]);
   const merchandiseValue = Math.max(0, subtotalCents - discountCents) / 100;
 
   useEffect(() => {
@@ -505,16 +566,22 @@ export function CheckoutForm({
         <div className="rounded-panel border border-border bg-surface p-5">
           <h2 className="font-heading text-heading-sm text-text">{dictionary.summaryHeading}</h2>
           <ul className="mt-4 space-y-2">
-            {cart.map((item) => (
-              <li key={item.variantId} className="flex justify-between gap-3 text-body-sm">
-                <span className="text-muted">
-                  {item.quantity}x {item.name}
-                </span>
-                <span className="shrink-0 text-text">
-                  {formatPrice(item.priceCents * item.quantity, locale)}
-                </span>
-              </li>
-            ))}
+            {cart.map((item) => {
+              const priced = quote?.lines.find((line) => line.variantId === item.variantId);
+              const unitCents = priced?.unitPriceCents ?? item.priceCents;
+              return (
+                <li key={item.variantId} className="flex justify-between gap-3 text-body-sm">
+                  <span className="min-w-0 text-muted">
+                    {item.quantity}x {item.name}
+                    {priced?.promotionLabel ? <span className="mt-0.5 block text-xs font-semibold text-accent-ink">{priced.promotionLabel}</span> : null}
+                  </span>
+                  <span className="shrink-0 text-right text-text">
+                    {priced?.regularUnitPriceCents ? <span className="block text-xs text-muted line-through">{formatPrice(priced.regularUnitPriceCents * item.quantity, locale)}</span> : null}
+                    {formatPrice(unitCents * item.quantity, locale)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
           <div className="mt-4 border-t border-border pt-4">
             <label htmlFor="discountCode" className="block text-body-sm font-semibold text-text">
@@ -562,6 +629,12 @@ export function CheckoutForm({
               <span className="text-muted">{dictionary.subtotal}</span>
               <span>{formatPrice(subtotalCents, locale)}</span>
             </div>
+            {promotionSavingCents > 0 ? (
+              <div className="flex justify-between gap-3 text-accent-ink">
+                <span>{PROMOTION_COPY[locale].saving}{promotionLabels.length ? ` (${promotionLabels.join(", ")})` : ""}</span>
+                <span className="shrink-0">-{formatPrice(promotionSavingCents, locale)}</span>
+              </div>
+            ) : null}
             {appliedDiscount ? (
               <div className="flex justify-between font-semibold text-green-700">
                 <span>{dictionary.discount} ({appliedDiscount.code})</span>

@@ -250,8 +250,8 @@ model Product {
   images                 ProductImage[]
   trashedImages          ProductImageTrash[]
   slugAliases            ProductSlugAlias[]
-  recommendations        ProductRecommendation[] @relation("RecommendationSource")
-  recommendedBy          ProductRecommendation[] @relation("RecommendationTarget")
+  recommendations        ProductRecommendation[]  @relation("RecommendationSource")
+  recommendedBy          ProductRecommendation[]  @relation("RecommendationTarget")
   stockNotifications     StockNotification[]
   googleAdsConfiguration GoogleAdsConfiguration?
   faqSet                 ProductFaqSet?
@@ -953,6 +953,10 @@ model OrderItem {
   variantLabel                     String
   quantity                         Int
   unitPriceCents                   Int
+  /// Unit price before a product promotion; null when no promotion applied.
+  regularUnitPriceCents            Int?
+  /// Customer-facing name of the promotion that set the unit price.
+  promotionLabel                   String?
   refundItems                      OrderRefundItem[]
   businessCancellationRequestItems BusinessOrderCancellationRequestItem[]
 
@@ -1038,22 +1042,22 @@ model AdminUser {
   createdAt    DateTime  @default(now())
   lastLoginAt  DateTime?
 
-  auditEntries         AuditLog[]
-  requestedRefunds     OrderRefund[]
-  faqRevisions         ProductFaqRevision[]
-  designJobs           DesignJob[]
-  createdManagedCosts  ManagedCost[]                @relation("ManagedCostCreatedBy")
-  updatedManagedCosts  ManagedCost[]                @relation("ManagedCostUpdatedBy")
-  deletedManagedCosts  ManagedCost[]                @relation("ManagedCostDeletedBy")
-  uploadedCostInvoices CostInvoice[]                @relation("CostInvoiceUploadedBy")
-  deletedCostInvoices  CostInvoice[]                @relation("CostInvoiceDeletedBy")
-  costMutations        CostMutation[]
-  businessInvitations  BusinessInvitation[]         @relation("BusinessInvitationCreatedBy")
-  businessOrderLists   BusinessOrderList[]          @relation("BusinessOrderListCreatedBy")
-  businessEventReads   BusinessEventRead[]
-  uploadedMedia        MediaAsset[]
-  requestedProductCopyProposals ProductCopyProposal[] @relation("ProductCopyProposalRequestedBy")
-  appliedProductCopyProposals   ProductCopyProposal[] @relation("ProductCopyProposalAppliedBy")
+  auditEntries                  AuditLog[]
+  requestedRefunds              OrderRefund[]
+  faqRevisions                  ProductFaqRevision[]
+  designJobs                    DesignJob[]
+  createdManagedCosts           ManagedCost[]            @relation("ManagedCostCreatedBy")
+  updatedManagedCosts           ManagedCost[]            @relation("ManagedCostUpdatedBy")
+  deletedManagedCosts           ManagedCost[]            @relation("ManagedCostDeletedBy")
+  uploadedCostInvoices          CostInvoice[]            @relation("CostInvoiceUploadedBy")
+  deletedCostInvoices           CostInvoice[]            @relation("CostInvoiceDeletedBy")
+  costMutations                 CostMutation[]
+  businessInvitations           BusinessInvitation[]     @relation("BusinessInvitationCreatedBy")
+  businessOrderLists            BusinessOrderList[]      @relation("BusinessOrderListCreatedBy")
+  businessEventReads            BusinessEventRead[]
+  uploadedMedia                 MediaAsset[]
+  requestedProductCopyProposals ProductCopyProposal[]    @relation("ProductCopyProposalRequestedBy")
+  appliedProductCopyProposals   ProductCopyProposal[]    @relation("ProductCopyProposalAppliedBy")
   copyFieldReviews              ProductCopyFieldReview[]
 }
 
@@ -1786,27 +1790,27 @@ enum DeveloperInvoiceStatus {
 }
 
 model DeveloperInvoice {
-  id                      String                  @id @default(cuid())
-  number                  String                  @unique
+  id                      String                      @id @default(cuid())
+  number                  String                      @unique
   title                   String
   issueDate               DateTime
   dueDate                 DateTime
-  currency                String                  @default("EUR")
+  currency                String                      @default("EUR")
   /// [{ description, quantity, unitPriceCents, vatRate }]
   lines                   Json
   subtotalCents           Int
   vatCents                Int
   totalCents              Int
   notes                   String?
-  status                  DeveloperInvoiceStatus  @default(DRAFT)
+  status                  DeveloperInvoiceStatus      @default(DRAFT)
   sentAt                  DateTime?
   firstReminderAt         DateTime?
   secondReminderAt        DateTime?
   paidAt                  DateTime?
   paidVia                 String?
   stripeCheckoutSessionId String?
-  createdAt               DateTime                @default(now())
-  updatedAt               DateTime                @updatedAt
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
   events                  DeveloperInvoiceEvent[]
   attachment              DeveloperInvoiceAttachment?
   views                   DeveloperInvoiceView[]
@@ -1868,34 +1872,34 @@ model DeveloperInvoiceView {
 
 /// Single row ("default"): the developer's billing details and payment methods.
 model DeveloperBillingProfile {
-  id                       String   @id @default("default")
-  businessName             String   @default("")
-  contactName              String   @default("")
-  email                    String   @default("")
-  address                  String   @default("")
-  postalCode               String   @default("")
-  city                     String   @default("")
-  country                  String   @default("Nederland")
-  kvkNumber                String   @default("")
-  vatNumber                String   @default("")
-  paymentTermDays          Int      @default(14)
+  id                           String   @id @default("default")
+  businessName                 String   @default("")
+  contactName                  String   @default("")
+  email                        String   @default("")
+  address                      String   @default("")
+  postalCode                   String   @default("")
+  city                         String   @default("")
+  country                      String   @default("Nederland")
+  kvkNumber                    String   @default("")
+  vatNumber                    String   @default("")
+  paymentTermDays              Int      @default(14)
   /// Where "invoice ready" notices and reminders go; empty uses the shop's order address.
-  notificationEmail        String   @default("")
-  bankTransferEnabled      Boolean  @default(true)
-  iban                     String   @default("")
-  bic                      String   @default("")
-  accountHolder            String   @default("")
-  stripeEnabled            Boolean  @default(false)
+  notificationEmail            String   @default("")
+  bankTransferEnabled          Boolean  @default(true)
+  iban                         String   @default("")
+  bic                          String   @default("")
+  accountHolder                String   @default("")
+  stripeEnabled                Boolean  @default(false)
   /// AES-256-GCM encrypted Stripe secret or restricted key; never returned to a client.
-  stripeSecretKeyEncrypted String?
+  stripeSecretKeyEncrypted     String?
   /// Stripe webhook that reports payments; created through the API with the key above.
   stripeWebhookEndpointId      String?
   /// AES-256-GCM encrypted signing secret (whsec_…) of that webhook.
   stripeWebhookSecretEncrypted String?
-  paymentLinkEnabled       Boolean  @default(false)
-  paymentLinkUrl           String   @default("")
-  paymentLinkLabel         String   @default("")
-  updatedAt                DateTime @updatedAt
+  paymentLinkEnabled           Boolean  @default(false)
+  paymentLinkUrl               String   @default("")
+  paymentLinkLabel             String   @default("")
+  updatedAt                    DateTime @updatedAt
 }
 
 /// Social posting: accounts connected through OAuth, posts planned in the marketing
@@ -1976,26 +1980,26 @@ model SocialMediaAsset {
 }
 
 model SocialPost {
-  id                 String             @id @default(cuid())
-  title              String
-  caption            String             @default("")
+  id               String             @id @default(cuid())
+  title            String
+  caption          String             @default("")
   /// Per-platform caption overrides: { "INSTAGRAM": "…" }.
-  platformCaptions   Json?
+  platformCaptions Json?
   /// Ordered SocialMediaAsset ids.
-  mediaIds           String[]           @default([])
-  linkUrl            String?
-  youtubeTitle       String?
-  youtubePrivacy     String             @default("public")
-  tiktokPrivacy      String             @default("PUBLIC_TO_EVERYONE")
-  status             SocialPostStatus   @default(DRAFT)
-  scheduledAt        DateTime?
-  publishedAt        DateTime?
-  campaignId         String?
-  campaign           SocialCampaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  createdByAdminId   String?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  targets            SocialPostTarget[]
+  mediaIds         String[]           @default([])
+  linkUrl          String?
+  youtubeTitle     String?
+  youtubePrivacy   String             @default("public")
+  tiktokPrivacy    String             @default("PUBLIC_TO_EVERYONE")
+  status           SocialPostStatus   @default(DRAFT)
+  scheduledAt      DateTime?
+  publishedAt      DateTime?
+  campaignId       String?
+  campaign         SocialCampaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  createdByAdminId String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  targets          SocialPostTarget[]
 
   @@index([status, scheduledAt])
   @@index([scheduledAt])
@@ -2024,4 +2028,83 @@ model NewsletterDocument {
   campaignId String   @id
   document   Json
   updatedAt  DateTime @updatedAt
+}
+
+enum PromotionStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum PromotionKind {
+  /// Temporary price: percentage, amount off or fixed price.
+  PRICE
+  /// Quantity tiers (stapelkorting).
+  VOLUME
+  /// Percentage for returning customers (vaste klantenkorting).
+  LOYALTY
+  /// Label only (Nieuw, Terug op voorraad, Laagste prijs garantie, ...).
+  LABEL
+}
+
+enum PromotionDiscountType {
+  PERCENT
+  AMOUNT_OFF
+  FIXED_PRICE
+}
+
+enum PromotionScope {
+  ALL
+  PRODUCTS
+  CATEGORIES
+}
+
+enum PromotionVolumeScope {
+  /// Each cart line on its own.
+  LINE
+  /// All variants of one product together.
+  PRODUCT
+  /// Every product in the promotion together (mix and match).
+  PROMOTION
+}
+
+/// Consumer webshop promotions and product labels. Prices are always resolved
+/// server-side through lib/promotions/engine.ts; business orders are not affected.
+model Promotion {
+  id                 String                 @id @default(cuid())
+  name               String
+  kind               PromotionKind
+  status             PromotionStatus        @default(DRAFT)
+  priority           Int                    @default(0)
+  discountType       PromotionDiscountType?
+  /// Percentage (1-90) or cents, depending on discountType.
+  discountValue      Int?
+  /// FIXED_PRICE per variant: { "<variantId>": cents }.
+  variantPrices      Json?
+  /// VOLUME tiers: [{ "minQuantity": 3, "percentOff": 10 }].
+  volumeTiers        Json?
+  volumeScope        PromotionVolumeScope?
+  loyaltyMinOrders   Int?
+  /// LABEL: show on products created within this many days ("Nieuw").
+  newWithinDays      Int?
+  stackWithVolume    Boolean                @default(false)
+  allowDiscountCodes Boolean                @default(true)
+  scope              PromotionScope         @default(PRODUCTS)
+  productIds         String[]               @default([])
+  categoryIds        String[]               @default([])
+  excludedProductIds String[]               @default([])
+  startsAt           DateTime?
+  endsAt             DateTime?
+  /// ISO weekdays 1 (Monday) to 7 (Sunday); empty means every day. Europe/Amsterdam.
+  weekdays           Int[]                  @default([])
+  dailyStartMinute   Int?
+  dailyEndMinute     Int?
+  /// Label text per locale and styling; see lib/promotions/schema.ts.
+  badge              Json
+  createdByAdminId   String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@index([status, endsAt])
 }

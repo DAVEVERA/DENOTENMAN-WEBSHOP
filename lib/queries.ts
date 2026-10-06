@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { withProductPromotions, type ProductPromotionDto } from "@/lib/promotions/storefront";
 import { prisma } from "@/lib/prisma";
 import { defaultLocale, type Locale } from "@/lib/i18n";
 import { publicImageUrl } from "@/lib/storage";
@@ -97,6 +98,8 @@ export type ProductSummaryDto = {
   regularBasePriceCents: number;
   salePriceCents: number | null;
   hasVariablePrice: boolean;
+  /** Labels and volume tiers from active promotions; null when none apply. */
+  promotion?: ProductPromotionDto | null;
   currency: string;
   unit: "WEIGHT" | "VOLUME";
   isActive: boolean;
@@ -116,6 +119,7 @@ export type CatalogProductDto = Pick<
   | "regularBasePriceCents"
   | "salePriceCents"
   | "hasVariablePrice"
+  | "promotion"
   | "isActive"
   | "images"
   | "category"
@@ -564,11 +568,12 @@ export const getProductBySlug = cache(async function getProductBySlug(
     return null;
   }
 
-  const summary = toProductSummaryDto(product, locale);
+  const rawSummary = toProductSummaryDto(product, locale);
 
-  if (!summary) {
+  if (!rawSummary) {
     return null;
   }
+  const [summary] = await withProductPromotions([rawSummary], locale);
 
   const manualIds = product.recommendations.map((item) => item.targetProductId);
   const categoryIds = product.productCategories.map((item) => item.categoryId);
@@ -610,9 +615,12 @@ export const getProductBySlug = cache(async function getProductBySlug(
       });
   const candidates = [...selectedCandidates, ...generalCandidates];
   const manualOrder = new Map(manualIds.map((id, index) => [id, index]));
-  const recommendationSummaries = candidates
-    .map((candidate) => toProductSummaryDto(candidate, locale))
-    .filter((candidate): candidate is ProductSummaryDto => Boolean(candidate))
+  const recommendationSummaries = (await withProductPromotions(
+    candidates
+      .map((candidate) => toProductSummaryDto(candidate, locale))
+      .filter((candidate): candidate is ProductSummaryDto => Boolean(candidate)),
+    locale,
+  ))
     .sort((left, right) => {
       const leftOrder = manualOrder.get(left.id) ?? 1000;
       const rightOrder = manualOrder.get(right.id) ?? 1000;
@@ -701,10 +709,13 @@ export async function getCategory(
     orderBy: { slug: "asc" },
   });
 
-  const products = categoryProducts
-    .map((product) => toProductSummaryDto(product, locale))
-    .filter((product): product is ProductSummaryDto => product !== undefined)
-    .sort((left, right) => left.name.localeCompare(right.name, locale));
+  const products = await withProductPromotions(
+    categoryProducts
+      .map((product) => toProductSummaryDto(product, locale))
+      .filter((product): product is ProductSummaryDto => product !== undefined)
+      .sort((left, right) => left.name.localeCompare(right.name, locale)),
+    locale,
+  );
 
   return {
     ...dto,
@@ -973,9 +984,12 @@ export async function getCatalogProducts(
     }];
   });
 
-  const products = sortCatalogCandidates(candidates, sort, locale)
-    .slice(offset, offset + limit)
-    .map((candidate) => candidate.product);
+  const products = await withProductPromotions(
+    sortCatalogCandidates(candidates, sort, locale)
+      .slice(offset, offset + limit)
+      .map((candidate) => candidate.product),
+    locale,
+  );
 
   const categoryOptions = allCategories.flatMap((category): CatalogFacetOptionDto[] => {
     const translation = resolveTranslation(category.translations, locale);
@@ -1015,7 +1029,8 @@ export async function getProductSummaryById(
     },
   });
 
-  return product ? toProductSummaryDto(product, locale) ?? null : null;
+  const summary = product ? toProductSummaryDto(product, locale) : undefined;
+  return summary ? (await withProductPromotions([summary], locale))[0] : null;
 }
 
 export type HomeLandingProductsDto = {
@@ -1180,12 +1195,14 @@ export const getHomeLandingProducts = cache(
           },
         })
       : [];
-    const productsById = new Map(
+    const summaries = await withProductPromotions(
       records.flatMap((record) => {
         const product = toProductSummaryDto(record, locale);
-        return product ? [[record.id, product] as const] : [];
+        return product ? [product] : [];
       }),
+      locale,
     );
+    const productsById = new Map(summaries.map((product) => [product.id, product] as const));
     const restoreOrder = (ids: string[]) =>
       ids.flatMap((id) => {
         const product = productsById.get(id);
@@ -1274,10 +1291,13 @@ export async function getFilteredProducts(
     skip: offset,
   });
 
-  return products
-    .map((product) => toProductSummaryDto(product, locale))
-    .filter((product): product is ProductSummaryDto => product !== undefined)
-    .sort((a, b) => Number(b.isActive) - Number(a.isActive));
+  return withProductPromotions(
+    products
+      .map((product) => toProductSummaryDto(product, locale))
+      .filter((product): product is ProductSummaryDto => product !== undefined)
+      .sort((a, b) => Number(b.isActive) - Number(a.isActive)),
+    locale,
+  );
 }
 
 export async function getPageBySlug(

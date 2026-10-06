@@ -31,6 +31,8 @@ const order = {
     variantLabel: "500 gram",
     quantity: 2,
     unitPriceCents: 695,
+    regularUnitPriceCents: null,
+    promotionLabel: null,
   } satisfies OrderItem],
 } as Order & { items: OrderItem[] };
 

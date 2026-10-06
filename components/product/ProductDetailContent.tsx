@@ -10,6 +10,7 @@ import { VariantSelector } from "@/components/product/VariantSelector";
 import { BackInStockForm } from "@/components/product/BackInStockForm";
 import { ProductRecommendations } from "@/components/product/ProductRecommendations";
 import { ProductPromotionCallout } from "@/components/product/ProductPromotionCallout";
+import { PromotionBadges, VolumeTierNotice } from "@/components/product/PromotionBadges";
 import { category as categoryPath, home } from "@/lib/routes";
 import nl from "@/dictionaries/nl.json";
 import en from "@/dictionaries/en.json";
@@ -133,6 +134,7 @@ export function ProductDetailContent({
       <div className="min-w-0">
         <div className="flex items-start justify-between gap-4">
           <div>
+            <PromotionBadges badges={data.promotion?.badges} placement="detail" locale={locale} className="mb-2" />
             <h1 className="font-heading text-2xl font-bold tracking-heading text-text sm:text-3xl">
               {data.name}
             </h1>
@@ -172,6 +174,7 @@ export function ProductDetailContent({
         ) : null}
 
         {data.promotionText ? <ProductPromotionCallout text={data.promotionText} /> : null}
+        <VolumeTierNotice tiers={data.promotion?.volumeTiers} locale={locale} />
 
         {data.variants.length > 0 ? (
           <div className="mt-5">

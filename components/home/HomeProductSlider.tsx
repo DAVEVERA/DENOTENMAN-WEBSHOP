@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { PromotionBadges } from "@/components/product/PromotionBadges";
 import Link from "next/link";
 import {
   Check,
@@ -645,6 +646,7 @@ export function HomeProductSlider({
                 className={styles.cardImage}
               />
             </div>
+            <PromotionBadges badges={activeProduct.promotion?.badges} placement="detail" locale={locale} className="mt-2 justify-center" />
             {activeProduct.categoryName ? (
               <p className={styles.category}>{activeProduct.categoryName}</p>
             ) : null}

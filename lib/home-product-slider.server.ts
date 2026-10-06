@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { withProductPromotions, type ProductPromotionDto } from "@/lib/promotions/storefront";
 import { defaultLocale, type Locale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { resolveProductDisplayPrice } from "@/lib/product-price";
@@ -147,6 +148,40 @@ export const getHomeSliderProducts = cache(
       ];
     });
 
-    return resolveHomeSliderProducts(offeredProducts);
+    // Promotions work on the storefront product shape; map there and back.
+    const promoted = await withProductPromotions(
+      offeredProducts.map((product) => ({
+        id: product.id,
+        basePriceCents: product.priceCents,
+        regularBasePriceCents: product.regularPriceCents,
+        salePriceCents: product.salePriceCents,
+        hasVariablePrice: product.hasVariablePrice,
+        promotion: null as ProductPromotionDto | null,
+        variants: (records.find((record) => record.id === product.id)?.variants ?? []).map((variant) => ({
+          id: variant.id,
+          priceCents: variant.salePriceCents ?? variant.priceCents,
+          regularPriceCents: variant.priceCents,
+          salePriceCents: variant.salePriceCents,
+        })),
+      })),
+      locale,
+    );
+    const promotedById = new Map(promoted.map((product) => [product.id, product]));
+    const withPromotions = offeredProducts.map((product) => {
+      const priced = promotedById.get(product.id);
+      if (!priced) return product;
+      const defaultPrice = product.defaultVariant ? priced.variants?.find((variant) => variant.id === product.defaultVariant?.id) : undefined;
+      return {
+        ...product,
+        priceCents: priced.basePriceCents,
+        regularPriceCents: priced.regularBasePriceCents,
+        salePriceCents: priced.salePriceCents,
+        hasVariablePrice: priced.hasVariablePrice,
+        promotion: priced.promotion ?? null,
+        defaultVariant: product.defaultVariant && defaultPrice ? { ...product.defaultVariant, priceCents: defaultPrice.priceCents } : product.defaultVariant,
+      };
+    });
+
+    return resolveHomeSliderProducts(withPromotions);
   },
 );

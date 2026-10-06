@@ -22,6 +22,7 @@ import {
   type ProductQuickViewCopy,
 } from "@/components/product/ProductQuickView";
 import { ProductPrice } from "@/components/product/ProductPrice";
+import { PromotionBadges } from "@/components/product/PromotionBadges";
 import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 
 export type ProductCardCopy = {
@@ -134,6 +135,7 @@ export function ProductCard({
           tabIndex={-1}
           className="flex min-w-0 flex-1 flex-col text-left focus-visible:rounded-card"
         >
+          <span className="relative block">
           <span className="relative mx-auto block aspect-square w-full overflow-hidden rounded-full border border-border bg-background">
             {primaryImage ? (
               <Image
@@ -148,6 +150,8 @@ export function ProductCard({
             ) : (
               <span className="block h-full w-full rounded-full bg-background" aria-hidden="true" />
             )}
+          </span>
+          <PromotionBadges badges={product.promotion?.badges} placement="card" locale={locale} />
           </span>
           {categoryName && !compact ? (
             <span className="mt-3 text-xs text-muted sm:text-body-sm">{categoryName}</span>

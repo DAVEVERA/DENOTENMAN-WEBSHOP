@@ -13,6 +13,7 @@ import { getProductImageStyle } from "@/lib/image-focal";
 import { BackInStockForm } from "@/components/product/BackInStockForm";
 import { productActionButtonClass } from "@/lib/product-action-button";
 import { VariantRows } from "@/components/product/VariantRows";
+import { PromotionBadges, VolumeTierNotice } from "@/components/product/PromotionBadges";
 import { ProductViewTracker } from "@/components/product/ProductViewTracker";
 const focusableSelector =
   'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -288,6 +289,7 @@ export function ProductQuickView({
               ) : null}
             </div>
             <div className="min-w-0">
+              <PromotionBadges badges={product.promotion?.badges} placement="detail" locale={locale} className="mb-1.5" />
               <h3 className="font-heading text-base font-bold leading-tight text-black sm:text-lg">
                 {product.name}
               </h3>
@@ -307,6 +309,7 @@ export function ProductQuickView({
 
           {product.variants.length > 0 ? (
             <div className="mt-5">
+              <VolumeTierNotice tiers={product.promotion?.volumeTiers} locale={locale} className="mb-4" />
               <VariantRows
                 variants={product.variants}
                 selectedId={selected?.id}
