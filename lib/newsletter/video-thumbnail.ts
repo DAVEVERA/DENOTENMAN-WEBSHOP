@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 
+import { sharpDiagnostics } from "@/lib/sharp-diagnostics";
 import { saveImmutableProductAsset } from "@/lib/storage";
 import { youtubeId, type VideoThumbnailAspect } from "./video";
 
@@ -126,7 +127,11 @@ async function renderThumbnail(bytes: Buffer, aspect: VideoThumbnailAspect): Pro
       .composite([{ input: playButton(width, height) }])
       .jpeg({ quality: 85, mozjpeg: true })
       .toBuffer();
-  } catch {
+  } catch (error) {
+    console.error("Newsletter thumbnail render failed", {
+      message: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200),
+      ...sharpDiagnostics(bytes),
+    });
     throw new VideoThumbnailError("IMAGE_UNREADABLE", "Het beeld kon niet veilig worden verwerkt. Gebruik een JPG, PNG, WebP of GIF.", 422);
   }
 }

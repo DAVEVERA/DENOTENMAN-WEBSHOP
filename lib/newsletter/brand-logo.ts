@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 
+import { sharpDiagnostics } from "@/lib/sharp-diagnostics";
 import { saveImmutableProductAsset } from "@/lib/storage";
 
 export type BrandLogoVariant = "dark" | "light";
@@ -34,8 +35,18 @@ export async function brandLogoUrl(variant: BrandLogoVariant): Promise<string> {
   const svg = await readFile(path.join(process.cwd(), "public", "brand", "logo-wordmark.svg"));
   const version = createHash("sha256").update(svg).digest("hex").slice(0, 12);
   const key = `newsletter/brand/logo-wordmark-${variant}-${version}.png`;
+  let png: Buffer;
   try {
-    await saveImmutableProductAsset(key, await renderBrandLogoPng(svg, variant), "image/png");
+    png = await renderBrandLogoPng(svg, variant);
+  } catch (error) {
+    console.error("Brand logo render failed", {
+      message: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200),
+      ...sharpDiagnostics(svg),
+    });
+    throw error;
+  }
+  try {
+    await saveImmutableProductAsset(key, png, "image/png");
   } catch (error) {
     if (!isAlreadyStored(error)) throw error;
   }
