@@ -9,6 +9,7 @@ function baseOrder(overrides: Partial<Order> = {}): Order {
     userId: "user-1",
     status: "PAID",
     isTest: false,
+    newsletterOptIn: false,
     locale: "nl",
     currency: "EUR",
     subtotalCents: 500,

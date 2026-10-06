@@ -20,6 +20,7 @@ const testOrder = {
   contactEmail: "test@example.com",
   contactPhone: null,
   deliveryMethod: "SHIPPING",
+  newsletterOptIn: false,
   pickupLocationId: null,
   shippingStreet: "Teststraat",
   shippingHouseNumber: "1",

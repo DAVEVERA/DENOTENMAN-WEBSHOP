@@ -145,7 +145,6 @@ export function CheckoutForm({
         signal: controller.signal,
         body: JSON.stringify({
           locale,
-          newsletterOptIn: form.get("newsletterOptIn") === "on",
           lines: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity, productSlug: item.slug, variantLabel: item.variantLabel })),
           ...(request.code ? { discountCode: request.code } : {}),
           deliveryMethod: request.deliveryMethod,
@@ -284,6 +283,7 @@ export function CheckoutForm({
                   city: form.get("city"),
                 }),
           },
+          newsletterOptIn: form.get("newsletterOptIn") === "on",
           lines: cart.map((item) => ({
             variantId: item.variantId,
             quantity: item.quantity,
