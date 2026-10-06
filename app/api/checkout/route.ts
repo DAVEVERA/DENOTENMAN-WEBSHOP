@@ -19,6 +19,7 @@ type CheckoutRequestBody = {
   };
   lines: CartLineInput[];
   discountCode?: string;
+  newsletterOptIn?: boolean;
 };
 
 function isCheckoutRequestBody(value: unknown): value is CheckoutRequestBody {
@@ -65,7 +66,8 @@ export async function POST(request: NextRequest) {
       body.locale,
       body.contact,
       lines,
-      body.discountCode
+      body.discountCode,
+      { newsletterOptIn: body.newsletterOptIn === true }
     );
     return NextResponse.json({ orderId, checkoutUrl });
   } catch (error) {

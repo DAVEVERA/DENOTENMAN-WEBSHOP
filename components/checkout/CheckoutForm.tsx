@@ -145,6 +145,7 @@ export function CheckoutForm({
         signal: controller.signal,
         body: JSON.stringify({
           locale,
+          newsletterOptIn: form.get("newsletterOptIn") === "on",
           lines: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity, productSlug: item.slug, variantLabel: item.variantLabel })),
           ...(request.code ? { discountCode: request.code } : {}),
           deliveryMethod: request.deliveryMethod,
@@ -673,6 +674,20 @@ export function CheckoutForm({
         ) : null}
 
         <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-card border border-border bg-surface p-4 text-body-sm text-text">
+          {/* Soft opt-in for customers: ticked by default and easy to untick (AVG / Telecommunicatiewet 11.7). */}
+          <input
+            type="checkbox"
+            name="newsletterOptIn"
+            defaultChecked
+            className="mt-1 h-5 w-5 shrink-0 accent-[#333333] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
+          />
+          <span className="leading-relaxed">
+            {dictionary.newsletterOptIn}
+            <span className="mt-1 block text-xs text-muted">{dictionary.newsletterOptInHint}</span>
+          </span>
+        </label>
+
+        <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-card border border-border bg-surface p-4 text-body-sm text-text">
           <input
             type="checkbox"
             name="legalAgreement"

@@ -778,6 +778,8 @@ model Order {
 
   molliePaymentId String?   @unique
   paidAt          DateTime?
+  /// The customer kept the newsletter box ticked at checkout (soft opt-in, applied after payment).
+  newsletterOptIn Boolean   @default(false)
 
   // Not @unique: a business order list is continuous and can produce many
   // Orders over time (one per checkout round). A separate partial unique
@@ -1366,6 +1368,9 @@ model NewsletterConsent {
   optOutAt  DateTime?
   source    NewsletterConsentSource
   locale    Locale
+  /// Place and country from the order of a customer who kept the checkout box ticked.
+  city      String?
+  country   String?
   createdAt DateTime                @default(now())
   updatedAt DateTime                @updatedAt
 

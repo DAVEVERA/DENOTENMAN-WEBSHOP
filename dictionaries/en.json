@@ -153,6 +153,8 @@
     "shipping": "Shipping",
     "shippingFree": "Free",
     "total": "Total",
+    "newsletterOptIn": "Send me the De Notenman newsletter with offers and new products.",
+    "newsletterOptInHint": "Rather not? Untick the box. You can unsubscribe with one click at the bottom of every newsletter.",
     "legalAgreement": "I agree to the terms and have read the other information:",
     "termsLabel": "terms and conditions",
     "additionalTermsLabel": "additional terms",

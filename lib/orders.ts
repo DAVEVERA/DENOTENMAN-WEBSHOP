@@ -42,6 +42,7 @@ import {
 } from "@/lib/discount-usage";
 
 import { priceCartWithPromotions } from "@/lib/promotions/engine";
+import { applyCheckoutNewsletterOptIn } from "@/lib/newsletter/checkout-optin.server";
 import { loadActivePromotionRules, paidOrderCount, productCategoryIds } from "@/lib/promotions/store";
 
 export class CheckoutError extends Error {
@@ -352,7 +353,8 @@ export async function createOrderWithPayment(
   locale: Locale,
   contact: CheckoutContactInput,
   cartLines: CartLineInput[],
-  discountCode?: string
+  discountCode?: string,
+  options: { newsletterOptIn?: boolean } = {}
 ): Promise<{ orderId: string; checkoutUrl: string }> {
   validateContact(contact);
   const normalizedEmail = contact.email.trim().toLocaleLowerCase("nl-NL");
@@ -410,6 +412,7 @@ export async function createOrderWithPayment(
       contactEmail: normalizedEmail,
       contactPhone: contact.phone,
       deliveryMethod: contact.deliveryMethod,
+      newsletterOptIn: options.newsletterOptIn === true,
       pickupLocationId: contact.deliveryMethod === "PICKUP" ? contact.pickupLocationId : null,
       shippingStreet: contact.deliveryMethod === "PICKUP" ? null : contact.street,
       shippingHouseNumber: contact.deliveryMethod === "PICKUP" ? null : contact.houseNumber,
@@ -672,6 +675,8 @@ export async function syncOrderPaymentStatus(
       emailFailure = error instanceof Error ? error : new Error(String(error));
     }
     if (!isBusinessOrder && !transition.updated.isTest) {
+      // Soft opt-in: subscribe a customer who kept the checkout box ticked. Never throws.
+      await applyCheckoutNewsletterOptIn(transition.updated);
       try {
         await sendMerchantNewOrderNotification(transition.updated.id);
       } catch (error) {

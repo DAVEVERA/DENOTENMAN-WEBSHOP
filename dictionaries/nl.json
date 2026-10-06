@@ -153,6 +153,8 @@
     "shipping": "Verzendkosten",
     "shippingFree": "Gratis",
     "total": "Totaal",
+    "newsletterOptIn": "Stuur mij de nieuwsbrief met aanbiedingen en nieuwe producten van De Notenman.",
+    "newsletterOptInHint": "Liever niet? Vink het vakje uit. Afmelden kan altijd met één klik onderaan elke nieuwsbrief.",
     "legalAgreement": "Ik ga akkoord met de voorwaarden en heb de overige informatie gelezen:",
     "termsLabel": "algemene voorwaarden",
     "additionalTermsLabel": "aanvullende voorwaarden",

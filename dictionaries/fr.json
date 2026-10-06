@@ -153,6 +153,8 @@
     "shipping": "Frais de livraison",
     "shippingFree": "Gratuit",
     "total": "Total",
+    "newsletterOptIn": "Envoyez-moi la newsletter De Notenman avec les offres et les nouveautés.",
+    "newsletterOptInHint": "Vous préférez pas ? Décochez la case. Désinscription en un clic au bas de chaque newsletter.",
     "legalAgreement": "J’accepte les conditions et j’ai lu les autres informations :",
     "termsLabel": "conditions générales",
     "additionalTermsLabel": "conditions complémentaires",
