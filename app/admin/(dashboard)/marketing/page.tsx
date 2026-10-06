@@ -23,6 +23,12 @@ export default async function MarketingHubPage() {
       count: campaignCount,
     },
     {
+      title: "Kortingscodes",
+      href: "/admin/kortingen",
+      description: "Kortingscodes aanmaken en beheren.",
+      count: "Codes",
+    },
+    {
       title: "Productacties & labels",
       href: "/admin/marketing/productacties",
       description: "Actieprijzen, stapelkorting, vaste klantenkorting en labels op productkaarten.",

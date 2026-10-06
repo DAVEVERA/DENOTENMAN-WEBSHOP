@@ -6,13 +6,27 @@ import { designStudioModules } from "../lib/design-studio/modules";
 
 const navSource = readFileSync(join(process.cwd(), "components/admin-panel/AdminNav.tsx"), "utf8");
 
-test("admin navigation keeps five primary destinations and grouped secondary destinations", () => {
-  for (const label of ["Dashboard", "Producten", "Bestellingen", "Design Studio", "Marketing"]) {
-    assert.match(navSource, new RegExp(`label: \\\"${label}\\\"`));
+test("admin navigation groups its destinations: Catalogus, Bestellingen, Marketing and Beheer", () => {
+  for (const label of ["Dashboard", "Catalogus", "Bestellingen", "Design Studio", "Marketing", "Beheer"]) {
+    assert.match(navSource, new RegExp(`label: \\"${label}\\"`));
   }
-  for (const group of ["Verkoop", "Catalogus", "Beheer"]) {
-    assert.match(navSource, new RegExp(`label: \\\"${group}\\\"`));
+  for (const [href, label] of [
+    ["/admin/producten", "Producten"],
+    ["/admin/categorieen", "Categorieën"],
+    ["/admin/bestellingen", "Particuliere bestellingen"],
+    ["/admin/zakelijk", "Zakelijke bestellijsten"],
+    ["/admin/kortingen", "Kortingen"],
+    ["/admin/facturen", "Facturen"],
+    ["/admin/ontwikkelaarsfacturen", "Facturen ontwikkelaar"],
+    ["/admin/instellingen", "Instellingen"],
+    ["/admin/logboek", "Logboek"],
+  ]) {
+    assert.match(navSource, new RegExp(`href: "${href}", label: "${label}"`));
   }
+  // Facturen and developer invoices sit together under the Financieel heading in Beheer.
+  assert.match(navSource, /heading: "Financieel", items: \[\{ href: "\/admin\/facturen".*\/admin\/ontwikkelaarsfacturen/);
+  // Subscriptions are removed from the menu, and Kortingen no longer sits under Verkoop.
+  assert.doesNotMatch(navSource, /abonnementen|Verkoop/);
   assert.doesNotMatch(navSource, /overflow-x-auto/);
 });
 
@@ -32,7 +46,7 @@ test("admin menus expose active state, escape handling, focus restoration and 44
   assert.match(navSource, /aria-current=/);
   assert.match(navSource, /event\.key !== "Escape"/);
   assert.match(navSource, /mobileButtonRef\.current\?\.focus/);
-  assert.match(navSource, /moreButtonRef\.current\?\.focus/);
+  assert.match(navSource, /groupButtonRefs\.current\[openGroup\]\?\.focus/);
   assert.match(navSource, /min-h-11/);
   assert.match(navSource, /aria-controls="admin-mobile-menu"/);
 });
