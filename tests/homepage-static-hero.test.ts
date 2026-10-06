@@ -6,6 +6,7 @@ test("the homepage renders three content-aware hero slides without navigation co
   const [
     component,
     categories,
+    categoryTile,
     homepage,
     nlDictionary,
     enDictionary,
@@ -14,6 +15,7 @@ test("the homepage renders three content-aware hero slides without navigation co
   ] = await Promise.all([
     readFile("components/home/HomeHero.tsx", "utf8"),
     readFile("components/home/HomeCategoryEntrances.tsx", "utf8"),
+    readFile("components/category/CategoryTile.tsx", "utf8"),
     readFile("app/[locale]/page.tsx", "utf8"),
     readFile("dictionaries/nl.json", "utf8"),
     readFile("dictionaries/en.json", "utf8"),
@@ -52,8 +54,12 @@ test("the homepage renders three content-aware hero slides without navigation co
   assert.match(categories, /lg:grid-cols-6/);
   assert.doesNotMatch(categories, /snap-x|overflow-x-auto/);
   assert.doesNotMatch(categories, /border-t-2 border-t-contrast/);
-  assert.match(categories, /sizes="\(max-width: 639px\) 45vw/);
-  assert.match(categories, /alt=""/);
+  // The tile itself is shared with the category pages; the landing keeps its decorative images.
+  assert.match(categories, /<CategoryTile /);
+  assert.doesNotMatch(categories, /alt=/);
+  assert.match(categoryTile, /sizes = DEFAULT_SIZES/);
+  assert.match(categoryTile, /DEFAULT_SIZES = "\(max-width: 639px\) 45vw/);
+  assert.match(categoryTile, /alt = ""/);
   assert.doesNotMatch(categories, /padStart|String\(index \+ 1\)/);
 
   assert.match(homepage, /const heroSlides = dictionary\.home\.hero\.slides\.map/);

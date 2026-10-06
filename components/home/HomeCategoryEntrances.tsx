@@ -1,8 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Container } from "@/components/ui/Container";
-import { getProductImageStyle } from "@/lib/image-focal";
+import { CategoryTile } from "@/components/category/CategoryTile";
 
 export type HomeCategoryEntrance = {
   id: string;
@@ -60,34 +59,7 @@ export function HomeCategoryEntrances({
           <ul className="grid grid-cols-2 gap-2.5 px-3 pb-3 sm:grid-cols-3 sm:gap-3 sm:px-4 lg:grid-cols-6">
             {categories.map((category) => (
               <li key={category.id} className="min-w-0">
-                <Link
-                  href={category.href}
-                  prefetch={false}
-                  className="group flex touch-manipulation flex-col overflow-hidden rounded-[0.85rem] border border-border bg-[#f7f4ee] shadow-[0_4px_14px_rgba(47,36,22,0.08)] transition-[border-color,box-shadow,transform] duration-hover hover:-translate-y-1 hover:border-border-hover hover:shadow-[0_10px_24px_rgba(47,36,22,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
-                >
-                  <span className="relative block aspect-[4/5] overflow-hidden">
-                    {category.imageSrc ? (
-                      <Image
-                        src={category.imageSrc}
-                        alt=""
-                        fill
-                        sizes="(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 15vw"
-                        style={getProductImageStyle(category.imageSrc)}
-                        className="product-image-focal absolute inset-0 h-full w-full object-cover transition-transform duration-hover group-hover:scale-[1.06]"
-                      />
-                    ) : null}
-                  </span>
-                  <span className="flex items-center justify-between gap-2 px-1 pb-2 pt-2 sm:pt-2.5">
-                    <span className="min-w-0 truncate font-heading text-sm font-bold leading-tight text-text sm:text-base">
-                      {category.name}
-                    </span>
-                    <ArrowRight
-                      className="h-4 w-4 shrink-0 text-text transition-transform duration-hover group-hover:translate-x-0.5"
-                      strokeWidth={2.5}
-                      aria-hidden="true"
-                    />
-                  </span>
-                </Link>
+                <CategoryTile href={category.href} name={category.name} imageSrc={category.imageSrc} />
               </li>
             ))}
           </ul>

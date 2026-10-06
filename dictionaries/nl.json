@@ -459,6 +459,7 @@
     "resultsCountPlural": "{count} producten gevonden",
     "loadMore": "Toon meer ({remaining} resterend)"
   },
+  "categoryTiles": { "eyebrow": "Het assortiment", "title": "Ontdek het assortiment", "viewAll": "Bekijk alle {name}" },
   "categoryStories": {
     "categoryNuts": {
       "shortLabel": "Noten",

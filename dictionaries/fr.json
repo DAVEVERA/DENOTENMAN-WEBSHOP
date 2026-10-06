@@ -459,6 +459,7 @@
     "resultsCountPlural": "{count} produits trouvés",
     "loadMore": "Afficher plus ({remaining} restants)"
   },
+  "categoryTiles": { "eyebrow": "L’assortiment", "title": "Découvrez l’assortiment", "viewAll": "Tout voir : {name}" },
   "categoryStories": {
     "categoryNuts": {
       "shortLabel": "Noix",

@@ -15,6 +15,13 @@ import type nl from "@/dictionaries/nl.json";
 import type { NavigationCategoryDto } from "@/lib/categoryGroups";
 import { cn } from "@/lib/cn";
 import type { Locale } from "@/lib/i18n";
+import {
+  driedFruitSubcategories,
+  honeySubcategories,
+  nutButterSubcategories,
+  searchSubmenuItems,
+  type SearchSubcategory,
+} from "@/lib/category-submenu";
 import { categoryStoryPageKeyByCanonicalSlug, pagePath } from "@/lib/pages";
 import {
   account,
@@ -59,39 +66,6 @@ type PreviewCategory = Omit<NavigationCategoryDto, "children"> & {
   previewHref?: string;
 };
 
-type SearchSubcategory = {
-  key: string;
-  label: Record<Locale, string>;
-  query?: Record<Locale, string>;
-};
-
-const driedFruitSubcategories: SearchSubcategory[] = [
-  { key: "dates", label: { nl: "Dadels", en: "Dates", fr: "Dattes" }, query: { nl: "dadels", en: "dates", fr: "dattes" } },
-  { key: "figs", label: { nl: "Vijgen", en: "Figs", fr: "Figues" }, query: { nl: "vijgen", en: "figs", fr: "figues" } },
-  { key: "raisins", label: { nl: "Rozijnen", en: "Raisins", fr: "Raisins secs" }, query: { nl: "rozijnen", en: "raisins", fr: "raisins" } },
-  { key: "apricots", label: { nl: "Abrikozen", en: "Apricots", fr: "Abricots" }, query: { nl: "abrikozen", en: "apricots", fr: "abricots" } },
-  { key: "tropical", label: { nl: "Mango & tropisch fruit", en: "Mango & tropical fruit", fr: "Mangue & fruits tropicaux" }, query: { nl: "mango", en: "mango", fr: "mangue" } },
-  { key: "all-fruit", label: { nl: "Alle gedroogde vruchten", en: "All dried fruit", fr: "Tous les fruits secs" } },
-];
-
-const honeySubcategories: SearchSubcategory[] = [
-  { key: "flower-honey", label: { nl: "Bloemenhoning", en: "Flower honey", fr: "Miel de fleurs" }, query: { nl: "bloemenhoning", en: "flower honey", fr: "miel de fleurs" } },
-  { key: "liquid-honey", label: { nl: "Vloeibare honing", en: "Liquid honey", fr: "Miel liquide" }, query: { nl: "vloeibaar", en: "liquid", fr: "liquide" } },
-  { key: "organic-honey", label: { nl: "Biologische honing", en: "Organic honey", fr: "Miel biologique" }, query: { nl: "biologische", en: "organic", fr: "biologique" } },
-  { key: "comb-honey", label: { nl: "Raathoning", en: "Comb honey", fr: "Miel en rayon" }, query: { nl: "raathoning", en: "comb honey", fr: "miel en rayon" } },
-  { key: "syrup", label: { nl: "Stroop & siroop", en: "Syrups", fr: "Sirops" }, query: { nl: "siroop", en: "syrup", fr: "sirop" } },
-  { key: "all-honey", label: { nl: "Alle honing", en: "All honey", fr: "Tous les miels" } },
-];
-
-const nutButterSubcategories: SearchSubcategory[] = [
-  { key: "peanut", label: { nl: "Pindakaas", en: "Peanut butter", fr: "Beurre de cacahuète" }, query: { nl: "pindakaas", en: "peanut butter", fr: "beurre de cacahuète" } },
-  { key: "almond", label: { nl: "Amandelpasta", en: "Almond butter", fr: "Beurre d’amande" }, query: { nl: "amandelpasta", en: "almond butter", fr: "beurre d’amande" } },
-  { key: "hazelnut", label: { nl: "Hazelnootpasta", en: "Hazelnut butter", fr: "Beurre de noisette" }, query: { nl: "hazelnootpasta", en: "hazelnut butter", fr: "beurre de noisette" } },
-  { key: "pistachio", label: { nl: "Pistachepasta", en: "Pistachio butter", fr: "Beurre de pistache" }, query: { nl: "pistachepasta", en: "pistachio butter", fr: "beurre de pistache" } },
-  { key: "mixed-nut", label: { nl: "Gemengde notenpasta", en: "Mixed nut butter", fr: "Beurre de noix mélangées" }, query: { nl: "gemengde notenpasta", en: "mixed nut butter", fr: "beurre de noix mélangées" } },
-  { key: "pecan", label: { nl: "Pecannotenpasta", en: "Pecan butter", fr: "Beurre de noix de pécan" }, query: { nl: "pecannotenpasta", en: "pecan butter", fr: "beurre de noix de pécan" } },
-];
-
 const menuItemClass =
   "inline-flex min-h-11 items-center whitespace-nowrap font-heading text-[0.82rem] font-bold text-text transition-colors duration-hover-fast hover:text-accent-ink 2xl:text-[0.88rem]";
 
@@ -124,11 +98,6 @@ function categoryPrimaryHref(locale: Locale, category: PreviewCategory): string 
   return storyPageKey ? pagePath(storyPageKey, locale) : categoryHref(locale, category);
 }
 
-function catalogSearchHref(locale: Locale, categorySlug: string, query: string): string {
-  const params = new URLSearchParams({ f: categorySlug, q: query });
-  return `${categoriesPath(locale)}?${params.toString()}#product-search`;
-}
-
 function withSearchSubcategories(
   category: NavigationCategoryDto,
   definitions: SearchSubcategory[],
@@ -136,18 +105,16 @@ function withSearchSubcategories(
 ): PreviewCategory {
   return {
     ...category,
-    children: definitions.map((definition) => ({
-      id: `header-filter-${category.canonicalSlug}-${definition.key}`,
-      canonicalSlug: `header-filter-${category.canonicalSlug}-${definition.key}`,
+    children: searchSubmenuItems(category, definitions, locale).map((item) => ({
+      id: `header-filter-${category.canonicalSlug}-${item.key}`,
+      canonicalSlug: `header-filter-${category.canonicalSlug}-${item.key}`,
       slug: category.slug,
-      name: definition.label[locale],
+      name: item.name,
       description: null,
       type: category.type,
       parentId: category.id,
       children: [],
-      previewHref: definition.query
-        ? catalogSearchHref(locale, category.slug, definition.query[locale])
-        : categoryPath(locale, category.slug),
+      previewHref: item.href,
     })),
   };
 }
