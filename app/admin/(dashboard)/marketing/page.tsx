@@ -23,6 +23,11 @@ export default async function MarketingHubPage() {
       count: campaignCount,
     },
     {
+      title: "Productacties & labels",
+      href: "/admin/marketing/productacties",
+      description: "Actieprijzen, stapelkorting, vaste klantenkorting en labels op productkaarten.",
+    },
+    {
       title: "Website banners",
       href: "/admin/marketing/banners",
       description: "Homepage-, categorie- en promotiebanners beheren.",

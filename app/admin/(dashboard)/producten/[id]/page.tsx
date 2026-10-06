@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { publicImageUrl } from "@/lib/storage";
 import { ProductEditForm } from "./ProductEditForm";
 import { ProductEditorNav } from "@/components/admin-panel/ProductEditorNav";
+import { ProductPromotionToggles } from "@/components/admin-panel/promotions/ProductPromotionToggles";
+import { productPromotionToggles } from "@/lib/promotions/product-toggles";
 import { sanitizeProductHtml, sanitizeProductShortHtml } from "@/lib/product-content";
 import { safeCopywriterReturnTo } from "@/lib/admin-return-to";
 
@@ -195,6 +197,8 @@ export default async function AdminProductEditPage({
       </div>
 
       <ProductEditorNav productId={product.id} active="product" />
+
+      <ProductPromotionToggles productId={product.id} {...await productPromotionToggles(product.id, categoryAssignments.map((category) => category.categoryId))} />
 
       <div className="mt-8">
         <ProductEditForm
