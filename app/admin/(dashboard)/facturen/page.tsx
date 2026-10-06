@@ -137,12 +137,17 @@ export default async function FacturenPage({
             {rows.length} {rows.length === 1 ? "resultaat" : "resultaten"}
           </p>
         </div>
-        <a
-          href={exportHref}
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-button border border-border bg-surface px-5 font-heading font-bold text-text shadow-card sm:w-auto"
-        >
-          <Download className="h-5 w-5" aria-hidden="true" /> Exporteren (CSV)
-        </a>
+        <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto" role="group" aria-label="Exporteren">
+          {([["csv", "CSV"], ["xlsx", "Excel"], ["pdf", "PDF"]] as const).map(([format, label]) => (
+            <a
+              key={format}
+              href={`${exportHref}&format=${format}`}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-button border border-border bg-surface px-4 font-heading font-bold text-text shadow-card"
+            >
+              <Download className="h-5 w-5" aria-hidden="true" /> {label}
+            </a>
+          ))}
+        </div>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -210,9 +215,13 @@ export default async function FacturenPage({
                     ))}
                   </select>
                 </label>
-                <button type="submit" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast">
-                  <Download className="h-4 w-4" aria-hidden="true" /> Exporteren
-                </button>
+                <div className="grid grid-cols-3 gap-1">
+                  {([["csv", "CSV"], ["xlsx", "Excel"], ["pdf", "PDF"]] as const).map(([format, label]) => (
+                    <button key={format} type="submit" name="format" value={format} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-button bg-accent px-2 font-heading text-body-sm font-bold text-contrast">
+                      <Download className="h-4 w-4" aria-hidden="true" /> {label}
+                    </button>
+                  ))}
+                </div>
               </form>
             );
           })}

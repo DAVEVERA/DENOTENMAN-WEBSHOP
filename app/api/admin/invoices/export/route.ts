@@ -3,9 +3,14 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { buildInvoiceCsv, exportFilename, parseExportPeriod, type ExportType } from "@/lib/invoice-export";
+import { buildInvoicePdf, buildInvoiceXlsx, exportScopeLabel, invoiceExportTables } from "@/lib/invoice-export-documents";
 
-// CSV export of the invoices page: business invoices, private orders or both,
-// optionally limited to NL/BE and to a month, quarter, half-year or year.
+export const runtime = "nodejs";
+
+// Export of the invoices page as CSV, Excel or PDF: business invoices, private orders
+// or both, optionally limited to NL/BE and to a month, quarter, half-year or year.
+// Excel and PDF end every table with a totals line; with both categories Excel gets
+// one tab per category plus an overview.
 export async function GET(request: NextRequest) {
   const admin = await getAdminSession(request);
   if (!admin) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
@@ -20,6 +25,8 @@ export async function GET(request: NextRequest) {
   const period = parseExportPeriod(periodParam);
   if (periodParam && !period) return NextResponse.json({ error: "INVALID_PERIOD" }, { status: 400 });
   const createdAt = period ? { gte: period.from, lt: period.to } : undefined;
+  const formatParam = params.get("format");
+  const format = formatParam === "xlsx" || formatParam === "pdf" ? formatParam : "csv";
 
   const [invoices, orders] = await Promise.all([
     type === "particulier"
@@ -49,9 +56,7 @@ export async function GET(request: NextRequest) {
         }),
   ]);
 
-  const csv = buildInvoiceCsv(
-    type,
-    invoices.map((invoice) => ({
+  const businessRows = invoices.map((invoice) => ({
       invoiceNumber: invoice.invoiceNumber,
       country: invoice.businessAccount.country,
       customerNumber: invoice.businessAccount.customerNumber,
@@ -63,8 +68,8 @@ export async function GET(request: NextRequest) {
       totalCents: invoice.totalCents,
       vatRegime: invoice.vatRegime,
       peppolStatus: invoice.peppolStatus,
-    })),
-    orders.map((order) => ({
+    }));
+  const orderRows = orders.map((order) => ({
       orderNumber: order.orderNumber ?? order.id,
       country: order.shippingCountry,
       contactName: order.contactName,
@@ -77,14 +82,19 @@ export async function GET(request: NextRequest) {
       shippingCents: order.shippingCents,
       totalCents: order.totalCents,
       refundedCents: order.refunds.reduce((sum, refund) => sum + refund.amountCents, 0),
-    })),
-  );
+    }));
 
-  return new NextResponse(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${exportFilename(type, country, period)}"`,
-      "Cache-Control": "no-store",
-    },
-  });
+  const filename = exportFilename(type, country, period).replace(/\.csv$/u, `.${format}`);
+  const headers = { "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "no-store" };
+  if (format === "csv") {
+    return new NextResponse(buildInvoiceCsv(type, businessRows, orderRows), { headers: { ...headers, "Content-Type": "text/csv; charset=utf-8" } });
+  }
+  const tables = invoiceExportTables(type, businessRows, orderRows);
+  if (format === "xlsx") {
+    return new NextResponse(new Uint8Array(buildInvoiceXlsx(tables)), {
+      headers: { ...headers, "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+    });
+  }
+  const pdf = await buildInvoicePdf(tables, { title: "Facturen De Notenman", scope: exportScopeLabel(type, country, period), generatedAt: new Date() });
+  return new NextResponse(new Uint8Array(pdf), { headers: { ...headers, "Content-Type": "application/pdf" } });
 }
