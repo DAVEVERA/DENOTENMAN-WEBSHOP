@@ -40,6 +40,12 @@ export default async function MarketingHubPage() {
       count: newsletterCount,
     },
     {
+      title: "E-mailadressen",
+      href: "/admin/marketing/e-mailadressen",
+      description: "Nieuwsbriefadressen sorteren op land (NL/BE) en particulier of zakelijk, en die groep een nieuwsbrief sturen.",
+      count: "Doelgroepen",
+    },
+    {
       title: "Marketingkalender",
       href: "/admin/marketing/kalender",
       description: "Social posts en campagnes plannen en plaatsen, met acties, banners en nieuwsbrieven erbij.",

@@ -109,12 +109,20 @@ export default async function NewsletterCampaignsPage() {
               Concepten en verzonden campagnes uit de audience De Notenman.
             </p>
           </div>
-          <Link
-            href="/admin/marketing/nieuwsbrieven/nieuw"
-            className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button"
-          >
-            Nieuwe nieuwsbrief
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin/marketing/e-mailadressen"
+              className="inline-flex min-h-11 items-center rounded-button border border-border bg-background px-4 text-body-sm font-semibold"
+            >
+              E-mailadressen & doelgroepen
+            </Link>
+            <Link
+              href="/admin/marketing/nieuwsbrieven/nieuw"
+              className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast shadow-button"
+            >
+              Nieuwe nieuwsbrief
+            </Link>
+          </div>
         </div>
 
         <div className="mt-4">
