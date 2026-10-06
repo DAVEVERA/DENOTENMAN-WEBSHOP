@@ -3,11 +3,15 @@ import { z } from "zod";
 
 import { isLocale } from "@/lib/i18n";
 import { CheckoutError, priceCartLines, type CartLineInput } from "@/lib/orders";
+import { isPromotionLive } from "@/lib/promotions/engine";
+import { loadActivePromotionRules } from "@/lib/promotions/store";
 import { isShippingCountryCode } from "@/lib/shipping";
 
-// What the checkout will charge, computed exactly like POST /api/checkout but without
-// creating an order: action prices, volume tiers, loyalty discount, code and shipping.
-// The checkout page shows these numbers so they always match the Mollie amount.
+// What the checkout will charge, computed like POST /api/checkout but without creating
+// an order: action prices, volume tiers, code and shipping. The loyalty discount is left
+// out on purpose: it depends on an email address, and showing it here would let anyone
+// find out whether an address belongs to a customer. It is applied when the order is
+// placed, so the paid amount can only be lower than this quote, never higher.
 
 const lineSchema = z.object({
   variantId: z.string().min(1).max(64),
@@ -22,22 +26,26 @@ const bodySchema = z.object({
   discountCode: z.string().trim().max(64).optional(),
   deliveryMethod: z.enum(["SHIPPING", "PICKUP"]).default("SHIPPING"),
   country: z.string().max(4).default("NL"),
-  email: z.string().trim().max(254).optional(),
 }).strip();
 
 const noStore = { "cache-control": "no-store" };
+
+async function loyaltyAvailable(): Promise<boolean> {
+  const now = new Date();
+  return (await loadActivePromotionRules()).some((rule) => rule.kind === "LOYALTY" && isPromotionLive(rule, now));
+}
 
 export async function POST(request: NextRequest) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success || !isLocale(parsed.data.locale)) {
     return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400, headers: noStore });
   }
-  const { locale, lines, discountCode, deliveryMethod, country, email } = parsed.data;
+  const { locale, lines, discountCode, deliveryMethod, country } = parsed.data;
   const cartLines: CartLineInput[] = lines;
   const shippingCountry = isShippingCountryCode(country) ? country : "NL";
 
   const quote = (code: string | undefined) =>
-    priceCartLines(cartLines, locale, code, false, deliveryMethod, shippingCountry, { email: email || null });
+    priceCartLines(cartLines, locale, code, false, deliveryMethod, shippingCountry, { email: null });
 
   try {
     let discountError: string | null = null;
@@ -63,6 +71,7 @@ export async function POST(request: NextRequest) {
       discountError,
       shippingCents: result.shippingCents,
       totalCents: result.totalCents,
+      loyaltyAvailable: await loyaltyAvailable(),
     }, { headers: noStore });
   } catch (error) {
     if (error instanceof CheckoutError) {

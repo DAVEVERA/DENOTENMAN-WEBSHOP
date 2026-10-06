@@ -144,14 +144,23 @@ function percentOff(cents: number, percent: number): number {
   return clampPrice((cents * (100 - percent)) / 100);
 }
 
+/** Safety net against typos: a promotion never takes more than 90% off the regular price. */
+export const MAX_PROMOTION_PERCENT = 90;
+
+function floorForRegular(regularCents: number): number {
+  return Math.max(1, Math.ceil((regularCents * (100 - MAX_PROMOTION_PERCENT)) / 100));
+}
+
 /** The price a price or loyalty promotion gives a variant, from its regular price; null when it does not apply. */
 export function promotionUnitPrice(rule: PromotionRule, variant: VariantFacts): number | null {
-  if (rule.kind === "LOYALTY") return rule.discountValue ? percentOff(variant.regularCents, rule.discountValue) : null;
+  const floor = floorForRegular(variant.regularCents);
+  const atLeastFloor = (cents: number) => Math.max(floor, clampPrice(cents));
+  if (rule.kind === "LOYALTY") return rule.discountValue ? atLeastFloor(percentOff(variant.regularCents, Math.min(rule.discountValue, MAX_PROMOTION_PERCENT))) : null;
   if (rule.kind !== "PRICE" || !rule.discountType) return null;
-  if (rule.discountType === "PERCENT") return rule.discountValue ? percentOff(variant.regularCents, Math.min(rule.discountValue, 90)) : null;
-  if (rule.discountType === "AMOUNT_OFF") return rule.discountValue ? clampPrice(variant.regularCents - rule.discountValue) : null;
+  if (rule.discountType === "PERCENT") return rule.discountValue ? atLeastFloor(percentOff(variant.regularCents, Math.min(rule.discountValue, MAX_PROMOTION_PERCENT))) : null;
+  if (rule.discountType === "AMOUNT_OFF") return rule.discountValue ? atLeastFloor(variant.regularCents - rule.discountValue) : null;
   const fixed = rule.variantPrices[variant.variantId] ?? rule.discountValue;
-  return fixed ? clampPrice(fixed) : null;
+  return fixed ? atLeastFloor(fixed) : null;
 }
 
 export type BestPrice = {

@@ -50,7 +50,8 @@ test("schedules: dates, weekdays and a daily time window", () => {
 test("percentage, amount off and fixed price, rounded per unit and never below a cent", () => {
   assert.equal(bestPrice([rule({})], product, variant, now).unitCents, 799, "20% off 9.99 is 7.992 → 7.99");
   assert.equal(bestPrice([rule({ discountType: "AMOUNT_OFF", discountValue: 250 })], product, variant, now).unitCents, 749);
-  assert.equal(bestPrice([rule({ discountType: "AMOUNT_OFF", discountValue: 5000 })], product, variant, now).unitCents, 1);
+  assert.equal(bestPrice([rule({ discountType: "AMOUNT_OFF", discountValue: 5000 })], product, variant, now).unitCents, 100, "a typo never takes more than 90% off: 9.99 → 1.00");
+  assert.equal(bestPrice([rule({ discountType: "FIXED_PRICE", discountValue: 5 })], product, variant, now).unitCents, 100, "a fixed price of 5 cents is a typo too");
   assert.equal(bestPrice([rule({ discountType: "FIXED_PRICE", discountValue: 500, variantPrices: { v1: 450 } })], product, variant, now).unitCents, 450, "variant price wins over the general fixed price");
 });
 

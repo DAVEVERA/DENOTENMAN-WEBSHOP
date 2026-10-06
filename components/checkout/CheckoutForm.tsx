@@ -34,14 +34,16 @@ type CheckoutQuote = {
   subtotalCents: number;
   discountCode: string | null;
   discountCents: number;
+  discountError: string | null;
   shippingCents: number;
   totalCents: number;
+  loyaltyAvailable: boolean;
 };
 
-const PROMOTION_COPY: Record<Locale, { saving: string }> = {
-  nl: { saving: "Actievoordeel" },
-  en: { saving: "Promotion savings" },
-  fr: { saving: "Économie promo" },
+const PROMOTION_COPY: Record<Locale, { saving: string; updating: string; loyalty: string; codeExcluded: string }> = {
+  nl: { saving: "Actievoordeel", updating: "Prijzen bijwerken…", loyalty: "Vaste klant? Je vaste klantenkorting wordt bij het betalen verrekend als je e-mailadres bij ons bekend is.", codeExcluded: "Deze kortingscode geldt niet voor producten in deze actie." },
+  en: { saving: "Promotion savings", updating: "Updating prices…", loyalty: "Regular customer? Your loyalty discount is applied at payment when we know your email address.", codeExcluded: "This discount code does not apply to products in this promotion." },
+  fr: { saving: "Économie promo", updating: "Mise à jour des prix…", loyalty: "Client fidèle ? Votre remise fidélité est appliquée au paiement si nous connaissons votre adresse e-mail.", codeExcluded: "Ce code ne s’applique pas aux produits de cette promotion." },
 };
 
 function legacyCartWeightGrams(item: CartItem): number | null {
@@ -99,6 +101,7 @@ export function CheckoutForm({
   const [pickupPostalCode, setPickupPostalCode] = useState("");
   const trackedCheckoutKey = useRef<string | null>(null);
   const [quote, setQuote] = useState<CheckoutQuote | null>(null);
+  const [quotedKey, setQuotedKey] = useState<string | null>(null);
 
   const pickupLocations = getPickupLocationsForCountry(country);
   const isPickup = deliveryMethod === "PICKUP";
@@ -126,8 +129,8 @@ export function CheckoutForm({
     code: appliedDiscount?.code ?? "",
     deliveryMethod,
     country,
-    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(contactEmail.trim()) ? contactEmail.trim().toLowerCase() : "",
   });
+  const quoteStale = quote !== null && quotedKey !== quoteKey;
 
   // Ask the server what this cart costs, so action prices, volume tiers and loyalty
   // discounts show before paying. Debounced; the latest request wins.
@@ -135,7 +138,7 @@ export function CheckoutForm({
     if (cart.length === 0) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      const request = JSON.parse(quoteKey) as { code: string; deliveryMethod: DeliveryMethod; country: CountryCode; email: string };
+      const request = JSON.parse(quoteKey) as { code: string; deliveryMethod: DeliveryMethod; country: CountryCode };
       fetch("/api/checkout/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,18 +149,26 @@ export function CheckoutForm({
           ...(request.code ? { discountCode: request.code } : {}),
           deliveryMethod: request.deliveryMethod,
           country: request.country,
-          ...(request.email ? { email: request.email } : {}),
         }),
       })
         .then(async (response) => (response.ok ? ((await response.json()) as CheckoutQuote) : null))
-        .then((next) => { if (next) setQuote(next); })
+        .then((next) => {
+          if (!next) return;
+          setQuote(next);
+          setQuotedKey(quoteKey);
+          // The server refused the code for these products: say so instead of showing a discount.
+          if (next.discountError && request.code) {
+            setAppliedDiscount(null);
+            setDiscountError(next.discountError === "DISCOUNT_NOT_ELIGIBLE" ? PROMOTION_COPY[locale].codeExcluded : dictionary.discountInvalid);
+          }
+        })
         .catch(() => undefined);
     }, 350);
     return () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [quoteKey, cart, locale]);
+  }, [quoteKey, cart, locale, dictionary.discountInvalid]);
   const merchandiseValue = Math.max(0, subtotalCents - discountCents) / 100;
 
   useEffect(() => {
@@ -627,7 +638,8 @@ export function CheckoutForm({
           <div className="mt-4 space-y-1 border-t border-border pt-4 text-body-sm">
             <div className="flex justify-between">
               <span className="text-muted">{dictionary.subtotal}</span>
-              <span>{formatPrice(subtotalCents, locale)}</span>
+              {/* Before promotions, so subtotal − savings − code + shipping adds up to the total. */}
+              <span>{formatPrice(subtotalCents + promotionSavingCents, locale)}</span>
             </div>
             {promotionSavingCents > 0 ? (
               <div className="flex justify-between gap-3 text-accent-ink">
@@ -635,9 +647,9 @@ export function CheckoutForm({
                 <span className="shrink-0">-{formatPrice(promotionSavingCents, locale)}</span>
               </div>
             ) : null}
-            {appliedDiscount ? (
+            {(quote ? quote.discountCents > 0 : appliedDiscount) ? (
               <div className="flex justify-between font-semibold text-green-700">
-                <span>{dictionary.discount} ({appliedDiscount.code})</span>
+                <span>{dictionary.discount} ({quote?.discountCode ?? appliedDiscount?.code})</span>
                 <span>-{formatPrice(discountCents, locale)}</span>
               </div>
             ) : null}
@@ -646,10 +658,12 @@ export function CheckoutForm({
               <span>{shippingCents === 0 ? dictionary.shippingFree : formatPrice(shippingCents, locale)}</span>
             </div>
           </div>
-          <div className="mt-3 flex justify-between border-t border-border pt-3 font-heading text-heading-sm font-semibold text-text">
+          <div className={`mt-3 flex justify-between border-t border-border pt-3 font-heading text-heading-sm font-semibold text-text ${quoteStale ? "opacity-60" : ""}`} aria-busy={quoteStale}>
             <span>{dictionary.total}</span>
             <span>{formatPrice(totalCents, locale)}</span>
           </div>
+          {quoteStale ? <p className="mt-1 text-xs text-muted" role="status">{PROMOTION_COPY[locale].updating}</p> : null}
+          {quote?.loyaltyAvailable ? <p className="mt-2 text-xs text-muted">{PROMOTION_COPY[locale].loyalty}</p> : null}
         </div>
 
         {error ? (
