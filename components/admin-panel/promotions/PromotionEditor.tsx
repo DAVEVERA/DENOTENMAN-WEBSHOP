@@ -14,11 +14,11 @@ import {
   BADGE_PRESETS,
   BADGE_SHAPES,
   BADGE_SIZES,
-  DEFAULT_BADGE,
   type PromotionBadge,
   type PromotionInput,
   type VolumeTier,
 } from "@/lib/promotions/schema";
+import { emptyPromotionInput } from "@/lib/promotions/defaults";
 
 export type PromotionEditorProduct = {
   id: string;
@@ -45,34 +45,6 @@ const SWATCHES = ["#E0B200", "#141414", "#FFFFFF", "#596B2B", "#806600", "#B91C1
 const SHAPE_LABELS: Record<PromotionBadge["shape"], string> = { pill: "Pil", rounded: "Afgerond", square: "Recht", ribbon: "Vaandel", circle: "Rond" };
 const SIZE_LABELS: Record<PromotionBadge["size"], string> = { sm: "Klein", md: "Middel", lg: "Groot" };
 const POSITION_LABELS: Record<PromotionBadge["position"], string> = { "top-left": "Linksboven", "top-right": "Rechtsboven", "bottom-left": "Linksonder", "bottom-right": "Rechtsonder" };
-
-export function emptyPromotionInput(kind: PromotionInput["kind"] = "PRICE", productIds: string[] = []): PromotionInput {
-  return {
-    name: "",
-    kind,
-    status: "DRAFT",
-    priority: 10,
-    discountType: kind === "PRICE" ? "PERCENT" : null,
-    discountValue: kind === "PRICE" ? 15 : kind === "LOYALTY" ? 5 : null,
-    variantPrices: null,
-    volumeTiers: kind === "VOLUME" ? [{ minQuantity: 3, percentOff: 5 }, { minQuantity: 6, percentOff: 10 }] : null,
-    volumeScope: kind === "VOLUME" ? "PRODUCT" : null,
-    loyaltyMinOrders: kind === "LOYALTY" ? 3 : null,
-    newWithinDays: null,
-    stackWithVolume: false,
-    allowDiscountCodes: true,
-    scope: productIds.length ? "PRODUCTS" : "ALL",
-    productIds,
-    categoryIds: [],
-    excludedProductIds: [],
-    startsAt: null,
-    endsAt: null,
-    weekdays: [],
-    dailyStartMinute: null,
-    dailyEndMinute: null,
-    badge: DEFAULT_BADGE,
-  };
-}
 
 // ---------- small helpers ----------
 

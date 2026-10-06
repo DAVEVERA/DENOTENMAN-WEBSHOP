@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { connection } from "next/server";
 
-import { emptyPromotionInput, PromotionEditor } from "@/components/admin-panel/promotions/PromotionEditor";
+import { PromotionEditor } from "@/components/admin-panel/promotions/PromotionEditor";
+import { emptyPromotionInput } from "@/lib/promotions/defaults";
 import { promotionAdmin, promotionEditorOptions } from "../data";
 
 export default async function NewProductPromotionPage({ searchParams }: { searchParams: Promise<{ product?: string; soort?: string }> }) {
