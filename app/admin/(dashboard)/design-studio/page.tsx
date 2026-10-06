@@ -3,7 +3,7 @@ import { ArrowRight, FilePenLine, Images, ImageIcon, LockKeyhole, Palette, WandS
 import { canvaConnectionSummary } from "@/lib/canva/connection";
 import { designStudioModules } from "@/lib/design-studio/modules";
 import { getDesignStudioProviderStatuses } from "@/lib/design-studio/provider-status";
-import { copywriterBadge, photoRoomBadge, plannedBadge, vModelBadge, type DesignStudioBadge } from "@/lib/design-studio/provider-badges";
+import { copywriterBadge, geminiImageBadge, plannedBadge, vModelBadge, type DesignStudioBadge } from "@/lib/design-studio/provider-badges";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export default async function DesignStudioPage() {
     canvaConnectionSummary().catch(() => ({ configured: false, connected: false, displayName: null, connectedAt: null })),
   ]);
   const badges: Record<string, DesignStudioBadge> = {
-    "product-photos": photoRoomBadge(statuses.photoroom),
+    "product-photos": geminiImageBadge(statuses.geminiImage),
     "campaign-assets": vModelBadge(statuses.vmodel),
     copywriter: copywriterBadge(statuses.copywriter),
     canva: !canva.configured

@@ -4,8 +4,10 @@ import sharp from "@/lib/sharp";
 import { z } from "zod";
 import { getVModelDescriptor } from "@/lib/design-studio/vmodel-models";
 import type { VModelJobInput } from "@/lib/design-studio/vmodel-schema";
+import type { VModelAvailability } from "@/lib/design-studio/types";
 
 const TASK_STATUS_ENDPOINT = "https://api.vmodel.ai/api/tasks/v1/get";
+const CREDITS_ENDPOINT = "https://api.vmodel.ai/api/users/v1/account/credits/left";
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_OUTPUT_BYTES = 30 * 1024 * 1024;
 const MAX_OUTPUT_SIDE = 5_000;
@@ -28,7 +30,13 @@ const taskResponseSchema = z.object({
   }),
 });
 
+const creditsResponseSchema = z.object({
+  code: z.number(),
+  result: z.number().nonnegative(),
+});
+
 const presetInstructions: Record<VModelJobInput["preset"], string> = {
+  catalog: "Create a realistic premium studio product photograph on a clean warm-white background with accurate scale, crisp natural detail, a soft contact shadow and generous, even spacing.",
   editorial: "Create a premium editorial product photograph with warm natural materials, tactile detail and restrained styling.",
   lifestyle: "Place the product in a credible Dutch serving moment with natural daylight, human warmth and an uncluttered table setting.",
   seasonal: "Create a tasteful seasonal campaign scene with subtle ingredients and generous clean copy space, but do not render any text.",
@@ -56,6 +64,35 @@ function apiKey(): string {
 
 function authHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${apiKey()}` };
+}
+
+export async function getVModelAvailability(fetchImpl: typeof fetch = fetch): Promise<VModelAvailability> {
+  const key = process.env.VMODEL_API_KEY?.trim();
+  if (!key) return { status: "not_configured", availableCredits: null };
+
+  let response: Response;
+  try {
+    response = await fetchImpl(CREDITS_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: "{}",
+      cache: "no-store",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch {
+    return { status: "unavailable", availableCredits: null };
+  }
+  if (response.status === 401 || response.status === 403) {
+    return { status: "invalid_configuration", availableCredits: null };
+  }
+  if (!response.ok) return { status: "unavailable", availableCredits: null };
+
+  const parsed = creditsResponseSchema.safeParse(await response.json().catch(() => null));
+  if (!parsed.success || parsed.data.code !== 200) return { status: "unavailable", availableCredits: null };
+  return {
+    status: parsed.data.result > 0 ? "ready" : "insufficient_credits",
+    availableCredits: parsed.data.result,
+  };
 }
 
 function campaignPrompt(productName: string, options: VModelJobInput): string {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
-import { createVModelTask, downloadVModelImage, getVModelTask, VModelError } from "../lib/design-studio/vmodel-provider";
+import { createVModelTask, downloadVModelImage, getVModelAvailability, getVModelTask, VModelError } from "../lib/design-studio/vmodel-provider";
 
 async function png(width = 16, height = 10) {
   return sharp({ create: { width, height, channels: 4, background: "#d8b36a" } }).png().toBuffer();
@@ -75,6 +75,33 @@ test("VModel adapter uses the model-specific Seedream endpoint and input field",
   }
 });
 
+test("VModel catalog mode asks for a product-faithful studio photograph", async () => {
+  const previous = process.env.VMODEL_API_KEY;
+  process.env.VMODEL_API_KEY = "test-secret";
+  let prompt = "";
+  try {
+    await createVModelTask({
+      productId: "product_1",
+      imageId: "image_1",
+      modelId: "nano-banana-pro",
+      preset: "catalog",
+      aspectRatio: "1:1",
+      quality: "standard",
+      brief: "",
+    }, "https://cdn.denotenman.com/product.webp", "Cashewnoten", async (_input, init) => {
+      const body = JSON.parse(String(init?.body));
+      prompt = body.input.prompt;
+      return Response.json({ code: 200, result: { task_id: "catalog_task" } });
+    });
+    assert.match(prompt, /realistic premium studio product photograph/i);
+    assert.match(prompt, /Preserve the exact product, packaging, colors, proportions/i);
+    assert.match(prompt, /soft contact shadow/i);
+  } finally {
+    if (previous === undefined) delete process.env.VMODEL_API_KEY;
+    else process.env.VMODEL_API_KEY = previous;
+  }
+});
+
 test("VModel task polling and output download stay authenticated and host restricted", async () => {
   const previous = process.env.VMODEL_API_KEY;
   process.env.VMODEL_API_KEY = "test-secret";
@@ -102,6 +129,28 @@ test("VModel task polling and output download stay authenticated and host restri
       (error: unknown) => error instanceof VModelError && error.code === "INVALID_OUTPUT_URL",
     );
     assert.equal(called, false);
+  } finally {
+    if (previous === undefined) delete process.env.VMODEL_API_KEY;
+    else process.env.VMODEL_API_KEY = previous;
+  }
+});
+
+test("VModel availability distinguishes usable credits from a rejected token", async () => {
+  const previous = process.env.VMODEL_API_KEY;
+  process.env.VMODEL_API_KEY = "test-secret";
+  try {
+    const ready = await getVModelAvailability(async (_input, init) => {
+      assert.equal((init?.headers as Record<string, string>).Authorization, "Bearer test-secret");
+      assert.equal(init?.method, "POST");
+      return Response.json({ code: 200, result: 42.5 });
+    });
+    assert.deepEqual(ready, { status: "ready", availableCredits: 42.5 });
+
+    const exhausted = await getVModelAvailability(async () => Response.json({ code: 200, result: 0 }));
+    assert.deepEqual(exhausted, { status: "insufficient_credits", availableCredits: 0 });
+
+    const rejected = await getVModelAvailability(async () => Response.json({ code: 403, message: "Forbidden" }, { status: 403 }));
+    assert.deepEqual(rejected, { status: "invalid_configuration", availableCredits: null });
   } finally {
     if (previous === undefined) delete process.env.VMODEL_API_KEY;
     else process.env.VMODEL_API_KEY = previous;

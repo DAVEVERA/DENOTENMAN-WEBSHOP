@@ -36,8 +36,8 @@ test("PhotoRoom workspace keeps creation and publication explicitly separate", (
   assert.match(html, /Na · concept/);
   assert.match(html, /Concept maken/);
   assert.match(html, /Als nieuwe productfoto toevoegen/);
-  assert.match(html, /Maak campagnebeeld/);
-  assert.match(html, /campagnebeelden\?productId=product_1&amp;imageId=image_1/);
+  assert.match(html, /Gemini gebruiken/);
+  assert.match(html, /productfotos\?provider=gemini&amp;productId=product_1&amp;imageId=image_1/);
   assert.match(html, /maximaal 25 providerpogingen/i);
   assert.doesNotMatch(html, /<form\b/i);
   assert.match(html, /min-h-11/);
@@ -56,4 +56,5 @@ test("PhotoRoom workspace verifies provider credits before enabling generation",
   assert.match(workspaceSource, /api\/admin\/design-studio\/photoroom\/status/);
   assert.match(workspaceSource, /PhotoRoom-tegoed op/);
   assert.match(workspaceSource, /providerStatus === "ready"/);
+  assert.match(workspaceSource, /Ga verder met Gemini/);
 });

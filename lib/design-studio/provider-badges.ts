@@ -22,7 +22,21 @@ export function photoRoomBadge(status: DesignStudioProviderStatuses["photoroom"]
 }
 
 export function vModelBadge(status: DesignStudioProviderStatuses["vmodel"]): DesignStudioBadge {
-  if (!status.configured) return { className: "bg-red-50 text-red-800", label: "Niet geconfigureerd" };
+  if (status.availability.status === "not_configured") return { className: "bg-red-50 text-red-800", label: "Niet geconfigureerd" };
+  if (status.availability.status === "invalid_configuration") return { className: "bg-red-50 text-red-800", label: "Token geweigerd" };
+  if (status.availability.status === "unavailable") return { className: "bg-red-50 text-red-800", label: "Niet bereikbaar" };
+  if (status.availability.status === "insufficient_credits") return { className: "bg-amber-100 text-amber-900", label: "Tegoed op" };
+  const remaining = Math.max(0, status.dailyLimit - status.attemptsUsed);
+  if (remaining === 0) {
+    return { className: "bg-amber-100 text-amber-900", label: "Limiet bereikt", detail: `${status.attemptsUsed} van ${status.dailyLimit} vandaag` };
+  }
+  return { className: "bg-green-100 text-green-800", label: "Klaar", detail: `${status.availability.availableCredits} credits · ${remaining} van ${status.dailyLimit} vandaag` };
+}
+
+export function geminiImageBadge(status: DesignStudioProviderStatuses["geminiImage"]): DesignStudioBadge {
+  if (status.availability.status === "not_configured") return { className: "bg-red-50 text-red-800", label: "Niet geconfigureerd" };
+  if (status.availability.status === "invalid_configuration") return { className: "bg-red-50 text-red-800", label: "Sleutel geweigerd" };
+  if (status.availability.status === "unavailable") return { className: "bg-red-50 text-red-800", label: "Niet bereikbaar" };
   const remaining = Math.max(0, status.dailyLimit - status.attemptsUsed);
   if (remaining === 0) {
     return { className: "bg-amber-100 text-amber-900", label: "Limiet bereikt", detail: `${status.attemptsUsed} van ${status.dailyLimit} vandaag` };

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { vModelModelIds } from "@/lib/design-studio/vmodel-models";
 import type { DesignAssetDto } from "@/lib/design-studio/types";
 
-export const vModelPresets = ["editorial", "lifestyle", "seasonal", "social", "hero"] as const;
+export const vModelPresets = ["catalog", "editorial", "lifestyle", "seasonal", "social", "hero"] as const;
 export const vModelAspectRatios = ["1:1", "4:5", "16:9", "9:16"] as const;
 export const vModelQualities = ["standard", "high"] as const;
 

@@ -46,4 +46,24 @@ test("VModel workspace keeps retries idempotent and status polling bounded", () 
   assert.match(source, /status later veilig hervatten/);
   assert.match(source, /cause instanceof ApiResponseError && cause\.status < 500/);
   assert.match(source, /text-base[\s\S]*md:text-body-sm/);
+  assert.match(source, /api\/admin\/design-studio\/vmodel\/status/);
+  assert.match(source, /VModel-token geweigerd/);
+});
+
+test("VModel workspace offers a product-photo mode with studio, campaign and banner formats", () => {
+  const html = renderToStaticMarkup(<VModelWorkspace
+    initialProducts={[{ id: "product_1", name: "Walnoten", images: [{ id: "image_1", url: "https://example.com/source.webp", alt: "Walnoten", isPrimary: true, sortOrder: 0 }] }]}
+    initialAssets={[]}
+    initialPendingJobs={[]}
+    configured
+    allowed
+    mode="product-photos"
+    showNavigation={false}
+  />);
+  assert.match(html, /Productfoto’s · VModel/);
+  assert.match(html, /Realistische studio-productfoto/);
+  assert.match(html, /Brede homepagebanner/);
+  assert.match(html, /VModel-concept maken/);
+  assert.match(html, /value="catalog" selected=""/);
+  assert.doesNotMatch(html, />Design Studio<\/a>/);
 });
