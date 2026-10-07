@@ -14,6 +14,8 @@ import {
   sendDeveloperInvoice,
   startDeveloperInvoiceCheckout,
   updateDeveloperInvoice,
+  getDeveloperProfile,
+  publicDeveloperProfile,
   updateDeveloperProfile,
   type DeveloperInvoiceDeps,
 } from "../lib/developer-portal/service";
@@ -79,7 +81,7 @@ before(async () => {
     paymentTermDays: 14,
     notificationEmail: "fedor@example.com",
     bankTransferEnabled: true,
-    iban: "nl00 bank 0123 4567 89",
+    iban: "nl91 abna 0417 1643 00",
     bic: "BANKNL2A",
     accountHolder: "MNRV",
     stripeEnabled: true,
@@ -122,7 +124,7 @@ test("setting an invoice ready notifies De Notenman once, then the reminders run
   assert.equal(sent.length, 1);
   assert.equal(sent[0].to, "fedor@example.com");
   assert.match(sent[0].subject, /Nieuwe factuur MNRV-2099-\d{3} van MNRV staat klaar/u);
-  assert.match(sent[0].text, /NL00 BANK 0123 4567 89/u, "the IBAN is shown in groups of four");
+  assert.match(sent[0].text, /NL91 ABNA 0417 1643 00/u, "the IBAN is shown in groups of four");
   await assert.rejects(sendDeveloperInvoice(id, deps), (error: Error & { code?: string }) => error.code === "INVOICE_NOT_SENDABLE");
   await assert.rejects(updateDeveloperInvoice(id, invoiceInput("Te laat")), (error: Error & { code?: string }) => error.code === "INVOICE_NOT_EDITABLE");
 
@@ -202,4 +204,20 @@ test("setting an invoice ready without notification sends no mail and no reminde
   assert.deepEqual(after.events.map((event) => event.type).filter((type) => type !== "UPDATED"), ["CREATED", "SENT"]);
   assert.deepEqual(after.events.find((event) => event.type === "SENT")?.detail, { notify: false });
   assert.equal((await getDeveloperInvoice(createdIds[0])).notifyClient, true, "an invoice set ready the normal way still notifies");
+});
+
+test("Stripe is never offered, even with a key saved, and a mistyped IBAN is refused", async () => {
+  const profile = await getDeveloperProfile();
+  assert.equal(profile.stripeEnabled, true, "this test profile has Stripe switched on with a key");
+  const payment = publicDeveloperProfile(profile).payment;
+  assert.equal(payment.stripe, false);
+  assert.deepEqual(payment.bankTransfer, { iban: "NL91ABNA0417164300", accountHolder: "MNRV" });
+
+  const input = {
+    businessName: "MNRV", contactName: "", email: "", address: "", postalCode: "", city: "", country: "Nederland", kvkNumber: "", vatNumber: "",
+    paymentTermDays: 14, notificationEmail: "", bankTransferEnabled: true, iban: "NL91 ABNA 0417 1643 01", bic: "", accountHolder: "MNRV",
+    stripeEnabled: false, paymentLinkEnabled: false, paymentLinkUrl: "", paymentLinkLabel: "",
+  };
+  await assert.rejects(updateDeveloperProfile(input, { stripeFetch }), /IBAN is niet geldig/u);
+  assert.equal((await getDeveloperProfile()).iban, "NL91ABNA0417164300", "the saved IBAN is untouched");
 });

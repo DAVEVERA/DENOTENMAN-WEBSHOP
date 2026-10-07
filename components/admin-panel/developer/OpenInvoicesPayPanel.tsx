@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Banknote, CreditCard, ExternalLink, LoaderCircle, Paperclip } from "lucide-react";
+import { CreditCard, ExternalLink, LoaderCircle, Paperclip } from "lucide-react";
+
+import { BankPaymentCard } from "./BankPaymentCard";
 import { useState } from "react";
 
 const euro = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
@@ -24,10 +26,6 @@ type Payment = { stripe: boolean; bankTransfer: { iban: string; accountHolder: s
 
 function money(cents: number) {
   return euro.format(cents / 100);
-}
-
-function groupedIban(iban: string) {
-  return iban.replace(/\s+/gu, "").replace(/(.{4})(?=.)/gu, "$1 ");
 }
 
 /** Open developer invoices with a running total and one payment for the selection. */
@@ -113,7 +111,7 @@ export function OpenInvoicesPayPanel({ invoices, payment }: { invoices: OpenInvo
       </div>
       {error ? <p role="alert" className="text-body-sm font-semibold text-red-700">{error}</p> : null}
       {payment.bankTransfer && chosen.length ? (
-        <p className="flex gap-2 text-body-sm text-text"><Banknote className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>Of maak {money(sum("totalCents"))} over naar <strong>{groupedIban(payment.bankTransfer.iban)}</strong> t.n.v. {payment.bankTransfer.accountHolder}, onder vermelding van <strong>{chosen.map((invoice) => invoice.number).join(", ")}</strong>. De ontwikkelaar zet de facturen daarna op betaald.</span></p>
+        <BankPaymentCard iban={payment.bankTransfer.iban} accountHolder={payment.bankTransfer.accountHolder} amountCents={sum("totalCents")} invoiceNumbers={chosen.map((invoice) => invoice.number)} />
       ) : null}
     </section>
   );

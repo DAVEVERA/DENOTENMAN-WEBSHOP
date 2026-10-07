@@ -33,6 +33,7 @@ import {
   verifyStripeKey,
   verifyStripeSignature,
 } from "./stripe";
+import { isValidIban } from "./bank-transfer";
 import { extractInvoiceFromFile, HARD_UPLOAD_ERROR_CODES, InvoiceExtractionError, normalizeInvoiceFile, type ExtractedInvoice, type GenerateFn } from "./extract";
 import { eurRateFor, ExchangeRateError, toEuroCents, type EurRate, type ForeignCurrency } from "./fx";
 import { describeDevice, networkOf, type DeviceScreen } from "./device";
@@ -73,7 +74,8 @@ export const developerProfileInputSchema = z.object({
   paymentTermDays: z.number().int().min(0).max(120),
   notificationEmail: z.string().trim().max(320).refine((value) => value === "" || z.string().email().safeParse(value).success, "Gebruik een geldig e-mailadres."),
   bankTransferEnabled: z.boolean(),
-  iban: z.string().trim().max(40).transform((value) => value.replace(/\s+/gu, "").toUpperCase()),
+  iban: z.string().trim().max(40).transform((value) => value.replace(/\s+/gu, "").toUpperCase())
+    .refine((value) => value === "" || isValidIban(value), "Dit IBAN is niet geldig. Controleer het nummer."),
   bic: z.string().trim().max(20),
   accountHolder: z.string().trim().max(160),
   stripeEnabled: z.boolean(),
@@ -556,7 +558,8 @@ export async function getDeveloperInvoiceAttachment(id: string, options: { publi
 
 function paymentSummary(profile: DeveloperBillingProfile) {
   return {
-    stripe: profile.stripeEnabled && Boolean(openSecret(profile.stripeSecretKeyEncrypted)),
+    // Stripe is no longer offered: it holds the money for days. Payments go straight to the bank account.
+    stripe: false,
     bankTransfer: profile.bankTransferEnabled && profile.iban ? { iban: profile.iban, accountHolder: profile.accountHolder } : null,
     link: profile.paymentLinkEnabled && profile.paymentLinkUrl ? { url: profile.paymentLinkUrl, label: profile.paymentLinkLabel } : null,
   };

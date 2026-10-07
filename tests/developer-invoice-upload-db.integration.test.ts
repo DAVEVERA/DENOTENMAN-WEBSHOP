@@ -82,7 +82,7 @@ before(async () => {
   savedProfile = await prisma.developerBillingProfile.findUnique({ where: { id: "default" } });
   await updateDeveloperProfile({
     businessName: "MNRV", contactName: "", email: "", address: "", postalCode: "", city: "", country: "Nederland", kvkNumber: "", vatNumber: "",
-    paymentTermDays: 14, notificationEmail: "fedor@example.com", bankTransferEnabled: true, iban: "NL00BANK0123456789", bic: "", accountHolder: "MNRV",
+    paymentTermDays: 14, notificationEmail: "fedor@example.com", bankTransferEnabled: true, iban: "NL91ABNA0417164300", bic: "", accountHolder: "MNRV",
     stripeEnabled: true, stripeSecretKey: "rk_test_51AbCdEfGhIjKlMnOpQr", paymentLinkEnabled: false, paymentLinkUrl: "", paymentLinkLabel: "",
   }, { stripeFetch });
 });

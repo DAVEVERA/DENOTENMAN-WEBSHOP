@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Banknote,
   CheckCircle2,
-  CreditCard,
   Eye,
   Smartphone,
   Paperclip,
@@ -426,7 +425,7 @@ function ProfileSettings({ profile, onSaved }: { profile: DeveloperProfileDto; o
           iban: form.iban,
           bic: form.bic,
           accountHolder: form.accountHolder,
-          stripeEnabled: form.stripeEnabled,
+          stripeEnabled: false,
           ...(form.stripeSecretKey ? { stripeSecretKey: form.stripeSecretKey } : {}),
           ...(form.removeStripeKey ? { removeStripeKey: true } : {}),
           paymentLinkEnabled: form.paymentLinkEnabled,
@@ -475,32 +474,20 @@ function ProfileSettings({ profile, onSaved }: { profile: DeveloperProfileDto; o
       <section className={`${panelClass} grid gap-4`} aria-labelledby="profile-payment">
         <h2 id="profile-payment" className="text-heading-sm font-bold text-text">Betaalmogelijkheden</h2>
 
-        <div className="grid gap-3 rounded-card border border-border bg-background p-3">
-          <label className="flex min-h-11 items-center gap-2 font-semibold text-text"><input type="checkbox" checked={form.stripeEnabled} onChange={(event) => set("stripeEnabled", event.target.checked)} /><CreditCard className="h-4 w-4" aria-hidden="true" />Online betalen met iDEAL via Stripe</label>
-          <p className="text-body-sm text-muted">
-            {form.stripeKeyConfigured
-              ? form.stripeKeyReadable ? `Sleutel ingesteld (${form.stripeKeyMode === "live" ? "live" : "test"}, ${form.stripeKeyHint}).` : "De opgeslagen sleutel kan niet meer worden gelezen. Vul hem opnieuw in."
-              : "Nog geen sleutel ingesteld."}
-            {" "}Gebruik bij voorkeur een restricted key (rk_…) met schrijfrechten op Checkout Sessions en Webhook Endpoints.
-          </p>
-          <label className={labelClass}>{form.stripeKeyConfigured ? "Nieuwe sleutel (laat leeg om te houden)" : "Stripe secret of restricted key"}<input type="password" value={form.stripeSecretKey} onChange={(event) => set("stripeSecretKey", event.target.value)} autoComplete="off" spellCheck={false} placeholder="rk_live_…" className={inputClass} /></label>
-          {form.stripeKeyConfigured ? <label className="flex min-h-11 items-center gap-2 text-body-sm text-text"><input type="checkbox" checked={form.removeStripeKey} onChange={(event) => set("removeStripeKey", event.target.checked)} />Opgeslagen sleutel verwijderen</label> : null}
-          {form.stripeEnabled && form.stripeKeyReadable ? (
-            <p role="status" className={`rounded-card border p-3 text-body-sm ${form.stripeWebhookActive ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>
-              {form.stripeWebhookActive
-                ? "Automatisch op betaald: Stripe meldt elke betaling direct, ook als niemand terugkeert naar de factuurpagina."
-                : form.stripeWebhookNotice ?? "Automatisch op betaald is nog niet gekoppeld. Sla de instellingen op om de koppeling met Stripe te maken."}
-            </p>
-          ) : null}
+        <div className="grid gap-2 rounded-card border border-border bg-background p-3">
+          <p className="font-semibold text-text">Stripe wordt niet meer aangeboden</p>
+          <p className="text-body-sm text-muted">Betalingen gaan rechtstreeks naar je bankrekening, zodat je er direct over kunt beschikken. De opdrachtgever scant een QR-code met zijn bank-app; rekening, bedrag en factuurnummer staan dan al ingevuld.</p>
+          {form.stripeKeyConfigured ? <label className="flex min-h-11 items-center gap-2 text-body-sm text-text"><input type="checkbox" checked={form.removeStripeKey} onChange={(event) => set("removeStripeKey", event.target.checked)} />Opgeslagen Stripe-sleutel verwijderen</label> : null}
         </div>
 
         <div className="grid gap-3 rounded-card border border-border bg-background p-3">
-          <label className="flex min-h-11 items-center gap-2 font-semibold text-text"><input type="checkbox" checked={form.bankTransferEnabled} onChange={(event) => set("bankTransferEnabled", event.target.checked)} /><Banknote className="h-4 w-4" aria-hidden="true" />Overmaken naar je rekening</label>
+          <label className="flex min-h-11 items-center gap-2 font-semibold text-text"><input type="checkbox" checked={form.bankTransferEnabled} onChange={(event) => set("bankTransferEnabled", event.target.checked)} /><Banknote className="h-4 w-4" aria-hidden="true" />Direct naar je bankrekening (aanbevolen)</label>
           <div className="grid gap-3 sm:grid-cols-3">
             {text("iban", "IBAN", { autoComplete: "off", spellCheck: false })}
             {text("bic", "BIC (optioneel)")}
             {text("accountHolder", "Tenaamstelling")}
           </div>
+          <p className="text-body-sm text-muted">Je IBAN wordt gecontroleerd. De opdrachtgever krijgt een QR-code voor zijn bank-app en de gegevens om te kopiëren. Bij een betaling zet je de factuur zelf op betaald (&quot;Markeer betaald&quot;).</p>
         </div>
 
         <div className="grid gap-3 rounded-card border border-border bg-background p-3">
@@ -617,7 +604,7 @@ function Portal({ initialInvoices, initialProfile, views, devices }: { initialIn
   const uploadInput = useRef<HTMLInputElement>(null);
   const [silent, setSilent] = useState(false);
   const selectedDrafts = invoices.filter((invoice) => invoice.status === "DRAFT" && selected.has(invoice.id));
-  const paymentReady = (profile.stripeEnabled && profile.stripeKeyReadable) || (profile.bankTransferEnabled && Boolean(profile.iban)) || (profile.paymentLinkEnabled && Boolean(profile.paymentLinkUrl));
+  const paymentReady = (profile.bankTransferEnabled && Boolean(profile.iban)) || (profile.paymentLinkEnabled && Boolean(profile.paymentLinkUrl));
 
   function replace(invoice: DeveloperInvoiceDto) {
     setInvoices((current) => {
@@ -731,7 +718,7 @@ function Portal({ initialInvoices, initialProfile, views, devices }: { initialIn
       ) : (
         <div className="mt-5 grid gap-4">
           {!paymentReady ? (
-            <p role="alert" className="rounded-card border border-amber-300 bg-amber-50 p-3 text-body-sm font-semibold text-amber-900">Stel eerst een betaalmogelijkheid in (Stripe, overmaken of een betaallink) voordat je een factuur klaarzet. <button type="button" onClick={() => setTab("settings")} className="underline underline-offset-4">Naar instellingen</button></p>
+            <p role="alert" className="rounded-card border border-amber-300 bg-amber-50 p-3 text-body-sm font-semibold text-amber-900">Stel eerst een betaalmogelijkheid in (je bankrekening of een betaallink) voordat je een factuur klaarzet. <button type="button" onClick={() => setTab("settings")} className="underline underline-offset-4">Naar instellingen</button></p>
           ) : null}
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Samenvatting">
             <div className={`${panelClass} col-span-2 sm:col-span-1`}>

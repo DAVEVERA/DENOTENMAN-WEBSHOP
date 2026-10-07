@@ -1,8 +1,9 @@
+import { BankPaymentCard } from "@/components/admin-panel/developer/BankPaymentCard";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { ArrowLeft, Banknote, CheckCircle2, ExternalLink, Paperclip } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, Paperclip } from "lucide-react";
 
 import { DeveloperInvoiceDocument } from "@/components/admin-panel/developer/DeveloperInvoiceDocument";
 import { InvoiceViewBeacon } from "@/components/admin-panel/developer/InvoiceViewBeacon";
@@ -18,7 +19,6 @@ import {
   publicDeveloperProfile,
 } from "@/lib/developer-portal/service";
 import { formatPrice } from "@/lib/format";
-import { formatIban } from "@/lib/developer-portal/invoice-math";
 
 export const metadata: Metadata = { title: "Factuur ontwikkelaar", robots: { index: false, follow: false } };
 
@@ -81,7 +81,7 @@ export default async function DeveloperInvoicePage({ params, searchParams }: {
             ) : null}
           </div>
           {developer.payment.bankTransfer ? (
-            <p className="flex gap-2 text-body-sm text-text"><Banknote className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>Of maak {amount} over naar <strong>{formatIban(developer.payment.bankTransfer.iban)}</strong> t.n.v. {developer.payment.bankTransfer.accountHolder}, onder vermelding van <strong>{invoice.number}</strong>. De ontwikkelaar zet de factuur daarna op betaald.</span></p>
+            <BankPaymentCard iban={developer.payment.bankTransfer.iban} accountHolder={developer.payment.bankTransfer.accountHolder} amountCents={invoice.totalCents} invoiceNumbers={[invoice.number]} />
           ) : null}
         </section>
       ) : null}

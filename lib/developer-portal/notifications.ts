@@ -45,7 +45,7 @@ export function buildDeveloperInvoiceNotice(input: DeveloperInvoiceNoticeInput):
 
   const payLines: string[] = [];
   if (input.payment.stripe) payLines.push(`Betaal direct online (iDEAL, kaart) via de knop in het beheerportaal${single ? "" : "; één betaling voor alle facturen"}.`);
-  if (input.payment.bankTransfer) payLines.push(`Of maak ${totals.total} over naar ${formatIban(input.payment.bankTransfer.iban)} t.n.v. ${input.payment.bankTransfer.accountHolder}, onder vermelding van ${references}.`);
+  if (input.payment.bankTransfer) payLines.push(`Betaal direct met je bank-app: open ${single ? "de factuur" : "de facturen"} in het beheerportaal en scan de QR-code, of maak ${totals.total} over naar ${formatIban(input.payment.bankTransfer.iban)} t.n.v. ${input.payment.bankTransfer.accountHolder}, onder vermelding van ${references}.`);
   if (input.payment.link) payLines.push(`${input.payment.link.label || "Betaallink"}: ${input.payment.link.url}`);
 
   const invoiceText = invoices.map((invoice) => `- ${invoice.number}: ${invoice.title} (${formatPrice(invoice.totalCents, "nl")})`);

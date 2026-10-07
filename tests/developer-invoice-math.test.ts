@@ -63,11 +63,11 @@ test("notices name the invoice, the amount and every payment option, and escape 
     invoices: [{ number: "MNRV-2026-001", title: "Onderhoud <script>", subtotalCents: 10_000, vatCents: 2_100, totalCents: 12_100, issueDate: new Date("2026-09-01T12:00:00Z"), dueDate: new Date("2026-09-15T12:00:00Z") }],
     developerName: "MNRV",
     invoiceUrl: "https://denotenman.com/admin/ontwikkelaarsfacturen/abc",
-    payment: { stripe: true, bankTransfer: { iban: "NL00BANK0123456789", accountHolder: "MNRV" }, link: null },
+    payment: { stripe: true, bankTransfer: { iban: "NL91ABNA0417164300", accountHolder: "MNRV" }, link: null },
   });
   assert.match(notice.subject, /Herinnering: factuur MNRV-2026-001/u);
   assert.match(notice.text, /€\s?121,00/u);
-  assert.match(notice.text, /NL00 BANK 0123 4567 89/u, "the IBAN is shown in groups of four");
+  assert.match(notice.text, /NL91 ABNA 0417 1643 00/u, "the IBAN is shown in groups of four");
   assert.match(notice.text, /iDEAL/u);
   assert.match(notice.html, /Onderhoud &lt;script&gt;/u);
   assert.doesNotMatch(notice.html, /<script>/u);
@@ -82,7 +82,7 @@ test("several invoices go out as one notice with subtotal, VAT and total added u
     ],
     developerName: "MNRV",
     invoiceUrl: "https://denotenman.com/admin/ontwikkelaarsfacturen",
-    payment: { stripe: true, bankTransfer: { iban: "NL00BANK0123456789", accountHolder: "MNRV" }, link: null },
+    payment: { stripe: true, bankTransfer: { iban: "NL91ABNA0417164300", accountHolder: "MNRV" }, link: null },
   });
   assert.equal(notice.subject, "2 nieuwe facturen van MNRV staan klaar");
   assert.match(notice.text, /Subtotaal: €\s?150,00/u);
