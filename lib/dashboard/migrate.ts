@@ -10,6 +10,8 @@ import {
   type DashboardWidgetConfig,
 } from "./schema";
 import { BUILTIN_WIDGETS, builtinWidget, materializeBuiltin, defaultDashboardPreferences } from "./defaults";
+import { getDashboardSource } from "./sources";
+import { defaultVisualization, getVisualization, visualizationProblem } from "./visualizations";
 
 /** The version 1 widget, kept here so the old shape lives in one place. */
 type LegacyWidget = {
@@ -48,10 +50,14 @@ const LEGACY_SOURCE_TO_BUILTIN: Readonly<Record<string, string>> = {
   improvements: "improvements",
 };
 
-/** Sources whose version 1 "chart" switch had a real meaning worth carrying over. */
+/**
+ * What the version 1 "chart" switch meant per source. For a plain number it meant a number
+ * with a trend behind it, which in version 2 is a KPI grouped by day; for the wide widgets
+ * it meant the real chart.
+ */
 const LEGACY_CHART_VISUALIZATION: Readonly<Record<string, string>> = {
-  sessions: "line",
-  revenueToday: "line",
+  sessions: "kpi",
+  revenueToday: "kpi",
   forecast: "area",
   dailyRevenue: "line",
   funnel: "funnel",
@@ -60,10 +66,34 @@ const LEGACY_CHART_VISUALIZATION: Readonly<Record<string, string>> = {
 const LEGACY_NUMBER_VISUALIZATION: Readonly<Record<string, string>> = {
   sessions: "kpi",
   revenueToday: "kpi",
-  forecast: "table",
+  forecast: "area",
   dailyRevenue: "kpi",
-  funnel: "table",
+  funnel: "funnel",
 };
+
+/** Sources where the version 1 switch decided whether a trend was drawn behind the number. */
+const TREND_BY_CHOICE = new Set(["sessions", "revenueToday", "dailyRevenue"]);
+
+/**
+ * Falls back to the built-in chart when a carried-over choice does not fit the data. The
+ * migration can then never write a widget the server would refuse to save.
+ */
+function safeVisualization(widget: DashboardWidgetConfig, fallback: string): string {
+  const source = getDashboardSource(widget.source);
+  if (!source) return fallback;
+  const request = {
+    shape: source.shape,
+    metricCount: widget.metrics.length,
+    dimensionCount: widget.dimensions.length,
+    comparison: widget.comparison !== "none",
+    allowed: source.onlyVisualizations,
+  };
+  const chosen = getVisualization(widget.visualization);
+  if (chosen && visualizationProblem(chosen, request) === null) return widget.visualization;
+  const backup = getVisualization(fallback);
+  if (backup && visualizationProblem(backup, request) === null) return fallback;
+  return defaultVisualization(request);
+}
 
 function isLegacy(value: unknown): value is LegacyPreferences {
   return (
@@ -86,10 +116,15 @@ function upgradeWidget(legacy: LegacyWidget): DashboardWidgetConfig | null {
   const size = visualization === "kpi"
     ? { w: Math.min(base.layout.w, 6), h: Math.min(base.layout.h, 2) }
     : { w: base.layout.w, h: base.layout.h };
+  // Grouping by day is what makes a number show its trend, so the old switch maps onto it.
+  const dimensions = TREND_BY_CHOICE.has(legacy.source) && visualization === "kpi"
+    ? (legacy.display === "chart" ? ["date"] : [])
+    : base.dimensions;
   return {
     ...base,
     id: legacy.id,
-    visualization,
+    visualization: safeVisualization({ ...base, visualization, dimensions }, builtin.visualization),
+    dimensions,
     display: {
       ...base.display,
       title: legacy.title.trim() || base.display.title,
@@ -166,9 +201,16 @@ export function migratePreferences(stored: unknown): MigrationResult {
     return { preferences: defaultDashboardPreferences(), changed: true, hiddenDuplicates: [] };
   }
 
-  const current = widgets as DashboardWidgetConfig[];
+  const stored2 = widgets as DashboardWidgetConfig[];
+  // A widget can go stale when a source changes what it offers; repair it rather than let
+  // every save fail on it from then on.
+  const current = stored2.map((widget) => {
+    const repaired = safeVisualization(widget, builtinWidget(widget.id)?.visualization ?? widget.visualization);
+    return repaired === widget.visualization ? widget : { ...widget, visualization: repaired };
+  });
+  const repairs = current.filter((widget, index) => widget !== stored2[index]).length;
   const deduplicated = hideExactDuplicates(appendMissingBuiltins(current));
-  const changed = deduplicated.hiddenDuplicates.length > 0 || deduplicated.widgets.length !== current.length;
+  const changed = repairs > 0 || deduplicated.hiddenDuplicates.length > 0 || deduplicated.widgets.length !== current.length;
   return {
     preferences: { version: DASHBOARD_SCHEMA_VERSION, widgets: packLayout(deduplicated.widgets) },
     changed,

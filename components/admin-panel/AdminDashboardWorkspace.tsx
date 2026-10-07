@@ -15,16 +15,25 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  DASHBOARD_WIDGET_SOURCES,
-  DEFAULT_DASHBOARD_PREFERENCES,
   EMPTY_DASHBOARD_ANALYTICS,
   retainAnalyticsAfterRefreshFailure,
   type DashboardAnalytics,
-  type DashboardPreferences,
-  type DashboardTrendPoint,
-  type DashboardWidgetConfig,
-  type DashboardWidgetSource,
 } from "@/lib/admin-dashboard-contract";
+import { buildWidgetView, originLabel, periodLabel } from "@/lib/dashboard/adapter";
+import { defaultDashboardPreferences } from "@/lib/dashboard/defaults";
+import { freshness } from "@/lib/dashboard/format";
+import {
+  findDuplicateWidgets,
+  layoutOrder,
+  moveWidget as moveWidgetInLayout,
+  packLayout,
+  type DashboardPreferences,
+  type DashboardWidgetConfig,
+} from "@/lib/dashboard/schema";
+import { DASHBOARD_SOURCES, getDashboardSource } from "@/lib/dashboard/sources";
+import { compatibleVisualizations, defaultVisualization } from "@/lib/dashboard/visualizations";
+import { BarChart, FunnelChart, KpiChart, TimeSeriesChart } from "@/components/admin-panel/dashboard/Charts";
+import { ChartPlaceholder } from "@/components/admin-panel/dashboard/ChartFrame";
 import { cn } from "@/lib/cn";
 
 type CommerceStats = {
@@ -49,37 +58,11 @@ type Props = {
   recentOrders: RecentOrder[];
 };
 
-const analyticsSources = new Set<DashboardWidgetSource>([
-  "activeVisitors",
-  "revenueToday",
-  "sessions",
-  "views",
-  "engagement",
-  "keyEvents",
-  "forecast",
-  "dailyRevenue",
-  "funnel",
-  "improvementSignals",
-  "improvements",
-]);
-
-const wideSources = new Set<DashboardWidgetSource>([
-  "recentOrders",
-  "forecast",
-  "dailyRevenue",
-  "funnel",
-  "improvementSignals",
-  "improvements",
-]);
-
-const heroSources = new Set<DashboardWidgetSource>(["activeVisitors", "revenueToday"]);
-const chartCapableSources = new Set<DashboardWidgetSource>([
-  "sessions",
-  "revenueToday",
-  "forecast",
-  "dailyRevenue",
-  "funnel",
-]);
+/** Which widgets refresh from the analytics call rather than from the page. */
+function usesAnalytics(widget: DashboardWidgetConfig): boolean {
+  const source = getDashboardSource(widget.source);
+  return source?.category === "verkeer" || widget.source === "mollie_revenue" || widget.source === "analysis_signals";
+}
 
 const orderStatusLabels: Record<string, string> = {
   PENDING: "Openstaand",
@@ -93,166 +76,7 @@ const orderStatusLabels: Record<string, string> = {
 };
 
 function copyPreferences(): DashboardPreferences {
-  return {
-    version: 1,
-    widgets: DEFAULT_DASHBOARD_PREFERENCES.widgets.map((widget) => ({ ...widget })),
-  };
-}
-
-function euro(value: number | null): string {
-  return value === null
-    ? "—"
-    : new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(value);
-}
-
-function integer(value: number | null): string {
-  return value === null ? "—" : new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 0 }).format(value);
-}
-
-function percent(value: number | null): string {
-  return value === null
-    ? "—"
-    : new Intl.NumberFormat("nl-NL", { style: "percent", maximumFractionDigits: 0 }).format(value);
-}
-
-function shortDate(value: string): string {
-  return new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "2-digit" }).format(
-    new Date(`${value}T12:00:00Z`)
-  );
-}
-
-function SparkBars({ values, label }: { values: number[]; label: string }) {
-  const max = Math.max(...values, 1);
-  const shown = values.slice(-14);
-  if (!shown.length) return <p className="mt-4 text-body-sm text-muted">Nog geen grafiekdata.</p>;
-  return (
-    <div className="mt-4">
-      <div className="flex h-20 items-end gap-1" aria-hidden="true">
-        {shown.map((value, index) => (
-          <span
-            key={`${index}-${value}`}
-            className="min-h-1 flex-1 rounded-t bg-accent"
-            style={{ height: `${Math.max(5, (value / max) * 100)}%` }}
-          />
-        ))}
-      </div>
-      <p className="sr-only">{label}. Waarden van oud naar nieuw: {shown.join(", ")}.</p>
-    </div>
-  );
-}
-
-function MetricContent({
-  value,
-  display,
-  series,
-  label,
-  hero,
-}: {
-  value: string;
-  display: "number" | "chart";
-  series: number[];
-  label: string;
-  hero?: boolean;
-}) {
-  if (display === "chart") return <><p className={cn("mt-2 font-heading font-bold tracking-tight", hero ? "text-4xl sm:text-5xl" : "text-3xl")}>{value}</p><SparkBars values={series} label={`${label}, recente ontwikkeling`} /></>;
-  return (
-    <p className={cn("mt-2 font-heading font-bold tracking-tight", hero ? "text-5xl sm:text-6xl" : "text-4xl")}>
-      {value}
-    </p>
-  );
-}
-
-function DailyRevenueChart({ points }: { points: DashboardTrendPoint[] }) {
-  const shown = points.slice(-30);
-  const max = Math.max(...shown.map((point) => point.revenue), 1);
-  if (!shown.length) return <p className="mt-4 text-body-sm text-muted">Nog geen omzetdata beschikbaar.</p>;
-  return (
-    <div className="mt-5 overflow-x-auto pb-2">
-      <div className="flex h-56 min-w-[44rem] items-end gap-2 border-b border-border px-1" aria-hidden="true">
-        {shown.map((point) => (
-          <div key={point.date} className="group flex h-full min-w-4 flex-1 flex-col justify-end">
-            <div
-              className="min-h-1 rounded-t bg-[#7B4A2F] transition-colors group-hover:bg-accent-hover"
-              style={{ height: `${Math.max(2, (point.revenue / max) * 88)}%` }}
-              title={`${shortDate(point.date)}: ${euro(point.revenue)}`}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="mt-2 flex min-w-[44rem] justify-between text-xs text-muted">
-        <span>{shortDate(shown[0].date)}</span><span>{shortDate(shown.at(-1)?.date ?? shown[0].date)}</span>
-      </div>
-      <p className="sr-only">Omzet per dag: {shown.map((point) => `${shortDate(point.date)} ${euro(point.revenue)}`).join(", ")}.</p>
-    </div>
-  );
-}
-
-function ForecastChart({ analytics }: { analytics: DashboardAnalytics }) {
-  const points = analytics.forecast.points;
-  const max = Math.max(...points.map((point) => point.high), 1);
-  if (!points.length) return <p className="mt-4 text-body-sm text-muted">{analytics.forecast.reason}</p>;
-  return (
-    <div className="mt-5">
-      <div className="grid h-64 grid-cols-7 items-end gap-2 sm:gap-4" aria-hidden="true">
-        {points.map((point) => (
-          <div key={point.date} className="flex h-full min-w-0 flex-col items-center justify-end gap-2">
-            <span className="text-xs font-bold text-text">{point.expected}</span>
-            <div className="relative w-full max-w-12 flex-1">
-              <div
-                className="absolute bottom-0 left-1/2 w-3/4 -translate-x-1/2 rounded-full bg-accent/25"
-                style={{ height: `${Math.max(4, (point.high / max) * 100)}%` }}
-                title={`${point.low}–${point.high} sessies`}
-              />
-              <div
-                className="absolute bottom-0 left-1/2 h-1 w-full -translate-x-1/2 rounded bg-[#7B4A2F]"
-                style={{ bottom: `${(point.expected / max) * 100}%` }}
-              />
-            </div>
-            <span className="truncate text-[0.68rem] text-muted">{shortDate(point.date)}</span>
-          </div>
-        ))}
-      </div>
-      <p className="mt-4 text-body-sm text-muted">
-        Zekerheid: {analytics.forecast.confidence} · {analytics.forecast.trainingDays} volledige meetdagen. {analytics.forecast.reason}
-      </p>
-      <p className="sr-only">Verwachte sessies: {points.map((point) => `${shortDate(point.date)} ${point.expected}, bandbreedte ${point.low} tot ${point.high}`).join(", ")}.</p>
-    </div>
-  );
-}
-
-function FunnelChart({ analytics, display }: { analytics: DashboardAnalytics; display: "number" | "chart" }) {
-  const rows = [
-    { label: "Winkelwagen", value: analytics.funnel.cart, color: "bg-[#7B4A2F]" },
-    { label: "Betalen", value: analytics.funnel.checkout, color: "bg-[#DB7B2B]" },
-    { label: "Aankoopsignaal", value: analytics.funnel.purchase, color: "bg-[#319369]" },
-  ];
-  const base = Math.max(analytics.funnel.cart ?? 0, 1);
-  return (
-    <div className={cn("mt-5", display === "number" && "grid gap-3 sm:grid-cols-3")}>
-      {rows.map((row, index) => {
-        const width = row.value === null ? 0 : index === 0 ? 100 : Math.round((row.value / base) * 100);
-        if (display === "number") {
-          return <div key={row.label} className="rounded-card bg-background p-4"><p className="text-body-sm font-semibold">{row.label}</p><p className="mt-1 font-heading text-3xl font-bold">{integer(row.value)}</p></div>;
-        }
-        return (
-          <div key={row.label} className="mb-4 last:mb-0">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-body-sm font-bold text-text">{row.label}</span>
-              <strong className="font-mono">{integer(row.value)}</strong>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="h-4 min-w-0 flex-1 overflow-hidden rounded-full bg-background" aria-hidden="true">
-                <div className={cn("h-full rounded-full", row.color)} style={{ width: `${Math.max(row.value === null ? 0 : 2, width)}%` }} />
-              </div>
-              <span className="w-12 shrink-0 text-right text-xs font-bold text-text">
-                {row.value === null ? "—" : index === 0 ? "start" : `${width}%`}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  return defaultDashboardPreferences();
 }
 
 function WidgetTools({
@@ -280,7 +104,7 @@ function WidgetTools({
         type="button"
         draggable
         className={cn(buttonClass, "cursor-grab touch-none active:cursor-grabbing")}
-        aria-label={`${widget.title} verslepen`}
+        aria-label={`${widget.display.title} verslepen`}
         title="Verslepen"
         onDragStart={() => onDragStart(widget.id)}
         onDragEnd={onDragEnd}
@@ -292,7 +116,7 @@ function WidgetTools({
         onPointerUp={onDragEnd}
         onPointerCancel={onDragEnd}
       ><GripVertical className="h-5 w-5" aria-hidden="true" /></button>
-      <button type="button" className={buttonClass} onClick={onEdit} aria-label={`${widget.title} instellen`} title="Widget instellen"><Settings2 className="h-5 w-5" aria-hidden="true" /></button>
+      <button type="button" className={buttonClass} onClick={onEdit} aria-label={`${widget.display.title} instellen`} title="Widget instellen"><Settings2 className="h-5 w-5" aria-hidden="true" /></button>
     </div>
   );
 }
@@ -308,7 +132,7 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newSource, setNewSource] = useState<DashboardWidgetSource>("sessions");
+  const [newSource, setNewSource] = useState<string>(DASHBOARD_SOURCES[0].id);
   const [addedMessage, setAddedMessage] = useState("");
   const dragIdRef = useRef<string | null>(null);
   const lastDragTargetRef = useRef<string | null>(null);
@@ -441,9 +265,33 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
     return () => window.clearTimeout(timer);
   }, [preferences, preferencesDirty, preferencesReady, preferencesWritable]);
 
-  const visible = useMemo(() => preferences.widgets.filter((widget) => !widget.hidden), [preferences]);
+  const visible = useMemo(() => layoutOrder(preferences.widgets.filter((widget) => !widget.hidden)), [preferences]);
   const hidden = useMemo(() => preferences.widgets.filter((widget) => widget.hidden), [preferences]);
   const editing = preferences.widgets.find((widget) => widget.id === editingId) ?? null;
+
+  /** Only the charts that suit this widget's data; the rest is never offered. */
+  const editingVisualizations = useMemo(() => {
+    if (!editing) return [];
+    const source = getDashboardSource(editing.source);
+    if (!source) return [];
+    return compatibleVisualizations({
+      shape: source.shape,
+      metricCount: editing.metrics.length,
+      dimensionCount: editing.dimensions.length,
+      comparison: editing.comparison !== "none",
+      allowed: source.onlyVisualizations,
+    });
+  }, [editing]);
+
+  const resize = useCallback((id: string, width: number) => {
+    setPreferencesDirty(true);
+    setPreferences((current) => ({
+      ...current,
+      widgets: packLayout(current.widgets.map((widget) => (
+        widget.id === id ? { ...widget, layout: { ...widget.layout, w: width, h: width >= 12 ? 3 : width >= 6 ? 2 : 1 } } : widget
+      ))),
+    }));
+  }, []);
 
   const updateWidget = useCallback((id: string, update: Partial<DashboardWidgetConfig>) => {
     setPreferencesDirty(true);
@@ -460,14 +308,13 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
       if (sourceIndex < 0 || targetIndex < 0) return current;
       const [source] = widgets.splice(sourceIndex, 1);
       widgets.splice(targetIndex, 0, source);
-      return { ...current, widgets };
+      return { ...current, widgets: packLayout(widgets) };
     });
   }, []);
 
   function moveVisible(id: string, direction: -1 | 1) {
-    const index = visible.findIndex((widget) => widget.id === id);
-    const target = visible[index + direction];
-    if (target) moveWidgetTo(id, target.id);
+    setPreferencesDirty(true);
+    setPreferences((current) => ({ ...current, widgets: moveWidgetInLayout(current.widgets, id, direction) }));
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLButtonElement>) {
@@ -482,68 +329,76 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
     }
   }
 
-  function refreshWidget(source: DashboardWidgetSource) {
-    if (analyticsSources.has(source)) void fetchAnalytics(true);
+  function refreshWidget(widget: DashboardWidgetConfig) {
+    if (usesAnalytics(widget)) void fetchAnalytics(true);
     else router.refresh();
   }
 
   function addWidget() {
-    const label = DASHBOARD_WIDGET_SOURCES.find((item) => item.source === newSource)?.label ?? "Nieuwe widget";
+    const source = getDashboardSource(newSource);
+    if (!source) return;
+    const visualization = defaultVisualization({
+      shape: source.shape,
+      metricCount: 1,
+      dimensionCount: source.dimensions.length ? 1 : 0,
+      allowed: source.onlyVisualizations,
+      preferred: source.defaultVisualization,
+    });
+    const candidate: DashboardWidgetConfig = {
+      schemaVersion: 2,
+      id: `custom-${Date.now().toString(36)}`,
+      ownerId: null,
+      scope: "personal",
+      source: source.id,
+      metrics: [{ field: source.metrics[0].field, aggregation: source.metrics[0].aggregations[0] }],
+      dimensions: source.dimensions.length ? [source.dimensions[0].field] : [],
+      filters: [],
+      dateRange: { preset: source.datePresets[0] },
+      granularity: source.granularities[0],
+      comparison: source.comparisons.includes("previous_period") ? "previous_period" : "none",
+      visualization,
+      display: { title: source.label, subtitle: source.description },
+      layout: { x: 0, y: 0, w: source.shape === "scalar" ? 3 : 12, h: source.shape === "scalar" ? 1 : 3 },
+      hidden: false,
+      custom: true,
+    };
+    const duplicates = findDuplicateWidgets(preferences.widgets, candidate);
+    if (duplicates.length) {
+      setAddedMessage(`"${duplicates[0].display.title}" toont dit al. Pas die widget aan of kies een andere bron.`);
+      return;
+    }
     setPreferencesDirty(true);
-    setPreferences((current) => ({
-      ...current,
-      widgets: [...current.widgets, {
-        id: `custom-${Date.now().toString(36)}`,
-        source: newSource,
-        title: label,
-        text: "",
-        display: chartCapableSources.has(newSource) ? "chart" : "number",
-        hidden: false,
-        custom: true,
-      }],
-    }));
-    setAddedMessage(`${label} is toegevoegd.`);
+    setPreferences((current) => ({ ...current, widgets: packLayout([...current.widgets, candidate]) }));
+    setAddedMessage(`${source.label} is toegevoegd.`);
   }
 
-  const metricValue = (source: DashboardWidgetSource) => {
-    switch (source) {
-      case "activeVisitors": return integer(analytics.metrics.activeVisitors);
-      case "revenueToday": return euro(analytics.metrics.revenueToday);
-      case "sessions": return integer(analytics.metrics.sessions);
-      case "views": return integer(analytics.metrics.views);
-      case "engagement": return percent(analytics.metrics.engagement);
-      case "keyEvents": return integer(analytics.metrics.keyEvents);
-      case "activeProducts": return integer(commerce.activeProducts);
-      case "categories": return integer(commerce.categories);
-      case "totalOrders": return integer(commerce.totalOrders);
-      case "pendingOrders": return integer(commerce.pendingOrders);
-      default: return "—";
-    }
-  };
-
-  const metricSeries = (source: DashboardWidgetSource) => {
-    if (source === "revenueToday") return analytics.revenueDaily.map((point) => point.revenue);
-    if (source === "sessions") return analytics.daily.map((point) => point.sessions);
-    return [];
-  };
-
-  const widgetHref: Partial<Record<DashboardWidgetSource, string>> = {
-    activeProducts: "/admin/producten",
-    categories: "/admin/categorieen",
-    totalOrders: "/admin/bestellingen",
-    pendingOrders: "/admin/bestellingen?status=PENDING",
-  };
+  const widgetContext = useMemo(
+    () => ({ analytics, commerce, recentOrdersCount: recentOrders.length }),
+    [analytics, commerce, recentOrders.length],
+  );
 
   function renderWidget(widget: DashboardWidgetConfig) {
-    if (!wideSources.has(widget.source)) {
-      const display = chartCapableSources.has(widget.source) ? widget.display : "number";
-      const body = <MetricContent value={metricValue(widget.source)} display={display} series={metricSeries(widget.source)} label={widget.title} hero={heroSources.has(widget.source)} />;
-      const href = widgetHref[widget.source];
-      return href ? <Link href={href} className="block rounded-button focus-visible:outline-offset-4">{body}</Link> : body;
-    }
-    if (widget.source === "recentOrders") {
-      if (!recentOrders.length) return <p className="mt-4 text-body-sm text-muted">Nog geen bestellingen.</p>;
-      return (
+    const view = buildWidgetView(widget, widgetContext);
+    const title = widget.display.title;
+    switch (view.kind) {
+      case "unavailable":
+        return <div className="mt-4"><ChartPlaceholder state={view.state} message={view.message} /></div>;
+      case "kpi": {
+        const body = <KpiChart value={view.value} format={view.format} change={view.change} hero={view.hero} trend={view.trend} />;
+        return (
+          <div className="mt-2">
+            {view.href ? <Link href={view.href} className="block rounded-button focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">{body}</Link> : body}
+          </div>
+        );
+      }
+      case "timeSeries":
+        return <div className="mt-5"><TimeSeriesChart data={view.data} title={title} variant={view.variant} periodLabel={view.periodLabel} /></div>;
+      case "bar":
+        return <div className="mt-5"><BarChart data={view.data} title={title} direction={view.direction} categoryLabel={view.categoryLabel} /></div>;
+      case "funnel":
+        return <div className="mt-5"><FunnelChart steps={view.steps} title={title} comparable={view.comparable} /></div>;
+      case "recentOrders":
+        return (
         <div className="mt-4">
           <div className="grid gap-3 md:hidden">
             {recentOrders.map((order) => (
@@ -574,29 +429,20 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
           </div>
           <div className="mt-4 text-right"><Link href="/admin/bestellingen" className="inline-flex min-h-11 items-center font-heading text-body-sm font-semibold text-[#684027] underline underline-offset-4">Alle bestellingen</Link></div>
         </div>
-      );
+        );
+      case "signals": {
+        const signals = [
+          { label: "Kritiek", text: "eerst oplossen", value: analytics.signals.critical, border: "border-l-[#D34B35]" },
+          { label: "Hoog", text: "deze sprint", value: analytics.signals.high, border: "border-l-[#DB7B2B]" },
+          { label: "Sterk signaal", text: "verder uitbouwen", value: analytics.signals.positive, border: "border-l-[#319369]" },
+        ];
+        return <div className="mt-5 grid gap-3 lg:grid-cols-3">{signals.map((signal) => <div key={signal.label} className={cn("rounded-card border border-border border-l-4 bg-surface p-5", signal.border)}><div className="flex items-start justify-between gap-3"><div><p className="font-heading text-xs font-bold uppercase tracking-wider">{signal.label}</p><p className="mt-1 text-body-sm text-muted">{signal.text}</p></div><strong className="font-mono text-3xl">{signal.value}</strong></div></div>)}</div>;
+      }
+      case "issues":
+        return <div className="mt-5 grid gap-4 lg:grid-cols-2">{analytics.issues.map((issue) => <article key={issue.id} className={cn("rounded-card border border-border bg-background p-5", issue.severity === "critical" && "border-l-4 border-l-[#D34B35]", issue.severity === "high" && "border-l-4 border-l-[#DB7B2B]", issue.severity === "positive" && "border-l-4 border-l-[#319369]")}><p className="text-xs font-bold uppercase tracking-wider text-muted">{issue.severity === "positive" ? "Sterk signaal" : issue.severity}</p><h3 className="mt-2 font-heading text-heading-sm font-bold">{issue.title}</h3><p className="mt-2 text-body-sm text-muted">{issue.evidence}</p><p className="mt-3 text-body-sm font-semibold text-text">{issue.action}</p></article>)}</div>;
+      default:
+        return null;
     }
-    if (widget.source === "forecast") {
-      return widget.display === "chart" ? <ForecastChart analytics={analytics} /> : <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{analytics.forecast.points.map((point) => <div key={point.date} className="rounded-card bg-background p-3"><p className="text-xs text-muted">{shortDate(point.date)}</p><p className="mt-1 font-heading text-2xl font-bold">{point.expected}</p><p className="text-xs text-muted">{point.low}–{point.high}</p></div>)}</div>;
-    }
-    if (widget.source === "dailyRevenue") {
-      const shown = analytics.revenueDaily.slice(-30);
-      return widget.display === "chart" ? <DailyRevenueChart points={shown} /> : <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{shown.slice(-8).map((point) => <div key={point.date} className="rounded-card bg-background p-3"><p className="text-xs text-muted">{shortDate(point.date)}</p><p className="mt-1 font-heading text-xl font-bold">{euro(point.revenue)}</p></div>)}</div>;
-    }
-    if (widget.source === "funnel") return <FunnelChart analytics={analytics} display={widget.display} />;
-    if (widget.source === "improvementSignals") {
-      const signals = [
-        { label: "Kritiek", text: "eerst oplossen", value: analytics.signals.critical, border: "border-l-[#D34B35]" },
-        { label: "Hoog", text: "deze sprint", value: analytics.signals.high, border: "border-l-[#DB7B2B]" },
-        { label: "Sterk signaal", text: "verder uitbouwen", value: analytics.signals.positive, border: "border-l-[#319369]" },
-      ];
-      return <div className="mt-5 grid gap-3 lg:grid-cols-3">{signals.map((signal) => <div key={signal.label} className={cn("rounded-card border border-border border-l-4 bg-surface p-5", signal.border)}><div className="flex items-start justify-between gap-3"><div><p className="font-heading text-xs font-bold uppercase tracking-wider">{signal.label}</p><p className="mt-1 text-body-sm text-muted">{signal.text}</p></div><strong className="font-mono text-3xl">{signal.value}</strong></div></div>)}</div>;
-    }
-    if (widget.source === "improvements") {
-      if (!analytics.issues.length) return <p className="mt-4 text-body-sm text-muted">Zodra voldoende live data beschikbaar is verschijnen hier concrete verbeterpunten.</p>;
-      return <div className="mt-5 grid gap-4 lg:grid-cols-2">{analytics.issues.map((issue) => <article key={issue.id} className={cn("rounded-card border border-border bg-background p-5", issue.severity === "critical" && "border-l-4 border-l-[#D34B35]", issue.severity === "high" && "border-l-4 border-l-[#DB7B2B]", issue.severity === "positive" && "border-l-4 border-l-[#319369]")}><p className="text-xs font-bold uppercase tracking-wider text-muted">{issue.severity === "positive" ? "Sterk signaal" : issue.severity}</p><h3 className="mt-2 font-heading text-heading-sm font-bold">{issue.title}</h3><p className="mt-2 text-body-sm text-muted">{issue.evidence}</p><p className="mt-3 text-body-sm font-semibold text-text">{issue.action}</p></article>)}</div>;
-    }
-    return null;
   }
 
   if (!preferencesReady) {
@@ -642,9 +488,10 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
             }}
             className={cn(
               "overflow-hidden rounded-panel border border-border bg-surface shadow-card transition-shadow hover:shadow-card-hover",
-              wideSources.has(widget.source) ? "col-span-12" : heroSources.has(widget.source) ? "col-span-12 lg:col-span-6" : "col-span-6 lg:col-span-3",
-              widget.source === "revenueToday" && "border-[#7B4A2F] bg-[#7B4A2F] text-white",
-              widget.source === "activeVisitors" && "border-accent bg-[#FFF8DD]"
+              // One column on a phone, the stored width from the large breakpoint up.
+              widget.layout.w >= 12 ? "col-span-12" : widget.layout.w >= 6 ? "col-span-12 lg:col-span-6" : "col-span-6 lg:col-span-3",
+              widget.id === "revenue-today" && "border-[#7B4A2F] bg-[#7B4A2F] text-white",
+              widget.id === "active-visitors" && "border-accent bg-[#FFF8DD]"
             )}
           >
             <WidgetTools
@@ -653,12 +500,18 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
               onDragStart={(id) => { dragIdRef.current = id; lastDragTargetRef.current = null; }}
               onDragMove={handlePointerMove}
               onDragEnd={() => { dragIdRef.current = null; lastDragTargetRef.current = null; }}
-              inverted={widget.source === "revenueToday"}
+              inverted={widget.id === "revenue-today"}
             />
-            <div className={cn("p-4 sm:p-5", wideSources.has(widget.source) && "sm:p-6")}>
-              <p className={cn("font-heading text-xs font-bold uppercase tracking-[0.12em]", widget.source === "revenueToday" ? "text-white/75" : "text-muted")}>{widget.title}</p>
-              {widget.text ? <p className={cn("mt-1 text-xs", widget.source === "revenueToday" ? "text-white/70" : "text-muted")}>{widget.text}</p> : null}
+            <div className={cn("p-4 sm:p-5", widget.layout.w >= 12 && "sm:p-6")}>
+              <p className={cn("font-heading text-xs font-bold uppercase tracking-[0.12em]", widget.id === "revenue-today" ? "text-white/75" : "text-muted")}>{widget.display.title}</p>
+              {widget.display.subtitle ? <p className={cn("mt-1 text-xs", widget.id === "revenue-today" ? "text-white/70" : "text-muted")}>{widget.display.subtitle}</p> : null}
               {renderWidget(widget)}
+              {/* Every widget says what it measured, over which period and how fresh it is. */}
+              <p className={cn("mt-3 text-[0.68rem]", widget.id === "revenue-today" ? "text-white/60" : "text-muted")}>
+                {originLabel(widget)} · {periodLabel(widget)}
+                {widget.comparison === "previous_period" ? " · vergeleken met de vorige periode" : widget.comparison === "previous_year" ? " · vergeleken met vorig jaar" : ""}
+                {usesAnalytics(widget) ? ` · bijgewerkt ${freshness(analytics.status === "unavailable" ? null : analytics.generatedAt)}` : ""}
+              </p>
             </div>
           </section>
         ))}
@@ -684,18 +537,19 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
             <div className="mt-6 rounded-card border border-border bg-background p-4">
               <label htmlFor="new-widget-source" className="text-body-sm font-semibold">Nieuwe widget</label>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                <select id="new-widget-source" value={newSource} onChange={(event) => setNewSource(event.target.value as DashboardWidgetSource)} className="min-h-11 flex-1 rounded-button border border-border bg-surface px-3">
-                  {DASHBOARD_WIDGET_SOURCES.map((item) => <option key={item.source} value={item.source}>{item.label}</option>)}
+                <select id="new-widget-source" value={newSource} onChange={(event) => setNewSource(event.target.value)} className="min-h-11 flex-1 rounded-button border border-border bg-surface px-3">
+                  {DASHBOARD_SOURCES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
                 <button type="button" onClick={addWidget} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-accent px-4 font-heading font-semibold"><Plus className="h-4 w-4" />Toevoegen</button>
               </div>
               <p role="status" aria-live="polite" className="mt-2 min-h-5 text-body-sm font-semibold text-[#684027]">{addedMessage}</p>
+              <p className="mt-1 text-xs text-muted">{getDashboardSource(newSource)?.description}</p>
             </div>
             <div className="mt-6">
               <h3 className="font-heading text-heading-sm font-bold">Verborgen widgets</h3>
               {hidden.length ? (
                 <div className="mt-3 grid gap-2">
-                  {hidden.map((widget) => <div key={widget.id} className="flex min-h-12 items-center justify-between gap-3 rounded-card border border-border px-3"><span className="min-w-0 truncate text-body-sm font-semibold">{widget.title}</span><div className="flex"><button type="button" onClick={() => updateWidget(widget.id, { hidden: false })} className="min-h-11 px-3 text-body-sm font-semibold text-[#684027] underline underline-offset-4">Terugzetten</button>{widget.custom ? <button type="button" onClick={() => setPreferences((current) => ({ ...current, widgets: current.widgets.filter((item) => item.id !== widget.id) }))} className="inline-flex h-11 w-11 items-center justify-center text-red-700" aria-label={`${widget.title} definitief verwijderen`}><Trash2 className="h-4 w-4" /></button> : null}</div></div>)}
+                  {hidden.map((widget) => <div key={widget.id} className="flex min-h-12 items-center justify-between gap-3 rounded-card border border-border px-3"><span className="min-w-0 truncate text-body-sm font-semibold">{widget.display.title}</span><div className="flex"><button type="button" onClick={() => updateWidget(widget.id, { hidden: false })} className="min-h-11 px-3 text-body-sm font-semibold text-[#684027] underline underline-offset-4">Terugzetten</button>{widget.custom ? <button type="button" onClick={() => setPreferences((current) => ({ ...current, widgets: current.widgets.filter((item) => item.id !== widget.id) }))} className="inline-flex h-11 w-11 items-center justify-center text-red-700" aria-label={`${widget.display.title} definitief verwijderen`}><Trash2 className="h-4 w-4" /></button> : null}</div></div>)}
                 </div>
               ) : <p className="mt-2 text-body-sm text-muted">Geen verborgen widgets.</p>}
             </div>
@@ -724,17 +578,36 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
               <button type="button" disabled={visible.findIndex((widget) => widget.id === editing.id) === visible.length - 1} onClick={() => moveVisible(editing.id, 1)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button border border-border font-heading text-body-sm font-semibold disabled:opacity-40"><ChevronDown className="h-4 w-4" />Omlaag</button>
             </div>
             <label className="mt-5 block text-body-sm font-semibold" htmlFor="widget-title">Titel</label>
-            <input id="widget-title" value={editing.title} maxLength={80} onChange={(event) => updateWidget(editing.id, { title: event.target.value })} className="mt-1 min-h-11 w-full rounded-button border border-border px-3" />
+            <input id="widget-title" value={editing.display.title} maxLength={80} onChange={(event) => updateWidget(editing.id, { display: { ...editing.display, title: event.target.value } })} className="mt-1 min-h-11 w-full rounded-button border border-border px-3" />
             <label className="mt-4 block text-body-sm font-semibold" htmlFor="widget-text">Tekst <span className="font-normal text-muted">(leeg laten om te verwijderen)</span></label>
-            <textarea id="widget-text" value={editing.text} maxLength={240} rows={4} onChange={(event) => updateWidget(editing.id, { text: event.target.value })} className="mt-1 w-full rounded-button border border-border px-3 py-2" />
-            {chartCapableSources.has(editing.source) ? (
+            <textarea id="widget-text" value={editing.display.subtitle ?? ""} maxLength={240} rows={4} onChange={(event) => updateWidget(editing.id, { display: { ...editing.display, subtitle: event.target.value } })} className="mt-1 w-full rounded-button border border-border px-3 py-2" />
+            {editingVisualizations.length > 1 ? (
               <fieldset className="mt-4">
                 <legend className="text-body-sm font-semibold">Weergave</legend>
-                <div className="mt-2 grid grid-cols-2 gap-2">{(["number", "chart"] as const).map((display) => <label key={display} className={cn("flex min-h-11 cursor-pointer items-center gap-2 rounded-button border px-3", editing.display === display ? "border-accent bg-[#FFF8DD]" : "border-border")}><input type="radio" name="display" checked={editing.display === display} onChange={() => updateWidget(editing.id, { display })} />{display === "number" ? "Cijfers" : "Grafiek"}</label>)}</div>
+                <p className="mt-1 text-xs text-muted">Alleen grafieken die bij deze gegevens passen.</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {editingVisualizations.map((option) => (
+                    <label key={option.id} className={cn("flex min-h-11 cursor-pointer items-start gap-2 rounded-button border px-3 py-2", editing.visualization === option.id ? "border-accent bg-[#FFF8DD]" : "border-border")}>
+                      <input type="radio" name="visualization" className="mt-1" checked={editing.visualization === option.id} onChange={() => updateWidget(editing.id, { visualization: option.id })} />
+                      <span className="min-w-0"><span className="block text-body-sm font-semibold">{option.label}</span><span className="block text-xs text-muted">{option.hint}</span></span>
+                    </label>
+                  ))}
+                </div>
               </fieldset>
             ) : null}
+            <fieldset className="mt-4">
+              <legend className="text-body-sm font-semibold">Grootte</legend>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {([["Klein", 3], ["Half", 6], ["Vol", 12]] as const).map(([label, width]) => (
+                  <label key={width} className={cn("flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-button border px-3 text-body-sm font-semibold", editing.layout.w === width ? "border-accent bg-[#FFF8DD]" : "border-border")}>
+                    <input type="radio" name="width" className="sr-only" checked={editing.layout.w === width} onChange={() => resize(editing.id, width)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => refreshWidget(editing.source)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button border border-border font-heading text-body-sm font-semibold"><RefreshCw className="h-4 w-4" />Vernieuwen</button>
+              <button type="button" onClick={() => refreshWidget(editing)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button border border-border font-heading text-body-sm font-semibold"><RefreshCw className="h-4 w-4" />Vernieuwen</button>
               <button type="button" onClick={() => { updateWidget(editing.id, { hidden: true }); setEditingId(null); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-button border border-red-200 font-heading text-body-sm font-semibold text-red-700"><Trash2 className="h-4 w-4" />Verwijderen</button>
             </div>
             <button type="submit" className="mt-4 min-h-11 w-full rounded-button bg-accent px-5 font-heading font-semibold shadow-button hover:bg-accent-hover">Gereed</button>

@@ -1,40 +1,14 @@
-import { z } from "zod";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/admin-api-auth";
-import {
-  DASHBOARD_WIDGET_SOURCES,
-  DEFAULT_DASHBOARD_PREFERENCES,
-  type DashboardPreferences,
-  type DashboardWidgetConfig,
-} from "@/lib/admin-dashboard-contract";
+import { can } from "@/lib/roles";
+import { migratePreferences } from "@/lib/dashboard/migrate";
+import { packLayout, type DashboardPreferences } from "@/lib/dashboard/schema";
+import { getDashboardSource } from "@/lib/dashboard/sources";
+import { validatePreferences } from "@/lib/dashboard/validate";
 import { getSetting, setSetting } from "@/lib/settings";
 
 export const runtime = "nodejs";
-
-const widgetSourceSchema = z.enum(
-  DASHBOARD_WIDGET_SOURCES.map((item) => item.source) as [
-    DashboardWidgetConfig["source"],
-    ...DashboardWidgetConfig["source"][],
-  ]
-);
-
-const preferencesSchema = z.object({
-  version: z.literal(1),
-  widgets: z
-    .array(
-      z.object({
-        id: z.string().trim().min(1).max(80).regex(/^[a-z0-9-]+$/),
-        source: widgetSourceSchema,
-        title: z.string().max(80),
-        text: z.string().max(240),
-        display: z.enum(["number", "chart"]),
-        hidden: z.boolean(),
-        custom: z.boolean(),
-      })
-    )
-    .max(40),
-});
 
 function settingKey(adminId: string) {
   return `admin.dashboard.preferences.${adminId}`;
@@ -71,77 +45,74 @@ async function readLimitedJson(
   }
 }
 
-function mergePreferences(saved: DashboardPreferences): DashboardPreferences {
-  const defaults = new Map(
-    DEFAULT_DASHBOARD_PREFERENCES.widgets.map((widget) => [widget.id, widget])
-  );
-  const merged: DashboardWidgetConfig[] = [];
-  const seen = new Set<string>();
-
-  for (const widget of saved.widgets) {
-    if (seen.has(widget.id)) continue;
-    if (!widget.custom && !defaults.has(widget.id)) continue;
-    const defaultWidget = defaults.get(widget.id);
-    const migratedWidget = !widget.custom && defaultWidget
-      ? {
-          ...widget,
-          text:
-            widget.id === "revenue-today" && widget.text === "Standaard GA4-transacties"
-              ? defaultWidget.text
-              : widget.id === "daily-revenue" && widget.text === "Afgelopen 30 dagen"
-                ? defaultWidget.text
-                : widget.text,
-        }
-      : widget;
-    merged.push(migratedWidget);
-    seen.add(widget.id);
-  }
-  for (const widget of DEFAULT_DASHBOARD_PREFERENCES.widgets) {
-    if (!seen.has(widget.id)) merged.push(widget);
-  }
-  return { version: 1, widgets: merged };
-}
-
-async function loadPreferences(adminId: string): Promise<DashboardPreferences> {
-  const raw = await getSetting(settingKey(adminId));
-  if (!raw) return DEFAULT_DASHBOARD_PREFERENCES;
-  try {
-    const parsed = preferencesSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? mergePreferences(parsed.data) : DEFAULT_DASHBOARD_PREFERENCES;
-  } catch {
-    return DEFAULT_DASHBOARD_PREFERENCES;
-  }
+/**
+ * Drops the widgets this admin's role may not read. The dashboard is personal, but a role
+ * that cannot see orders should not be able to keep an order widget from an earlier role.
+ */
+function withinPermissions(
+  preferences: DashboardPreferences,
+  role: Parameters<typeof can>[0],
+): DashboardPreferences {
+  const allowed = preferences.widgets.filter((widget) => {
+    const source = getDashboardSource(widget.source);
+    if (!source) return false;
+    // Analytics has no resource of its own yet; reading orders is the closest existing right.
+    const resource = source.permission.resource === "analytics" ? "orders" : source.permission.resource;
+    return can(role, resource, source.permission.action);
+  });
+  return { ...preferences, widgets: packLayout(allowed) };
 }
 
 export async function GET(request: NextRequest) {
   const admin = await getAdminSession(request);
   if (!admin) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  const preferences = await loadPreferences(admin.id);
-  return NextResponse.json(preferences, {
-    headers: { "Cache-Control": "private, no-store, max-age=0" },
-  });
+
+  const raw = await getSetting(settingKey(admin.id));
+  let stored: unknown = null;
+  try {
+    stored = raw ? JSON.parse(raw) : null;
+  } catch {
+    stored = null;
+  }
+  const migration = migratePreferences(stored);
+  // Writing the migrated shape back once keeps the next read cheap and the stored data current.
+  if (migration.changed && raw !== null) {
+    await setSetting(settingKey(admin.id), JSON.stringify(migration.preferences)).catch(() => undefined);
+  }
+
+  return NextResponse.json(
+    { ...withinPermissions(migration.preferences, admin.role), hiddenDuplicates: migration.hiddenDuplicates },
+    { headers: { "Cache-Control": "private, no-store, max-age=0" } },
+  );
 }
 
 export async function PATCH(request: NextRequest) {
   const admin = await getAdminSession(request);
   if (!admin) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  const bodyResult = await readLimitedJson(request, 50_000);
-  if (!bodyResult.ok && bodyResult.tooLarge) {
-    return NextResponse.json({ error: "PAYLOAD_TOO_LARGE" }, { status: 413 });
-  }
-  if (!bodyResult.ok) {
-    return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
-  }
-  const parsed = preferencesSchema.safeParse(bodyResult.value);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "INVALID_PREFERENCES" }, { status: 400 });
-  }
-  const ids = parsed.data.widgets.map((widget) => widget.id);
-  if (new Set(ids).size !== ids.length) {
-    return NextResponse.json({ error: "DUPLICATE_WIDGET_ID" }, { status: 400 });
+
+  const body = await readLimitedJson(request, 200_000);
+  if (!body.ok && body.tooLarge) return NextResponse.json({ error: "PAYLOAD_TOO_LARGE" }, { status: 413 });
+  if (!body.ok) return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+
+  const validated = validatePreferences(body.value);
+  if (!validated.ok) {
+    return NextResponse.json({ error: "INVALID_PREFERENCES", problems: validated.problems }, { status: 400 });
   }
 
-  const preferences = mergePreferences(parsed.data);
+  // A widget may only come from a source this role is allowed to read, whatever the browser sent.
+  for (const widget of validated.widgets) {
+    const source = getDashboardSource(widget.source)!;
+    const resource = source.permission.resource === "analytics" ? "orders" : source.permission.resource;
+    if (!can(admin.role, resource, source.permission.action)) {
+      return NextResponse.json({ error: "FORBIDDEN_SOURCE", problems: [{ field: `${widget.id}.source`, message: `Je mag ${source.label} niet bekijken.` }] }, { status: 403 });
+    }
+    // A shared template is a separate right; personal dashboards cannot create one.
+    if (widget.scope === "shared" && !can(admin.role, "users", "write")) {
+      return NextResponse.json({ error: "FORBIDDEN_SCOPE", problems: [{ field: `${widget.id}.scope`, message: "Alleen een beheerder met gebruikersrechten kan een gedeelde widget maken." }] }, { status: 403 });
+    }
+  }
+
+  const preferences: DashboardPreferences = { version: 2, widgets: packLayout(validated.widgets) };
   await setSetting(settingKey(admin.id), JSON.stringify(preferences));
   return NextResponse.json({ ok: true, preferences });
 }

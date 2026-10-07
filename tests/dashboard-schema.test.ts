@@ -255,3 +255,40 @@ test("the whole dashboard is rejected on a duplicate id or a bad widget, with th
   assert.equal(validatePreferences({ version: 1, widgets: [] }).ok, false, "an old version is not accepted raw");
   assert.equal(validatePreferences({ version: 2, widgets: Array.from({ length: 41 }, (_, index) => widget({ id: `w${index}` })) }).ok, false, "a dashboard has a ceiling");
 });
+
+test("migration never writes a widget the server would refuse", () => {
+  // Version 1 let an admin put any source in "chart" mode, including ones no chart fits.
+  const sources = ["activeVisitors", "revenueToday", "sessions", "views", "engagement", "keyEvents", "activeProducts", "categories", "totalOrders", "pendingOrders", "recentOrders", "forecast", "dailyRevenue", "funnel", "improvementSignals", "improvements"];
+  for (const source of sources) {
+    for (const display of ["chart", "number"] as const) {
+      const { preferences } = migratePreferences(legacy([legacyWidget({ id: "eigen-widget", source, display, custom: true })]));
+      const migrated = preferences.widgets.find((item) => item.id === "eigen-widget");
+      assert.ok(migrated, `${source} als ${display} blijft bestaan`);
+      assert.deepEqual(validateWidget(migrated), [], `${source} als ${display} is geldig`);
+    }
+  }
+});
+
+test("a number shown as a chart in version 1 keeps its trend, a plain number does not", () => {
+  const { preferences } = migratePreferences(legacy([
+    legacyWidget({ id: "revenue-today", source: "revenueToday", display: "chart" }),
+    legacyWidget({ id: "sessions", source: "sessions", display: "number" }),
+  ]));
+  const revenue = preferences.widgets.find((item) => item.id === "revenue-today")!;
+  assert.equal(revenue.visualization, "kpi");
+  assert.deepEqual(revenue.dimensions, ["date"], "grouped by day, so the sparkline returns");
+
+  const sessions = preferences.widgets.find((item) => item.id === "sessions")!;
+  assert.equal(sessions.visualization, "kpi");
+  assert.deepEqual(sessions.dimensions, [], "a plain number stays a plain number");
+});
+
+test("a stored widget that went stale repairs itself instead of blocking every save", () => {
+  const broken = widget({ id: "revenue-today", source: "mollie_revenue", metrics: [{ field: "netRevenue", aggregation: "sum" }], visualization: "line", dimensions: [] });
+  const { preferences, changed } = migratePreferences({ version: 2, widgets: [broken] });
+  assert.equal(changed, true);
+  const repaired = preferences.widgets.find((item) => item.id === "revenue-today")!;
+  assert.notEqual(repaired.visualization, "line", "a line without a grouping cannot be drawn");
+  assert.deepEqual(validateWidget(repaired), []);
+  assert.equal(validatePreferences(preferences).ok, true, "and the whole dashboard saves again");
+});
