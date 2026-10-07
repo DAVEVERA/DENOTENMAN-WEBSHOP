@@ -6,6 +6,7 @@ import test from "node:test";
 const service = readFileSync(join(process.cwd(), "lib/design-studio/vmodel-service.ts"), "utf8");
 const createRoute = readFileSync(join(process.cwd(), "app/api/admin/design-studio/vmodel/jobs/route.ts"), "utf8");
 const statusRoute = readFileSync(join(process.cwd(), "app/api/admin/design-studio/vmodel/jobs/[jobId]/route.ts"), "utf8");
+const availabilityRoute = readFileSync(join(process.cwd(), "app/api/admin/design-studio/vmodel/status/route.ts"), "utf8");
 
 test("VModel jobs are provider-scoped, idempotent, limited and finalized under a lock", () => {
   assert.match(service, /existing\.provider !== "VMODEL"/);
@@ -34,4 +35,7 @@ test("VModel routes enforce admin authorization, same-origin mutation and no-sto
   assert.match(statusRoute, /getAdminSession/);
   assert.match(statusRoute, /refreshVModelCampaignJob/);
   assert.match(statusRoute, /Cache-Control": "no-store"/);
+  assert.match(availabilityRoute, /getAdminSession/);
+  assert.match(availabilityRoute, /getVModelAvailability/);
+  assert.match(availabilityRoute, /Cache-Control": "no-store"/);
 });

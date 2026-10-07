@@ -29,3 +29,13 @@ export type PhotoRoomAvailability = {
   availableCredits: number | null;
   requiredCredits: number | null;
 };
+
+export type VModelAvailability = {
+  status: "ready" | "insufficient_credits" | "not_configured" | "invalid_configuration" | "unavailable";
+  availableCredits: number | null;
+};
+
+export type GeminiImageAvailability = {
+  status: "ready" | "not_configured" | "invalid_configuration" | "unavailable";
+  availableModels: string[];
+};

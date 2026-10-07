@@ -2,8 +2,10 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { getPhotoRoomAvailability } from "@/lib/design-studio/photoroom-provider";
+import { getVModelAvailability } from "@/lib/design-studio/vmodel-provider";
+import { getGeminiImageAvailability } from "@/lib/design-studio/gemini-image-provider";
 import { isCopywriterGeminiConfigured } from "@/lib/design-studio/copywriter/gemini-provider";
-import type { PhotoRoomAvailability } from "@/lib/design-studio/types";
+import type { GeminiImageAvailability, PhotoRoomAvailability, VModelAvailability } from "@/lib/design-studio/types";
 
 // These limits mirror the per-provider daily caps enforced in
 // lib/design-studio/service.ts (PhotoRoom) and lib/design-studio/vmodel-service.ts (VModel).
@@ -11,6 +13,7 @@ import type { PhotoRoomAvailability } from "@/lib/design-studio/types";
 // this module never has to touch provider job logic.
 const PHOTOROOM_DAILY_LIMIT = 25;
 const VMODEL_DAILY_LIMIT = 25;
+const GEMINI_DAILY_LIMIT = 25;
 
 function amsterdamDayKey(date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en", {
@@ -32,6 +35,7 @@ export type PhotoRoomModuleStatus = {
 export type VModelModuleStatus = {
   provider: "vmodel";
   configured: boolean;
+  availability: VModelAvailability;
   attemptsUsed: number;
   dailyLimit: number;
 };
@@ -41,19 +45,37 @@ export type CopywriterModuleStatus = {
   configured: boolean;
 };
 
+export type GeminiImageModuleStatus = {
+  provider: "gemini";
+  configured: boolean;
+  availability: GeminiImageAvailability;
+  attemptsUsed: number;
+  dailyLimit: number;
+};
+
 export type DesignStudioProviderStatuses = {
   photoroom: PhotoRoomModuleStatus;
   vmodel: VModelModuleStatus;
+  geminiImage: GeminiImageModuleStatus;
   copywriter: CopywriterModuleStatus;
 };
 
 export async function getDesignStudioProviderStatuses(): Promise<DesignStudioProviderStatuses> {
   const vmodelConfigured = Boolean(process.env.VMODEL_API_KEY?.trim());
-  const [availability, usage] = await Promise.all([
+  const geminiConfigured = Boolean(process.env.GEMINI_API_KEY?.trim()) && process.env.GEMINI_API_KEY?.trim() !== "MY_GEMINI_API_KEY";
+  const [availability, vmodelAvailability, geminiAvailability, vmodelUsage, geminiUsage] = await Promise.all([
     getPhotoRoomAvailability(),
+    getVModelAvailability(),
+    getGeminiImageAvailability(),
     vmodelConfigured
       ? prisma.designProviderUsage.findUnique({
           where: { dayKey_provider: { dayKey: amsterdamDayKey(), provider: "VMODEL" } },
+          select: { attempts: true },
+        })
+      : Promise.resolve(null),
+    geminiConfigured
+      ? prisma.designProviderUsage.findUnique({
+          where: { dayKey_provider: { dayKey: amsterdamDayKey(), provider: "GEMINI" } },
           select: { attempts: true },
         })
       : Promise.resolve(null),
@@ -64,8 +86,16 @@ export async function getDesignStudioProviderStatuses(): Promise<DesignStudioPro
     vmodel: {
       provider: "vmodel",
       configured: vmodelConfigured,
-      attemptsUsed: usage?.attempts ?? 0,
+      availability: vmodelAvailability,
+      attemptsUsed: vmodelUsage?.attempts ?? 0,
       dailyLimit: VMODEL_DAILY_LIMIT,
+    },
+    geminiImage: {
+      provider: "gemini",
+      configured: geminiConfigured,
+      availability: geminiAvailability,
+      attemptsUsed: geminiUsage?.attempts ?? 0,
+      dailyLimit: GEMINI_DAILY_LIMIT,
     },
     copywriter: { provider: "copywriter", configured: isCopywriterGeminiConfigured() },
   };

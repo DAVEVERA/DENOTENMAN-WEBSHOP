@@ -4,7 +4,7 @@ export type DesignStudioModule = {
   description: string;
   href: string;
   status: "ACTIVE" | "PLANNED";
-  provider?: "PhotoRoom" | "VModel" | "Gemini" | "Canva";
+  provider?: "Gemini + PhotoRoom + VModel" | "VModel" | "Gemini" | "Canva";
 };
 
 export const designStudioModules: readonly DesignStudioModule[] = [
@@ -14,7 +14,7 @@ export const designStudioModules: readonly DesignStudioModule[] = [
     description: "Maak consistente uitsneden en achtergronden zonder het origineel te overschrijven.",
     href: "/admin/design-studio/productfotos",
     status: "ACTIVE",
-    provider: "PhotoRoom",
+    provider: "Gemini + PhotoRoom + VModel",
   },
   {
     id: "campaign-assets",

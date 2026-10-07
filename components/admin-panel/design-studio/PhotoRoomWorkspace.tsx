@@ -43,6 +43,7 @@ export function PhotoRoomWorkspace({
   initialImageId,
   configured,
   allowed,
+  showNavigation = true,
 }: {
   initialProducts: DesignStudioProduct[];
   initialAssets: DesignAssetDto[];
@@ -50,6 +51,7 @@ export function PhotoRoomWorkspace({
   initialImageId?: string;
   configured: boolean;
   allowed: boolean;
+  showNavigation?: boolean;
 }) {
   const initial = initialSelection(initialProducts, initialProductId, initialImageId);
   const [products, setProducts] = useState(initialProducts);
@@ -74,6 +76,9 @@ export function PhotoRoomWorkspace({
   const selectedAsset = assets.find((asset) => asset.id === selectedAssetId);
   const productAssets = useMemo(() => assets.filter((asset) => asset.productId === productId), [assets, productId]);
   const canRun = providerStatus === "ready" && allowed && Boolean(selectedImage) && !busy;
+  const geminiHref = selectedProduct && selectedImage
+    ? `/admin/design-studio/productfotos?provider=gemini&productId=${encodeURIComponent(selectedProduct.id)}&imageId=${encodeURIComponent(selectedImage.id)}`
+    : "/admin/design-studio/productfotos?provider=gemini";
 
   async function checkProviderStatus() {
     try {
@@ -206,10 +211,10 @@ export function PhotoRoomWorkspace({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {showNavigation ? <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/admin/design-studio" className="inline-flex min-h-11 items-center gap-2 rounded-button font-heading text-body-sm font-bold text-accent-ink underline-offset-4 hover:underline"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Design Studio</Link>
-        {selectedProduct && selectedImage ? <Link href={`/admin/design-studio/campagnebeelden?productId=${encodeURIComponent(selectedProduct.id)}&imageId=${encodeURIComponent(selectedImage.id)}`} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text hover:border-border-hover"><Sparkles className="h-4 w-4" aria-hidden="true" />Maak campagnebeeld</Link> : null}
-      </div>
+        <Link href={geminiHref} className="inline-flex min-h-11 items-center gap-2 rounded-button border border-border bg-surface px-4 font-heading text-body-sm font-bold text-text hover:border-border-hover"><Sparkles className="h-4 w-4" aria-hidden="true" />Gemini gebruiken</Link>
+      </div> : null}
       <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-3xl">
           <p className="font-heading text-body-sm font-bold uppercase tracking-[0.12em] text-accent-ink">Productfoto’s · PhotoRoom</p>
@@ -220,7 +225,7 @@ export function PhotoRoomWorkspace({
       </div>
 
       {!allowed ? <div role="alert" className="mt-6 rounded-card border border-amber-300 bg-amber-50 p-4 text-body-sm font-semibold text-amber-900">Alleen een owner of admin kan PhotoRoom-bewerkingen starten en publiceren.</div> : null}
-      {allowed && providerStatus === "insufficient_credits" ? <div role="alert" className="mt-6 rounded-card border border-amber-300 bg-amber-50 p-4 text-body-sm font-semibold text-amber-900">Het PhotoRoom API-tegoed is {availableCredits === 0 ? "op" : "te laag voor een bewerking"}. Vul het tegoed bij en controleer daarna de status opnieuw.</div> : null}
+      {allowed && providerStatus === "insufficient_credits" ? <div role="alert" className="mt-6 rounded-card border border-amber-300 bg-amber-50 p-4 text-body-sm font-semibold text-amber-900">Het PhotoRoom API-tegoed is {availableCredits === 0 ? "op" : "te laag voor een bewerking"}. <Link href={geminiHref} className="underline underline-offset-4">Ga verder met Gemini</Link>, of vul PhotoRoom bij en controleer daarna opnieuw.</div> : null}
       <div aria-live="polite" className="mt-4 min-h-6 text-body-sm">{busy ? <p className="font-semibold text-muted">Bezig met veilig verwerken…</p> : error ? <p role="alert" className="font-semibold text-red-700">{error}</p> : message ? <p className="font-semibold text-green-700">{message}</p> : null}</div>
 
       <div className="mt-4 grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
