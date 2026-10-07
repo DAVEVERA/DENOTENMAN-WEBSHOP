@@ -243,3 +243,49 @@ test("views by De Notenman are recorded once per visit and shown with the invoic
     await prisma.adminUser.delete({ where: { id: admin.id } });
   }
 });
+
+test("a file the AI cannot read still becomes a draft with the original attached, and cannot be sent empty", async () => {
+  const result = await createDeveloperInvoiceFromUpload(
+    // The browser sent no file type at all, which used to be refused.
+    { filename: `scan_oktober_${run}.pdf`, contentType: "", bytes: pdf },
+    { ...deps, generate: async () => ({ text: "geen json" }) },
+  );
+  ids.push(result.invoice.id);
+  assert.equal(result.invoice.status, "DRAFT");
+  assert.equal(result.invoice.totalCents, 0);
+  assert.equal(result.invoice.title, `scan oktober ${run}`);
+  assert.equal(result.invoice.attachment?.contentType, "application/pdf");
+  assert.equal(result.invoice.attachment?.filename, `scan_oktober_${run}.pdf`);
+  assert.match(result.warnings[0], /Automatisch uitlezen is niet gelukt/u);
+  assert.deepEqual(result.invoice.attachment?.warnings, result.warnings);
+  await assert.rejects(sendDeveloperInvoices([result.invoice.id], deps), (error: Error & { code?: string }) => error.code === "INVOICE_EMPTY");
+});
+
+test("an AI outage or a missing exchange rate also gives a draft instead of an error", async () => {
+  const { InvoiceExtractionError } = await import("../lib/developer-portal/extract");
+  const { ExchangeRateError } = await import("../lib/developer-portal/fx");
+  const outage = await createDeveloperInvoiceFromUpload(
+    { filename: `drukte-${run}.pdf`, contentType: "application/pdf", bytes: pdf },
+    { ...deps, generate: async () => { throw new InvoiceExtractionError("AI_UNAVAILABLE", "De AI is nu te druk om de factuur uit te lezen.", 503); } },
+  );
+  ids.push(outage.invoice.id);
+  assert.equal(outage.invoice.totalCents, 0);
+  assert.match(outage.warnings[0], /te druk/u);
+
+  const noRate = await createDeveloperInvoiceFromUpload(
+    { filename: `dollar-${run}.pdf`, contentType: "application/pdf", bytes: pdf },
+    { ...deps, generate: reading(`NR-${run}`, 100, 0, "USD"), rateFor: async () => { throw new ExchangeRateError("RATE_UNAVAILABLE", "geen koers"); } },
+  );
+  ids.push(noRate.invoice.id);
+  assert.equal(noRate.invoice.totalCents, 0);
+  assert.equal(noRate.invoice.number, `NR-${run}`, "the printed number is kept");
+  assert.match(noRate.warnings[0], /dollarkoers/u);
+});
+
+test("an invoice with a foreign VAT rate keeps its total through a separate VAT line", async () => {
+  const { invoice, warnings } = await upload(`DE-${run}`, 100, 19);
+  assert.equal(invoice.subtotalCents, 11_900, "amount plus the 19% VAT as its own line");
+  assert.equal(invoice.vatCents, 0);
+  assert.equal(invoice.totalCents, 11_900);
+  assert.ok(warnings.some((warning) => /19% btw/u.test(warning)));
+});

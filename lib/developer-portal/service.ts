@@ -33,7 +33,7 @@ import {
   verifyStripeKey,
   verifyStripeSignature,
 } from "./stripe";
-import { extractInvoiceFromFile, InvoiceExtractionError, type GenerateFn } from "./extract";
+import { extractInvoiceFromFile, HARD_UPLOAD_ERROR_CODES, InvoiceExtractionError, normalizeInvoiceFile, type ExtractedInvoice, type GenerateFn } from "./extract";
 import { eurRateFor, ExchangeRateError, toEuroCents, type EurRate, type ForeignCurrency } from "./fx";
 import { describeDevice, networkOf, type DeviceScreen } from "./device";
 
@@ -418,16 +418,45 @@ function todayInAmsterdam(now: Date): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Amsterdam" }).format(now);
 }
 
+const MANUAL_LINE = "Nog in te vullen (bedragen niet uitgelezen)";
+
+/** An empty draft for a file that could not be read, with the reason as a warning. */
+function manualExtraction(filename: string, reason: string, now: Date): ExtractedInvoice {
+  const base = filename.replace(/\.[^.]+$/u, "").replace(/_+/gu, " ").trim().slice(0, 140);
+  return {
+    currency: "EUR",
+    invoiceNumber: null,
+    issueDate: todayInAmsterdam(now),
+    dueDate: null,
+    title: base || "Geüploade factuur",
+    lines: [{ description: MANUAL_LINE, quantity: 1, unitPriceCents: 0, vatRate: 21 }],
+    printed: { subtotalCents: 0, vatCents: 0, totalCents: 0 },
+    warnings: [`Automatisch uitlezen is niet gelukt: ${reason} Het origineel is bewaard. Vul de regels in via Bewerken en controleer de bedragen met het origineel.`],
+  };
+}
+
 /**
  * Turns an uploaded invoice file into a draft: the AI reads number, dates and amounts,
  * the original is kept with it, and the developer checks it before setting it ready.
+ * A file that cannot be read still becomes a draft with the original attached, so an
+ * upload never ends in a dead end; only a file that is not a PDF or photo is refused.
  */
 export async function createDeveloperInvoiceFromUpload(
-  file: { filename: string; contentType: string; bytes: Buffer },
+  upload: { filename: string; contentType: string; bytes: Buffer },
   deps: Partial<DeveloperInvoiceDeps> = {},
 ): Promise<{ invoice: DeveloperInvoiceDto; warnings: string[] }> {
   const now = (deps.now ?? defaultDeps.now)();
-  const extracted = await extractInvoiceFromFile({ bytes: file.bytes, contentType: file.contentType }, deps.generate);
+  // The real file type comes from the bytes (browsers send "" or a wrong type); HEIC photos become JPEG.
+  const normalized = await normalizeInvoiceFile({ bytes: upload.bytes, filename: upload.filename, contentType: upload.contentType });
+  const file = { filename: upload.filename, contentType: normalized.contentType, bytes: normalized.bytes };
+  let extracted: ExtractedInvoice;
+  try {
+    extracted = await extractInvoiceFromFile({ bytes: file.bytes, contentType: file.contentType }, deps.generate);
+  } catch (error) {
+    if (!(error instanceof InvoiceExtractionError) || HARD_UPLOAD_ERROR_CODES.has(error.code)) throw error;
+    console.warn("Developer invoice: reading failed, creating a manual draft", { code: error.code });
+    extracted = manualExtraction(file.filename, error.message, now);
+  }
   const profile = await getDeveloperProfile();
   const issueDate = extracted.issueDate ?? todayInAmsterdam(now);
   const issue = invoiceDateFromInput(issueDate);
@@ -440,8 +469,23 @@ export async function createDeveloperInvoiceFromUpload(
   let printed = extracted.printed;
   let notes: string | null = null;
   let conversion: { currency: string; rate: number; rateDate: string; originalTotalCents: number; originalPrinted: typeof extracted.printed } | null = null;
+  let rate: EurRate | null = null;
   if (extracted.currency === "USD") {
-    const rate = await (deps.rateFor ?? eurRateFor)("USD", issueDate);
+    try {
+      rate = await (deps.rateFor ?? eurRateFor)("USD", issueDate);
+    } catch (error) {
+      if (!(error instanceof ExchangeRateError)) throw error;
+      console.warn("Developer invoice: no exchange rate, creating a manual draft", { code: error.code });
+    }
+    if (!rate) {
+      // Without a rate the dollar amounts cannot become euros: keep the original and let the developer fill it in.
+      const manual = manualExtraction(file.filename, "de dollarkoers van de ECB was niet te bekijken.", now);
+      extracted = { ...manual, issueDate: extracted.issueDate ?? manual.issueDate, invoiceNumber: extracted.invoiceNumber, title: extracted.title };
+      lines = extracted.lines;
+      printed = extracted.printed;
+    }
+  }
+  if (extracted.currency === "USD" && rate) {
     lines = extracted.lines.map((line) => ({
       ...line,
       description: `${line.description} ($ ${formatForeign(line.unitPriceCents * line.quantity)})`.slice(0, 300),
@@ -568,8 +612,10 @@ export async function sendDeveloperInvoices(
   if (!methods.stripe && !methods.bankTransfer && !methods.link) {
     throw new DeveloperInvoiceError("NO_PAYMENT_METHOD", "Stel eerst minimaal één betaalmogelijkheid in.", 422);
   }
-  const drafts = await prisma.developerInvoice.count({ where: { id: { in: unique }, status: "DRAFT" } });
-  if (drafts !== unique.length) throw new DeveloperInvoiceError("INVOICE_NOT_SENDABLE", "Een of meer facturen zijn al verstuurd of geannuleerd.", 409);
+  const drafts = await prisma.developerInvoice.findMany({ where: { id: { in: unique }, status: "DRAFT" }, select: { number: true, totalCents: true } });
+  if (drafts.length !== unique.length) throw new DeveloperInvoiceError("INVOICE_NOT_SENDABLE", "Een of meer facturen zijn al verstuurd of geannuleerd.", 409);
+  const empty = drafts.find((draft) => draft.totalCents <= 0);
+  if (empty) throw new DeveloperInvoiceError("INVOICE_EMPTY", `Factuur ${empty.number} heeft nog geen bedrag. Vul eerst de regels in via Bewerken.`, 422);
   const now = deps.now();
   const claimed: string[] = [];
   for (const id of unique) {

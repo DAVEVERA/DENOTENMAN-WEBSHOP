@@ -755,7 +755,7 @@ function Portal({ initialInvoices, initialProfile, views, devices }: { initialIn
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => uploadInput.current?.click()} className={`${buttonClass} bg-accent text-contrast`}><Upload className="h-4 w-4" aria-hidden="true" />Facturen uploaden (PDF of foto)</button>
               <button type="button" onClick={() => setEditing("new")} className={`${buttonClass} border border-border bg-surface text-text`}><Plus className="h-4 w-4" aria-hidden="true" />Zelf een factuur maken</button>
-              <input ref={uploadInput} type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ""; void uploadFiles(files); }} />
+              <input ref={uploadInput} type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif" className="sr-only" onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ""; void uploadFiles(files); }} />
             </div>
           )}
 
