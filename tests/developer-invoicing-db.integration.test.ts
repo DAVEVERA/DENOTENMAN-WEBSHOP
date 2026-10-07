@@ -180,3 +180,26 @@ test("only drafts can be deleted; sent invoices are cancelled instead", async ()
   await deleteDeveloperInvoice(third.id);
   assert.equal(await prisma.developerInvoice.count({ where: { id: third.id } }), 0);
 });
+
+test("setting an invoice ready without notification sends no mail and no reminders", async () => {
+  const draft = await createDeveloperInvoice(invoiceInput("Zonder melding"));
+  createdIds.push(draft.id);
+  createdNumbers.push(draft.number);
+  const before = ours().length;
+  const startClock = clock;
+
+  const ready = await sendDeveloperInvoice(draft.id, deps, { notify: false });
+  assert.equal(ready.status, "SENT");
+  assert.equal(ready.notifyClient, false);
+  assert.equal(ours().length, before, "no notice goes out");
+
+  clock = new Date(clock.getTime() + 30 * day);
+  await processDeveloperInvoiceReminders({ ...deps, stripeFetch });
+  clock = startClock;
+  assert.equal(ours().length, before, "no reminder either, even long after the due date");
+
+  const after = await getDeveloperInvoice(draft.id);
+  assert.deepEqual(after.events.map((event) => event.type).filter((type) => type !== "UPDATED"), ["CREATED", "SENT"]);
+  assert.deepEqual(after.events.find((event) => event.type === "SENT")?.detail, { notify: false });
+  assert.equal((await getDeveloperInvoice(createdIds[0])).notifyClient, true, "an invoice set ready the normal way still notifies");
+});

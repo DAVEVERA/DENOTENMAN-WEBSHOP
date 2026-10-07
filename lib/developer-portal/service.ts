@@ -227,6 +227,8 @@ export type DeveloperInvoiceDto = {
   status: DeveloperInvoice["status"];
   overdue: boolean;
   sentAt: string | null;
+  /** False when the invoice was set ready without an e-mail to the client. */
+  notifyClient: boolean;
   firstReminderAt: string | null;
   secondReminderAt: string | null;
   paidAt: string | null;
@@ -300,6 +302,7 @@ export function developerInvoiceDto(
     status: invoice.status,
     overdue: invoice.status === "SENT" && invoice.dueDate.getTime() < now.getTime(),
     sentAt: invoice.sentAt?.toISOString() ?? null,
+    notifyClient: invoice.notifyClient,
     firstReminderAt: invoice.firstReminderAt?.toISOString() ?? null,
     secondReminderAt: invoice.secondReminderAt?.toISOString() ?? null,
     paidAt: invoice.paidAt?.toISOString() ?? null,
@@ -550,7 +553,13 @@ async function sendNotice(invoices: DeveloperInvoice[], kind: DeveloperInvoiceNo
  * Sets one or more drafts ready. De Notenman gets one e-mail listing them with the combined
  * subtotal, VAT and total, and sees them in the admin.
  */
-export async function sendDeveloperInvoices(ids: string[], deps: DeveloperInvoiceDeps = defaultDeps): Promise<DeveloperInvoiceDto[]> {
+export async function sendDeveloperInvoices(
+  ids: string[],
+  deps: DeveloperInvoiceDeps = defaultDeps,
+  options: { notify?: boolean } = {},
+): Promise<DeveloperInvoiceDto[]> {
+  // notify false: the invoices are set ready, but no notice and no later reminders go out by e-mail.
+  const notify = options.notify !== false;
   const unique = [...new Set(ids)];
   if (!unique.length) throw new DeveloperInvoiceError("NOTHING_SELECTED", "Kies ten minste één concept.", 422);
   if (unique.length > 15) throw new DeveloperInvoiceError("TOO_MANY", "Zet maximaal 15 facturen tegelijk klaar.", 422);
@@ -564,26 +573,29 @@ export async function sendDeveloperInvoices(ids: string[], deps: DeveloperInvoic
   const now = deps.now();
   const claimed: string[] = [];
   for (const id of unique) {
-    const result = await prisma.developerInvoice.updateMany({ where: { id, status: "DRAFT" }, data: { status: "SENT", sentAt: now } });
+    const result = await prisma.developerInvoice.updateMany({ where: { id, status: "DRAFT" }, data: { status: "SENT", sentAt: now, notifyClient: notify } });
     if (result.count === 1) {
       claimed.push(id);
-      await logEvent(id, "SENT", unique.length > 1 ? { together: unique.length } : undefined);
+      const detail = { ...(unique.length > 1 ? { together: unique.length } : {}), ...(notify ? {} : { notify: false }) };
+      await logEvent(id, "SENT", Object.keys(detail).length ? detail : undefined);
     }
   }
   if (!claimed.length) throw new DeveloperInvoiceError("INVOICE_NOT_SENDABLE", "Deze facturen zijn al verstuurd of geannuleerd.", 409);
   const invoices = await prisma.developerInvoice.findMany({ where: { id: { in: claimed } }, orderBy: { number: "asc" } });
-  try {
-    await sendNotice(invoices, "READY", deps);
-  } catch (error) {
-    // The invoices are visible in the admin either way; the failure is logged so the developer can resend.
-    for (const id of claimed) await logEvent(id, "EMAIL_FAILED", { kind: "READY", message: error instanceof Error ? error.message : String(error) });
+  if (notify) {
+    try {
+      await sendNotice(invoices, "READY", deps);
+    } catch (error) {
+      // The invoices are visible in the admin either way; the failure is logged so the developer can resend.
+      for (const id of claimed) await logEvent(id, "EMAIL_FAILED", { kind: "READY", message: error instanceof Error ? error.message : String(error) });
+    }
   }
   return Promise.all(claimed.map((id) => getDeveloperInvoice(id)));
 }
 
 /** Sets one draft ready: De Notenman gets an e-mail and sees the invoice in the admin. */
-export async function sendDeveloperInvoice(id: string, deps: DeveloperInvoiceDeps = defaultDeps): Promise<DeveloperInvoiceDto> {
-  return (await sendDeveloperInvoices([id], deps))[0];
+export async function sendDeveloperInvoice(id: string, deps: DeveloperInvoiceDeps = defaultDeps, options: { notify?: boolean } = {}): Promise<DeveloperInvoiceDto> {
+  return (await sendDeveloperInvoices([id], deps, options))[0];
 }
 
 export async function resendDeveloperInvoiceNotice(id: string, deps: DeveloperInvoiceDeps = defaultDeps): Promise<DeveloperInvoiceDto> {
@@ -719,6 +731,8 @@ export async function processDeveloperInvoiceReminders(deps: DeveloperInvoiceDep
   const claimed: Record<"FIRST" | "SECOND", DeveloperInvoice[]> = { FIRST: [], SECOND: [] };
   for (const invoice of open) {
     if (paidIds.has(invoice.id)) continue;
+    // Set ready without telling the client: no reminders either.
+    if (!invoice.notifyClient) continue;
     const reminder = dueReminder(invoice, now);
     if (!reminder) continue;
     const first = reminder === "FIRST";

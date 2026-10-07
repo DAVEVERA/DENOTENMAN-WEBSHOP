@@ -304,7 +304,7 @@ function InvoiceCard({ invoice, busy, selected, onSelect, onEdit, onAction, onDe
   selected: boolean;
   onSelect: (selected: boolean) => void;
   onEdit: () => void;
-  onAction: (action: "send" | "resend" | "cancel" | "markPaid", via?: string) => void;
+  onAction: (action: "send" | "sendQuiet" | "resend" | "cancel" | "markPaid", via?: string) => void;
   onDelete: () => void;
 }) {
   const badge = statusBadgeFor(invoice);
@@ -320,7 +320,7 @@ function InvoiceCard({ invoice, busy, selected, onSelect, onEdit, onAction, onDe
           <p className="mt-1 text-xs text-muted">Factuurdatum {dateLabel.format(new Date(invoice.issueDate))} · vervalt {dateLabel.format(new Date(invoice.dueDate))}{invoice.paidAt ? ` · betaald ${dateLabel.format(new Date(invoice.paidAt))}` : ""}</p>
           {invoice.status === "SENT" ? (
             <p className="mt-1 text-xs text-muted">
-              {invoice.secondReminderAt ? `Tweede herinnering verstuurd ${dateLabel.format(new Date(invoice.secondReminderAt))}.` : invoice.firstReminderAt ? `Eerste herinnering verstuurd ${dateLabel.format(new Date(invoice.firstReminderAt))}; de tweede volgt na 14 dagen.` : "Eerste herinnering volgt 7 dagen na klaarzetten als er niet is betaald."}
+              {!invoice.notifyClient ? "Zonder e-mail klaargezet: De Notenman krijgt geen melding en geen herinneringen." : invoice.secondReminderAt ? `Tweede herinnering verstuurd ${dateLabel.format(new Date(invoice.secondReminderAt))}.` : invoice.firstReminderAt ? `Eerste herinnering verstuurd ${dateLabel.format(new Date(invoice.firstReminderAt))}; de tweede volgt na 14 dagen.` : "Eerste herinnering volgt 7 dagen na klaarzetten als er niet is betaald."}
             </p>
           ) : null}
           {invoice.status !== "DRAFT" && invoice.views ? (
@@ -355,6 +355,7 @@ function InvoiceCard({ invoice, busy, selected, onSelect, onEdit, onAction, onDe
         {invoice.status === "DRAFT" ? (
           <>
             <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Factuur ${invoice.number} klaarzetten? De Notenman krijgt direct een melding.`)) onAction("send"); }} className={`${buttonClass} bg-accent text-contrast`}><Send className="h-4 w-4" aria-hidden="true" />Klaarzetten en melden</button>
+            <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Factuur ${invoice.number} klaarzetten zonder e-mail? De Notenman krijgt geen melding en later geen herinneringen.`)) onAction("sendQuiet"); }} className={`${buttonClass} border border-border bg-surface text-text`}><Send className="h-4 w-4" aria-hidden="true" />Klaarzetten zonder melding</button>
             <button type="button" disabled={busy} onClick={onEdit} className={`${buttonClass} border border-border bg-surface text-text`}><FileText className="h-4 w-4" aria-hidden="true" />Bewerken</button>
             <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Concept ${invoice.number} verwijderen?`)) onDelete(); }} className={`${buttonClass} border border-border bg-surface text-red-700`}><Trash2 className="h-4 w-4" aria-hidden="true" />Verwijderen</button>
           </>
@@ -614,6 +615,7 @@ function Portal({ initialInvoices, initialProfile, views, devices }: { initialIn
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [uploads, setUploads] = useState<Array<{ key: string; name: string; state: "busy" | "done" | "error"; text: string }>>([]);
   const uploadInput = useRef<HTMLInputElement>(null);
+  const [silent, setSilent] = useState(false);
   const selectedDrafts = invoices.filter((invoice) => invoice.status === "DRAFT" && selected.has(invoice.id));
   const paymentReady = (profile.stripeEnabled && profile.stripeKeyReadable) || (profile.bankTransferEnabled && Boolean(profile.iban)) || (profile.paymentLinkEnabled && Boolean(profile.paymentLinkUrl));
 
@@ -624,19 +626,19 @@ function Portal({ initialInvoices, initialProfile, views, devices }: { initialIn
     });
   }
 
-  async function action(invoice: DeveloperInvoiceDto, name: "send" | "resend" | "cancel" | "markPaid", via?: string) {
+  async function action(invoice: DeveloperInvoiceDto, name: "send" | "sendQuiet" | "resend" | "cancel" | "markPaid", via?: string) {
     setBusy(true);
     setMessage(null);
     try {
       const body = await api<{ invoice: DeveloperInvoiceDto }>(`/api/admin/developer/invoices/${encodeURIComponent(invoice.id)}`, {
         method: "POST",
-        body: JSON.stringify(name === "markPaid" ? { action: name, via } : { action: name }),
+        body: JSON.stringify(name === "markPaid" ? { action: name, via } : name === "sendQuiet" ? { action: "send", notify: false } : { action: name }),
       });
       replace(body.invoice);
       const failed = body.invoice.events.at(-1)?.type === "EMAIL_FAILED";
       setMessage(failed
         ? { tone: "error", text: `${invoice.number} is klaargezet, maar de e-mail kon niet worden verstuurd. Probeer "Melding opnieuw sturen".` }
-        : { tone: "ok", text: { send: `${invoice.number} staat klaar; De Notenman heeft een melding gekregen.`, resend: "Melding opnieuw verstuurd.", cancel: `${invoice.number} is geannuleerd.`, markPaid: `${invoice.number} staat op betaald.` }[name] });
+        : { tone: "ok", text: { send: `${invoice.number} staat klaar; De Notenman heeft een melding gekregen.`, sendQuiet: `${invoice.number} staat klaar, zonder e-mail aan De Notenman.`, resend: "Melding opnieuw verstuurd.", cancel: `${invoice.number} is geannuleerd.`, markPaid: `${invoice.number} staat op betaald.` }[name] });
     } catch (cause) {
       setMessage({ tone: "error", text: cause instanceof Error ? cause.message : "Er ging iets mis." });
     } finally {
@@ -668,17 +670,17 @@ function Portal({ initialInvoices, initialProfile, views, devices }: { initialIn
   async function sendSelected() {
     if (!selectedDrafts.length) return;
     const total = formatCents(sum(selectedDrafts, "totalCents"));
-    if (!window.confirm(`${selectedDrafts.length} ${selectedDrafts.length === 1 ? "factuur" : "facturen"} klaarzetten (${total})? De Notenman krijgt één melding.`)) return;
+    if (!window.confirm(`${selectedDrafts.length} ${selectedDrafts.length === 1 ? "factuur" : "facturen"} klaarzetten (${total})? ${silent ? "De Notenman krijgt geen e-mail." : "De Notenman krijgt één melding."}`)) return;
     setBusy(true);
     setMessage(null);
     try {
-      const body = await api<{ invoices: DeveloperInvoiceDto[] }>("/api/admin/developer/invoices/send", { method: "POST", body: JSON.stringify({ ids: selectedDrafts.map((invoice) => invoice.id) }) });
+      const body = await api<{ invoices: DeveloperInvoiceDto[] }>("/api/admin/developer/invoices/send", { method: "POST", body: JSON.stringify({ ids: selectedDrafts.map((invoice) => invoice.id), notify: !silent }) });
       body.invoices.forEach(replace);
       setSelected(new Set());
       const failed = body.invoices.some((invoice) => invoice.events.at(-1)?.type === "EMAIL_FAILED");
       setMessage(failed
         ? { tone: "error", text: "Klaargezet, maar de e-mail kon niet worden verstuurd. Probeer \"Melding opnieuw sturen\"." }
-        : { tone: "ok", text: `${body.invoices.length} ${body.invoices.length === 1 ? "factuur staat" : "facturen staan"} klaar; De Notenman heeft één melding gekregen.` });
+        : { tone: "ok", text: `${body.invoices.length} ${body.invoices.length === 1 ? "factuur staat" : "facturen staan"} klaar; ${silent ? "De Notenman heeft geen e-mail gekregen." : "De Notenman heeft één melding gekregen."}` });
     } catch (cause) {
       setMessage({ tone: "error", text: cause instanceof Error ? cause.message : "Klaarzetten mislukt." });
     } finally {
@@ -779,7 +781,11 @@ function Portal({ initialInvoices, initialProfile, views, devices }: { initialIn
                 <div><dt className="text-xs text-muted">Btw</dt><dd className="font-semibold">{formatCents(sum(selectedDrafts, "vatCents"))}</dd></div>
                 <div><dt className="text-xs text-muted">Totaal ({selectedDrafts.length})</dt><dd className="font-heading font-bold">{formatCents(sum(selectedDrafts, "totalCents"))}</dd></div>
               </dl>
-              <button type="button" disabled={busy || !paymentReady} onClick={() => void sendSelected()} className={`${buttonClass} bg-accent text-contrast`}><Send className="h-4 w-4" aria-hidden="true" />Klaarzetten en melden ({selectedDrafts.length})</button>
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 text-body-sm text-text">
+                <input type="checkbox" checked={silent} onChange={(event) => setSilent(event.target.checked)} className="h-5 w-5 shrink-0" />
+                Geen e-mail naar De Notenman sturen
+              </label>
+              <button type="button" disabled={busy || !paymentReady} onClick={() => void sendSelected()} className={`${buttonClass} bg-accent text-contrast`}><Send className="h-4 w-4" aria-hidden="true" />{silent ? "Klaarzetten zonder melding" : "Klaarzetten en melden"} ({selectedDrafts.length})</button>
             </section>
           ) : null}
 

@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
 
 const actionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("send") }).strict(),
+  z.object({ action: z.literal("send"), notify: z.boolean().optional() }).strict(),
   z.object({ action: z.literal("resend") }).strict(),
   z.object({ action: z.literal("cancel") }).strict(),
   z.object({ action: z.literal("markPaid"), via: z.enum(["bank", "stripe", "link", "other"]) }).strict(),
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, context: Context) {
     const { id } = await context.params;
     const input = actionSchema.parse(await readJson(request));
     const invoice = input.action === "send"
-      ? await sendDeveloperInvoice(id)
+      ? await sendDeveloperInvoice(id, undefined, { notify: input.notify })
       : input.action === "resend"
         ? await resendDeveloperInvoiceNotice(id)
         : input.action === "cancel"

@@ -1818,6 +1818,8 @@ model DeveloperInvoice {
   notes                   String?
   status                  DeveloperInvoiceStatus      @default(DRAFT)
   sentAt                  DateTime?
+  /// False when the invoice was set ready without telling the client: no notice and no reminders by e-mail.
+  notifyClient            Boolean                     @default(true)
   firstReminderAt         DateTime?
   secondReminderAt        DateTime?
   paidAt                  DateTime?
