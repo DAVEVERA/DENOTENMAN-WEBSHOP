@@ -97,6 +97,12 @@ export function ProductCard({
   const labels = copy ?? productCardCopies[locale];
   const primaryImage = product.images.find((image) => image.isPrimary) ?? product.images[0];
   const favorite = storefront.favorites.some((item) => item.productId === product.id);
+  // The pipeline's card variant is already a centred square WebP at card
+  // size, so it needs neither the optimizer nor the focal transform that
+  // re-centres an uncropped original.
+  const cardImage = primaryImage?.cardUrl
+    ? { src: primaryImage.cardUrl, unoptimized: true, style: undefined }
+    : { src: primaryImage?.url ?? "", unoptimized: false, style: getProductImageStyle(primaryImage?.url) };
 
   function openQuickView() {
     if (onQuickView) {
@@ -139,12 +145,13 @@ export function ProductCard({
           <span className="relative mx-auto block aspect-square w-full overflow-hidden rounded-full border border-border bg-background">
             {primaryImage ? (
               <Image
-                src={primaryImage.url}
+                src={cardImage.src}
                 alt={primaryImage.alt ?? product.name}
                 fill
                 sizes="(max-width: 639px) calc(50vw - 1.5rem), (max-width: 1023px) calc(33vw - 2rem), 280px"
                 quality={70}
-                style={getProductImageStyle(primaryImage.url)}
+                unoptimized={cardImage.unoptimized}
+                style={cardImage.style}
                 className="product-image-focal product-image-focal--zoomable h-full w-full rounded-full object-cover transition-transform duration-hover"
               />
             ) : (

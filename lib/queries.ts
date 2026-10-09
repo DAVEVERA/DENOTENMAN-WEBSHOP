@@ -56,6 +56,12 @@ export type ProductImageDto = {
   url: string;
   alt: string | null;
   isPrimary: boolean;
+  /**
+   * Pre-rendered square WebP for product cards, straight from the image
+   * pipeline. Null while an image still has no succeeded processing run, so
+   * callers fall back to `url` through the on-demand optimizer.
+   */
+  cardUrl: string | null;
 };
 
 export type ProductAttributeDto = {
@@ -366,18 +372,40 @@ function toSlugsByLocale<T extends { locale: Locale; slug: string }>(
   );
 }
 
-function toProductImageDto(image: ProductImage): ProductImageDto {
+/**
+ * Only the newest succeeded run matters; earlier runs stay in the ledger so a
+ * processing version can be rolled back without losing its evidence.
+ */
+export const productImageVariantInclude = {
+  include: {
+    processingRecords: {
+      where: { status: "SUCCEEDED" },
+      orderBy: [{ processedAt: "desc" }, { id: "desc" }],
+      take: 1,
+      select: { cardWebpKey: true },
+    },
+  },
+} satisfies Prisma.Product$imagesArgs;
+
+type ProductImageWithVariants = ProductImage & {
+  processingRecords: { cardWebpKey: string | null }[];
+};
+
+function toProductImageDto(image: ProductImageWithVariants): ProductImageDto {
+  const cardWebpKey = image.processingRecords[0]?.cardWebpKey ?? null;
+
   return {
     url: publicImageUrl(image.storageKey),
     alt: image.alt,
     isPrimary: image.isPrimary,
+    cardUrl: cardWebpKey ? publicImageUrl(cardWebpKey) : null,
   };
 }
 
 function toProductSummaryDto(
   product: Product & {
     translations: ProductTranslation[];
-    images: ProductImage[];
+    images: ProductImageWithVariants[];
     variants: (ProductVariant & { translations: VariantTranslation[] })[];
     productCategories: (ProductCategory & {
       category: Category & { translations: CategoryTranslation[] };
@@ -553,7 +581,7 @@ export const getProductBySlug = cache(async function getProductBySlug(
     where: { id: productId },
     include: {
       translations: true,
-      images: true,
+      images: productImageVariantInclude,
       variants: { include: { translations: true } },
       attributes: true,
       recommendations: { orderBy: { sortOrder: "asc" }, select: { targetProductId: true } },
@@ -580,7 +608,7 @@ export const getProductBySlug = cache(async function getProductBySlug(
   const recommendationInclude = {
     include: {
       translations: true,
-      images: true,
+      images: productImageVariantInclude,
       variants: { where: { isActive: true }, include: { translations: true } },
       productCategories: {
         include: { category: { include: { translations: true } } },
@@ -695,7 +723,7 @@ export async function getCategory(
     where: productWhere,
     include: {
       translations: true,
-      images: true,
+      images: productImageVariantInclude,
       variants: { include: { translations: true } },
       productCategories: {
         include: { category: { include: { translations: true } } },
@@ -884,6 +912,7 @@ export async function getCatalogProducts(
       select: { locale: true, slug: true, name: true, shortDescription: true, description: true },
     },
     images: {
+      ...productImageVariantInclude,
       orderBy: [{ isPrimary: "desc" as const }, { sortOrder: "asc" as const }, { id: "asc" as const }],
       take: 1,
     },
@@ -1016,7 +1045,7 @@ export async function getProductSummaryById(
     where: { id: productId, isActive: true },
     include: {
       translations: true,
-      images: true,
+      images: productImageVariantInclude,
       variants: { where: { isActive: true }, include: { translations: true } },
       productCategories: {
         include: { category: { include: { translations: true } } },
@@ -1166,6 +1195,7 @@ export const getHomeLandingProducts = cache(
               where: { locale: { in: translationLocales } },
             },
             images: {
+              ...productImageVariantInclude,
               orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
             },
             variants: {
@@ -1280,7 +1310,7 @@ export async function getFilteredProducts(
     },
     include: {
       translations: true,
-      images: true,
+      images: productImageVariantInclude,
       variants: { include: { translations: true } },
       productCategories: {
         include: { category: { include: { translations: true } } },

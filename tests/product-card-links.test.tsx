@@ -32,7 +32,7 @@ function catalogProduct(overrides: Partial<CatalogProductDto> = {}): CatalogProd
     salePriceCents: null,
     hasVariablePrice: false,
     isActive: true,
-    images: [{ url: "/products/cashew.webp", alt: "Cashewnoten in een schaal", isPrimary: true }],
+    images: [{ url: "/products/cashew.webp", alt: "Cashewnoten in een schaal", isPrimary: true, cardUrl: null }],
     category: null,
     ...overrides,
   };
@@ -83,4 +83,49 @@ test("a click elsewhere on the card opens the detail page and never the quick vi
   assert.match(cardClick, /closest\("button, a"\)/);
   assert.match(cardClick, /router\.push\(detailHref\)/);
   assert.doesNotMatch(cardClick, /openQuickView/);
+});
+
+test("a card with a pipeline variant serves that variant instead of the optimizer", () => {
+  const markup = render(
+    <ProductCard
+      product={catalogProduct({
+        images: [
+          {
+            url: "https://storage.googleapis.com/notenbucket/products/cashew/original.png",
+            alt: "Cashewnoten in een schaal",
+            isPrimary: true,
+            cardUrl: "https://storage.googleapis.com/notenbucket/products/p1/derived/circle-center-v1/i1/r1/card.webp",
+          },
+        ],
+      })}
+      locale="nl"
+    />
+  );
+
+  assert.ok(markup.includes("derived/circle-center-v1/i1/r1/card.webp"));
+  // Served straight from storage: no Cloud Run conversion, and no focal
+  // transform on an already centred square crop.
+  assert.ok(!markup.includes("/_next/image"));
+  assert.ok(!markup.includes("--focal-zoom"));
+});
+
+test("a card without a pipeline variant still goes through the optimizer with its focal crop", () => {
+  const markup = render(
+    <ProductCard
+      product={catalogProduct({
+        images: [
+          {
+            url: "/products/cashew.png",
+            alt: "Cashewnoten in een schaal",
+            isPrimary: true,
+            cardUrl: null,
+          },
+        ],
+      })}
+      locale="nl"
+    />
+  );
+
+  assert.ok(markup.includes("/_next/image"));
+  assert.ok(markup.includes("--focal-zoom"));
 });
