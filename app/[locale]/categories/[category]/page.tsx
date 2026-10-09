@@ -20,6 +20,12 @@ function categoryCopy(template: string, categoryName: string): string {
   return template.replaceAll("{category}", categoryName);
 }
 
+// Product photos, prices and categories change in the admin while a build is
+// months old. Cloud Run's ISR cache is per-instance local disk, so on-demand
+// revalidatePath cannot reach every instance — a short time-based window is
+// what actually bounds staleness here. Must stay a literal for Next to read it.
+export const revalidate = 60;
+
 export async function generateStaticParams() {
   const params = await Promise.all(
     locales.map(async (locale) => {

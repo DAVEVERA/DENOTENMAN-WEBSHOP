@@ -45,6 +45,12 @@ function findNavigationCategory(
   return undefined;
 }
 
+// Product photos, prices and categories change in the admin while a build is
+// months old. Cloud Run's ISR cache is per-instance local disk, so on-demand
+// revalidatePath cannot reach every instance — a short time-based window is
+// what actually bounds staleness here. Must stay a literal for Next to read it.
+export const revalidate = 60;
+
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
