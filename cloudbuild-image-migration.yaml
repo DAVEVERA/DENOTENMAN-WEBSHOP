@@ -1,0 +1,85 @@
+# Builds the product image migration job image and (re)deploys the Cloud Run
+# job that runs it. Invoke manually against a commit; it never runs on push,
+# because deploying the job is an operator decision, not a side effect of
+# merging.
+#
+#   gcloud builds triggers run denotenman-image-migration-job \
+#     --region=europe-west4 --sha=<40-char commit sha>
+#
+# `gcloud run jobs deploy` creates the job the first time and updates it after,
+# so re-running this is idempotent. DEPLOYMENT_VERSION is pinned to the commit
+# the image was built from: lib/database-access.cjs only admits a production
+# connection for a controlled release, and that is what makes this job's access
+# auditable rather than a standing grant.
+steps:
+  - id: "verify-connected-source"
+    name: "gcr.io/cloud-builders/git"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        if [[ ! "${COMMIT_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "Invalid commit SHA"
+          exit 2
+        fi
+        actual_commit="$$(git rev-parse HEAD)"
+        if [[ "$${actual_commit}" != "${COMMIT_SHA}" ]]; then
+          echo "Connected source does not match trigger commit"
+          exit 2
+        fi
+
+  - id: "build"
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-f"
+      - "Dockerfile.image-migration"
+      - "-t"
+      - "${_IMAGE_BASE}:${COMMIT_SHA}"
+      - "."
+
+  - id: "push"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE_BASE}:${COMMIT_SHA}"]
+
+  # Stored configuration is always the safe one: dry-run, no force, whole
+  # catalogue. Applying is an explicit per-execution override (see
+  # scripts/product-image-migration.md), so nothing about this deploy can
+  # start writing on its own.
+  - id: "deploy-job"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "jobs"
+      - "deploy"
+      - "denotenman-image-migration"
+      - "--image=${_IMAGE_BASE}:${COMMIT_SHA}"
+      - "--region=europe-west4"
+      - "--service-account=${_JOB_SERVICE_ACCOUNT}"
+      - "--set-secrets=DATABASE_URL=denotenman-database-url:latest"
+      - "--set-env-vars=NODE_ENV=production,DATABASE_ACCESS_CONTEXT=release,DEPLOYMENT_VERSION=${COMMIT_SHA},GCS_BUCKET=${_GCS_BUCKET},CDN_BASE_URL=${_CDN_BASE_URL},IMAGE_MIGRATION_JOB_MODE=dry-run,IMAGE_MIGRATION_CONCURRENCY=1"
+      - "--tasks=1"
+      - "--parallelism=1"
+      # Each image is downloaded, circle-detected and encoded into seven
+      # variants; the whole catalogue is hours of work. Retries resume rather
+      # than repeat, because a succeeded image is skipped on the next pass.
+      - "--task-timeout=21600s"
+      - "--max-retries=3"
+      - "--cpu=2"
+      - "--memory=4Gi"
+      - "--quiet"
+
+images:
+  - "${_IMAGE_BASE}:${COMMIT_SHA}"
+
+options:
+  dynamicSubstitutions: true
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _IMAGE_BASE: "europe-west4-docker.pkg.dev/project-5dc79156-4200-4528-bfc/denotenman-webshop/image-migration"
+  _JOB_SERVICE_ACCOUNT: "denotenman-image-migration@project-5dc79156-4200-4528-bfc.iam.gserviceaccount.com"
+  _GCS_BUCKET: "notenbucket"
+  _CDN_BASE_URL: "https://storage.googleapis.com/notenbucket"
