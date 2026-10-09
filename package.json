@@ -16,6 +16,7 @@
     "prisma:seed": "node scripts/check-database-access.cjs seed && tsx prisma/seed.ts",
     "images:migrate": "tsx scripts/migrate-product-images.ts",
     "images:verify": "tsx scripts/verify-product-image-migration.ts",
+    "images:scan": "tsx scripts/scan-storefront-image-urls.ts",
     "faqs:migrate": "tsx scripts/migrate-product-faqs.ts",
     "faqs:backfill-ai": "tsx scripts/backfill-product-faqs.ts",
     "photoroom:smoke": "tsx scripts/run-photoroom-smoke.ts",
