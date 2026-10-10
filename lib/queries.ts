@@ -62,6 +62,12 @@ export type ProductImageDto = {
    * callers fall back to `url` through the on-demand optimizer.
    */
   cardUrl: string | null;
+  /**
+   * How `cardUrl` was framed. "best" is a detected circle crop, already
+   * centred on the product; "good" is the centred square, which still wants
+   * the focal zoom the original would have had.
+   */
+  cardQuality: "best" | "good" | null;
 };
 
 export type ProductAttributeDto = {
@@ -382,23 +388,27 @@ export const productImageVariantInclude = {
       where: { status: "SUCCEEDED" },
       orderBy: [{ processedAt: "desc" }, { id: "desc" }],
       take: 1,
-      select: { cardWebpKey: true },
+      select: { cardWebpKey: true, qualityGrade: true },
     },
   },
 } satisfies Prisma.Product$imagesArgs;
 
 type ProductImageWithVariants = ProductImage & {
-  processingRecords: { cardWebpKey: string | null }[];
+  processingRecords: { cardWebpKey: string | null; qualityGrade: string | null }[];
 };
 
 function toProductImageDto(image: ProductImageWithVariants): ProductImageDto {
-  const cardWebpKey = image.processingRecords[0]?.cardWebpKey ?? null;
+  const record = image.processingRecords[0];
+  const cardWebpKey = record?.cardWebpKey ?? null;
+  // Rows written before grading existed were all circle crops.
+  const grade = record?.qualityGrade === "good" ? "good" : "best";
 
   return {
     url: publicImageUrl(image.storageKey),
     alt: image.alt,
     isPrimary: image.isPrimary,
     cardUrl: cardWebpKey ? publicImageUrl(cardWebpKey) : null,
+    cardQuality: cardWebpKey ? grade : null,
   };
 }
 

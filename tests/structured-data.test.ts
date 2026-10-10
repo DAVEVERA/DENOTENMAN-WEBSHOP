@@ -27,7 +27,7 @@ const product: ProductDetailDto = {
   currency: "EUR",
   unit: "WEIGHT",
   isActive: true,
-  images: [{ url: "https://images.example/amandelen.webp", alt: "Amandelen", isPrimary: true, cardUrl: null }],
+  images: [{ url: "https://images.example/amandelen.webp", alt: "Amandelen", isPrimary: true, cardUrl: null, cardQuality: null }],
   variants: [
     { id: "v-250", sku: "AM-250", priceCents: 350, regularPriceCents: 350, salePriceCents: null, stock: 8, weightGrams: 250, preparation: "RAW", salting: "UNSALTED", coating: "NONE", label: "250 gram" },
     { id: "v-500", sku: "AM-500", priceCents: 600, regularPriceCents: 600, salePriceCents: null, stock: 0, weightGrams: 500, preparation: "RAW", salting: "UNSALTED", coating: "NONE", label: "500 gram" },

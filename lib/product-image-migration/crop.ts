@@ -59,3 +59,33 @@ export function calculateCenteredSquareCrop(
 
   return { ok: true, crop: { left, top, size } };
 }
+
+/**
+ * The framing used when circle detection is not confident enough to crop on.
+ * Takes the largest centred square the source allows, which for the square
+ * sources the catalogue actually holds is the whole frame — so a card still
+ * gets a pre-rendered variant without anyone guessing where the product is.
+ */
+export function calculateFullFrameSquareCrop(
+  sourceWidth: number,
+  sourceHeight: number
+): CropCalculation {
+  if (
+    !Number.isInteger(sourceWidth) ||
+    !Number.isInteger(sourceHeight) ||
+    sourceWidth <= 0 ||
+    sourceHeight <= 0
+  ) {
+    return { ok: false, reason: "invalid_dimensions" };
+  }
+
+  const size = Math.min(sourceWidth, sourceHeight);
+  return {
+    ok: true,
+    crop: {
+      left: Math.floor((sourceWidth - size) / 2),
+      top: Math.floor((sourceHeight - size) / 2),
+      size,
+    },
+  };
+}

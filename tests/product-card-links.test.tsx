@@ -32,7 +32,7 @@ function catalogProduct(overrides: Partial<CatalogProductDto> = {}): CatalogProd
     salePriceCents: null,
     hasVariablePrice: false,
     isActive: true,
-    images: [{ url: "/products/cashew.webp", alt: "Cashewnoten in een schaal", isPrimary: true, cardUrl: null }],
+    images: [{ url: "/products/cashew.webp", alt: "Cashewnoten in een schaal", isPrimary: true, cardUrl: null, cardQuality: null }],
     category: null,
     ...overrides,
   };
@@ -94,7 +94,8 @@ test("a card with a pipeline variant serves that variant instead of the optimize
             url: "https://storage.googleapis.com/notenbucket/products/cashew/original.png",
             alt: "Cashewnoten in een schaal",
             isPrimary: true,
-            cardUrl: "https://storage.googleapis.com/notenbucket/products/p1/derived/circle-center-v1/i1/r1/card.webp",
+            cardUrl: "https://storage.googleapis.com/notenbucket/products/p1/derived/card-ready-v2/i1/r1/card.webp",
+            cardQuality: "best",
           },
         ],
       })}
@@ -102,7 +103,7 @@ test("a card with a pipeline variant serves that variant instead of the optimize
     />
   );
 
-  assert.ok(markup.includes("derived/circle-center-v1/i1/r1/card.webp"));
+  assert.ok(markup.includes("derived/card-ready-v2/i1/r1/card.webp"));
   // Served straight from storage: no Cloud Run conversion, and no focal
   // transform on an already centred square crop.
   assert.ok(!markup.includes("/_next/image"));
@@ -119,6 +120,7 @@ test("a card without a pipeline variant still goes through the optimizer with it
             alt: "Cashewnoten in een schaal",
             isPrimary: true,
             cardUrl: null,
+            cardQuality: null,
           },
         ],
       })}
@@ -127,5 +129,30 @@ test("a card without a pipeline variant still goes through the optimizer with it
   );
 
   assert.ok(markup.includes("/_next/image"));
+  assert.ok(markup.includes("--focal-zoom"));
+});
+
+test("a good-grade variant keeps the focal zoom so the framing is unchanged", () => {
+  const markup = render(
+    <ProductCard
+      product={catalogProduct({
+        images: [
+          {
+            url: "/products/cashew.png",
+            alt: "Cashewnoten in een schaal",
+            isPrimary: true,
+            cardUrl: "https://storage.googleapis.com/notenbucket/products/p1/derived/card-ready-v2/i1/r1/card.webp",
+            cardQuality: "good",
+          },
+        ],
+      })}
+      locale="nl"
+    />
+  );
+
+  // Served pre-rendered like any variant, but framed as shot, so it still
+  // wants the zoom the uncropped original would have had.
+  assert.ok(markup.includes("derived/card-ready-v2/i1/r1/card.webp"));
+  assert.ok(!markup.includes("/_next/image"));
   assert.ok(markup.includes("--focal-zoom"));
 });

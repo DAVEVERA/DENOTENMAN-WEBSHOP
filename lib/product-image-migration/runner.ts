@@ -8,6 +8,7 @@ import pLimit from "p-limit";
 import { publicImageUrl } from "@/lib/storage";
 import {
   calculateCenteredSquareCrop,
+  calculateFullFrameSquareCrop,
   type SquareCrop,
 } from "@/lib/product-image-migration/crop";
 import {
@@ -15,7 +16,11 @@ import {
   normalizeProductImage,
   type CircleDetection,
 } from "@/lib/product-image-migration/detection";
-import type { ImageMigrationConfig } from "@/lib/product-image-migration/config";
+import {
+  cropStrategyGrades,
+  type ImageCropStrategy,
+  type ImageMigrationConfig,
+} from "@/lib/product-image-migration/config";
 import type {
   ProductImageMigrationReport,
   ProductImageMigrationResult,
@@ -111,13 +116,15 @@ function cropMetadata(
   crop: SquareCrop,
   sourceWidth: number,
   sourceHeight: number,
-  radius: number
+  radius: number | undefined
 ) {
   return {
     left: crop.left,
     top: crop.top,
     size: crop.size,
-    marginPixels: Math.max(0, Math.round(crop.size / 2 - radius)),
+    // Margin is the gap between the product circle and the crop edge, so it
+    // only means anything when a circle was actually found.
+    marginPixels: radius === undefined ? undefined : Math.max(0, Math.round(crop.size / 2 - radius)),
     sourceWidth,
     sourceHeight,
   };
@@ -241,12 +248,15 @@ async function recordSuccess(
   input: {
     sourceSha256: string;
     sourceGeneration: string;
-    detection: Extract<CircleDetection, { status: "detected" }>;
+    detection: CircleDetection;
     crop: SquareCrop;
+    cropStrategy: ImageCropStrategy;
+    fallbackReason?: string;
     uploads: DerivedUpload[];
   }
 ): Promise<void> {
   const keys = outputKeyMap(input.uploads);
+  const circle = input.detection.status === "detected" ? input.detection.circle : undefined;
   const now = new Date();
   await dependencies.prisma.$transaction(async (tx) => {
     await tx.$executeRaw(
@@ -272,10 +282,12 @@ async function recordSuccess(
       cardAvifKey: keys["card.avif"],
       productWebpKey: keys["product.webp"],
       productAvifKey: keys["product.avif"],
-      detectedCenterX: input.detection.circle.centerX,
-      detectedCenterY: input.detection.circle.centerY,
-      detectedRadius: input.detection.circle.radius,
-      detectedConfidence: input.detection.circle.confidence,
+      detectedCenterX: circle?.centerX ?? null,
+      detectedCenterY: circle?.centerY ?? null,
+      detectedRadius: circle?.radius ?? null,
+      detectedConfidence: circle?.confidence ?? null,
+      cropStrategy: input.cropStrategy,
+      qualityGrade: cropStrategyGrades[input.cropStrategy],
       marginRatio: dependencies.config.marginRatio,
       cropLeft: input.crop.left,
       cropTop: input.crop.top,
@@ -285,6 +297,10 @@ async function recordSuccess(
       details: JSON.parse(
         JSON.stringify({
           detection: input.detection,
+          cropStrategy: input.cropStrategy,
+          // Why the circle was not used, kept so a "good" grade can always be
+          // explained without re-running detection.
+          fallbackReason: input.fallbackReason,
           uploads: input.uploads.map((upload) => ({
             key: upload.key,
             generation: upload.generation,
@@ -366,49 +382,50 @@ async function processOneImage(
       normalized.height,
       dependencies.config
     );
+    // A circle crop is only taken when detection is confident and the source
+    // actually has room for it. Anything else still gets a card-ready variant
+    // from the centred square, because leaving an image with no variant means
+    // leaving it to be converted on demand for the rest of its life.
+    let cropStrategy: ImageCropStrategy = "circle-center";
+    let fallbackReason: string | undefined;
+
     if (detection.status === "needs_manual_review") {
-      await recordNonSuccess(dependencies, image, options, {
-        status: "NEEDS_MANUAL_REVIEW",
-        sourceSha256,
-        sourceGeneration,
-        detection,
-        errorCode: detection.reason.toUpperCase(),
-        errorMessage: detection.reason,
-      });
-      return {
-        ...base,
-        status: "needs_manual_review",
-        reason: detection.reason,
-        sourceSha256,
-        sourceGeneration,
-        detection: detectionMetadata(detection),
-      };
+      fallbackReason = detection.reason;
+    } else {
+      const circlePlan = calculateCenteredSquareCrop(
+        normalized.width,
+        normalized.height,
+        detection.circle,
+        dependencies.config.marginRatio
+      );
+      if (circlePlan.ok) crop = circlePlan.crop;
+      else fallbackReason = circlePlan.reason;
     }
-    const cropPlan = calculateCenteredSquareCrop(
-      normalized.width,
-      normalized.height,
-      detection.circle,
-      dependencies.config.marginRatio
-    );
-    if (!cropPlan.ok) {
-      await recordNonSuccess(dependencies, image, options, {
-        status: "NEEDS_MANUAL_REVIEW",
-        sourceSha256,
-        sourceGeneration,
-        detection,
-        errorCode: cropPlan.reason.toUpperCase(),
-        errorMessage: cropPlan.reason,
-      });
-      return {
-        ...base,
-        status: "needs_manual_review",
-        reason: cropPlan.reason,
-        sourceSha256,
-        sourceGeneration,
-        detection: detectionMetadata(detection),
-      };
+
+    if (!crop) {
+      cropStrategy = "centered-square";
+      const framePlan = calculateFullFrameSquareCrop(normalized.width, normalized.height);
+      if (!framePlan.ok) {
+        // Only an unusable source reaches this: no square can be taken at all.
+        await recordNonSuccess(dependencies, image, options, {
+          status: "NEEDS_MANUAL_REVIEW",
+          sourceSha256,
+          sourceGeneration,
+          detection,
+          errorCode: framePlan.reason.toUpperCase(),
+          errorMessage: framePlan.reason,
+        });
+        return {
+          ...base,
+          status: "needs_manual_review",
+          reason: framePlan.reason,
+          sourceSha256,
+          sourceGeneration,
+          detection: detectionMetadata(detection),
+        };
+      }
+      crop = framePlan.crop;
     }
-    crop = cropPlan.crop;
     const generated = await generateProductImageVariants(
       normalized.bytes,
       crop,
@@ -424,11 +441,14 @@ async function processOneImage(
         sourceSha256,
         sourceGeneration,
         detection: detectionMetadata(detection),
+        cropStrategy,
+        qualityGrade: cropStrategyGrades[cropStrategy],
+        fallbackReason,
         crop: cropMetadata(
           crop,
           normalized.width,
           normalized.height,
-          detection.circle.radius
+          detection.status === "detected" ? detection.circle.radius : undefined
         ),
         variants: variantMetadata(generated, undefined),
       };
@@ -467,7 +487,15 @@ async function processOneImage(
       sourceSha256,
       sourceGeneration,
       detection: detectionMetadata(detection),
-      crop: cropMetadata(crop, normalized.width, normalized.height, detection.circle.radius),
+      cropStrategy,
+      qualityGrade: cropStrategyGrades[cropStrategy],
+      fallbackReason,
+      crop: cropMetadata(
+        crop,
+        normalized.width,
+        normalized.height,
+        detection.status === "detected" ? detection.circle.radius : undefined
+      ),
       variants: variantMetadata(generated, uploaded),
     };
     await recordSuccess(dependencies, image, options, {
@@ -475,6 +503,8 @@ async function processOneImage(
       sourceGeneration,
       detection,
       crop,
+      cropStrategy,
+      fallbackReason,
       uploads: uploaded,
     });
     databaseCommitted = true;

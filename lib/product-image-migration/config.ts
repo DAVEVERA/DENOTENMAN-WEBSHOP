@@ -1,6 +1,24 @@
-export const IMAGE_PROCESSING_VERSION = "circle-center-v1";
+// v2 always produces a card-ready variant: a detected circle crop when
+// detection is confident ("best"), the centred square otherwise ("good").
+export const IMAGE_PROCESSING_VERSION = "card-ready-v2";
 
 export type ImageVariantName = "thumbnail" | "card" | "product";
+
+/** How the square handed to the encoder was chosen. */
+export type ImageCropStrategy = "circle-center" | "centered-square";
+
+/**
+ * "best" is a confidently detected product circle, cropped tight with a
+ * margin. "good" is the centred square: the same pre-rendered formats and the
+ * same correctness, framed as the photographer shot it because guessing would
+ * be worse than not guessing.
+ */
+export type ImageQualityGrade = "best" | "good";
+
+export const cropStrategyGrades: Record<ImageCropStrategy, ImageQualityGrade> = {
+  "circle-center": "best",
+  "centered-square": "good",
+};
 
 export type ImageMigrationConfig = {
   processingVersion: string;

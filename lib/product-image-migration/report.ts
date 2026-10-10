@@ -1,3 +1,8 @@
+import type {
+  ImageCropStrategy,
+  ImageQualityGrade,
+} from "@/lib/product-image-migration/config";
+
 export const MIGRATION_STATUSES = [
   "success",
   "skipped",
@@ -19,7 +24,8 @@ export interface ProductImageCropMetadata {
   readonly left: number;
   readonly top: number;
   readonly size: number;
-  readonly marginPixels: number;
+  /** Only present for a circle crop; the centred square has no circle. */
+  readonly marginPixels?: number;
   readonly sourceWidth?: number;
   readonly sourceHeight?: number;
 }
@@ -46,6 +52,10 @@ interface ProductImageMigrationResultBase {
   readonly sourceGeneration?: string;
   readonly detection?: ProductImageDetectionMetadata;
   readonly crop?: ProductImageCropMetadata;
+  readonly cropStrategy?: ImageCropStrategy;
+  readonly qualityGrade?: ImageQualityGrade;
+  /** Why the circle crop was not used, on every "good" result. */
+  readonly fallbackReason?: string;
   readonly variants?: readonly ProductImageVariantMetadata[];
 }
 

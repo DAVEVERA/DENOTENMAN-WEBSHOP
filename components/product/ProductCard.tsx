@@ -97,12 +97,24 @@ export function ProductCard({
   const labels = copy ?? productCardCopies[locale];
   const primaryImage = product.images.find((image) => image.isPrimary) ?? product.images[0];
   const favorite = storefront.favorites.some((item) => item.productId === product.id);
-  // The pipeline's card variant is already a centred square WebP at card
-  // size, so it needs neither the optimizer nor the focal transform that
-  // re-centres an uncropped original.
+  // Every pipeline variant is a pre-rendered square WebP, so it never needs
+  // the optimizer. Only a "best" variant is cropped tight on the product and
+  // can drop the focal zoom; a "good" one is the frame as shot and keeps it,
+  // so switching to the variant does not change how the card looks.
   const cardImage = primaryImage?.cardUrl
-    ? { src: primaryImage.cardUrl, unoptimized: true, style: undefined }
-    : { src: primaryImage?.url ?? "", unoptimized: false, style: getProductImageStyle(primaryImage?.url) };
+    ? {
+        src: primaryImage.cardUrl,
+        unoptimized: true,
+        style:
+          primaryImage.cardQuality === "best"
+            ? undefined
+            : getProductImageStyle(primaryImage.url),
+      }
+    : {
+        src: primaryImage?.url ?? "",
+        unoptimized: false,
+        style: getProductImageStyle(primaryImage?.url),
+      };
 
   function openQuickView() {
     if (onQuickView) {

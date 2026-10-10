@@ -663,6 +663,12 @@ model ProductImageProcessing {
   cropSize           Int?
   errorCode          String?
   errorMessage       String?
+  /// How the square was chosen: "circle-center" when detection was confident,
+  /// "centered-square" when it was not. Null on rows written before grading.
+  cropStrategy       String?
+  /// "best" for a detected circle crop, "good" for the centred-square
+  /// fallback. Every succeeded row from card-ready-v2 onwards carries one.
+  qualityGrade       String?
   details            Json?
   attemptedAt        DateTime                     @default(now())
   processedAt        DateTime?
@@ -672,6 +678,7 @@ model ProductImageProcessing {
   @@unique([productImageId, processingVersion])
   @@index([status, processingVersion])
   @@index([processingVersion, sourceSha256])
+  @@index([processingVersion, qualityGrade])
 }
 
 model ProductImageTrash {
