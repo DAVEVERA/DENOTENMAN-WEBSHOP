@@ -17,7 +17,6 @@ import { Container } from "@/components/ui/Container";
 import { getCategoryNavigation, getPageBySlug } from "@/lib/queries";
 import { findCategoryByCanonicalSlug } from "@/lib/categoryGroups";
 import { getCategoryTiles } from "@/lib/category-tiles";
-import { publicImageUrl } from "@/lib/storage";
 import { categories as categoriesPath, category as categoryPath } from "@/lib/routes";
 import { Terms } from "./_components/Terms";
 import { Privacy } from "./_components/Privacy";
@@ -39,6 +38,11 @@ import fr from "@/dictionaries/fr.json";
 
 const categoryStoryDictionaries = { nl, en, fr };
 
+// These pages include live catalog imagery and CMS content. Keep the value a
+// literal so Next can statically analyse it and refresh every Cloud Run
+// instance independently.
+export const revalidate = 60;
+
 /**
  * Typed accessor for a category story's dictionary content. Indexing
  * categoryStoryDictionaries[locale].categoryStories directly with a
@@ -58,13 +62,9 @@ const categoryStoryHeroImage: Partial<Record<CategoryStoryPageKey, { src: string
   categoryNuts: { src: "/hero/hero-nuts-desktop.webp", objectPosition: "80% 50%" },
   categoryHoney: { src: "/hero/hero-honey-desktop.webp", objectPosition: "70% 45%" },
   categoryNutButter: { src: "/home/notenpasta-closeup.webp" },
-  // These three categories have no dedicated hero shoot, so this reuses an
-  // existing, genuinely appetizing catalog product photo (top-down on the
-  // same cream backdrop as every other product image) rather than leaving
-  // the generic icon placeholder in place.
-  categoryDriedFruit: { src: publicImageUrl("Gedroogd fruit/Gezwafelde abrikozen/gebruikt/FRU-4018-zoete-abrikozen-gezwaveld.webp") },
-  categoryMuesliGrains: { src: publicImageUrl("Muesli & Granen/Muesli/gebruikt/MUE-11005-muesli.webp") },
-  categorySnacks: { src: publicImageUrl("Snacks/Pittige mix/gebruikt/SNK-6007-gemengd-pikant.webp") },
+  // Categories without a dedicated shoot use a current catalog image below.
+  // Do not hard-code product storage keys here: replacing a product photo
+  // deliberately deletes the previous object.
 };
 
 /** Only used if a category above ever loses its heroImage entry. */
@@ -314,7 +314,10 @@ export default async function ContentPage({
     const productsHref = liveCategory
       ? categoryPath(locale, liveCategory.slug)
       : categoriesPath(locale);
-    const heroImageSrc = categoryStoryHeroImage[key];
+    const configuredHeroImage = categoryStoryHeroImage[key];
+    const catalogHeroImage = tiles.find((tile) => tile.imageSrc)?.imageSrc;
+    const heroImageSrc = configuredHeroImage
+      ?? (catalogHeroImage ? { src: catalogHeroImage } : undefined);
 
     return (
       <CategoryStoryPage

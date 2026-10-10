@@ -1,8 +1,9 @@
 /**
  * Release gate for storefront imagery.
  *
- * Renders the homepage and every category page on one target origin — normally
- * a Cloud Run revision that has no traffic yet — collects every image
+ * Renders every public storefront page from the home, page, category, product,
+ * and blog sitemaps on one target origin — normally a Cloud Run revision that
+ * has no traffic yet — and collects every image
  * reference in the returned HTML, and fetches each one. A statically
  * prerendered page keeps the storage keys it was built with, so a photo that
  * was replaced after the build still points at a deleted object. That is
@@ -11,7 +12,7 @@
  *
  * Usage:
  *   npm run images:scan -- --base=https://<tag>---<service>.run.app
- *   npm run images:scan -- --base=https://denotenman.com --include-products
+ *   npm run images:scan -- --base=https://denotenman.com
  */
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -46,7 +47,6 @@ export type ScanReport = {
 
 export type ScanOptions = {
   base: string;
-  includeProducts: boolean;
   maxPages: number;
   concurrency: number;
   reportPath: string | null;
@@ -54,10 +54,12 @@ export type ScanOptions = {
 
 const locales = ["nl", "en", "fr"] as const;
 
+/** Every sitemap whose rendered pages can contain storefront imagery. */
+export const storefrontSitemapNames = ["pages", "categories", "products", "blog"] as const;
+
 export function parseScanOptions(argv: string[]): ScanOptions {
   let base: string | null = null;
-  let includeProducts = false;
-  let maxPages = 600;
+  let maxPages = 20_000;
   let concurrency = 8;
   let reportPath: string | null = null;
 
@@ -75,7 +77,8 @@ export function parseScanOptions(argv: string[]): ScanOptions {
       }
       base = parsed.origin;
     } else if (argument === "--include-products") {
-      includeProducts = true;
+      // Backwards-compatible no-op: product pages are now always scanned.
+      continue;
     } else if (argument.startsWith("--max-pages=")) {
       maxPages = Number(argument.slice("--max-pages=".length));
       if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 20_000) {
@@ -94,7 +97,7 @@ export function parseScanOptions(argv: string[]): ScanOptions {
   }
 
   if (!base) throw new Error("Provide --base=<origin> of the revision to scan");
-  return { base, includeProducts, maxPages, concurrency, reportPath };
+  return { base, maxPages, concurrency, reportPath };
 }
 
 /**
@@ -137,8 +140,7 @@ async function discoverPages(options: ScanOptions): Promise<string[]> {
     pages.add(`${options.base}/${locale}`);
   }
 
-  const sitemaps = ["categories", ...(options.includeProducts ? ["products"] : [])];
-  for (const name of sitemaps) {
+  for (const name of storefrontSitemapNames) {
     const sitemapUrl = `${options.base}/${name}/sitemap.xml`;
     const sitemap = await fetchText(sitemapUrl);
     if (!sitemap.ok) {
@@ -319,7 +321,7 @@ export async function scanStorefrontImages(options: ScanOptions): Promise<ScanRe
 
 export async function main(argv: string[]): Promise<number> {
   const options = parseScanOptions(argv);
-  console.log(`Scanning ${options.base}${options.includeProducts ? " (including product pages)" : ""}…`);
+  console.log(`Scanning every public storefront page on ${options.base}…`);
   const report = await scanStorefrontImages(options);
 
   if (options.reportPath) {
