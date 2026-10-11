@@ -73,7 +73,7 @@ const panelLinkClass =
   "flex min-h-11 items-center rounded-lg px-3 py-2 font-body text-body-sm font-semibold text-text transition-colors duration-hover-fast hover:bg-background hover:text-accent-ink focus-visible:bg-background";
 
 const mobilePanelLinkClass =
-  "flex min-h-13 items-center rounded-lg px-3 py-2.5 font-body text-[1.05rem] font-semibold leading-6 text-text transition-colors duration-hover-fast hover:bg-surface hover:text-accent-ink focus-visible:bg-surface";
+  "flex min-h-14 items-center rounded-lg px-3 py-3 font-body text-lg font-semibold leading-7 text-text transition-colors duration-hover-fast hover:bg-surface hover:text-accent-ink focus-visible:bg-surface";
 
 function splitColumns<T>(items: T[], columnCount: number): T[][] {
   const safeColumnCount = Math.min(columnCount, items.length);
@@ -306,7 +306,7 @@ export function CompactHeader({
 
   return (
     <header ref={headerRef} className={styles.header}>
-      <div className="mx-auto flex min-h-18 w-full max-w-[96rem] items-center px-4 min-[400px]:min-h-20 sm:px-6 xl:grid xl:min-h-16 xl:grid-cols-[10rem_minmax(0,1fr)_minmax(10rem,13rem)_auto] xl:gap-2 xl:px-6">
+      <div className="mx-auto flex min-h-18 w-full max-w-[96rem] items-center px-2 min-[360px]:px-4 min-[400px]:min-h-22 sm:min-h-24 sm:px-6 xl:grid xl:min-h-16 xl:grid-cols-[10rem_minmax(0,1fr)_minmax(10rem,13rem)_auto] xl:gap-2 xl:px-6">
         <div className="flex w-full items-center justify-between xl:contents">
           <button
             ref={menuButtonRef}
@@ -315,7 +315,7 @@ export function CompactHeader({
             aria-expanded={mobileOpen}
             aria-controls="site-header-mobile-menu"
             onClick={() => setMobileOpen(true)}
-            className="-ml-2 inline-grid size-12 place-items-center rounded-lg text-text transition-colors hover:bg-surface hover:text-accent-ink xl:hidden"
+            className="inline-grid size-11 place-items-center rounded-lg text-text transition-colors hover:bg-surface hover:text-accent-ink min-[360px]:-ml-2 min-[360px]:size-12 xl:hidden"
           >
             <Menu className="size-7" strokeWidth={1.75} aria-hidden="true" />
           </button>
@@ -332,7 +332,7 @@ export function CompactHeader({
               }}
               parts="wordmark"
               size="sm"
-              className="xl:hidden [&_[role=img]]:h-9 min-[360px]:[&_[role=img]]:h-10 min-[400px]:[&_[role=img]]:h-11"
+              className="xl:hidden [&_[role=img]]:h-10 min-[360px]:[&_[role=img]]:h-12 min-[400px]:[&_[role=img]]:h-14 sm:[&_[role=img]]:h-16 md:[&_[role=img]]:h-20"
             />
             <Logo
               alt={{
@@ -350,14 +350,14 @@ export function CompactHeader({
               type="button"
               aria-label={dictionary.nav.search}
               onClick={() => setMobileOpen(true)}
-              className="inline-grid size-12 place-items-center rounded-lg text-text transition-colors hover:bg-surface hover:text-accent-ink"
+              className="inline-grid size-11 place-items-center rounded-lg text-text transition-colors hover:bg-surface hover:text-accent-ink min-[360px]:size-12"
             >
               <Search className="size-6" strokeWidth={1.8} aria-hidden="true" />
             </button>
             <Link
               href={cartPath(locale)}
               aria-label={dictionary.nav.cartWithCount.replace("{count}", String(cartCount))}
-              className="relative inline-grid size-12 place-items-center rounded-lg text-text transition-colors hover:bg-surface hover:text-accent-ink"
+              className="relative inline-grid size-11 place-items-center rounded-lg text-text transition-colors hover:bg-surface hover:text-accent-ink min-[360px]:size-12"
             >
               <ShoppingCart className="size-6" strokeWidth={1.8} aria-hidden="true" />
               <CountBadge count={cartCount} />
@@ -574,7 +574,7 @@ export function CompactHeader({
           aria-label={dictionary.nav.mainMenu}
           className={cn(styles.sheet, "xl:hidden")}
         >
-          <div className="flex min-h-20 items-center justify-between border-b border-border px-5 min-[400px]:min-h-22">
+          <div className="flex min-h-22 items-center justify-between border-b border-border px-5 min-[400px]:min-h-24 md:min-h-28">
             <Logo
               alt={{
                 mark: dictionary.brand.logoMarkAlt,
@@ -582,6 +582,7 @@ export function CompactHeader({
               }}
               parts="wordmark"
               size="nav"
+              className="[&_[role=img]]:h-14 min-[400px]:[&_[role=img]]:h-16 md:[&_[role=img]]:h-20"
             />
             <button
               data-close-menu
@@ -615,11 +616,11 @@ export function CompactHeader({
 
                 return (
                   <li key={category.id}>
-                    <div className="flex min-h-16 items-center">
+                    <div className="flex min-h-18 items-center">
                       <NativeCategoryLink
                         href={categoryPrimaryHref(locale, category)}
                         onClick={closeMobile}
-                        className="flex min-h-16 min-w-0 flex-1 items-center font-heading text-xl font-bold leading-7 text-text"
+                        className="flex min-h-18 min-w-0 flex-1 items-center font-heading text-2xl font-bold leading-8 text-text"
                       >
                         {category.name}
                       </NativeCategoryLink>
@@ -653,11 +654,11 @@ export function CompactHeader({
                 );
               })}
               <li>
-                <div className="flex min-h-16 items-center">
+                <div className="flex min-h-18 items-center">
                   <NativeCategoryLink
                     href={categoriesPath(locale)}
                     onClick={closeMobile}
-                    className="flex min-h-16 min-w-0 flex-1 items-center font-heading text-xl font-bold leading-7 text-text"
+                    className="flex min-h-18 min-w-0 flex-1 items-center font-heading text-2xl font-bold leading-8 text-text"
                   >
                     {moreLabel[locale]}
                   </NativeCategoryLink>
@@ -692,7 +693,7 @@ export function CompactHeader({
               <NativeCategoryLink
                 href={categoryPath(locale, promotional.slug)}
                 onClick={closeMobile}
-                className="mt-6 flex min-h-14 items-center justify-center rounded-full bg-accent px-5 font-heading text-lg font-extrabold text-contrast shadow-button"
+                className="mt-6 flex min-h-15 items-center justify-center rounded-full bg-accent px-5 font-heading text-xl font-extrabold text-contrast shadow-button"
               >
                 {promotional.name}
               </NativeCategoryLink>

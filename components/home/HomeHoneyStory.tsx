@@ -51,7 +51,7 @@ export function HomeHoneyStory({
         className="relative z-10 px-5 sm:px-8 lg:flex lg:min-h-[36rem] lg:items-center lg:px-12 xl:px-16"
       >
         <div className="max-w-[34rem] py-10 sm:py-14 lg:py-16">
-          <p className="font-heading text-xs font-bold uppercase tracking-[0.16em] text-accent-ink sm:text-sm">
+          <p className="font-heading text-sm font-bold uppercase tracking-[0.14em] text-accent-ink">
             {eyebrow}
           </p>
           <h2
@@ -60,13 +60,13 @@ export function HomeHoneyStory({
           >
             {title}
           </h2>
-          <p className="mt-5 max-w-[31rem] text-base leading-7 text-muted">
+          <p className="mt-5 max-w-[31rem] text-lg leading-8 text-muted">
             {body}
           </p>
           <Link
             href={ctaHref}
             prefetch={false}
-            className="mt-6 inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-button bg-contrast px-5 py-2.5 font-heading text-sm font-bold text-white transition-colors duration-hover-fast hover:bg-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-contrast"
+            className="mt-6 inline-flex min-h-12 touch-manipulation items-center gap-2 rounded-button bg-contrast px-5 py-3 font-heading text-base font-bold text-white transition-colors duration-hover-fast hover:bg-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-contrast"
           >
             {ctaLabel}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />

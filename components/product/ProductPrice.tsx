@@ -25,13 +25,13 @@ export function ProductPrice({
   return (
     <p className="min-w-0">
       {product.salePriceCents !== null ? (
-        <span className="block text-xs text-muted line-through">
+        <span className="block text-sm text-muted line-through">
           {formatPrice(product.regularBasePriceCents, locale)}
         </span>
       ) : null}
       <span
         className={cn(
-          "text-sm font-semibold text-text sm:text-base",
+          "text-base font-semibold text-text sm:text-lg",
           product.salePriceCents !== null && "text-red-700"
         )}
       >

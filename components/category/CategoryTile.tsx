@@ -39,8 +39,8 @@ export function CategoryTile({ href, name, imageSrc, alt = "", nameAs = "span", 
           <span className="absolute inset-0 bg-[#efe6d8]" aria-hidden="true" />
         ) : null}
       </span>
-      <span className="flex items-center justify-between gap-2 px-1 pb-2 pt-2 sm:pt-2.5">
-        <Name className="min-w-0 truncate font-heading text-sm font-bold leading-tight text-text sm:text-base">{name}</Name>
+      <span className="flex min-h-14 items-center justify-between gap-2 px-2 py-2.5">
+        <Name className="min-w-0 font-heading text-base font-bold leading-tight text-text sm:text-lg">{name}</Name>
         <ArrowRight
           className="h-4 w-4 shrink-0 text-text transition-transform duration-hover group-hover:translate-x-0.5"
           strokeWidth={2.5}

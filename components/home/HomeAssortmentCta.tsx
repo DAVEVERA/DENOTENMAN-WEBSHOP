@@ -21,7 +21,7 @@ export function HomeAssortmentCta({ title, body, ctaLabel, ctaHref }: HomeAssort
           <h2 id="home-assortment-title" className="text-[clamp(1.625rem,7vw,2.5rem)] leading-tight text-surface">
             {title}
           </h2>
-          <p className="mt-3 text-sm leading-6 text-surface/75 sm:text-base">{body}</p>
+          <p className="mt-3 text-lg leading-8 text-surface/80">{body}</p>
         </div>
         <Link
           href={ctaHref}

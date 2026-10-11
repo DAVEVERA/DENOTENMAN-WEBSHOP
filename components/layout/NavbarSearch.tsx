@@ -115,7 +115,7 @@ export function NavbarSearch({
       onSubmit={submitSearch}
       className={cn(
         "flex w-full items-center rounded-full border border-border bg-surface transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/25",
-        mobile ? "h-13" : "h-12"
+        mobile ? "h-14" : "h-12"
       )}
     >
       <label htmlFor={fieldId} className="sr-only">
@@ -130,7 +130,7 @@ export function NavbarSearch({
         placeholder={placeholder}
         className={cn(
           "h-full min-w-0 flex-1 bg-transparent px-4 font-heading text-text placeholder:text-muted focus:outline-none",
-          mobile ? "text-[1.05rem] leading-6" : "text-body-md",
+          mobile ? "text-lg leading-7" : "text-body-md",
         )}
       />
       <button
@@ -138,7 +138,7 @@ export function NavbarSearch({
         aria-label={label}
         className={cn(
           "inline-flex shrink-0 items-center justify-center text-text transition-colors duration-hover-fast hover:text-accent-hover",
-          mobile ? "h-12 w-14" : "h-11 w-12",
+          mobile ? "h-13 w-14" : "h-11 w-12",
         )}
       >
         <Search className={mobile ? "size-6" : "size-5"} aria-hidden="true" />

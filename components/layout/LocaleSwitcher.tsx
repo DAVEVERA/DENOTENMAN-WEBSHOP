@@ -52,7 +52,7 @@ export function LocaleSwitcher({
                 href={href}
                 hrefLang={locale}
                 aria-current={locale === currentLocale ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-button px-3 py-2 font-heading font-semibold text-text transition-colors duration-hover-fast hover:bg-background ${mobile ? "min-h-13 text-body-md" : "min-h-11 text-body-sm"}`}
+                className={`flex items-center gap-3 rounded-button px-3 py-2 font-heading font-semibold text-text transition-colors duration-hover-fast hover:bg-background ${mobile ? "min-h-14 text-lg" : "min-h-11 text-body-sm"}`}
               >
                 <span
                   aria-hidden="true"

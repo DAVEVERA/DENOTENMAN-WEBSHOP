@@ -53,7 +53,7 @@ export function HomeFeaturedProducts({
       >
         <div className="max-w-2xl">
           {copy.eyebrow ? (
-            <p className="font-heading text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">
+            <p className="font-heading text-sm font-bold uppercase tracking-[0.13em] text-accent-ink">
               {copy.eyebrow}
             </p>
           ) : null}
@@ -66,12 +66,12 @@ export function HomeFeaturedProducts({
           >
             {copy.title}
           </h2>
-          <p className="mt-3 text-body-md leading-relaxed text-muted">{copy.intro}</p>
+          <p className="mt-3 text-lg leading-8 text-muted">{copy.intro}</p>
         </div>
 
         <ul
           id={listId}
-          className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:gap-6 xl:grid-cols-6"
+          className="mt-8 grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6 xl:grid-cols-6"
         >
           {products.map((product, index) => (
             <li
@@ -106,7 +106,7 @@ export function HomeFeaturedProducts({
               aria-controls={listId}
               aria-expanded={expanded}
               onClick={() => setExpanded((current) => !current)}
-              className="inline-flex min-h-11 items-center justify-center rounded-button border border-border-hover bg-white px-6 py-3 font-heading text-body-md font-bold text-contrast transition-colors hover:bg-[#f1ece3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast md:hidden"
+              className="inline-flex min-h-12 items-center justify-center rounded-button border border-border-hover bg-white px-6 py-3 font-heading text-base font-bold text-contrast transition-colors hover:bg-[#f1ece3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast md:hidden"
             >
               {expanded ? copy.showLess : copy.loadMore}
             </button>

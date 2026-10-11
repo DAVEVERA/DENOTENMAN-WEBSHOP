@@ -53,12 +53,15 @@ test("parent links, disclosure controls and the mobile modal remain accessible",
 
 test("the mobile menu uses a deliberately larger readable scale", () => {
   assert.match(compactHeader, /size="nav"/);
-  assert.match(compactHeader, /text-xl font-bold leading-7/);
+  assert.match(compactHeader, /text-2xl font-bold leading-8/);
   assert.match(compactHeader, /mobilePanelLinkClass/);
-  assert.match(compactHeader, /text-\[1\.05rem\]/);
-  assert.match(compactHeader, /min-h-16/);
+  assert.match(compactHeader, /text-lg font-semibold leading-7/);
+  assert.match(compactHeader, /min-h-18/);
+  assert.match(compactHeader, /\[&\_\[role=img\]\]:h-10/);
+  assert.match(compactHeader, /md:\[&\_\[role=img\]\]:h-20/);
   assert.match(compactHeader, /min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain/);
   assert.match(compactHeader, /<LocaleSwitcher currentLocale=\{locale\} languages=\{languages\} mobile \/>/);
-  assert.match(navbarSearch, /mobile \? "text-\[1\.05rem\] leading-6"/);
+  assert.match(navbarSearch, /mobile \? "text-lg leading-7"/);
   assert.match(localeSwitcher, /mobile \? "h-9 w-12"/);
+  assert.match(localeSwitcher, /mobile \? "min-h-14 text-lg"/);
 });

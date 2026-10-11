@@ -30,7 +30,7 @@ export function HomeNutButterStory({
     >
         <div className="grid min-w-0 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:items-stretch">
           <div className="order-1 flex min-w-0 flex-col justify-center px-5 py-12 sm:px-8 sm:py-14 lg:px-12 lg:py-16 xl:px-16">
-            <p className="font-heading text-xs font-bold uppercase tracking-[0.16em] text-accent-ink sm:text-sm">
+            <p className="font-heading text-sm font-bold uppercase tracking-[0.14em] text-accent-ink">
               {eyebrow}
             </p>
             <h2
@@ -39,10 +39,10 @@ export function HomeNutButterStory({
             >
               {title}
             </h2>
-            <p className="mt-5 max-w-[34rem] text-sm leading-6 text-muted sm:text-base sm:leading-7">
+            <p className="mt-5 max-w-[34rem] text-lg leading-8 text-muted">
               {body}
             </p>
-            <p className="mt-3 max-w-[34rem] text-sm leading-6 text-muted sm:text-base sm:leading-7">
+            <p className="mt-3 max-w-[34rem] text-lg leading-8 text-muted">
               {detail}
             </p>
             {highlights.length ? (
@@ -50,7 +50,7 @@ export function HomeNutButterStory({
                 {highlights.map((highlight) => (
                   <li
                     key={highlight}
-                    className="flex min-w-0 items-start gap-2.5 py-1 text-sm leading-5 text-text"
+                    className="flex min-w-0 items-start gap-2.5 py-1 text-[1.0625rem] leading-7 text-text sm:text-lg"
                   >
                     <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-contrast">
                       <Check className="size-3.5" strokeWidth={2.5} aria-hidden="true" />
@@ -63,7 +63,7 @@ export function HomeNutButterStory({
             <Link
               href={ctaHref}
               prefetch={false}
-              className="mt-6 inline-flex min-h-11 w-fit touch-manipulation items-center gap-2 py-2 font-heading text-sm font-bold text-contrast underline decoration-accent decoration-[3px] underline-offset-4 transition-colors duration-hover-fast hover:text-[#705700] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-contrast"
+              className="mt-6 inline-flex min-h-12 w-fit touch-manipulation items-center gap-2 py-2 font-heading text-base font-bold text-contrast underline decoration-accent decoration-[3px] underline-offset-4 transition-colors duration-hover-fast hover:text-[#705700] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-contrast"
             >
               {ctaLabel}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />

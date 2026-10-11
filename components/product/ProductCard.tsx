@@ -138,7 +138,7 @@ export function ProductCard({
       <Card
         className={cn(
           "group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden",
-          compact ? "p-2.5 sm:p-3" : "p-3 sm:p-card",
+          compact ? "p-3 sm:p-4" : "p-3 sm:p-card",
         )}
         onClick={(event) => {
           // Buttons and links on the card keep their own action.
@@ -160,7 +160,7 @@ export function ProductCard({
                 src={cardImage.src}
                 alt={primaryImage.alt ?? product.name}
                 fill
-                sizes="(max-width: 639px) calc(50vw - 1.5rem), (max-width: 1023px) calc(33vw - 2rem), 280px"
+                sizes="(max-width: 379px) calc(100vw - 3rem), (max-width: 767px) calc(50vw - 2rem), (max-width: 1023px) calc(33vw - 2rem), 280px"
                 quality={70}
                 unoptimized={cardImage.unoptimized}
                 style={cardImage.style}
@@ -173,20 +173,20 @@ export function ProductCard({
           <PromotionBadges badges={product.promotion?.badges} placement="card" locale={locale} />
           </span>
           {categoryName && !compact ? (
-            <span className="mt-3 text-xs text-muted sm:text-body-sm">{categoryName}</span>
+            <span className="mt-3 text-sm text-muted sm:text-base">{categoryName}</span>
           ) : null}
           <span
             className={cn(
               "min-w-0 font-heading font-semibold leading-[1.15] tracking-heading text-text [hyphens:none] [overflow-wrap:normal] [word-break:normal] sm:text-heading-sm",
               compact
-                ? "mt-2 line-clamp-2 text-[clamp(0.78rem,3.5vw,1rem)]"
-                : "mt-3 line-clamp-3 text-[clamp(0.82rem,3.8vw,1.125rem)]",
+                ? "mt-3 line-clamp-3 text-base sm:text-lg"
+                : "mt-3 line-clamp-3 text-base sm:text-lg",
             )}
           >
             {product.name}
           </span>
           {product.shortDescription && !compact ? (
-            <span className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted sm:text-body-sm">
+            <span className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted sm:text-base">
               {product.shortDescription}
             </span>
           ) : null}
@@ -195,7 +195,7 @@ export function ProductCard({
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
           <div className="min-w-0">
             {!product.isActive ? (
-              <span className="block text-xs font-semibold text-red-600">
+              <span className="block text-sm font-semibold text-red-600">
                 {labels.outOfStock}
               </span>
             ) : null}
@@ -228,7 +228,7 @@ export function ProductCard({
             onClick={openQuickView}
             className={cn(
               productActionButtonClass,
-              "mt-3 min-h-11 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs"
+              "mt-3 min-h-12 w-full px-2 text-base"
             )}
           >
             {quickViewLoading ? <LoadingIndicator size="sm" decorative /> : <ShoppingCart className="h-4 w-4 shrink-0" aria-hidden="true" />}
@@ -239,7 +239,7 @@ export function ProductCard({
             href={productPath(locale, product.slug)}
             className={cn(
               productActionButtonClass,
-              "mt-3 min-h-11 w-full text-sm max-[420px]:px-2 max-[420px]:text-xs"
+              "mt-3 min-h-12 w-full px-2 text-base"
             )}
           >
             <Bell className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -250,8 +250,8 @@ export function ProductCard({
           href={productPath(locale, product.slug)}
           className={cn(
             compact
-              ? "mt-1 inline-flex min-h-11 w-full items-center justify-center rounded-button px-2 text-center font-heading text-xs font-bold text-contrast underline decoration-accent decoration-2 underline-offset-4 transition-colors hover:text-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
-              : `${productActionButtonClass} mt-3 min-h-11 w-full text-center text-sm max-[420px]:px-2 max-[420px]:text-xs`,
+              ? "mt-1 inline-flex min-h-12 w-full items-center justify-center rounded-button px-2 text-center font-heading text-sm font-bold text-contrast underline decoration-accent decoration-2 underline-offset-4 transition-colors hover:text-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-contrast"
+              : `${productActionButtonClass} mt-3 min-h-12 w-full px-2 text-center text-base`,
           )}
         >
           <span>{labels.moreInfo}</span>

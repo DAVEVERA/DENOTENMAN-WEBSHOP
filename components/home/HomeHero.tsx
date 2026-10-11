@@ -331,7 +331,7 @@ export function HomeHero({
         >
           <p
             className={cn(
-              "font-heading text-xs font-bold uppercase tracking-[0.16em] sm:text-sm",
+              "font-heading text-sm font-bold uppercase tracking-[0.14em]",
               isBottomAnchored ? "text-white/90 lg:text-accent-ink" : "text-accent-ink",
             )}
           >
