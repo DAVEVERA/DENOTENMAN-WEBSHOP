@@ -61,6 +61,9 @@ export default async function LocaleLayout({
       className={`${dosis.variable} ${montserrat.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <link rel="describedby" href="/llms.txt" type="text/markdown" />
+      </head>
       <body className="bg-background font-body text-text">
         <Script
           id="cookie-consent-bootstrap"
