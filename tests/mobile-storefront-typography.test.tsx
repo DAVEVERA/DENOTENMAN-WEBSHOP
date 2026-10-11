@@ -6,6 +6,7 @@ const featured = readFileSync("components/home/HomeFeaturedProducts.tsx", "utf8"
 const productCard = readFileSync("components/product/ProductCard.tsx", "utf8");
 const productPrice = readFileSync("components/product/ProductPrice.tsx", "utf8");
 const ticker = readFileSync("components/home/AnnouncementTicker.tsx", "utf8");
+const tickerStyles = readFileSync("components/home/AnnouncementTicker.module.css", "utf8");
 const categoryTile = readFileSync("components/category/CategoryTile.tsx", "utf8");
 const usp = readFileSync("components/ui/USPBar.tsx", "utf8");
 
@@ -32,4 +33,13 @@ test("supporting homepage copy uses a readable mobile scale", () => {
   assert.match(ticker, /font-heading text-sm/);
   assert.match(categoryTile, /font-heading text-base font-bold/);
   assert.match(usp, /text-base leading-6/);
+});
+
+test("mobile USPs share one pausable motion-safe announcement bar", () => {
+  assert.doesNotMatch(ticker, /aria-pressed/);
+  assert.match(ticker, /aria-hidden="true"/);
+  assert.match(ticker, /copy\.pauseLabel/);
+  assert.match(tickerStyles, /animation: ticker-scroll 30s linear infinite/);
+  assert.match(tickerStyles, /prefers-reduced-motion: reduce/);
+  assert.match(tickerStyles, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
 });

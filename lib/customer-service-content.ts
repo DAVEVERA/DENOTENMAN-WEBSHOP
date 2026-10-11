@@ -70,6 +70,8 @@ export type CustomerServiceCopy = {
 
 export type AnnouncementTickerCopy = {
   ariaLabel: string;
+  pauseLabel: string;
+  playLabel: string;
   items: Array<{ id: string; text: string }>;
 };
 
@@ -116,6 +118,11 @@ export function getAnnouncementTickerCopy(
     en: "Why shop at De Notenman",
     fr: "Les avantages de De Notenman",
   }[locale];
+  const controls = {
+    nl: { pause: "Pauzeer voordelen", play: "Hervat voordelen" },
+    en: { pause: "Pause benefits", play: "Resume benefits" },
+    fr: { pause: "Mettre les avantages en pause", play: "Reprendre les avantages" },
+  }[locale];
   const shippingLabel = {
     nl: `Gratis verzending: NL vanaf ${euro(locale, SHIPPING_POLICIES.NL.freeShippingThresholdCents)} · BE vanaf ${euro(locale, SHIPPING_POLICIES.BE.freeShippingThresholdCents)}`,
     en: `Free shipping: NL from ${euro(locale, SHIPPING_POLICIES.NL.freeShippingThresholdCents)} · BE from ${euro(locale, SHIPPING_POLICIES.BE.freeShippingThresholdCents)}`,
@@ -124,6 +131,8 @@ export function getAnnouncementTickerCopy(
 
   return {
     ariaLabel: labels,
+    pauseLabel: controls.pause,
+    playLabel: controls.play,
     items: [
       { id: "fresh-roasted", text: usp.freshRoasted },
       { id: "personal-advice", text: usp.personalAdvice },
