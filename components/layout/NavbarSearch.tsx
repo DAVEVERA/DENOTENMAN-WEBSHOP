@@ -128,14 +128,20 @@ export function NavbarSearch({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={placeholder}
-        className="h-full min-w-0 flex-1 bg-transparent px-4 font-heading text-body-md text-text placeholder:text-muted focus:outline-none"
+        className={cn(
+          "h-full min-w-0 flex-1 bg-transparent px-4 font-heading text-text placeholder:text-muted focus:outline-none",
+          mobile ? "text-[1.05rem] leading-6" : "text-body-md",
+        )}
       />
       <button
         type="submit"
         aria-label={label}
-        className="inline-flex h-11 w-12 shrink-0 items-center justify-center text-text transition-colors duration-hover-fast hover:text-accent-hover"
+        className={cn(
+          "inline-flex shrink-0 items-center justify-center text-text transition-colors duration-hover-fast hover:text-accent-hover",
+          mobile ? "h-12 w-14" : "h-11 w-12",
+        )}
       >
-        <Search className="h-5 w-5" aria-hidden="true" />
+        <Search className={mobile ? "size-6" : "size-5"} aria-hidden="true" />
       </button>
     </form>
   );
