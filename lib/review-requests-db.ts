@@ -2,15 +2,20 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { getSetting } from "@/lib/settings";
+import { publicOrderNumber } from "@/lib/order-reference";
 import { dispatchAftersalesEvent } from "@/lib/aftersales/service";
 import {
   REVIEW_URL_SETTING_KEY,
   normalizeReviewEmail,
+  reviewConversionByWeek,
   reviewRequestOutcome,
   reviewRequestVerdict,
+  selectReviewWorklist,
+  type ReviewConversionWeek,
   type ReviewRequestBlockReason,
   type ReviewRequestCandidate,
   type ReviewRequestVerdict,
+  type ReviewRequestWarning,
 } from "@/lib/review-requests";
 
 /** A refund that exists or is on its way; a failed or cancelled one is not one. */
@@ -173,5 +178,147 @@ export async function sendReviewRequest(orderId: string): Promise<SendReviewRequ
   return {
     status: "failed",
     error: "De reviewstap staat niet aan in de aftersales-flow, dus er is niets verstuurd.",
+  };
+}
+
+export type ReviewWorklistEntry = {
+  orderId: string;
+  orderNumber: string;
+  contactName: string;
+  contactEmail: string;
+  deliveredAt: Date;
+  deliveryMethod: "SHIPPING" | "PICKUP";
+  warnings: ReviewRequestWarning[];
+};
+
+/**
+ * Every order that may be asked right now, oldest first.
+ *
+ * Two queries, never one per order: the candidate orders, then the review mails
+ * already sent to those addresses. Business and test orders are filtered in the
+ * query as well as by the rules, so they never travel further than they must.
+ */
+export async function loadReviewWorklist(now: Date): Promise<{
+  entries: ReviewWorklistEntry[];
+  outsideWindow: number;
+}> {
+  const reviewUrl = await getSetting(REVIEW_URL_SETTING_KEY);
+  const orders = await prisma.order.findMany({
+    where: {
+      isTest: false,
+      businessOrderListId: null,
+      processedAt: { not: null },
+    },
+    orderBy: { processedAt: "asc" },
+    select: {
+      id: true,
+      orderNumber: true,
+      contactName: true,
+      contactEmail: true,
+      isTest: true,
+      businessOrderListId: true,
+      deliveryMethod: true,
+      status: true,
+      processedAt: true,
+      refunds: {
+        where: { status: { in: [...ACTIVE_REFUND_STATUSES] } },
+        select: { id: true },
+        take: 1,
+      },
+      businessCancellationRequests: {
+        where: { status: "PENDING" },
+        select: { id: true },
+        take: 1,
+      },
+      aftersalesDeliveries: {
+        where: { trigger: "REVIEW_REQUEST", status: "SENT" },
+        select: { sentAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+  if (orders.length === 0) return { entries: [], outsideWindow: 0 };
+
+  const addresses = [...new Set(orders.map((order) => normalizeReviewEmail(order.contactEmail)))];
+  const logs = await prisma.emailDeliveryLog.findMany({
+    where: {
+      kind: "REVIEW_REQUEST",
+      status: { in: [...ASKED_EMAIL_STATUSES] },
+      recipientEmail: { in: addresses, mode: "insensitive" },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { recipientEmail: true, createdAt: true },
+  });
+  const lastAskedByEmail = new Map<string, Date>();
+  for (const log of logs) {
+    const key = normalizeReviewEmail(log.recipientEmail);
+    if (!lastAskedByEmail.has(key)) lastAskedByEmail.set(key, log.createdAt);
+  }
+
+  const display = new Map(orders.map((order) => [order.id, order]));
+  const candidates: ReviewRequestCandidate[] = orders.map((order) => ({
+    orderId: order.id,
+    contactEmail: order.contactEmail,
+    isTest: order.isTest,
+    businessOrderListId: order.businessOrderListId,
+    deliveryMethod: order.deliveryMethod,
+    status: order.status,
+    deliveredAt: order.processedAt,
+    alreadySentAt: order.aftersalesDeliveries[0]?.sentAt ?? null,
+    lastReviewMailToEmailAt: lastAskedByEmail.get(normalizeReviewEmail(order.contactEmail)) ?? null,
+    hasRefund: order.refunds.length > 0,
+    hasOpenCancellationRequest: order.businessCancellationRequests.length > 0,
+  }));
+
+  const worklist = selectReviewWorklist(candidates, { reviewUrl, now });
+  const entries = worklist.rows.flatMap((row) => {
+    const order = display.get(row.candidate.orderId);
+    if (!order?.processedAt) return [];
+    return [
+      {
+        orderId: order.id,
+        orderNumber: publicOrderNumber(order),
+        contactName: order.contactName,
+        contactEmail: order.contactEmail,
+        deliveredAt: order.processedAt,
+        deliveryMethod: order.deliveryMethod,
+        warnings: row.warnings,
+      },
+    ];
+  });
+
+  return { entries, outsideWindow: worklist.outsideWindow };
+}
+
+export type ReviewAnalysis = {
+  weeks: ReviewConversionWeek[];
+  ratingSeries: Array<{ capturedOn: Date; rating: number; reviewCount: number }>;
+  latest: { rating: number; reviewCount: number } | null;
+};
+
+/** Everything the analysis block on the marketing page shows. */
+export async function loadReviewAnalysis(now: Date): Promise<ReviewAnalysis> {
+  const since = new Date(now.getTime() - 120 * 86_400_000);
+  const [sent, snapshots] = await Promise.all([
+    prisma.aftersalesDelivery.findMany({
+      where: { trigger: "REVIEW_REQUEST", status: "SENT", sentAt: { not: null, gte: since } },
+      select: { sentAt: true },
+    }),
+    prisma.googleReviewSnapshot.findMany({
+      where: { capturedOn: { gte: since } },
+      orderBy: { capturedOn: "asc" },
+      select: { capturedOn: true, rating: true, reviewCount: true },
+    }),
+  ]);
+
+  return {
+    weeks: reviewConversionByWeek({
+      sent: sent.flatMap((delivery) => (delivery.sentAt ? [{ sentAt: delivery.sentAt }] : [])),
+      snapshots,
+    }),
+    ratingSeries: snapshots,
+    // Ordered ascending by the query, so the newest point is the last one.
+    latest: snapshots.at(-1) ?? null,
   };
 }

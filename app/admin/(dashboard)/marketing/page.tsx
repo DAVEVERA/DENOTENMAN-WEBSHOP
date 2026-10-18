@@ -76,6 +76,12 @@ export default async function MarketingHubPage() {
       count: businessLifecycleEmailCount,
     },
     {
+      title: "Reviewverzoeken",
+      href: "/admin/marketing/reviews",
+      description: "Te versturen verzoeken en wat het oplevert op Google.",
+      count: "Google",
+    },
+    {
       title: "Maillogboek",
       href: "/admin/marketing/email-logboek",
       description: "Ontvangers, bestellingen, providerstatussen en mislukte pogingen.",

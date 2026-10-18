@@ -170,3 +170,112 @@ const WARNING_MESSAGES: Record<ReviewRequestWarning, string> = {
 export function reviewRequestWarningMessage(warning: ReviewRequestWarning): string {
   return WARNING_MESSAGES[warning];
 }
+
+/** A shipping parcel is still in transit for a day or two after it goes out. */
+export const REVIEW_WORKLIST_MIN_AGE_DAYS = 2;
+
+/**
+ * How far back the worklist looks by default. On the first day this feature is
+ * live the whole order history would otherwise queue up, and asking all of it
+ * at once burns the six-month window for most of the customer base on one day.
+ */
+export const REVIEW_WORKLIST_WINDOW_DAYS = 30;
+
+export type ReviewWorklistRow = {
+  candidate: ReviewRequestCandidate;
+  warnings: ReviewRequestWarning[];
+};
+
+export type ReviewWorklist = {
+  rows: ReviewWorklistRow[];
+  /** Eligible, but older than the window: hidden, counted, never silently lost. */
+  outsideWindow: number;
+};
+
+export function selectReviewWorklist(
+  candidates: ReviewRequestCandidate[],
+  context: { reviewUrl: string | null; now: Date }
+): ReviewWorklist {
+  const rows: ReviewWorklistRow[] = [];
+  let outsideWindow = 0;
+
+  for (const candidate of candidates) {
+    const verdict = reviewRequestVerdict(candidate, context);
+    if (!verdict.eligible) continue;
+    const deliveredAt = candidate.deliveredAt;
+    if (!deliveredAt) continue;
+
+    const age = daysSince(deliveredAt, context.now);
+    if (age < REVIEW_WORKLIST_MIN_AGE_DAYS) continue;
+    if (age > REVIEW_WORKLIST_WINDOW_DAYS) {
+      outsideWindow += 1;
+      continue;
+    }
+    rows.push({ candidate, warnings: verdict.warnings });
+  }
+
+  rows.sort(
+    (left, right) =>
+      (left.candidate.deliveredAt?.getTime() ?? 0) - (right.candidate.deliveredAt?.getTime() ?? 0)
+  );
+  return { rows, outsideWindow };
+}
+
+/** Monday-start week, in UTC, as a plain YYYY-MM-DD key. */
+function weekStartKey(moment: Date): string {
+  const date = new Date(
+    Date.UTC(moment.getUTCFullYear(), moment.getUTCMonth(), moment.getUTCDate())
+  );
+  const daysSinceMonday = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - daysSinceMonday);
+  return date.toISOString().slice(0, 10);
+}
+
+export type ReviewConversionWeek = {
+  weekStart: string;
+  sent: number;
+  newReviews: number;
+  /** Null when nothing was sent that week: there is no rate to report. */
+  rate: number | null;
+};
+
+/**
+ * Mails sent in a week against reviews gained in that same week.
+ *
+ * This is a relation at shop level, never an attribution per customer: the mail
+ * sends people straight to Google, and a Google review carries no order number.
+ * The page that shows this has to say so.
+ */
+export function reviewConversionByWeek(input: {
+  sent: Array<{ sentAt: Date }>;
+  snapshots: Array<{ capturedOn: Date; reviewCount: number }>;
+}): ReviewConversionWeek[] {
+  const sentByWeek = new Map<string, number>();
+  for (const mail of input.sent) {
+    const key = weekStartKey(mail.sentAt);
+    sentByWeek.set(key, (sentByWeek.get(key) ?? 0) + 1);
+  }
+
+  const snapshotsByWeek = new Map<string, Array<{ capturedOn: Date; reviewCount: number }>>();
+  for (const snapshot of input.snapshots) {
+    const key = weekStartKey(snapshot.capturedOn);
+    const bucket = snapshotsByWeek.get(key) ?? [];
+    bucket.push(snapshot);
+    snapshotsByWeek.set(key, bucket);
+  }
+
+  const weeks = [...new Set([...sentByWeek.keys(), ...snapshotsByWeek.keys()])].sort();
+  return weeks.map((weekStart) => {
+    const sent = sentByWeek.get(weekStart) ?? 0;
+    const bucket = [...(snapshotsByWeek.get(weekStart) ?? [])].sort(
+      (left, right) => left.capturedOn.getTime() - right.capturedOn.getTime()
+    );
+    // One point in a week says nothing about a change, and an author can delete
+    // their own review, so a shrinking total is reported as nothing gained.
+    const newReviews =
+      bucket.length >= 2
+        ? Math.max(0, bucket[bucket.length - 1].reviewCount - bucket[0].reviewCount)
+        : 0;
+    return { weekStart, sent, newReviews, rate: sent === 0 ? null : newReviews / sent };
+  });
+}
