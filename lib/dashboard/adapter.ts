@@ -13,6 +13,15 @@ export type WidgetContext = {
   analytics: DashboardAnalytics;
   commerce: { activeProducts: number; categories: number; totalOrders: number; pendingOrders: number };
   recentOrdersCount: number;
+  reviews: {
+    /** Null until the daily job has measured once; never shown as a zero. */
+    rating: number | null;
+    reviewCount: number | null;
+    /** Review mails sent in the last 30 days. */
+    mailsSent: number;
+    /** Orders that may be asked right now. A real zero when there is no work. */
+    pending: number;
+  };
 };
 
 export type WidgetView =
@@ -38,6 +47,13 @@ export function widgetDeepLink(widget: DashboardWidgetConfig): string | undefine
     return status ? `/admin/bestellingen?status=${String(status.value)}` : "/admin/bestellingen";
   }
   if (widget.source === "recent_orders") return "/admin/bestellingen";
+  if (
+    widget.source === "google_rating" ||
+    widget.source === "review_mails_sent" ||
+    widget.source === "review_mails_pending"
+  ) {
+    return "/admin/marketing/reviews";
+  }
   if (widget.source === "mollie_revenue") return "/admin/facturen";
   return getDashboardSource(widget.source)?.deepLink;
 }
@@ -87,8 +103,14 @@ function sum(values: ReadonlyArray<number | null>): number | null {
 /** The scalar a KPI widget shows, or null when that measure was not collected. */
 function scalarValue(widget: DashboardWidgetConfig, context: WidgetContext): number | null {
   const field = widget.metrics[0]?.field;
-  const { analytics, commerce } = context;
+  const { analytics, commerce, reviews } = context;
   switch (widget.source) {
+    case "google_rating":
+      return field === "reviewCount" ? reviews.reviewCount : reviews.rating;
+    case "review_mails_sent":
+      return reviews.mailsSent;
+    case "review_mails_pending":
+      return reviews.pending;
     case "ga4_realtime":
       return analytics.metrics.activeVisitors;
     case "ga4_traffic": {

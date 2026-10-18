@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getSetting } from "@/lib/settings";
 import { publicOrderNumber } from "@/lib/order-reference";
+import { latestRating } from "@/lib/google-reviews";
 import { dispatchAftersalesEvent } from "@/lib/aftersales/service";
 import {
   REVIEW_URL_SETTING_KEY,
@@ -320,5 +321,36 @@ export async function loadReviewAnalysis(now: Date): Promise<ReviewAnalysis> {
     ratingSeries: snapshots,
     // Ordered ascending by the query, so the newest point is the last one.
     latest: snapshots.at(-1) ?? null,
+  };
+}
+
+export type ReviewDashboardNumbers = {
+  rating: number | null;
+  reviewCount: number | null;
+  mailsSent: number;
+  pending: number;
+};
+
+/** The three numbers the dashboard widgets show. */
+export async function loadReviewDashboardNumbers(now: Date): Promise<ReviewDashboardNumbers> {
+  const since = new Date(now.getTime() - 30 * 86_400_000);
+  const [snapshots, mailsSent, worklist] = await Promise.all([
+    prisma.googleReviewSnapshot.findMany({
+      orderBy: { capturedOn: "desc" },
+      take: 1,
+      select: { capturedOn: true, rating: true, reviewCount: true },
+    }),
+    prisma.aftersalesDelivery.count({
+      where: { trigger: "REVIEW_REQUEST", status: "SENT", sentAt: { gte: since } },
+    }),
+    loadReviewWorklist(now),
+  ]);
+
+  const latest = latestRating(snapshots);
+  return {
+    rating: latest?.rating ?? null,
+    reviewCount: latest?.reviewCount ?? null,
+    mailsSent,
+    pending: worklist.entries.length,
   };
 }

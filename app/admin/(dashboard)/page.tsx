@@ -8,6 +8,7 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth"
 import { getInitialAdminDashboardAnalytics } from "@/lib/admin-dashboard-analytics";
 import { AdminDashboardWorkspace } from "@/components/admin-panel/AdminDashboardWorkspace";
 import { openDeveloperInvoiceSummary, processDeveloperInvoiceReminders } from "@/lib/developer-portal/service";
+import { loadReviewDashboardNumbers } from "@/lib/review-requests-db";
 
 export default async function AdminDashboardPage() {
   await connection();
@@ -41,6 +42,14 @@ export default async function AdminDashboardPage() {
       }),
       getInitialAdminDashboardAnalytics(),
     ]);
+  // Its own await: the worklist selection behind it is a couple of queries, and
+  // a failure there must not take the whole dashboard down.
+  const reviewNumbers = await loadReviewDashboardNumbers(new Date()).catch(() => ({
+    rating: null,
+    reviewCount: null,
+    mailsSent: 0,
+    pending: 0,
+  }));
   const developerInvoices = await openDeveloperInvoiceSummary().catch(() => null);
   // Safety net next to the daily job: confirms payments and sends due reminders.
   after(() => processDeveloperInvoiceReminders().catch((error) => console.error("Developer invoice reminders failed", error)));
@@ -63,6 +72,7 @@ export default async function AdminDashboardPage() {
         pendingOrders,
       }}
       initialAnalytics={initialAnalytics}
+      reviews={reviewNumbers}
       recentOrders={recentOrders.map((order) => ({
         id: order.id,
         orderNumber: order.orderNumber ?? order.id,

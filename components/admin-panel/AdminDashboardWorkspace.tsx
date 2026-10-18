@@ -19,7 +19,7 @@ import {
   retainAnalyticsAfterRefreshFailure,
   type DashboardAnalytics,
 } from "@/lib/admin-dashboard-contract";
-import { buildWidgetView, originLabel, periodLabel } from "@/lib/dashboard/adapter";
+import { buildWidgetView, originLabel, periodLabel, type WidgetContext } from "@/lib/dashboard/adapter";
 import { defaultDashboardPreferences } from "@/lib/dashboard/defaults";
 import { freshness } from "@/lib/dashboard/format";
 import {
@@ -56,6 +56,7 @@ type Props = {
   commerce: CommerceStats;
   initialAnalytics: DashboardAnalytics;
   recentOrders: RecentOrder[];
+  reviews: WidgetContext["reviews"];
 };
 
 /** Which widgets refresh from the analytics call rather than from the page. */
@@ -121,7 +122,7 @@ function WidgetTools({
   );
 }
 
-export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrders }: Props) {
+export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrders, reviews }: Props) {
   const router = useRouter();
   const [preferences, setPreferencesState] = useState<DashboardPreferences>(copyPreferences);
   const [analytics, setAnalytics] = useState<DashboardAnalytics>(initialAnalytics);
@@ -291,12 +292,12 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
         widget.id === id ? { ...widget, layout: { ...widget.layout, w: width, h: width >= 12 ? 3 : width >= 6 ? 2 : 1 } } : widget
       ))),
     }));
-  }, []);
+  }, [setPreferences]);
 
   const updateWidget = useCallback((id: string, update: Partial<DashboardWidgetConfig>) => {
     setPreferencesDirty(true);
     setPreferences((current) => ({ ...current, widgets: current.widgets.map((widget) => widget.id === id ? { ...widget, ...update } : widget) }));
-  }, []);
+  }, [setPreferences]);
 
   const moveWidgetTo = useCallback((sourceId: string, targetId: string) => {
     if (sourceId === targetId) return;
@@ -310,7 +311,7 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
       widgets.splice(targetIndex, 0, source);
       return { ...current, widgets: packLayout(widgets) };
     });
-  }, []);
+  }, [setPreferences]);
 
   function moveVisible(id: string, direction: -1 | 1) {
     setPreferencesDirty(true);
@@ -373,8 +374,8 @@ export function AdminDashboardWorkspace({ commerce, initialAnalytics, recentOrde
   }
 
   const widgetContext = useMemo(
-    () => ({ analytics, commerce, recentOrdersCount: recentOrders.length }),
-    [analytics, commerce, recentOrders.length],
+    () => ({ analytics, commerce, recentOrdersCount: recentOrders.length, reviews }),
+    [analytics, commerce, recentOrders.length, reviews],
   );
 
   function renderWidget(widget: DashboardWidgetConfig) {

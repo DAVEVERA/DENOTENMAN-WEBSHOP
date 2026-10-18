@@ -45,6 +45,7 @@ const context: WidgetContext = {
   analytics,
   commerce: { activeProducts: 142, categories: 18, totalOrders: 905, pendingOrders: 6 },
   recentOrdersCount: 8,
+  reviews: { rating: 4.7, reviewCount: 128, mailsSent: 24, pending: 9 },
 };
 
 test("a number widget reads the measure its own configuration names", () => {

@@ -22,6 +22,7 @@ const props: ComponentProps<typeof AdminDashboardWorkspace> = {
     totalOrders: 1,
     pendingOrders: 1,
   },
+  reviews: { rating: null, reviewCount: null, mailsSent: 0, pending: 0 },
   initialAnalytics: {
     ...EMPTY_DASHBOARD_ANALYTICS,
     generatedAt: "2026-10-04T23:30:00.000Z",

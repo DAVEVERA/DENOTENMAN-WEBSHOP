@@ -80,7 +80,7 @@ const ALL_PRESETS: readonly DatePreset[] = ["today", "yesterday", "last_7_days",
 const DAY_GRAIN: readonly Granularity[] = ["day", "week", "month"];
 const BOTH_COMPARISONS: readonly Comparison[] = ["none", "previous_period", "previous_year"];
 
-export const DASHBOARD_SOURCES: readonly DashboardSource[] = [
+const CORE_SOURCES: readonly DashboardSource[] = [
   {
     id: "mollie_revenue",
     label: "Omzet (Mollie)",
@@ -293,6 +293,76 @@ export const DASHBOARD_SOURCES: readonly DashboardSource[] = [
     mayBeUnavailable: false,
   },
 ];
+
+const REVIEW_SOURCES: readonly DashboardSource[] = [
+  {
+    id: "google_rating",
+    label: "Google-beoordeling",
+    category: "gezondheid",
+    shape: "scalar",
+    description: "Het cijfer op het Google-bedrijfsprofiel en hoeveel reviews eraan meedoen.",
+    origin: "Google Places",
+    metrics: [
+      { field: "rating", label: "Beoordeling", format: "decimal", aggregations: ["last"], definition: "Het gemiddelde cijfer op het Google-profiel bij de laatste dagelijkse meting." },
+      { field: "reviewCount", label: "Aantal reviews", format: "integer", aggregations: ["last"], definition: "Het totale aantal reviews op het Google-profiel bij die meting." },
+    ],
+    dimensions: [],
+    filters: [],
+    datePresets: ["today"],
+    granularities: [],
+    comparisons: ["none"],
+    defaultVisualization: "kpi",
+    onlyVisualizations: ["kpi"],
+    permission: { resource: "analytics", action: "read" },
+    deepLink: "/admin/marketing/reviews",
+    // Blijft leeg tot de dagelijkse taak voor het eerst heeft gemeten.
+    mayBeUnavailable: true,
+  },
+  {
+    id: "review_mails_sent",
+    label: "Verzonden reviewmails",
+    category: "operatie",
+    shape: "scalar",
+    description: "Hoeveel reviewverzoeken de afgelopen dertig dagen zijn verstuurd.",
+    origin: "Webshopdatabase",
+    metrics: [
+      { field: "mailsSent", label: "Verstuurd", format: "integer", aggregations: ["sum", "count"], definition: "Reviewverzoeken met status verstuurd in de afgelopen dertig dagen." },
+    ],
+    dimensions: [],
+    filters: [],
+    datePresets: ["last_30_days"],
+    granularities: [],
+    comparisons: ["none"],
+    defaultVisualization: "kpi",
+    onlyVisualizations: ["kpi"],
+    permission: { resource: "orders", action: "read" },
+    deepLink: "/admin/marketing/reviews",
+    mayBeUnavailable: false,
+  },
+  {
+    id: "review_mails_pending",
+    label: "Te versturen reviewmails",
+    category: "operatie",
+    shape: "scalar",
+    description: "Bestellingen die nu in aanmerking komen voor een reviewverzoek.",
+    origin: "Webshopdatabase",
+    metrics: [
+      { field: "pending", label: "Te versturen", format: "integer", aggregations: ["sum", "count"], definition: "Bezorgde bestellingen zonder reviewverzoek die binnen de regels vallen." },
+    ],
+    dimensions: [],
+    filters: [],
+    datePresets: ["today"],
+    granularities: [],
+    comparisons: ["none"],
+    defaultVisualization: "kpi",
+    onlyVisualizations: ["kpi"],
+    permission: { resource: "orders", action: "read" },
+    deepLink: "/admin/marketing/reviews",
+    mayBeUnavailable: false,
+  },
+];
+
+export const DASHBOARD_SOURCES: readonly DashboardSource[] = [...CORE_SOURCES, ...REVIEW_SOURCES];
 
 const BY_ID = new Map(DASHBOARD_SOURCES.map((source) => [source.id, source]));
 
