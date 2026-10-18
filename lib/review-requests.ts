@@ -77,6 +77,37 @@ export function isValidGoogleReviewUrl(value: string | null): boolean {
   return (url.searchParams.get("placeid") ?? "").length > 0;
 }
 
+/**
+ * The review mail is the only flow mail whose button leaves the shop, so it is
+ * the only one that overrides the action url. An unusable link yields no
+ * override at all, which keeps the mail off the wire instead of shipping a
+ * button that goes nowhere.
+ */
+export function reviewActionUrlOverrideFor(trigger: string, reviewUrl: string | null): string | null {
+  if (trigger !== "REVIEW_REQUEST") return null;
+  return isValidGoogleReviewUrl(reviewUrl) ? reviewUrl!.trim() : null;
+}
+
+export type ReviewRequestAction =
+  | { action: "send" }
+  | { action: "skip"; reason: ReviewRequestBlockReason }
+  | { action: "refuse"; reason: ReviewRequestBlockReason };
+
+/**
+ * Splits a verdict into what the send path should actually do. The two
+ * frequency blocks leave a SKIPPED row behind so the admin can see the shop
+ * deliberately did not mail this customer; every other block is a refusal that
+ * should not litter the delivery log.
+ */
+export function reviewRequestOutcome(verdict: ReviewRequestVerdict): ReviewRequestAction {
+  if (verdict.eligible) return { action: "send" };
+  const recordsSkip =
+    verdict.reason === "WITHIN_FREQUENCY_WINDOW" || verdict.reason === "ALREADY_SENT_FOR_ORDER";
+  return recordsSkip
+    ? { action: "skip", reason: verdict.reason }
+    : { action: "refuse", reason: verdict.reason };
+}
+
 function warningsFor(candidate: ReviewRequestCandidate): ReviewRequestWarning[] {
   const warnings: ReviewRequestWarning[] = [];
   if (candidate.hasRefund || candidate.status === "REFUNDED") warnings.push("REFUNDED");

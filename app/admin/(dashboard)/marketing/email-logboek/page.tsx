@@ -13,6 +13,7 @@ const KIND_LABELS: Record<EmailDeliveryKind, string> = {
   NEW_ORDER_NOTIFICATION: "Nieuwe bestelling · Fedor",
   AFTERSALES_TEST: "Testmail",
   BACK_IN_STOCK: "Voorraadmelding",
+  REVIEW_REQUEST: "Reviewverzoek",
   BUSINESS_ORDER_LIST: "Zakelijke bestellijst",
   BUSINESS_INVITATION: "Uitnodiging zakelijke omgeving",
   BUSINESS_ORDER_LIST_CHANGED: "Zakelijke bestellijst gewijzigd",

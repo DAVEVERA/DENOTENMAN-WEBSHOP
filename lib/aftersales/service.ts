@@ -1,9 +1,9 @@
 import "server-only";
-import {
-  EmailDeliveryKind,
-  Prisma,
-} from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getSetting } from "@/lib/settings";
+import { REVIEW_URL_SETTING_KEY, reviewActionUrlOverrideFor } from "@/lib/review-requests";
+import { aftersalesEmailDeliveryKind } from "@/lib/aftersales/email-kind";
 import {
   parseAftersalesContent,
   PARTICULIER_TRIGGERS,
@@ -29,14 +29,7 @@ const FALLBACK_STEP_IDS: Partial<Record<OrderAftersalesTrigger, string>> = {
 
 const MAX_DELIVERY_ATTEMPTS = 5;
 
-export function aftersalesEmailDeliveryKind(
-  trigger: AftersalesTriggerValue
-): EmailDeliveryKind {
-  if (trigger === "BACK_IN_STOCK") return EmailDeliveryKind.BACK_IN_STOCK;
-  return trigger === "ORDER_PAID" || trigger === "BUSINESS_ORDER_PAID"
-    ? EmailDeliveryKind.ORDER_CONFIRMATION
-    : EmailDeliveryKind.ORDER_FULFILLED;
-}
+export { aftersalesEmailDeliveryKind };
 
 function flowTypeForTrigger(trigger: AftersalesTriggerValue): "PARTICULIER" | "ZAKELIJK" {
   return (PARTICULIER_TRIGGERS as readonly string[]).includes(trigger) ? "PARTICULIER" : "ZAKELIJK";
@@ -225,6 +218,12 @@ export async function processAftersalesDelivery(
       delivery.order.locale === "en" || delivery.order.locale === "fr"
         ? delivery.order.locale
         : "nl";
+    // The review mail is the one flow mail whose links leave the shop; every
+    // other trigger keeps the destination the renderer works out itself.
+    const actionUrlOverride = reviewActionUrlOverrideFor(
+      delivery.trigger,
+      delivery.trigger === "REVIEW_REQUEST" ? await getSetting(REVIEW_URL_SETTING_KEY) : null
+    );
     const rendered = renderAftersalesEmail(
       delivery.order,
       delivery.trigger,
@@ -232,7 +231,8 @@ export async function processAftersalesDelivery(
       stepContent.canvas,
       stepContent.locales[locale].blockText,
       stepContent.design,
-      delivery.step.flow.logoUrl
+      delivery.step.flow.logoUrl,
+      actionUrlOverride
     );
     const idempotencyKey = `aftersales-${delivery.id}`;
     const existingLog = await prisma.emailDeliveryLog.findUnique({
