@@ -180,11 +180,14 @@ export function renderAftersalesEmail(
   canvas: AftersalesCanvas,
   blockText: Record<string, string>,
   design: AftersalesDesign = defaultAftersalesDesign,
-  logoUrl: string | null = null
+  logoUrl: string | null = null,
+  // Set for triggers whose destination is not an own page: the review mail
+  // sends every link to the configured Google review form instead.
+  actionUrlOverride: string | null = null
 ): RenderedFlowEmail {
   const locale: Locale = isLocale(order.locale) ? order.locale : "nl";
   const orderNumber = publicOrderNumber(order);
-  const actionUrl = actionUrlFor(order, trigger, locale);
+  const actionUrl = actionUrlOverride ?? actionUrlFor(order, trigger, locale);
   const tokens = {
     first_name: firstName(order.contactName),
     customer_name: order.contactName,
@@ -217,10 +220,17 @@ export function renderAftersalesEmail(
       <tbody>${itemRows}</tbody>
       <tfoot><tr><td style="padding-top:12px;color:#141414;font-weight:700">Totaal</td><td style="padding-top:12px;color:#141414;font-weight:700;text-align:right">${escapeHtml(formatPrice(order.totalCents, locale))}</td></tr></tfoot>
     </table>` : "";
-  const tracking = (trigger === "ORDER_FULFILLED" || trigger === "BUSINESS_ORDER_FULFILLED") && order.postnlTrackingCode
-    ? `<p style="margin:18px 0 0;color:#333;font-size:14px"><strong>Track &amp; trace:</strong> ${escapeHtml(order.postnlTrackingCode)}</p>`
+  const showsTracking =
+    (trigger === "ORDER_FULFILLED" || trigger === "BUSINESS_ORDER_FULFILLED") &&
+    Boolean(order.postnlTrackingCode);
+  const tracking = showsTracking
+    ? `<p style="margin:18px 0 0;color:#333;font-size:14px"><strong>Track &amp; trace:</strong> ${escapeHtml(order.postnlTrackingCode!)}</p>`
     : "";
-  const orderNumberBox = `<div style="margin:18px 0;padding:14px 16px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;color:#333;font-size:14px"><strong>Bestelnummer:</strong> ${escapeHtml(orderNumber)}</div>`;
+  // The review mail carries the order number in its own copy, so the shared
+  // box would repeat it; every other trigger keeps the box it always had.
+  const orderNumberBox = trigger === "REVIEW_REQUEST"
+    ? ""
+    : `<div style="margin:18px 0;padding:14px 16px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;color:#333;font-size:14px"><strong>Bestelnummer:</strong> ${escapeHtml(orderNumber)}</div>`;
 
   return renderEmailShell({
     locale,
@@ -240,7 +250,7 @@ export function renderAftersalesEmail(
             `Totaal: ${formatPrice(order.totalCents, locale)}`,
           ]
         : []),
-      ...(order.postnlTrackingCode ? [`Track & trace: ${order.postnlTrackingCode}`] : []),
+      ...(showsTracking ? [`Track & trace: ${order.postnlTrackingCode}`] : []),
     ],
     footerText: "Vragen? Beantwoord deze e-mail; we helpen je graag.",
   });
