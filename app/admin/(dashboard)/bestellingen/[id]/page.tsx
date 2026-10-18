@@ -9,6 +9,8 @@ import { buildOrderTimeline } from "@/lib/order-timeline";
 import { StatusBadge } from "../StatusBadge";
 import { OrderEditForm } from "./OrderEditForm";
 import { OrderHandlingControls } from "../OrderHandlingControls";
+import { ReviewRequestButton } from "../ReviewRequestButton";
+import { reviewRequestVerdictForOrder } from "@/lib/review-requests-db";
 import { describeHandled, isHandleable } from "@/lib/order-handling";
 import { OrderRefundPanel } from "./OrderRefundPanel";
 import { OrderTimeline } from "./OrderTimeline";
@@ -81,6 +83,10 @@ export default async function OrderDetailPage({
       updatedAt: request.updatedAt,
     })),
   });
+
+  // Resolved server-side so the button arrives in the right state instead of
+  // offering a send the rules would refuse.
+  const reviewState = await reviewRequestVerdictForOrder(order.id);
 
   const pickupLocation =
     order.deliveryMethod === "PICKUP" && order.pickupLocationId
@@ -181,6 +187,21 @@ export default async function OrderDetailPage({
                   ready={Boolean(order.readyForPickupAt)}
                   processedNote={describeHandled(order.processedAt, order.processedByName, (date) => date.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}
                   readyNote={describeHandled(order.readyForPickupAt, order.readyForPickupByName, (date) => date.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}
+                />
+              </div>
+            </div>
+          ) : null}
+          {reviewState ? (
+            <div className="mt-6 rounded-panel border border-border bg-surface p-5">
+              <h2 className="font-heading text-heading-sm font-semibold text-text">Reviewverzoek</h2>
+              <p className="mt-1 text-body-sm text-muted">
+                Stuur dit pas als het pakket bezorgd is. Iedere klant krijgt dezelfde uitnodiging.
+              </p>
+              <div className="mt-3">
+                <ReviewRequestButton
+                  orderId={order.id}
+                  blockedReason={reviewState.verdict.eligible ? null : reviewState.verdict.reason}
+                  warnings={reviewState.verdict.warnings}
                 />
               </div>
             </div>
