@@ -14,6 +14,8 @@ export default async function AdminSettingsPage() {
     "postnl.senderPostalCode",
     "postnl.senderCity",
     "postnl.senderCountry",
+    "reviews.googleReviewUrl",
+    "reviews.googlePlaceId",
   ]);
 
   return (
@@ -49,6 +51,8 @@ export default async function AdminSettingsPage() {
             senderPostalCode={settings["postnl.senderPostalCode"] ?? ""}
             senderCity={settings["postnl.senderCity"] ?? ""}
             senderCountry={settings["postnl.senderCountry"] ?? "NL"}
+            googleReviewUrl={settings["reviews.googleReviewUrl"] ?? ""}
+            googlePlaceId={settings["reviews.googlePlaceId"] ?? ""}
           />
         </div>
       </div>

@@ -13,6 +13,8 @@ export function SettingsForm({
   senderPostalCode,
   senderCity,
   senderCountry,
+  googleReviewUrl,
+  googlePlaceId,
 }: {
   customerCode: string;
   customerNumber: string;
@@ -24,12 +26,16 @@ export function SettingsForm({
   senderPostalCode: string;
   senderCity: string;
   senderCountry: string;
+  googleReviewUrl: string;
+  googlePlaceId: string;
 }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("saving");
+    setError(null);
 
     const form = new FormData(event.currentTarget);
 
@@ -48,9 +54,16 @@ export function SettingsForm({
           "postnl.senderPostalCode": form.get("senderPostalCode"),
           "postnl.senderCity": form.get("senderCity"),
           "postnl.senderCountry": form.get("senderCountry"),
+          "reviews.googleReviewUrl": form.get("googleReviewUrl"),
+          "reviews.googlePlaceId": form.get("googlePlaceId"),
         }),
       });
 
+      if (!response.ok) {
+        // The review link has a real validation message worth reading.
+        const body = await response.json().catch(() => null);
+        setError(typeof body?.message === "string" ? body.message : null);
+      }
       setStatus(response.ok ? "saved" : "error");
     } catch {
       setStatus("error");
@@ -205,6 +218,41 @@ export function SettingsForm({
         />
       </div>
 
+      <fieldset className="border-t border-border pt-4">
+        <legend className="text-body-sm font-semibold text-text">Reviews</legend>
+        <p className="mt-1 text-body-sm text-muted">
+          Zonder reviewlink gaat er geen enkel reviewverzoek de deur uit.
+        </p>
+        <div className="mt-3">
+          <label htmlFor="googleReviewUrl" className="block text-body-sm font-semibold text-text">
+            Google-reviewlink
+          </label>
+          <input
+            id="googleReviewUrl"
+            name="googleReviewUrl"
+            type="text"
+            defaultValue={googleReviewUrl}
+            placeholder="https://search.google.com/local/writereview?placeid=..."
+            className="mt-1 w-full rounded-button border border-border px-3 py-2 font-mono"
+          />
+        </div>
+        <div className="mt-3">
+          <label htmlFor="googlePlaceId" className="block text-body-sm font-semibold text-text">
+            Google place ID
+          </label>
+          <input
+            id="googlePlaceId"
+            name="googlePlaceId"
+            type="text"
+            defaultValue={googlePlaceId}
+            className="mt-1 w-full rounded-button border border-border px-3 py-2 font-mono"
+          />
+          <p className="mt-1 text-body-sm text-muted">
+            Hiermee wordt dagelijks de beoordeling en het aantal reviews opgehaald.
+          </p>
+        </div>
+      </fieldset>
+
       <div className="flex items-center gap-3">
         <button
           type="submit"
@@ -217,7 +265,7 @@ export function SettingsForm({
           <span className="text-body-sm text-[#69B53D]">Opgeslagen.</span>
         ) : null}
         {status === "error" ? (
-          <span className="text-body-sm text-red-600">Opslaan mislukt.</span>
+          <span className="text-body-sm text-red-600">{error ?? "Opslaan mislukt."}</span>
         ) : null}
       </div>
     </form>
