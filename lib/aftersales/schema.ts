@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { locales, type Locale } from "@/lib/i18n";
 
-export const PARTICULIER_TRIGGERS = ["ORDER_PAID", "ORDER_FULFILLED", "BACK_IN_STOCK"] as const;
+export const PARTICULIER_TRIGGERS = ["ORDER_PAID", "ORDER_FULFILLED", "BACK_IN_STOCK", "REVIEW_REQUEST"] as const;
 export const BUSINESS_TRIGGERS = ["BUSINESS_ORDER_PAID", "BUSINESS_ORDER_FULFILLED"] as const;
 export const AFTERSALES_TRIGGERS = [...PARTICULIER_TRIGGERS, ...BUSINESS_TRIGGERS] as const;
 export type AftersalesTriggerValue = (typeof AFTERSALES_TRIGGERS)[number];
@@ -28,6 +28,14 @@ export const AFTERSALES_TOKENS_BY_TRIGGER: Record<AftersalesTriggerValue, readon
   ORDER_PAID: AFTERSALES_TOKENS.filter((token) => !token.startsWith("product_") && token !== "business_name" && token !== "contact_name"),
   ORDER_FULFILLED: AFTERSALES_TOKENS.filter((token) => !token.startsWith("product_") && token !== "business_name" && token !== "contact_name"),
   BACK_IN_STOCK: ["product_name", "product_url"],
+  // The review mail links to Google, never to a parcel, so it offers no tracking_code.
+  REVIEW_REQUEST: AFTERSALES_TOKENS.filter(
+    (token) =>
+      !token.startsWith("product_") &&
+      token !== "business_name" &&
+      token !== "contact_name" &&
+      token !== "tracking_code"
+  ),
   BUSINESS_ORDER_PAID: ["business_name", "contact_name", "order_number", "order_total", "order_url"],
   BUSINESS_ORDER_FULFILLED: ["business_name", "contact_name", "order_number", "tracking_code", "order_url"],
 };

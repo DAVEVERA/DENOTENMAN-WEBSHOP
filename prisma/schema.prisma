@@ -61,6 +61,9 @@ enum AftersalesTrigger {
   BACK_IN_STOCK
   BUSINESS_ORDER_PAID
   BUSINESS_ORDER_FULFILLED
+  /// Never fired by an order status transition; only the manual admin action
+  /// queues this one. See lib/aftersales/events.ts.
+  REVIEW_REQUEST
 }
 
 enum AftersalesDeliveryStatus {
@@ -81,6 +84,7 @@ enum EmailDeliveryKind {
   BUSINESS_ORDER_LIST_CHANGED
   BUSINESS_INVOICE
   BUSINESS_PRICE_REQUESTED
+  REVIEW_REQUEST
 }
 
 enum EmailDeliveryStatus {
@@ -2131,4 +2135,18 @@ model Promotion {
   updatedAt          DateTime               @updatedAt
 
   @@index([status, endsAt])
+}
+
+/// One row per day with the Google Business Profile rating and review total.
+/// The only source for the review analysis and the rating widget; written by
+/// app/api/cron/google-reviews. `capturedOn` is a bare date and unique, so two
+/// cron runs on the same day update one row instead of adding a second.
+model GoogleReviewSnapshot {
+  id          String   @id @default(cuid())
+  capturedOn  DateTime @unique @db.Date
+  rating      Float
+  reviewCount Int
+  createdAt   DateTime @default(now())
+
+  @@index([capturedOn])
 }

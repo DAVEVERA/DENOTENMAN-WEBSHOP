@@ -16,6 +16,7 @@ import {
   Plus,
   Save,
   Send,
+  Star,
   Truck,
   X,
 } from "lucide-react";
@@ -137,6 +138,10 @@ const triggerCopy: Record<AftersalesTriggerValue, {
     event: "Product weer op voorraad",
     description: "Start zodra een klant zich had aangemeld en het product weer bestelbaar is.",
   },
+  REVIEW_REQUEST: {
+    event: "Reviewverzoek",
+    description: "Gaat niet automatisch. Je verstuurt deze mail zelf per bestelling, nadat het pakket bezorgd is.",
+  },
   BUSINESS_ORDER_PAID: {
     event: "Zakelijke betaling ontvangen",
     description: "Start zodra Mollie de betaling van een zakelijke bestelling definitief als betaald bevestigt.",
@@ -151,6 +156,7 @@ const triggerIcons: Record<AftersalesTriggerValue, typeof PackageCheck> = {
   ORDER_PAID: PackageCheck,
   ORDER_FULFILLED: Truck,
   BACK_IN_STOCK: Bell,
+  REVIEW_REQUEST: Star,
   BUSINESS_ORDER_PAID: PackageCheck,
   BUSINESS_ORDER_FULFILLED: Truck,
 };
