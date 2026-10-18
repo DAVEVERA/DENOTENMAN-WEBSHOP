@@ -22,7 +22,7 @@ export default async function AdminDashboardPage() {
   });
   if (!admin?.active) redirect("/admin/login");
 
-  const [productCount, categoryCount, orderCount, pendingOrders, recentOrders, initialAnalytics] =
+  const [productCount, categoryCount, orderCount, pendingOrders, recentOrders, initialAnalytics, reviewNumbers] =
     await Promise.all([
       prisma.product.count({ where: { isActive: true } }),
       prisma.category.count({ where: { isActive: true } }),
@@ -41,15 +41,15 @@ export default async function AdminDashboardPage() {
         },
       }),
       getInitialAdminDashboardAnalytics(),
+      // Folded into the same round trip; a failure here must not take the
+      // dashboard down, so it degrades to empty widgets.
+      loadReviewDashboardNumbers(new Date()).catch(() => ({
+        rating: null,
+        reviewCount: null,
+        mailsSent: 0,
+        pending: 0,
+      })),
     ]);
-  // Its own await: the worklist selection behind it is a couple of queries, and
-  // a failure there must not take the whole dashboard down.
-  const reviewNumbers = await loadReviewDashboardNumbers(new Date()).catch(() => ({
-    rating: null,
-    reviewCount: null,
-    mailsSent: 0,
-    pending: 0,
-  }));
   const developerInvoices = await openDeveloperInvoiceSummary().catch(() => null);
   // Safety net next to the daily job: confirms payments and sends due reminders.
   after(() => processDeveloperInvoiceReminders().catch((error) => console.error("Developer invoice reminders failed", error)));

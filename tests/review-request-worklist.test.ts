@@ -63,18 +63,34 @@ test("an order too young to ask is not counted as being outside the window", () 
   assert.equal(outsideWindow, 0);
 });
 
-test("the worklist drops blocked orders and keeps warned ones with their warning", () => {
+test("the worklist drops every blocked order", () => {
   const { rows } = selectReviewWorklist(
     [
       candidate({ orderId: "business", businessOrderListId: "bol_1" }),
       candidate({ orderId: "test", isTest: true }),
       candidate({ orderId: "asked", lastReviewMailToEmailAt: days(10) }),
-      candidate({ orderId: "refunded", hasRefund: true }),
+      candidate({ orderId: "clean" }),
     ],
     { reviewUrl: VALID_URL, now }
   );
-  assert.deepEqual(rows.map((row) => row.candidate.orderId), ["refunded"]);
-  assert.deepEqual(rows[0].warnings, ["REFUNDED"]);
+  assert.deepEqual(rows.map((row) => row.candidate.orderId), ["clean"]);
+});
+
+test("the worklist leaves out orders carrying a refund, cancellation or dispute", () => {
+  // Asking someone for a public review a day after refunding them is the
+  // spec's own anti-goal, so these never reach the list. The order page still
+  // offers the send behind a warning, because there a human is looking.
+  const { rows, withWarnings } = selectReviewWorklist(
+    [
+      candidate({ orderId: "refunded", hasRefund: true }),
+      candidate({ orderId: "cancelled", status: "CANCELLED" }),
+      candidate({ orderId: "disputed", hasOpenCancellationRequest: true }),
+      candidate({ orderId: "clean" }),
+    ],
+    { reviewUrl: VALID_URL, now }
+  );
+  assert.deepEqual(rows.map((row) => row.candidate.orderId), ["clean"]);
+  assert.equal(withWarnings, 3, "withheld orders must be counted, not silently dropped");
 });
 
 test("without a review url the worklist is empty rather than misleading", () => {
@@ -108,13 +124,17 @@ test("conversion by week reports null instead of dividing by zero", () => {
   assert.equal(weeks[0].rate, null);
 });
 
-test("conversion by week needs two snapshots before it reports new reviews", () => {
+test("a week with nothing to measure against reports no rate, not 0%", () => {
+  // One snapshot and no earlier one: the honest answer is "not measurable yet",
+  // which the table renders as a dash. Reporting 0% would read as "the mail
+  // does not work".
   const weeks = reviewConversionByWeek({
     sent: [{ sentAt: new Date("2026-10-13T09:00:00Z") }],
     snapshots: [{ capturedOn: new Date("2026-10-13T00:00:00Z"), reviewCount: 100 }],
   });
+  assert.equal(weeks[0].sent, 1);
   assert.equal(weeks[0].newReviews, 0);
-  assert.equal(weeks[0].rate, 0);
+  assert.equal(weeks[0].rate, null);
 });
 
 test("conversion by week counts the review delta within each week", () => {
@@ -148,5 +168,8 @@ test("conversion by week lists weeks oldest first and never reports a negative d
   // A review can be removed by its author, so a week can lose reviews; that is
   // reported as zero gained rather than as a negative conversion.
   assert.equal(weeks[0].newReviews, 0);
-  assert.equal(weeks[1].newReviews, 6);
+  // Measured against the previous week's last snapshot (98), not against this
+  // week's first (99): otherwise the Sunday-to-Monday gain is counted in no
+  // week at all and every week reads about a seventh too low.
+  assert.equal(weeks[1].newReviews, 7);
 });

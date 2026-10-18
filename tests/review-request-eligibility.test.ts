@@ -119,6 +119,7 @@ test("every blocking reason has Dutch wording", () => {
     "NOT_DELIVERED_YET",
     "ALREADY_SENT_FOR_ORDER",
     "WITHIN_FREQUENCY_WINDOW",
+    "NO_STEP",
   ];
   for (const reason of reasons) {
     const message = reviewRequestBlockMessage(reason);

@@ -7,8 +7,10 @@ import { latestRating } from "@/lib/google-reviews";
 import { dispatchAftersalesEvent } from "@/lib/aftersales/service";
 import {
   REVIEW_URL_SETTING_KEY,
+  REVIEW_WORKLIST_WINDOW_DAYS,
   normalizeReviewEmail,
   reviewConversionByWeek,
+  reviewRequestBlockMessage,
   reviewRequestOutcome,
   reviewRequestVerdict,
   selectReviewWorklist,
@@ -106,8 +108,17 @@ export async function reviewRequestVerdictForOrder(
 ): Promise<{ candidate: ReviewRequestCandidate; verdict: ReviewRequestVerdict } | null> {
   const candidate = await loadReviewRequestCandidate(orderId);
   if (!candidate) return null;
-  const reviewUrl = await getSetting(REVIEW_URL_SETTING_KEY);
-  return { candidate, verdict: reviewRequestVerdict(candidate, { reviewUrl, now: new Date() }) };
+  const [reviewUrl, stepId] = await Promise.all([
+    getSetting(REVIEW_URL_SETTING_KEY),
+    activeReviewStepId(),
+  ]);
+  const verdict = reviewRequestVerdict(candidate, { reviewUrl, now: new Date() });
+  // Without an enabled step nothing can be sent. Saying so up front beats a red
+  // error on every click with no hint about what to switch on.
+  if (verdict.eligible && !stepId) {
+    return { candidate, verdict: { eligible: false, reason: "NO_STEP", warnings: verdict.warnings } };
+  }
+  return { candidate, verdict };
 }
 
 /** The enabled review step on the active particuliere flow, if there is one. */
@@ -140,8 +151,16 @@ async function recordReviewRequestSkip(
   if (!stepId) return;
   await prisma.aftersalesDelivery.upsert({
     where: { orderId_stepId_trigger: { orderId, stepId, trigger: "REVIEW_REQUEST" } },
-    create: { orderId, stepId, trigger: "REVIEW_REQUEST", status: "SKIPPED", errorMessage: reason },
-    update: { status: "SKIPPED", errorMessage: reason },
+    // The flow editor renders errorMessage straight to the admin, so this holds
+    // the Dutch sentence, not the reason code.
+    create: {
+      orderId,
+      stepId,
+      trigger: "REVIEW_REQUEST",
+      status: "SKIPPED",
+      errorMessage: reviewRequestBlockMessage(reason),
+    },
+    update: { status: "SKIPPED", errorMessage: reviewRequestBlockMessage(reason) },
   });
 }
 
@@ -201,14 +220,19 @@ export type ReviewWorklistEntry = {
  */
 export async function loadReviewWorklist(now: Date): Promise<{
   entries: ReviewWorklistEntry[];
-  outsideWindow: number;
+  withWarnings: number;
 }> {
   const reviewUrl = await getSetting(REVIEW_URL_SETTING_KEY);
+  // Bounded on purpose. This runs on the admin dashboard, so an unbounded scan
+  // over the whole order history would grow with the order book on every page
+  // view. Only orders young enough to appear in the list are loaded; the count
+  // of older ones comes from countReviewWorklistOutsideWindow.
+  const windowStart = new Date(now.getTime() - REVIEW_WORKLIST_WINDOW_DAYS * 86_400_000);
   const orders = await prisma.order.findMany({
     where: {
       isTest: false,
       businessOrderListId: null,
-      processedAt: { not: null },
+      processedAt: { not: null, gte: windowStart },
     },
     orderBy: { processedAt: "asc" },
     select: {
@@ -239,14 +263,16 @@ export async function loadReviewWorklist(now: Date): Promise<{
       },
     },
   });
-  if (orders.length === 0) return { entries: [], outsideWindow: 0 };
+  if (orders.length === 0) return { entries: [], withWarnings: 0 };
 
   const addresses = [...new Set(orders.map((order) => normalizeReviewEmail(order.contactEmail)))];
   const logs = await prisma.emailDeliveryLog.findMany({
     where: {
       kind: "REVIEW_REQUEST",
       status: { in: [...ASKED_EMAIL_STATUSES] },
-      recipientEmail: { in: addresses, mode: "insensitive" },
+      // Already-lowercase on write (lib/transactional-email.ts), and `mode` does
+      // not apply to `in`, so claiming insensitivity here would be a fiction.
+      recipientEmail: { in: addresses },
     },
     orderBy: { createdAt: "desc" },
     select: { recipientEmail: true, createdAt: true },
@@ -289,7 +315,25 @@ export async function loadReviewWorklist(now: Date): Promise<{
     ];
   });
 
-  return { entries, outsideWindow: worklist.outsideWindow };
+  return { entries, withWarnings: worklist.withWarnings };
+}
+
+/**
+ * How many eligible-looking orders sit just outside the worklist window. A
+ * single count, and only the marketing page asks for it: on day one the whole
+ * order history qualifies, and sending all of it at once would burn the
+ * six-month limit for most customers on the same day.
+ */
+export async function countReviewWorklistOutsideWindow(now: Date): Promise<number> {
+  const windowStart = new Date(now.getTime() - REVIEW_WORKLIST_WINDOW_DAYS * 86_400_000);
+  return prisma.order.count({
+    where: {
+      isTest: false,
+      businessOrderListId: null,
+      processedAt: { not: null, lt: windowStart },
+      aftersalesDeliveries: { none: { trigger: "REVIEW_REQUEST", status: "SENT" } },
+    },
+  });
 }
 
 export type ReviewAnalysis = {

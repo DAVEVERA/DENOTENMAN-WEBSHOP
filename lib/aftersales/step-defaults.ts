@@ -1,7 +1,9 @@
 import {
   defaultAftersalesDesign,
+  type AftersalesCanvas,
   type AftersalesLegacyLocaleContent,
   type AftersalesLegacyStepContent,
+  type AftersalesStepContent,
   type AftersalesTriggerValue,
 } from "@/lib/aftersales/schema";
 
@@ -77,34 +79,137 @@ const businessOrderFulfilled: Record<"nl" | "en" | "fr", AftersalesLegacyLocaleC
   },
 };
 
-// Variant D of the approved design: the order line, then the Google block with
-// its own question and button label. "Bent u tevreden over onze service?" and
-// "Laat een review achter" are fixed by that design and are not ours to reword.
-// The opt-out is reply-based: this mail has no unsubscribe-link infrastructure,
-// and a line pointing at a link that does not exist would be worse than none.
+// Variant D of the approved design. The Dutch question and button label are
+// fixed verbatim by that design and are not ours to reword; the opt-out is
+// reply-based because this mail has no unsubscribe-link infrastructure, and a
+// line pointing at a link that does not exist would be worse than none.
 const reviewRequest: Record<"nl" | "en" | "fr", AftersalesLegacyLocaleContent> = {
   nl: {
     subject: "Je pakket is bezorgd",
     previewText: "Laat in een minuut weten hoe het ging.",
     heading: "Je pakket is bezorgd, {{first_name}}",
-    body: "Bestelling {{order_number}} is afgeleverd.\n\nBent u tevreden over onze service?\n\nJe kunt je voor deze verzoeken afmelden door op deze mail te antwoorden.",
+    body: "Bestelling {{order_number}} is afgeleverd.",
     buttonLabel: "Laat een review achter",
   },
   en: {
     subject: "Your parcel has been delivered",
     previewText: "Tell us how it went; it takes a minute.",
     heading: "Your parcel has been delivered, {{first_name}}",
-    body: "Order {{order_number}} has been delivered.\n\nAre you happy with our service?\n\nYou can unsubscribe from these requests by replying to this email.",
+    body: "Order {{order_number}} has been delivered.",
     buttonLabel: "Leave a review",
   },
   fr: {
     subject: "Votre colis a été livré",
     previewText: "Dites-nous comment cela s'est passé, en une minute.",
     heading: "Votre colis a été livré, {{first_name}}",
-    body: "La commande {{order_number}} a été livrée.\n\nÊtes-vous satisfait de notre service ?\n\nVous pouvez vous désabonner de ces demandes en répondant à cet e-mail.",
+    body: "La commande {{order_number}} a été livrée.",
     buttonLabel: "Laisser un avis",
   },
 };
+
+const reviewRequestOptOut: Record<"nl" | "en" | "fr", string> = {
+  nl: "Je kunt je voor deze verzoeken afmelden door op deze mail te antwoorden.",
+  en: "You can unsubscribe from these requests by replying to this email.",
+  fr: "Vous pouvez vous désabonner de ces demandes en répondant à cet e-mail.",
+};
+
+/**
+ * The approved block, exactly as the client supplied it: the Google wordmark in
+ * Google's own letter colours, five gold stars, the question, and the blue
+ * button. Both the stars and the button point at `{{order_url}}`, which the
+ * renderer fills with the configured Google review form — one destination for
+ * every rating, which is what keeps this clear of review gating.
+ *
+ * Google does not accept a pre-filled rating, so the stars are an affordance,
+ * not a score: whichever one a customer clicks, the form opens empty.
+ */
+function googleReviewBlockHtml(input: {
+  reviewsLabel: string;
+  question: string;
+  buttonLabel: string;
+}): string {
+  return [
+    '<table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #e8e8e8; padding: 20px; text-align: center; width: 100%; max-width: 400px; margin: 0 auto;">',
+    "<tr><td>",
+    '<span style="font-size: 24px; font-weight: bold; color: #4285F4;">G<span style="color: #EA4335;">o</span><span style="color: #FBBC05;">o</span><span style="color: #4285F4;">g</span><span style="color: #34A853;">l</span><span style="color: #EA4335;">e</span></span>',
+    `<p style="margin: 5px 0 10px 0; font-size: 14px; color: #5f6368; font-weight: bold;">${input.reviewsLabel}</p>`,
+    "</td></tr>",
+    "<tr><td>",
+    '<a href="{{order_url}}" style="color: #fbbc05; font-size: 32px; letter-spacing: 2px; text-decoration: none;">&#9733;&#9733;&#9733;&#9733;&#9733;</a>',
+    "</td></tr>",
+    "<tr><td>",
+    `<p style="margin: 15px 0 5px 0; font-size: 15px; color: #3c4043;">${input.question}</p>`,
+    `<a href="{{order_url}}" style="display: inline-block; background-color: #1a73e8; color: #ffffff; text-decoration: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; margin-top: 10px; font-size: 14px;">${input.buttonLabel}</a>`,
+    "</td></tr>",
+    "</table>",
+  ].join("");
+}
+
+const reviewRequestBlock: Record<"nl" | "en" | "fr", string> = {
+  nl: googleReviewBlockHtml({
+    reviewsLabel: "Beoordelingen",
+    question: "Bent u tevreden over onze service?",
+    buttonLabel: "Laat een review achter",
+  }),
+  en: googleReviewBlockHtml({
+    reviewsLabel: "Reviews",
+    question: "Are you happy with our service?",
+    buttonLabel: "Leave a review",
+  }),
+  fr: googleReviewBlockHtml({
+    reviewsLabel: "Avis",
+    question: "Êtes-vous satisfait de notre service ?",
+    buttonLabel: "Laisser un avis",
+  }),
+};
+
+/**
+ * The review step's content with an explicit canvas, so the approved block
+ * ships as-is instead of being flattened into the generic heading/body/button
+ * layout that `resolveLegacyStepContent` derives. The opt-out sits in its own
+ * block below the Google block, where the design puts it.
+ */
+export function reviewRequestStepContent(): AftersalesStepContent {
+  const canvas: AftersalesCanvas = {
+    rows: [
+      {
+        id: "review-row",
+        backgroundColor: "#ffffff",
+        padding: 0,
+        columns: [
+          {
+            id: "review-main",
+            widthFraction: 1,
+            backgroundColor: "#ffffff",
+            padding: 0,
+            blocks: [
+              { id: "heading", type: "text", font: "SANS", size: "GROOT", color: "#141414", align: "left", bold: true, italic: false },
+              { id: "body", type: "text", font: "SANS", size: "STANDAARD", color: "#333333", align: "left", bold: false, italic: false },
+              { id: "google", type: "customHtml" },
+              { id: "optout", type: "text", font: "SANS", size: "COMPACT", color: "#625c53", align: "left", bold: false, italic: false },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  const withBlockText = (locale: "nl" | "en" | "fr") => ({
+    ...reviewRequest[locale],
+    blockText: {
+      heading: reviewRequest[locale].heading,
+      body: reviewRequest[locale].body,
+      google: reviewRequestBlock[locale],
+      optout: reviewRequestOptOut[locale],
+    },
+  });
+
+  return {
+    locales: { nl: withBlockText("nl"), en: withBlockText("en"), fr: withBlockText("fr") },
+    design: defaultAftersalesDesign,
+    canvas,
+  };
+}
 
 /**
  * Seed content for a trigger's step the very first time it's created -
@@ -119,7 +224,22 @@ const reviewRequest: Record<"nl" | "en" | "fr", AftersalesLegacyLocaleContent> =
  * trigger reachable through backfillAftersalesSteps without a preset here
  * would make that flow permanently unsavable from the admin UI.
  */
-export const AFTERSALES_STEP_DEFAULTS: Partial<Record<AftersalesTriggerValue, { name: string; content: AftersalesLegacyStepContent }>> = {
+export const AFTERSALES_STEP_DEFAULTS: Partial<
+  Record<
+    AftersalesTriggerValue,
+    {
+      name: string;
+      content: AftersalesLegacyStepContent;
+      /**
+       * Set when the step ships with a hand-built canvas instead of the one
+       * `resolveLegacyStepContent` derives from heading/body/button. The review
+       * step needs this: its approved design is a block the generic layout
+       * cannot express.
+       */
+      resolved?: AftersalesStepContent;
+    }
+  >
+> = {
   BACK_IN_STOCK: {
     name: "Voorraadmelding",
     content: { locales: backInStock, design: defaultAftersalesDesign },
@@ -127,6 +247,7 @@ export const AFTERSALES_STEP_DEFAULTS: Partial<Record<AftersalesTriggerValue, { 
   REVIEW_REQUEST: {
     name: "Reviewverzoek",
     content: { locales: reviewRequest, design: defaultAftersalesDesign },
+    resolved: reviewRequestStepContent(),
   },
   BUSINESS_ORDER_PAID: {
     name: "Zakelijke betaling ontvangen",

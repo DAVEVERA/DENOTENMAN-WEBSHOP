@@ -20,7 +20,9 @@ export type ReviewRequestBlockReason =
   | "TEST_ORDER"
   | "NOT_DELIVERED_YET"
   | "ALREADY_SENT_FOR_ORDER"
-  | "WITHIN_FREQUENCY_WINDOW";
+  | "WITHIN_FREQUENCY_WINDOW"
+  /** The review step is not switched on in the aftersales flow. */
+  | "NO_STEP";
 
 /**
  * Reasons to look twice before asking, but never reasons to refuse: a human
@@ -155,6 +157,7 @@ const BLOCK_MESSAGES: Record<ReviewRequestBlockReason, string> = {
   NOT_DELIVERED_YET: "Deze bestelling is nog niet bij de klant.",
   ALREADY_SENT_FOR_ORDER: "Voor deze bestelling is al een reviewverzoek verstuurd.",
   WITHIN_FREQUENCY_WINDOW: "Deze klant is de afgelopen zes maanden al gevraagd.",
+  NO_STEP: "De reviewstap staat niet aan bij Marketing → Mail flows.",
 };
 
 export function reviewRequestBlockMessage(reason: ReviewRequestBlockReason): string {
@@ -190,6 +193,11 @@ export type ReviewWorklist = {
   rows: ReviewWorklistRow[];
   /** Eligible, but older than the window: hidden, counted, never silently lost. */
   outsideWindow: number;
+  /**
+   * Eligible, but carrying a refund, cancellation or dispute. Withheld from the
+   * list and counted, so the page can say so rather than losing them quietly.
+   */
+  withWarnings: number;
 };
 
 export function selectReviewWorklist(
@@ -198,6 +206,7 @@ export function selectReviewWorklist(
 ): ReviewWorklist {
   const rows: ReviewWorklistRow[] = [];
   let outsideWindow = 0;
+  let withWarnings = 0;
 
   for (const candidate of candidates) {
     const verdict = reviewRequestVerdict(candidate, context);
@@ -211,6 +220,14 @@ export function selectReviewWorklist(
       outsideWindow += 1;
       continue;
     }
+    // A refund, cancellation or dispute keeps an order out of the list even
+    // though the rules allow the mail: nobody should be asked for a public
+    // review a day after getting their money back. The order page still offers
+    // the send behind a warning, where a human is making the call.
+    if (verdict.warnings.length > 0) {
+      withWarnings += 1;
+      continue;
+    }
     rows.push({ candidate, warnings: verdict.warnings });
   }
 
@@ -218,7 +235,7 @@ export function selectReviewWorklist(
     (left, right) =>
       (left.candidate.deliveredAt?.getTime() ?? 0) - (right.candidate.deliveredAt?.getTime() ?? 0)
   );
-  return { rows, outsideWindow };
+  return { rows, outsideWindow, withWarnings };
 }
 
 /** Monday-start week, in UTC, as a plain YYYY-MM-DD key. */
@@ -264,18 +281,39 @@ export function reviewConversionByWeek(input: {
     snapshotsByWeek.set(key, bucket);
   }
 
+  const ordered = [...input.snapshots].sort(
+    (left, right) => left.capturedOn.getTime() - right.capturedOn.getTime()
+  );
+
   const weeks = [...new Set([...sentByWeek.keys(), ...snapshotsByWeek.keys()])].sort();
   return weeks.map((weekStart) => {
     const sent = sentByWeek.get(weekStart) ?? 0;
     const bucket = [...(snapshotsByWeek.get(weekStart) ?? [])].sort(
       (left, right) => left.capturedOn.getTime() - right.capturedOn.getTime()
     );
-    // One point in a week says nothing about a change, and an author can delete
-    // their own review, so a shrinking total is reported as nothing gained.
+    // Measure from the last snapshot BEFORE this week, not from its own first
+    // one: with a daily snapshot, a Monday-to-Sunday window otherwise measures
+    // six of the seven day-steps and the Sunday-to-Monday gain lands in no week
+    // at all, biasing every week low.
+    const weekStartMs = new Date(`${weekStart}T00:00:00Z`).getTime();
+    const previous = [...ordered]
+      .reverse()
+      .find((snapshot) => snapshot.capturedOn.getTime() < weekStartMs);
+    const last = bucket.at(-1);
+    const baseline = previous ?? bucket[0];
+    // An author can delete their own review, so a shrinking total is reported
+    // as nothing gained rather than as a negative conversion.
     const newReviews =
-      bucket.length >= 2
-        ? Math.max(0, bucket[bucket.length - 1].reviewCount - bucket[0].reviewCount)
-        : 0;
-    return { weekStart, sent, newReviews, rate: sent === 0 ? null : newReviews / sent };
+      last && baseline ? Math.max(0, last.reviewCount - baseline.reviewCount) : 0;
+    // With no earlier point and only one this week there is nothing to compare
+    // against; "0%" would read as a verdict on the mail instead of a gap in the
+    // measurements.
+    const measurable = Boolean(last) && (Boolean(previous) || bucket.length >= 2);
+    return {
+      weekStart,
+      sent,
+      newReviews,
+      rate: sent === 0 || !measurable ? null : newReviews / sent,
+    };
   });
 }

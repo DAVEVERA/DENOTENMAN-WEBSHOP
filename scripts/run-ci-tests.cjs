@@ -4,6 +4,8 @@ const { spawnSync } = require("node:child_process");
 // suites remain in run-release-tests.cjs and require the isolated QA database.
 const files = [
   "tests/admin-product-accessibility.test.tsx",
+  "tests/aftersales-flow-trigger-growth.test.ts",
+  "tests/aftersales-schema.test.ts",
   "tests/business-portal.test.ts",
   "tests/cache-versioning.test.ts",
   "tests/compact-header.test.tsx",

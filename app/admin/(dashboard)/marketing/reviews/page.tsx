@@ -1,4 +1,8 @@
-import { loadReviewAnalysis, loadReviewWorklist } from "@/lib/review-requests-db";
+import {
+  countReviewWorklistOutsideWindow,
+  loadReviewAnalysis,
+  loadReviewWorklist,
+} from "@/lib/review-requests-db";
 import { REVIEW_WORKLIST_MIN_AGE_DAYS, REVIEW_WORKLIST_WINDOW_DAYS } from "@/lib/review-requests";
 import { ReviewRequestButton } from "../../bestellingen/ReviewRequestButton";
 
@@ -21,7 +25,11 @@ function formatRate(rate: number | null): string {
 
 export default async function ReviewRequestsPage() {
   const now = new Date();
-  const [worklist, analysis] = await Promise.all([loadReviewWorklist(now), loadReviewAnalysis(now)]);
+  const [worklist, analysis, outsideWindow] = await Promise.all([
+    loadReviewWorklist(now),
+    loadReviewAnalysis(now),
+    countReviewWorklistOutsideWindow(now),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -80,9 +88,17 @@ export default async function ReviewRequestsPage() {
           </table>
         )}
 
-        {worklist.outsideWindow > 0 ? (
+        {worklist.withWarnings > 0 ? (
           <p className="mt-4 text-body-sm text-muted">
-            {worklist.outsideWindow} bestelling(en) komen wel in aanmerking maar zijn ouder dan{" "}
+            {worklist.withWarnings} bestelling(en) blijven hier buiten omdat er een terugbetaling,
+            annulering of annuleringsverzoek op staat. Wil je zo iemand toch vragen, doe dat dan
+            vanaf de bestelling zelf.
+          </p>
+        ) : null}
+
+        {outsideWindow > 0 ? (
+          <p className="mt-4 text-body-sm text-muted">
+            {outsideWindow} bestelling(en) komen wel in aanmerking maar zijn ouder dan{" "}
             {REVIEW_WORKLIST_WINDOW_DAYS} dagen. Die staan hier niet: ze in één keer wegsturen
             verbruikt de zesmaandengrens voor een groot deel van je klanten op dezelfde dag.
           </p>
@@ -129,6 +145,33 @@ export default async function ReviewRequestsPage() {
             </tbody>
           </table>
         )}
+
+        {analysis.ratingSeries.length > 1 ? (
+          <div className="mt-6">
+            <h3 className="text-body-sm font-semibold text-text">Beoordeling over tijd</h3>
+            <table className="mt-2 w-full border-collapse text-body-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-muted">
+                  <th className="py-2 pr-3 font-normal">Gemeten op</th>
+                  <th className="py-2 pr-3 font-normal">Beoordeling</th>
+                  <th className="py-2 font-normal">Aantal reviews</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...analysis.ratingSeries]
+                  .reverse()
+                  .slice(0, 14)
+                  .map((point) => (
+                    <tr key={point.capturedOn.toISOString()} className="border-b border-border">
+                      <td className="py-2 pr-3 text-text">{formatDate(point.capturedOn)}</td>
+                      <td className="py-2 pr-3 text-text">{point.rating.toFixed(1)}</td>
+                      <td className="py-2 text-text">{point.reviewCount}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
 
         <p className="mt-4 text-body-sm text-muted">
           Dit is een verhouding op totaalniveau, geen koppeling per klant. De mail stuurt mensen

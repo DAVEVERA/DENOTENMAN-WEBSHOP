@@ -49,3 +49,10 @@ test("both review environment variables are documented", async () => {
   assert.match(example, /^GOOGLE_PLACES_API_KEY=/m);
   assert.match(example, /^GOOGLE_REVIEWS_CRON_SECRET=/m);
 });
+
+test("the settings route cannot be rewritten from another site", async () => {
+  const source = await readFile("app/api/admin/settings/route.ts", "utf8");
+  // Without this, any page could make a logged-in admin's browser change these
+  // values, the Google review link among them.
+  assert.match(source, /isSameOriginMutation/, "the write path has no origin check");
+});

@@ -50,7 +50,8 @@ export async function backfillAftersalesSteps(
         name: preset.name,
         position: existing.size + index,
         enabled: true,
-        content: resolveLegacyStepContent(preset.content),
+        // A step with a hand-built canvas ships it as-is; the rest are derived.
+        content: preset.resolved ?? resolveLegacyStepContent(preset.content),
       };
     }),
     skipDuplicates: true,

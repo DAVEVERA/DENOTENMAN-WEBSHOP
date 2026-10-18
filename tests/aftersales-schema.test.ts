@@ -102,12 +102,16 @@ test("aftersales flow rejects unknown personalization fields", () => {
   assert.match(JSON.stringify(parsed.error?.flatten()), /ondersteunde personalisatievelden/);
 });
 
-test("aftersales flow cannot lose or duplicate a required trigger type", () => {
+// A flow may now hold fewer steps than there are triggers: adding a trigger to
+// the app leaves existing flows one short until the gated backfill seeds it.
+// See tests/aftersales-flow-trigger-growth.test.ts. What still cannot happen is
+// the same trigger twice.
+test("aftersales flow cannot hold the same trigger twice", () => {
   const input = validFlow();
   input.steps[1].trigger = "ORDER_PAID";
   const parsed = aftersalesFlowInputSchema.safeParse(input);
   assert.equal(parsed.success, false);
-  assert.match(JSON.stringify(parsed.error?.flatten()), /precies één stap per triggertype/);
+  assert.match(JSON.stringify(parsed.error?.flatten()), /maar één keer/);
 });
 
 test("stock messages reject order-only fields and order messages reject stock-only fields", () => {

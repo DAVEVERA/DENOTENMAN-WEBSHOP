@@ -53,10 +53,18 @@ test("the review mail points its links at the override url", () => {
   assert.ok(!rendered.html.includes("/nl/order/"), "the order page url is still in the html");
 });
 
-test("without an override the review mail still falls back to the order url", () => {
-  const rendered = render("REVIEW_REQUEST");
-  assert.ok(rendered.html.includes("/nl/order/ord_1"));
-  assert.ok(!rendered.html.includes(REVIEW_URL));
+test("a review mail without a destination is refused, never aimed at the order page", () => {
+  // Reachable without any admin intent: processPendingAftersalesForOrder retries
+  // FAILED deliveries whenever the order page is viewed, and by then the review
+  // link may have been emptied. A mail whose button goes nowhere is the spec's
+  // loudest anti-goal, so the renderer refuses rather than substituting a url.
+  assert.throws(() => render("REVIEW_REQUEST"), /reviewlink/i);
+  assert.throws(() => render("REVIEW_REQUEST", null), /reviewlink/i);
+});
+
+test("every other trigger keeps its own destination", () => {
+  const rendered = render("ORDER_FULFILLED", null);
+  assert.ok(rendered.html.includes("/nl/order/ord_1") || rendered.html.includes("postnl"));
 });
 
 test("the review mail has no order number box but keeps it in the text version", () => {

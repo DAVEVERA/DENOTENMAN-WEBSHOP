@@ -17,10 +17,12 @@ test("the review request step is seeded in all three locales", () => {
 });
 
 test("the review request copy carries an opt-out line in every locale", () => {
-  const locales = AFTERSALES_STEP_DEFAULTS.REVIEW_REQUEST!.content.locales;
-  assert.match(locales.nl.body, /afmeld/i);
-  assert.match(locales.en.body, /unsubscribe/i);
-  assert.match(locales.fr.body, /désabonn/i);
+  // The opt-out moved out of `body` into its own canvas block, so it renders
+  // below the approved Google block instead of above it.
+  const locales = AFTERSALES_STEP_DEFAULTS.REVIEW_REQUEST!.resolved!.locales;
+  assert.match(locales.nl.blockText.optout, /afmeld/i);
+  assert.match(locales.en.blockText.optout, /unsubscribe/i);
+  assert.match(locales.fr.blockText.optout, /désabonn/i);
 });
 
 test("the review request copy never references a tracking code", () => {
@@ -33,8 +35,17 @@ test("the review request copy never references a tracking code", () => {
   }
 });
 
-test("the review request copy asks the question from the approved design", () => {
-  const nl = AFTERSALES_STEP_DEFAULTS.REVIEW_REQUEST!.content.locales.nl;
-  assert.match(nl.body, /Bent u tevreden over onze service\?/);
+test("the review request ships the approved question and button label", () => {
+  // Both live inside the approved Google block now, not in the plain body.
+  const nl = AFTERSALES_STEP_DEFAULTS.REVIEW_REQUEST!.resolved!.locales.nl;
+  assert.match(nl.blockText.google, /Bent u tevreden over onze service\?/);
+  assert.match(nl.blockText.google, /Laat een review achter/);
   assert.equal(nl.buttonLabel, "Laat een review achter");
+});
+
+test("the review request step ships a hand-built canvas, not the derived one", () => {
+  const resolved = AFTERSALES_STEP_DEFAULTS.REVIEW_REQUEST!.resolved;
+  assert.ok(resolved, "no canvas is seeded, so the approved design is not what goes out");
+  const blocks = resolved.canvas.rows.flatMap((row) => row.columns.flatMap((column) => column.blocks));
+  assert.ok(blocks.some((block) => block.type === "customHtml"), "the Google block is missing");
 });

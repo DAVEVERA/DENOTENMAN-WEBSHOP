@@ -46,7 +46,14 @@ function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || name.trim();
 }
 
-function actionUrlFor(order: Order, trigger: AftersalesTriggerValue, locale: Locale): string {
+/**
+ * The review mail is the one trigger with no destination of its own: its whole
+ * point is the external Google form, supplied as an override. Returning null
+ * here (instead of the order page) is what makes a missing review link a hard
+ * failure rather than a mail that quietly links somewhere else.
+ */
+function actionUrlFor(order: Order, trigger: AftersalesTriggerValue, locale: Locale): string | null {
+  if (trigger === "REVIEW_REQUEST") return null;
   if (
     (trigger === "ORDER_FULFILLED" || trigger === "BUSINESS_ORDER_FULFILLED") &&
     order.postnlTrackingCode &&
@@ -188,6 +195,11 @@ export function renderAftersalesEmail(
   const locale: Locale = isLocale(order.locale) ? order.locale : "nl";
   const orderNumber = publicOrderNumber(order);
   const actionUrl = actionUrlOverride ?? actionUrlFor(order, trigger, locale);
+  if (!actionUrl) {
+    throw new Error(
+      "Er is geen geldige Google-reviewlink ingesteld, dus deze reviewmail is niet opgebouwd."
+    );
+  }
   const tokens = {
     first_name: firstName(order.contactName),
     customer_name: order.contactName,

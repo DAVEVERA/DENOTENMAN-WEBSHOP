@@ -4,6 +4,7 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth"
 import { getSettings, setSetting } from "@/lib/settings";
 import { REVIEW_URL_SETTING_KEY, isValidGoogleReviewUrl } from "@/lib/review-requests";
 import { GOOGLE_PLACE_ID_SETTING_KEY } from "@/lib/google-reviews";
+import { isSameOriginMutation } from "@/lib/admin-request-security";
 
 const SETTING_KEYS = [
   "postnl.customerCode",
@@ -37,6 +38,13 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   if (!(await requireAdmin(request))) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+  // No role check: lib/roles.ts has no "settings" resource, and mapping this
+  // onto an unrelated one would be a guess. The origin check is the gap that
+  // mattered — without it any site could make a logged-in admin's browser
+  // rewrite these values, the review link among them.
+  if (!isSameOriginMutation(request)) {
+    return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
   }
 
   let body: unknown;

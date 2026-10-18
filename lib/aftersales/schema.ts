@@ -616,11 +616,20 @@ export const aftersalesFlowInputSchema = z.object({
   if (ids.size !== input.steps.length) {
     context.addIssue({ code: "custom", path: ["steps"], message: "Stap-ID's moeten uniek zijn." });
   }
-  if (input.steps.length !== expectedTriggers.length || triggers.size !== expectedTriggers.length) {
+  // Deliberately not "exactly one step per trigger of this flow type". That
+  // held only as long as the trigger set never grew: adding a trigger to the
+  // app leaves every existing flow one step short, and the step for it is
+  // created by backfillAftersalesSteps, which is gated behind
+  // RELEASE_EXPANDED_ENUM_WRITES during a reader-first rollout. Demanding the
+  // full set made the editor refuse every save in that window. What has to hold
+  // is that no trigger appears twice; a missing step is handled downstream,
+  // where prepareAftersalesEvent finds nothing and the event reports itself
+  // disabled instead of mailing something unintended.
+  if (triggers.size !== input.steps.length) {
     context.addIssue({
       code: "custom",
       path: ["steps"],
-      message: "De flow moet precies één stap per triggertype van dit flowtype bevatten.",
+      message: "Elke trigger mag maar één keer in een flow voorkomen.",
     });
   }
   for (const step of input.steps) {
