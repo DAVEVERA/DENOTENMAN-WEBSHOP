@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   GOOGLE_PLACE_ID_SETTING_KEY,
+  missingRatingConfig,
   latestRating,
   parsePlaceDetails,
   placeDetailsRequest,
@@ -80,4 +81,21 @@ test("the cron route refuses a request without the bearer secret", async () => {
   assert.match(source, /GOOGLE_REVIEWS_CRON_SECRET/);
   assert.match(source, /export async function POST/, "the cron entry point is not a POST");
   assert.ok(!/export async function GET/.test(source), "a cron secret must not sit in a GET");
+});
+
+test("a missing rating configuration names the piece that is actually missing", () => {
+  assert.equal(missingRatingConfig("ChIJabc", "KEY"), null);
+  assert.equal(missingRatingConfig(null, "KEY"), "NO_PLACE_ID");
+  assert.equal(missingRatingConfig("ChIJabc", null), "NO_API_KEY");
+  assert.equal(missingRatingConfig("ChIJabc", undefined), "NO_API_KEY");
+});
+
+test("blank values count as missing, not as configured", () => {
+  assert.equal(missingRatingConfig("   ", "KEY"), "NO_PLACE_ID");
+  assert.equal(missingRatingConfig("ChIJabc", "  "), "NO_API_KEY");
+});
+
+test("with both missing it names the one the admin can fix themselves first", () => {
+  // The place id lives in Instellingen; the API key needs Cloud Run access.
+  assert.equal(missingRatingConfig(null, null), "NO_PLACE_ID");
 });

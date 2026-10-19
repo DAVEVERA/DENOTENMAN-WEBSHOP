@@ -4,16 +4,18 @@ import { prisma } from "@/lib/prisma";
 import { getSetting } from "@/lib/settings";
 import {
   GOOGLE_PLACE_ID_SETTING_KEY,
+  missingRatingConfig,
   parsePlaceDetails,
   placeDetailsRequest,
   snapshotDay,
+  type MissingRatingConfig,
 } from "@/lib/google-reviews";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
 export type CaptureSnapshotResult =
   | { status: "stored"; rating: number; reviewCount: number }
-  | { status: "skipped"; reason: "NOT_CONFIGURED" }
+  | { status: "skipped"; reason: MissingRatingConfig }
   | { status: "failed"; error: string };
 
 /**
@@ -27,7 +29,10 @@ export type CaptureSnapshotResult =
 export async function captureGoogleReviewSnapshot(now: Date): Promise<CaptureSnapshotResult> {
   const placeId = (await getSetting(GOOGLE_PLACE_ID_SETTING_KEY))?.trim();
   const apiKey = process.env.GOOGLE_PLACES_API_KEY?.trim();
-  if (!placeId || !apiKey) return { status: "skipped", reason: "NOT_CONFIGURED" };
+  const missing = missingRatingConfig(placeId, apiKey);
+  if (missing || !placeId || !apiKey) {
+    return { status: "skipped", reason: missing ?? "NO_PLACE_ID" };
+  }
 
   const request = placeDetailsRequest(placeId, apiKey);
   let body: unknown;

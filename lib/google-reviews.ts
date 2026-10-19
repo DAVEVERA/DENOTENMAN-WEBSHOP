@@ -75,3 +75,22 @@ export function latestRating(
 export function snapshotDay(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
+
+/** Which half of the rating configuration is missing, if either. */
+export type MissingRatingConfig = "NO_PLACE_ID" | "NO_API_KEY";
+
+/**
+ * Names the piece that is actually absent. One combined "not configured"
+ * message makes an admin doubt the value they just filled in, so the place id
+ * and the API key are reported apart. The place id comes first when both are
+ * missing: that is the one an admin can fix in Instellingen without Cloud Run
+ * access.
+ */
+export function missingRatingConfig(
+  placeId: string | null | undefined,
+  apiKey: string | null | undefined
+): MissingRatingConfig | null {
+  if (!placeId?.trim()) return "NO_PLACE_ID";
+  if (!apiKey?.trim()) return "NO_API_KEY";
+  return null;
+}

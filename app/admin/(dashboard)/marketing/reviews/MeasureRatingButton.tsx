@@ -27,7 +27,13 @@ export function MeasureRatingButton() {
       }
       if (data?.status === "skipped") {
         setFailed(true);
-        setMessage("Er is nog geen Google place ID ingesteld, of de API-sleutel ontbreekt.");
+        // Name the one thing that is missing. A combined message makes you
+        // doubt the value you just filled in.
+        setMessage(
+          data.reason === "NO_API_KEY"
+            ? "De Places API-sleutel ontbreekt op de server (GOOGLE_PLACES_API_KEY). Het place ID is wel ingevuld."
+            : "Er is nog geen Google place ID ingevuld bij Instellingen → Reviews."
+        );
         return;
       }
       setMessage(
