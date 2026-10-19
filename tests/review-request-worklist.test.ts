@@ -171,3 +171,31 @@ test("conversion by week lists weeks oldest first and never reports a negative d
   // week at all and every week reads about a seventh too low.
   assert.equal(weeks[1].newReviews, 7);
 });
+
+test("older orders stay hidden by default but appear on an explicit choice", () => {
+  const candidates = [
+    candidate({ orderId: "recent", deliveredAt: days(5) }),
+    candidate({ orderId: "old", deliveredAt: days(120) }),
+  ];
+  const standard = selectReviewWorklist(candidates, { reviewUrl: VALID_URL, now });
+  assert.deepEqual(standard.rows.map((row) => row.candidate.orderId), ["recent"]);
+  assert.equal(standard.outsideWindow, 1);
+
+  const widened = selectReviewWorklist(candidates, { reviewUrl: VALID_URL, now, includeOlder: true });
+  assert.deepEqual(widened.rows.map((row) => row.candidate.orderId), ["old", "recent"]);
+  assert.equal(widened.outsideWindow, 0, "nothing is outside the window once it is opened up");
+});
+
+test("the explicit choice still respects the minimum age and every block", () => {
+  const { rows } = selectReviewWorklist(
+    [
+      candidate({ orderId: "fresh", deliveredAt: days(1) }),
+      candidate({ orderId: "old-business", deliveredAt: days(200), businessOrderListId: "bol_1" }),
+      candidate({ orderId: "old-asked", deliveredAt: days(200), lastReviewMailToEmailAt: days(10) }),
+      candidate({ orderId: "old-refunded", deliveredAt: days(200), hasRefund: true }),
+      candidate({ orderId: "old-ok", deliveredAt: days(200) }),
+    ],
+    { reviewUrl: VALID_URL, now, includeOlder: true }
+  );
+  assert.deepEqual(rows.map((row) => row.candidate.orderId), ["old-ok"]);
+});

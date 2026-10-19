@@ -56,3 +56,11 @@ test("the settings route cannot be rewritten from another site", async () => {
   // values, the Google review link among them.
   assert.match(source, /isSameOriginMutation/, "the write path has no origin check");
 });
+
+test("the on-demand rating route is guarded like every other admin write", async () => {
+  const source = await readFile("app/api/admin/reviews/rating/route.ts", "utf8");
+  assert.match(source, /getAdminSession/, "no session check");
+  assert.match(source, /isSameOriginMutation/, "no origin check");
+  assert.match(source, /export async function POST/, "measuring must not sit behind a GET");
+  assert.ok(!/export async function GET/.test(source), "a GET would let any page trigger a measurement");
+});

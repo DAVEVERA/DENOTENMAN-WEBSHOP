@@ -5,6 +5,8 @@ import {
 } from "@/lib/review-requests-db";
 import { REVIEW_WORKLIST_MIN_AGE_DAYS, REVIEW_WORKLIST_WINDOW_DAYS } from "@/lib/review-requests";
 import { ReviewRequestButton } from "../../bestellingen/ReviewRequestButton";
+import { MeasureRatingButton } from "./MeasureRatingButton";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +25,15 @@ function formatRate(rate: number | null): string {
   return `${Math.round(rate * 100)}%`;
 }
 
-export default async function ReviewRequestsPage() {
+export default async function ReviewRequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ periode?: string }>;
+}) {
   const now = new Date();
+  const includeOlder = (await searchParams).periode === "alles";
   const [worklist, analysis, outsideWindow] = await Promise.all([
-    loadReviewWorklist(now),
+    loadReviewWorklist(now, { includeOlder }),
     loadReviewAnalysis(now),
     countReviewWorklistOutsideWindow(now),
   ]);
@@ -96,11 +103,23 @@ export default async function ReviewRequestsPage() {
           </p>
         ) : null}
 
-        {outsideWindow > 0 ? (
+        {includeOlder ? (
+          <p className="mt-4 text-body-sm text-muted">
+            Je kijkt nu ook naar bestellingen ouder dan {REVIEW_WORKLIST_WINDOW_DAYS} dagen, oudste
+            eerst. Stuur ze met beleid: iedereen die je nu vraagt, kun je een half jaar niet
+            opnieuw vragen.{" "}
+            <Link href="/admin/marketing/reviews" className="text-accent-hover underline underline-offset-4">
+              Terug naar de laatste {REVIEW_WORKLIST_WINDOW_DAYS} dagen
+            </Link>
+          </p>
+        ) : outsideWindow > 0 ? (
           <p className="mt-4 text-body-sm text-muted">
             {outsideWindow} bestelling(en) komen wel in aanmerking maar zijn ouder dan{" "}
-            {REVIEW_WORKLIST_WINDOW_DAYS} dagen. Die staan hier niet: ze in één keer wegsturen
-            verbruikt de zesmaandengrens voor een groot deel van je klanten op dezelfde dag.
+            {REVIEW_WORKLIST_WINDOW_DAYS} dagen. Ze in één keer wegsturen verbruikt de
+            zesmaandengrens voor een groot deel van je klanten op dezelfde dag.{" "}
+            <Link href="/admin/marketing/reviews?periode=alles" className="text-accent-hover underline underline-offset-4">
+              Laat ze toch zien
+            </Link>
           </p>
         ) : null}
       </section>
@@ -116,10 +135,10 @@ export default async function ReviewRequestsPage() {
           </p>
         ) : (
           <p className="mt-2 text-body-sm text-muted">
-            Nog geen metingen. Zodra de dagelijkse taak loopt, verschijnt hier de beoordeling en
-            het aantal reviews.
+            Nog geen metingen. De dagelijkse taak vult dit, of meet nu zelf.
           </p>
         )}
+        <MeasureRatingButton />
 
         {analysis.weeks.length === 0 ? (
           <p className="mt-4 text-body-sm text-muted">Nog niets te vergelijken.</p>

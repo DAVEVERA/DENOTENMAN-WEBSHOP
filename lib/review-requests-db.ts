@@ -212,7 +212,14 @@ export type ReviewWorklistEntry = {
  * already sent to those addresses. Business and test orders are filtered in the
  * query as well as by the rules, so they never travel further than they must.
  */
-export async function loadReviewWorklist(now: Date): Promise<{
+/** How far back the explicit "show older" choice reaches, and how many rows it may return. */
+const REVIEW_WORKLIST_BACKLOG_DAYS = 365;
+const REVIEW_WORKLIST_BACKLOG_LIMIT = 250;
+
+export async function loadReviewWorklist(
+  now: Date,
+  options: { includeOlder?: boolean } = {}
+): Promise<{
   entries: ReviewWorklistEntry[];
   withWarnings: number;
 }> {
@@ -221,13 +228,17 @@ export async function loadReviewWorklist(now: Date): Promise<{
   // over the whole order history would grow with the order book on every page
   // view. Only orders young enough to appear in the list are loaded; the count
   // of older ones comes from countReviewWorklistOutsideWindow.
-  const windowStart = new Date(now.getTime() - REVIEW_WORKLIST_WINDOW_DAYS * 86_400_000);
+  const days = options.includeOlder ? REVIEW_WORKLIST_BACKLOG_DAYS : REVIEW_WORKLIST_WINDOW_DAYS;
+  const windowStart = new Date(now.getTime() - days * 86_400_000);
   const orders = await prisma.order.findMany({
     where: {
       isTest: false,
       businessOrderListId: null,
       processedAt: { not: null, gte: windowStart },
     },
+    // Oldest first, but capped when reaching into the backlog so one page view
+    // can never drag a year of orders through the app.
+    take: options.includeOlder ? REVIEW_WORKLIST_BACKLOG_LIMIT : undefined,
     orderBy: { processedAt: "asc" },
     select: {
       id: true,
@@ -286,7 +297,11 @@ export async function loadReviewWorklist(now: Date): Promise<{
     hasRefund: order.refunds.length > 0,
   }));
 
-  const worklist = selectReviewWorklist(candidates, { reviewUrl, now });
+  const worklist = selectReviewWorklist(candidates, {
+    reviewUrl,
+    now,
+    includeOlder: options.includeOlder,
+  });
   const entries = worklist.rows.flatMap((row) => {
     const order = display.get(row.candidate.orderId);
     if (!order?.processedAt) return [];

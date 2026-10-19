@@ -202,7 +202,16 @@ export type ReviewWorklist = {
 
 export function selectReviewWorklist(
   candidates: ReviewRequestCandidate[],
-  context: { reviewUrl: string | null; now: Date }
+  context: {
+    reviewUrl: string | null;
+    now: Date;
+    /**
+     * Set when the admin explicitly asks to see orders older than the window.
+     * The window exists so a first run cannot ask the whole customer base at
+     * once, not to make older orders unreachable.
+     */
+    includeOlder?: boolean;
+  }
 ): ReviewWorklist {
   const rows: ReviewWorklistRow[] = [];
   let outsideWindow = 0;
@@ -216,7 +225,7 @@ export function selectReviewWorklist(
 
     const age = daysSince(deliveredAt, context.now);
     if (age < REVIEW_WORKLIST_MIN_AGE_DAYS) continue;
-    if (age > REVIEW_WORKLIST_WINDOW_DAYS) {
+    if (age > REVIEW_WORKLIST_WINDOW_DAYS && !context.includeOlder) {
       outsideWindow += 1;
       continue;
     }
