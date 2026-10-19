@@ -63,11 +63,6 @@ export async function loadReviewRequestCandidate(
         select: { id: true },
         take: 1,
       },
-      businessCancellationRequests: {
-        where: { status: "PENDING" },
-        select: { id: true },
-        take: 1,
-      },
       aftersalesDeliveries: {
         where: { trigger: "REVIEW_REQUEST", status: "SENT" },
         select: { sentAt: true },
@@ -99,7 +94,6 @@ export async function loadReviewRequestCandidate(
     alreadySentAt: order.aftersalesDeliveries[0]?.sentAt ?? null,
     lastReviewMailToEmailAt: lastAsked?.createdAt ?? null,
     hasRefund: order.refunds.length > 0,
-    hasOpenCancellationRequest: order.businessCancellationRequests.length > 0,
   };
 }
 
@@ -250,11 +244,6 @@ export async function loadReviewWorklist(now: Date): Promise<{
         select: { id: true },
         take: 1,
       },
-      businessCancellationRequests: {
-        where: { status: "PENDING" },
-        select: { id: true },
-        take: 1,
-      },
       aftersalesDeliveries: {
         where: { trigger: "REVIEW_REQUEST", status: "SENT" },
         select: { sentAt: true },
@@ -295,7 +284,6 @@ export async function loadReviewWorklist(now: Date): Promise<{
     alreadySentAt: order.aftersalesDeliveries[0]?.sentAt ?? null,
     lastReviewMailToEmailAt: lastAskedByEmail.get(normalizeReviewEmail(order.contactEmail)) ?? null,
     hasRefund: order.refunds.length > 0,
-    hasOpenCancellationRequest: order.businessCancellationRequests.length > 0,
   }));
 
   const worklist = selectReviewWorklist(candidates, { reviewUrl, now });

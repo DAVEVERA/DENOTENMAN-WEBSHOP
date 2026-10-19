@@ -28,7 +28,7 @@ export type ReviewRequestBlockReason =
  * Reasons to look twice before asking, but never reasons to refuse: a human
  * presses the button, so the call is theirs.
  */
-export type ReviewRequestWarning = "REFUNDED" | "CANCELLED" | "DISPUTED";
+export type ReviewRequestWarning = "REFUNDED" | "CANCELLED";
 
 export type ReviewRequestCandidate = {
   orderId: string;
@@ -47,7 +47,6 @@ export type ReviewRequestCandidate = {
   /** The most recent review mail to this e-mail address, across all orders. */
   lastReviewMailToEmailAt: Date | null;
   hasRefund: boolean;
-  hasOpenCancellationRequest: boolean;
 };
 
 export type ReviewRequestVerdict =
@@ -114,7 +113,9 @@ function warningsFor(candidate: ReviewRequestCandidate): ReviewRequestWarning[] 
   const warnings: ReviewRequestWarning[] = [];
   if (candidate.hasRefund || candidate.status === "REFUNDED") warnings.push("REFUNDED");
   if (candidate.status === "CANCELLED") warnings.push("CANCELLED");
-  if (candidate.hasOpenCancellationRequest) warnings.push("DISPUTED");
+  // No dispute warning: BusinessOrderCancellationRequest exists only for
+  // business orders, which this feature excludes, and the schema has no
+  // private-customer complaint or return model to read instead.
   return warnings;
 }
 
@@ -167,7 +168,6 @@ export function reviewRequestBlockMessage(reason: ReviewRequestBlockReason): str
 const WARNING_MESSAGES: Record<ReviewRequestWarning, string> = {
   REFUNDED: "Deze bestelling is (deels) terugbetaald.",
   CANCELLED: "Deze bestelling is geannuleerd.",
-  DISPUTED: "Voor deze bestelling loopt een annuleringsverzoek.",
 };
 
 export function reviewRequestWarningMessage(warning: ReviewRequestWarning): string {

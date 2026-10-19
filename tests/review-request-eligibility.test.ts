@@ -6,6 +6,7 @@ import {
   normalizeReviewEmail,
   reviewRequestBlockMessage,
   reviewRequestVerdict,
+  reviewRequestWarningMessage,
   type ReviewRequestBlockReason,
   type ReviewRequestCandidate,
 } from "../lib/review-requests";
@@ -26,7 +27,6 @@ function candidate(overrides: Partial<ReviewRequestCandidate> = {}): ReviewReque
     alreadySentAt: null,
     lastReviewMailToEmailAt: null,
     hasRefund: false,
-    hasOpenCancellationRequest: false,
     ...overrides,
   };
 }
@@ -97,7 +97,6 @@ test("refunded, cancelled and disputed orders stay eligible but carry a warning"
   assert.deepEqual(verdict({ hasRefund: true }), { eligible: true, warnings: ["REFUNDED"] });
   assert.deepEqual(verdict({ status: "REFUNDED" }), { eligible: true, warnings: ["REFUNDED"] });
   assert.deepEqual(verdict({ status: "CANCELLED" }), { eligible: true, warnings: ["CANCELLED"] });
-  assert.deepEqual(verdict({ hasOpenCancellationRequest: true }), { eligible: true, warnings: ["DISPUTED"] });
 });
 
 test("warnings are reported alongside a block, not swallowed by it", () => {
@@ -139,4 +138,11 @@ test("only a bare writereview url with a placeid is accepted", () => {
   assert.ok(!isValidGoogleReviewUrl("not a url"));
   assert.ok(!isValidGoogleReviewUrl(null));
   assert.ok(!isValidGoogleReviewUrl(""));
+});
+
+test("there is no dispute warning: the schema has no private-customer dispute data", () => {
+  // BusinessOrderCancellationRequest only exists for business orders, which this
+  // feature excludes, so the warning could never fire. A warning that implies
+  // coverage it does not have is worse than none.
+  assert.equal(reviewRequestWarningMessage("DISPUTED" as never), undefined);
 });

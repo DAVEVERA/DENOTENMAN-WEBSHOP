@@ -33,10 +33,10 @@ test("a ready review button is enabled and offers to send", () => {
 
 test("a warned review button shows the warning before anything is sent", () => {
   const html = renderToStaticMarkup(
-    <ReviewRequestButton orderId="ord_1" blockedReason={null} warnings={["REFUNDED", "DISPUTED"]} />
+    <ReviewRequestButton orderId="ord_1" blockedReason={null} warnings={["REFUNDED", "CANCELLED"]} />
   );
   assert.match(html, /Deze bestelling is \(deels\) terugbetaald\./);
-  assert.match(html, /Voor deze bestelling loopt een annuleringsverzoek\./);
+  assert.match(html, /Deze bestelling is geannuleerd\./);
 });
 
 test("the button posts to this order's review-request route and uses no browser dialog", async () => {

@@ -24,7 +24,6 @@ function candidate(overrides: Partial<ReviewRequestCandidate> = {}): ReviewReque
     alreadySentAt: null,
     lastReviewMailToEmailAt: null,
     hasRefund: false,
-    hasOpenCancellationRequest: false,
     ...overrides,
   };
 }
@@ -76,7 +75,7 @@ test("the worklist drops every blocked order", () => {
   assert.deepEqual(rows.map((row) => row.candidate.orderId), ["clean"]);
 });
 
-test("the worklist leaves out orders carrying a refund, cancellation or dispute", () => {
+test("the worklist leaves out orders carrying a refund or cancellation", () => {
   // Asking someone for a public review a day after refunding them is the
   // spec's own anti-goal, so these never reach the list. The order page still
   // offers the send behind a warning, because there a human is looking.
@@ -84,13 +83,12 @@ test("the worklist leaves out orders carrying a refund, cancellation or dispute"
     [
       candidate({ orderId: "refunded", hasRefund: true }),
       candidate({ orderId: "cancelled", status: "CANCELLED" }),
-      candidate({ orderId: "disputed", hasOpenCancellationRequest: true }),
       candidate({ orderId: "clean" }),
     ],
     { reviewUrl: VALID_URL, now }
   );
   assert.deepEqual(rows.map((row) => row.candidate.orderId), ["clean"]);
-  assert.equal(withWarnings, 3, "withheld orders must be counted, not silently dropped");
+  assert.equal(withWarnings, 2, "withheld orders must be counted, not silently dropped");
 });
 
 test("without a review url the worklist is empty rather than misleading", () => {
