@@ -9,6 +9,8 @@ import { deliverTransactionalEmail } from "@/lib/transactional-email";
 import { isAftersalesSchemaUnavailable } from "@/lib/aftersales/database";
 import { checkTransactionalProviderReadiness } from "@/lib/aftersales/provider";
 import { aftersalesTestSampleFilters } from "@/lib/aftersales/test-sample";
+import { getSetting } from "@/lib/settings";
+import { REVIEW_URL_SETTING_KEY, reviewActionUrlOverrideFor } from "@/lib/review-requests";
 
 const inputSchema = z.object({
   stepId: z.string().trim().min(1),
@@ -65,6 +67,23 @@ export async function POST(request: NextRequest) {
   try {
     const stepContent = parseAftersalesContent(step.content);
     const locale = order.locale === "en" || order.locale === "fr" ? order.locale : "nl";
+    // The review mail has no destination of its own: without the configured
+    // Google link the renderer refuses to build it, so a test of that step
+    // would throw rather than send.
+    const actionUrlOverride = reviewActionUrlOverrideFor(
+      step.trigger,
+      step.trigger === "REVIEW_REQUEST" ? await getSetting(REVIEW_URL_SETTING_KEY) : null
+    );
+    if (step.trigger === "REVIEW_REQUEST" && !actionUrlOverride) {
+      return NextResponse.json(
+        {
+          error: "NO_REVIEW_URL",
+          message:
+            "Vul eerst de Google-reviewlink in bij Instellingen → Reviews; zonder die link heeft de testmail geen bestemming.",
+        },
+        { status: 409 }
+      );
+    }
     const rendered = renderAftersalesEmail(
       order,
       step.trigger,
@@ -72,7 +91,8 @@ export async function POST(request: NextRequest) {
       stepContent.canvas,
       stepContent.locales[locale].blockText,
       stepContent.design,
-      step.flow.logoUrl
+      step.flow.logoUrl,
+      actionUrlOverride
     );
     const result = await deliverTransactionalEmail({
       idempotencyKey: `aftersales-test-${crypto.randomUUID()}`,

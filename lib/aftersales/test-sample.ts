@@ -9,7 +9,12 @@ export function aftersalesTestSampleFilters(
   const businessScope: Prisma.OrderWhereInput = isBusinessTrigger
     ? { businessOrderListId: { not: null } }
     : { businessOrderListId: null };
-  const isFulfilled = trigger === "ORDER_FULFILLED" || trigger === "BUSINESS_ORDER_FULFILLED";
+  // A review request only makes sense for an order that actually reached the
+  // customer, so it samples the same way the fulfilment mails do.
+  const isFulfilled =
+    trigger === "ORDER_FULFILLED" ||
+    trigger === "BUSINESS_ORDER_FULFILLED" ||
+    trigger === "REVIEW_REQUEST";
 
   const realOrderFilter: Prisma.OrderWhereInput = {
     ...businessScope,
