@@ -3,17 +3,12 @@ import { LEGAL_IDENTITY } from "@/lib/legal";
 import {
   RETURN_WINDOW_DAYS,
   SHIPPING_POLICIES,
-  STANDARD_HANDLING_DAYS,
-  STANDARD_TRANSIT_DAYS,
 } from "@/lib/shipping";
 
 function euro(cents: number): string {
   return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(cents / 100);
 }
 export function ShippingReturns({ locale: _locale }: { locale: string }) {
-  const minimum = STANDARD_HANDLING_DAYS.min + STANDARD_TRANSIT_DAYS.min;
-  const maximum = STANDARD_HANDLING_DAYS.max + STANDARD_TRANSIT_DAYS.max;
-
   return (
     <LegalPage
       title="Verzend- en retourbeleid"
@@ -24,7 +19,7 @@ export function ShippingReturns({ locale: _locale }: { locale: string }) {
           <li>Levering is beschikbaar in Nederland en België.</li>
           <li>Nederland: {euro(SHIPPING_POLICIES.NL.rateTiers[0].rateCents)}; gratis vanaf {euro(SHIPPING_POLICIES.NL.freeShippingThresholdCents)}.</li>
           <li>België: {euro(SHIPPING_POLICIES.BE.rateTiers[0].rateCents)}; gratis vanaf {euro(SHIPPING_POLICIES.BE.freeShippingThresholdCents)}.</li>
-          <li>De gebruikelijke verwerking en bezorging samen duren ongeveer {minimum}–{maximum} werkdagen.</li>
+          <li>Bestellingen die op een werkdag voor 12:00 binnenkomen, versturen we binnen 24 uur.</li>
           <li>Afhalen kan op de in de checkout aangeboden marktlocatie en marktdag.</li>
           <li>De bestelbevestiging en track & trace bevatten de meest actuele informatie.</li>
         </LegalList>
