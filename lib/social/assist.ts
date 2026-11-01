@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 
+import { GEMINI_ACCESS_DENIED_MESSAGE, isGeminiAccessDenied } from "@/lib/gemini-fallback";
 import { SocialError } from "./errors";
 import { SOCIAL_PLATFORM_INFO, SOCIAL_PLATFORMS, YOUTUBE_TITLE_LIMIT, type SocialPlatformName } from "./platforms";
 
@@ -85,7 +86,8 @@ export async function suggestSocialCaptions(candidate: unknown): Promise<SocialA
       config: { responseMimeType: "application/json", responseJsonSchema: jsonSchema, abortSignal: AbortSignal.timeout(45_000) },
     } as never);
     text = (response as { text?: string }).text;
-  } catch {
+  } catch (error) {
+    if (isGeminiAccessDenied(error)) throw new SocialError("AI_ACCESS_DENIED", GEMINI_ACCESS_DENIED_MESSAGE, 503);
     throw new SocialError("AI_UNAVAILABLE", "De AI-suggesties zijn nu niet beschikbaar. Probeer het zo opnieuw.", 503, true);
   }
   const parsed = outputSchema.safeParse((() => { try { return JSON.parse(text ?? ""); } catch { return null; } })());

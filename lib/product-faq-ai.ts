@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isCopywriterGeminiConfigured } from "@/lib/design-studio/copywriter/gemini-provider";
+import { GEMINI_ACCESS_DENIED_MESSAGE, isGeminiAccessDenied } from "@/lib/gemini-fallback";
 import { plainTextFromFaqHtml } from "@/lib/product-faq-schema";
 
 export const isProductFaqAiConfigured = isCopywriterGeminiConfigured;
@@ -240,6 +241,7 @@ export async function generateProductFaqSuggestions(
     if (error instanceof ProductFaqAiError) throw error;
     const candidate = error as { name?: string; status?: number };
     if (candidate?.name === "AbortError") throw new ProductFaqAiError("FAQ_AI_TIMEOUT", "Gemini reageerde niet op tijd.", 504);
+    if (isGeminiAccessDenied(error)) throw new ProductFaqAiError("FAQ_AI_ACCESS_DENIED", GEMINI_ACCESS_DENIED_MESSAGE, 503);
     if (candidate?.status === 429) throw new ProductFaqAiError("FAQ_AI_RATE_LIMITED", "Gemini heeft tijdelijk geen ruimte. Probeer het later opnieuw.", 429);
     throw new ProductFaqAiError("FAQ_AI_UNAVAILABLE", "Gemini is tijdelijk niet beschikbaar.", 502);
   }

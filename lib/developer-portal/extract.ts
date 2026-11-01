@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 
-import { withGeminiModelFallback } from "@/lib/gemini-fallback";
+import { GEMINI_ACCESS_DENIED_MESSAGE, isGeminiAccessDenied, withGeminiModelFallback } from "@/lib/gemini-fallback";
 
 import { computeDeveloperInvoiceTotals, DEVELOPER_VAT_RATES, type DeveloperInvoiceLine } from "./invoice-math";
 
@@ -334,6 +334,7 @@ async function readWithModel(file: InvoiceFile, generate: GenerateFn, budgetMs: 
   } catch (error) {
     if (error instanceof InvoiceExtractionError) throw error;
     console.warn("Developer invoice: reading gave up", { status: (error as { status?: unknown } | null)?.status ?? (error as { name?: unknown } | null)?.name });
+    if (isGeminiAccessDenied(error)) throw new InvoiceExtractionError("AI_ACCESS_DENIED", GEMINI_ACCESS_DENIED_MESSAGE, 503);
     throw new InvoiceExtractionError("AI_UNAVAILABLE", "De AI is nu te druk om de factuur uit te lezen.", 503);
   }
   try {

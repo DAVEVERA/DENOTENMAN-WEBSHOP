@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 
-import { withGeminiModelFallback } from "@/lib/gemini-fallback";
+import { GEMINI_ACCESS_DENIED_MESSAGE, isGeminiAccessDenied, withGeminiModelFallback } from "@/lib/gemini-fallback";
 
 import {
   copywriterProviderJsonSchema,
@@ -120,6 +120,9 @@ function mapError(error: unknown): CopywriterProviderError {
       "Gemini heeft tijdelijk geen ruimte. Probeer het later opnieuw.",
       429,
     );
+  }
+  if (isGeminiAccessDenied(error)) {
+    return new CopywriterProviderError("PROVIDER_ACCESS_DENIED", GEMINI_ACCESS_DENIED_MESSAGE, 503);
   }
   if (candidate?.status && candidate.status >= 400 && candidate.status < 500) {
     return new CopywriterProviderError(

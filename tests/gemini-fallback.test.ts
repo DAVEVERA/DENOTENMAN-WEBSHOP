@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { geminiModelChain, withGeminiModelFallback } from "../lib/gemini-fallback";
+import { geminiModelChain, isGeminiAccessDenied, withGeminiModelFallback } from "../lib/gemini-fallback";
 
 const busy = (status: number) => Object.assign(new Error("busy"), { status });
 const noSleep = async () => {};
@@ -54,4 +54,16 @@ test("no new model is started once the time budget is spent", async () => {
     throw busy(503);
   }, { budgetMs: 10, sleep: noSleep }));
   assert.equal(calls, 1);
+});
+
+test("a refused key or unpaid project stops at once instead of being retried", async () => {
+  assert.equal(isGeminiAccessDenied(busy(403)), true);
+  assert.equal(isGeminiAccessDenied(busy(401)), true);
+  assert.equal(isGeminiAccessDenied(busy(503)), false);
+  const tried: string[] = [];
+  await assert.rejects(withGeminiModelFallback("a", async (name) => {
+    tried.push(name);
+    throw busy(403);
+  }, { sleep: noSleep }), (error: unknown) => isGeminiAccessDenied(error));
+  assert.deepEqual(tried, ["a"]);
 });

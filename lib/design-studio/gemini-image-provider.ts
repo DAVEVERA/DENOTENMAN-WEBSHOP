@@ -4,6 +4,7 @@ import sharp from "@/lib/sharp";
 import { z } from "zod";
 import type { GeminiImageJobInput } from "@/lib/design-studio/gemini-image-schema";
 import type { GeminiImageAvailability } from "@/lib/design-studio/types";
+import { GEMINI_ACCESS_DENIED_MESSAGE } from "@/lib/gemini-fallback";
 
 const INTERACTIONS_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const MODELS_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000";
@@ -118,7 +119,7 @@ async function normalizeSource(sourceBytes: Buffer): Promise<Buffer> {
 
 function providerFailure(status: number): GeminiImageError {
   if (status === 401 || status === 403) {
-    return new GeminiImageError("INVALID_CONFIGURATION", "Gemini weigert de ingestelde API-sleutel of modeltoegang.", 503);
+    return new GeminiImageError("INVALID_CONFIGURATION", GEMINI_ACCESS_DENIED_MESSAGE, 503);
   }
   if (status === 429) {
     return new GeminiImageError("PROVIDER_BUSY", "Gemini heeft tijdelijk geen capaciteit of quotum. Probeer het later opnieuw.", 503, true);

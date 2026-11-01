@@ -16,6 +16,15 @@ function statusOf(error: unknown): number {
   return typeof status === "number" ? status : 0;
 }
 
+/** Google refuses the key or the whole project (unpaid billing, revoked key): retrying won't help. */
+export function isGeminiAccessDenied(error: unknown): boolean {
+  const status = statusOf(error);
+  return status === 401 || status === 403;
+}
+
+export const GEMINI_ACCESS_DENIED_MESSAGE =
+  "Google weigert Gemini voor dit project. Controleer de API-sleutel en of het Google Cloud-factureringsaccount een openstaand saldo heeft.";
+
 /** Busy, rate limited, failing or too slow: worth trying another model or a bit later. */
 export function isBusyGeminiError(error: unknown): boolean {
   const candidate = error as { name?: string; code?: string } | null;
