@@ -425,8 +425,6 @@ model ProductImage {
   sortOrder             Int                      @default(0)
   isPrimary             Boolean                  @default(false)
   processingRecords     ProductImageProcessing[]
-  sourceDesignJobs      DesignJob[]              @relation("DesignJobSourceImage")
-  sourceDesignAssets    DesignAsset[]            @relation("DesignAssetSourceImage")
   publishedDesignAssets DesignAsset[]            @relation("DesignAssetPublishedImage")
 
   @@index([productId])
@@ -536,8 +534,8 @@ model DesignJob {
   id                     String          @id @default(cuid())
   productId              String
   product                Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Plain id, no relation: a product photo stays deletable after it was used as a design source.
   sourceImageId          String
-  sourceImage            ProductImage    @relation("DesignJobSourceImage", fields: [sourceImageId], references: [id])
   requestedByAdminUserId String
   requestedByAdminUser   AdminUser       @relation(fields: [requestedByAdminUserId], references: [id])
   idempotencyKey         String          @unique
@@ -562,8 +560,8 @@ model DesignAsset {
   job            DesignJob         @relation(fields: [jobId], references: [id], onDelete: Cascade)
   productId      String
   product        Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Plain id, no relation: a product photo stays deletable after it was used as a design source.
   sourceImageId  String
-  sourceImage    ProductImage      @relation("DesignAssetSourceImage", fields: [sourceImageId], references: [id])
   storageKey     String            @unique
   contentType    String
   width          Int
@@ -795,8 +793,8 @@ model Order {
 
   /// Internal hand-off: the shop marked this paid order as dealt with (shipped or handed over).
   /// Independent of `status`, so ticking it never mails the customer.
-  processedAt     DateTime?
-  processedByName String?
+  processedAt          DateTime?
+  processedByName      String?
   /// Pickup orders only: the order is packed and waiting in the market van.
   readyForPickupAt     DateTime?
   readyForPickupByName String?

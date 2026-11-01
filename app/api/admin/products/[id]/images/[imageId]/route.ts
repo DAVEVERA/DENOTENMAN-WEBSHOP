@@ -84,6 +84,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!(await hasAdminSession(request))) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   const { id, imageId } = await params;
   let archived: ArchivedProductImage | undefined;
+  let fileSharedWithDesign = false;
   try {
     const images = await prisma.$transaction(async (tx) => {
       await lockProductImages(tx, id);
@@ -92,6 +93,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       const updates = planImageDeletion(current, imageId);
       if (!target) throw new ProductImageStudioError("NOT_FOUND", "De productafbeelding bestaat niet.", 404);
 
+      // A published Design Studio result shares its file with the concept, which keeps showing it.
+      fileSharedWithDesign = Boolean(await tx.designAsset.findUnique({ where: { storageKey: target.storageKey }, select: { id: true } }));
       archived = await archiveProductImage(target.storageKey);
       await tx.productImageTrash.create({
         data: {
@@ -108,7 +111,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       await applyProductImageOrder(tx, updates);
       return getOrderedProductImages(tx, id);
     }, productImageTransactionOptions);
-    const cleanupComplete = archived ? await finalizeArchivedProductImage(archived) : true;
+    const cleanupComplete = archived && !fileSharedWithDesign ? await finalizeArchivedProductImage(archived) : true;
     archived = undefined;
     await revalidateProductImageStorefront(id);
     return NextResponse.json({
