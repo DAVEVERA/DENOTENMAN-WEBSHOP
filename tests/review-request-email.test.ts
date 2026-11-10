@@ -67,10 +67,11 @@ test("every other trigger keeps its own destination", () => {
   assert.ok(rendered.html.includes("/nl/order/ord_1") || rendered.html.includes("postnl"));
 });
 
-test("the review mail has no order number box but keeps it in the text version", () => {
+test("the review mail imposes no order number box or text label", () => {
   const rendered = render("REVIEW_REQUEST", REVIEW_URL);
   assert.ok(!rendered.html.includes("<strong>Bestelnummer:</strong>"), "order number box is still rendered");
-  assert.match(rendered.text, /Bestelnummer: DN-2026-01423/);
+  assert.ok(!/^Bestelnummer:/m.test(rendered.text), "order number label is still rendered");
+  assert.match(rendered.text, /Bestelling DN-2026-01423 is afgeleverd\./);
 });
 
 test("the fulfilled mail keeps its order number box", () => {

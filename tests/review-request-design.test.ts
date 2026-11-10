@@ -102,3 +102,59 @@ test("the design uses no token the review trigger disallows", () => {
     }
   }
 });
+
+// --- nothing in this mail's chrome is ours to impose ---
+
+function renderWith(designOverrides: Partial<typeof content.design>) {
+  const localeContent = content.locales.nl;
+  return renderAftersalesEmail(
+    order,
+    "REVIEW_REQUEST",
+    localeContent,
+    content.canvas,
+    localeContent.blockText,
+    { ...content.design, ...designOverrides },
+    "https://denotenman.com/brand/logo-wordmark-email.png",
+    REVIEW_URL
+  );
+}
+
+test("the text version carries no imposed order number line", () => {
+  const { text } = render();
+  assert.ok(!/^Bestelnummer:/m.test(text), `an order number line is still forced:\n${text}`);
+});
+
+test("the text version has no label-less link line", () => {
+  const { text } = render();
+  assert.ok(!/^:\s*http/m.test(text), `a bare ": url" line is still emitted:\n${text}`);
+});
+
+test("no footer sentence is imposed on the review mail", () => {
+  const { text, html } = render();
+  assert.ok(!text.includes("Beantwoord deze e-mail"), "a footer sentence is still forced");
+  assert.ok(!html.includes("Beantwoord deze e-mail"), "a footer sentence is still forced in the html");
+});
+
+test("a footer the admin types does appear", () => {
+  const { text, html } = renderWith({ footerText: "Tot de volgende keer." });
+  assert.match(text, /Tot de volgende keer\./);
+  assert.match(html, /Tot de volgende keer\./);
+});
+
+test("the logo can be aligned", () => {
+  for (const [align, expected] of [["left", "left"], ["center", "center"], ["right", "right"]] as const) {
+    const { html } = renderWith({ logoAlign: align });
+    assert.match(html, new RegExp(`text-align:${expected}`), `logoAlign ${align} is not applied`);
+  }
+});
+
+test("the logo height is the admin's choice, not a fixed 32px", () => {
+  const { html } = renderWith({ logoHeightPx: 64 });
+  assert.match(html, /height:64px/);
+  assert.ok(!html.includes("height:32px"), "the old fixed height is still emitted");
+});
+
+test("the logo alt text is the admin's choice", () => {
+  const { html } = renderWith({ logoAlt: "Logo van De Notenman" });
+  assert.match(html, /alt="Logo van De Notenman"/);
+});

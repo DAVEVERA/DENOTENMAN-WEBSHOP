@@ -26,6 +26,7 @@ import type {
   AftersalesCanvas,
   AftersalesColumn,
   AftersalesContent,
+  AftersalesDesign,
   AftersalesFlowInput,
   AftersalesFont,
   AftersalesFontSize,
@@ -203,25 +204,37 @@ function previewDocument(
   content: AftersalesContent[Locale],
   trigger: AftersalesTriggerValue,
   canvas: AftersalesCanvas,
-  logoUrl: string | null
+  logoUrl: string | null,
+  design: AftersalesDesign
 ): string {
   const subject = sampleValue(content.subject);
+  // Mirrors renderEmailShell in lib/aftersales/template.ts. The two are
+  // separate because this one runs in the browser; anything imposed here that
+  // the real mail does not impose makes this preview a lie.
+  const logoAlt = design.logoAlt.trim() || "De Notenman";
   const brandBlock = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
-    : `<p style="margin:0;color:#806600;font-size:12px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
+    ? `<div style="text-align:${design.logoAlign};margin:0 0 12px"><img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(logoAlt)}" style="display:inline-block;height:${design.logoHeightPx}px;width:auto" /></div>`
+    : `<p style="margin:0 0 12px;text-align:${design.logoAlign};color:#806600;font-size:12px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
   const resolvedBlockText = Object.fromEntries(Object.entries(content.blockText).map(([key, value]) => [key, sampleValue(value)]));
   const contentHtml = renderAftersalesCanvas(canvas, {
     escapeText: escapeHtml,
     resolveText: (key) => resolvedBlockText[key] ?? "",
     defaultActionUrl: "#",
   });
-  const orderNumberBox = trigger === "BACK_IN_STOCK" ? "" : "<div style=\"margin:18px 0;padding:14px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;font-size:14px\"><strong>Bestelnummer:</strong> DN-2026-1842</div>";
+  const orderNumberBox = trigger === "BACK_IN_STOCK" || trigger === "REVIEW_REQUEST"
+    ? ""
+    : "<div style=\"margin:18px 0;padding:14px;border:1px solid #ded7ca;border-radius:8px;background:#f6f3ee;font-size:14px\"><strong>Bestelnummer:</strong> DN-2026-1842</div>";
   const detail = trigger === "ORDER_FULFILLED"
     ? "<p style=\"margin:18px 0 0;font-size:14px\"><strong>Track &amp; trace:</strong> 3SNOTEN1234567</p>"
     : trigger === "ORDER_PAID"
       ? "<div style=\"margin-top:20px;border-top:1px solid #e4dfd5;padding-top:16px;font-size:14px\"><p><strong>2× Cashewnoten gebrand</strong><span style=\"float:right\">€ 13,90</span></p><p><strong>Totaal</strong><span style=\"float:right\">€ 42,95</span></p></div>"
       : "";
-  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head><body style="margin:0;background:#f6f3ee"><div style="padding:18px 10px"><div style="max-width:600px;margin:auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff"><div style="height:5px;background:#e0b200"></div><div style="padding:28px">${brandBlock}${contentHtml}${orderNumberBox}${detail}</div></div></div></body></html>`;
+  const footerText = design.footerText.trim()
+    || (trigger === "REVIEW_REQUEST" ? "" : "Vragen? Beantwoord deze e-mail; we helpen je graag.");
+  const footerBlock = footerText
+    ? `<div style="padding:18px 28px 24px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px;line-height:1.5">${escapeHtml(footerText)}</div>`
+    : "";
+  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(subject)}</title></head><body style="margin:0;background:#f6f3ee"><div style="padding:18px 10px"><div style="max-width:600px;margin:auto;overflow:hidden;border:1px solid #ded7ca;border-radius:12px;background:#fff"><div style="height:5px;background:#e0b200"></div><div style="padding:28px">${brandBlock}${contentHtml}${orderNumberBox}${detail}</div>${footerBlock}</div></div></body></html>`;
 }
 
 function formatDate(value: string): string {
@@ -254,7 +267,7 @@ export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider 
 
   const selectedStep = flow.steps.find((step) => step.id === selectedStepId) ?? flow.steps[0];
   const preview = useMemo(
-    () => selectedStep ? previewDocument(selectedStep.content.locales[locale], selectedStep.trigger, selectedStep.content.canvas, flow.logoUrl) : "",
+    () => selectedStep ? previewDocument(selectedStep.content.locales[locale], selectedStep.trigger, selectedStep.content.canvas, flow.logoUrl, selectedStep.content.design) : "",
     [selectedStep, locale, flow.logoUrl]
   );
 

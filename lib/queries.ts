@@ -1162,35 +1162,18 @@ export const getHomeLandingProducts = cache(
       });
     }
 
-    const [nutIds, honeyIds, nutButterIds, previewProducts] =
-      await Promise.all([
-        findGroupIds(nutCategoryIds, {
-          limit: HOME_PRODUCT_LIMIT,
-          preferredSkus: HOME_NUT_PRODUCT_SKUS,
-        }),
-        findGroupIds(honeyCategoryIds, {
-          limit: HOME_HONEY_PRODUCT_SKUS.length,
-          excludedCategoryIds: nutButterCategoryIds,
-          preferredSkus: HOME_HONEY_PRODUCT_SKUS,
-        }),
-        findGroupIds(nutButterCategoryIds),
-        prisma.product.findMany({
-          where: {
-            ...visibleProductWhere,
-            sku: {
-              in: HOME_CATEGORY_ENTRANCES.map(({ previewSku }) => previewSku),
-            },
-          },
-          select: {
-            sku: true,
-            images: {
-              select: { storageKey: true },
-              orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
-              take: 1,
-            },
-          },
-        }),
-      ]);
+    const [nutIds, honeyIds, nutButterIds] = await Promise.all([
+      findGroupIds(nutCategoryIds, {
+        limit: HOME_PRODUCT_LIMIT,
+        preferredSkus: HOME_NUT_PRODUCT_SKUS,
+      }),
+      findGroupIds(honeyCategoryIds, {
+        limit: HOME_HONEY_PRODUCT_SKUS.length,
+        excludedCategoryIds: nutButterCategoryIds,
+        preferredSkus: HOME_HONEY_PRODUCT_SKUS,
+      }),
+      findGroupIds(nutButterCategoryIds),
+    ]);
     const selectedIds = [
       ...new Set([...nutIds, ...honeyIds, ...nutButterIds]),
     ];
@@ -1248,21 +1231,13 @@ export const getHomeLandingProducts = cache(
         const product = productsById.get(id);
         return product ? [product] : [];
       });
-    const slugByPreviewSku = new Map<string, HomeCategoryEntranceSlug>(
-      HOME_CATEGORY_ENTRANCES.map(({ canonicalSlug, previewSku }) => [
-        previewSku,
-        canonicalSlug,
-      ]),
-    );
     const categoryImages = Object.fromEntries(
-      previewProducts.flatMap(({ sku, images }) => {
-        const canonicalSlug = slugByPreviewSku.get(sku);
-        const image = images[0];
-
-        return canonicalSlug && image
-          ? [[canonicalSlug, publicImageUrl(image.storageKey)] as const]
-          : [];
-      }),
+      HOME_CATEGORY_ENTRANCES.map(
+        ({ canonicalSlug, previewImageStorageKey }) => [
+          canonicalSlug,
+          publicImageUrl(previewImageStorageKey),
+        ] as const,
+      ),
     ) as Partial<Record<HomeCategoryEntranceSlug, string>>;
 
     return {

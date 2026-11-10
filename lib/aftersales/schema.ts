@@ -68,6 +68,9 @@ export const AFTERSALES_FONTS = ["SANS", "SERIF", "MODERN"] as const;
 export type AftersalesFont = (typeof AFTERSALES_FONTS)[number];
 
 export const AFTERSALES_FONT_SIZES = ["COMPACT", "STANDAARD", "GROOT"] as const;
+
+export const AFTERSALES_LOGO_ALIGNMENTS = ["left", "center", "right"] as const;
+export type AftersalesLogoAlign = (typeof AFTERSALES_LOGO_ALIGNMENTS)[number];
 export type AftersalesFontSize = (typeof AFTERSALES_FONT_SIZES)[number];
 
 export const AFTERSALES_BLOCK_TYPES = [
@@ -205,6 +208,12 @@ export type AftersalesDesign = {
   fontSize: AftersalesFontSize;
   mediaUrl: string | null;
   mediaAlt: string;
+  /** How the flow's logo sits above the content, and how big and how described. */
+  logoAlign: AftersalesLogoAlign;
+  logoHeightPx: number;
+  logoAlt: string;
+  /** Replaces the footer sentence. Empty means no footer block at all. */
+  footerText: string;
   // Only rendered when layout is GRID_2COL - up to 4 image+text cards laid
   // out two per row (a real HTML table under the hood, for email-client
   // compatibility, not CSS grid).
@@ -221,6 +230,10 @@ export const defaultAftersalesDesign: AftersalesDesign = {
   fontSize: "STANDAARD",
   mediaUrl: null,
   mediaAlt: "",
+  logoAlign: "left",
+  logoHeightPx: 32,
+  logoAlt: "",
+  footerText: "",
   gridItems: [],
   tableHeaders: [],
   tableRows: [],
@@ -365,6 +378,10 @@ export const aftersalesDesignSchema = z.object({
   fontSize: z.enum(AFTERSALES_FONT_SIZES).default("STANDAARD"),
   mediaUrl: z.string().trim().url().nullable().default(null),
   mediaAlt: z.string().trim().max(200).default(""),
+  logoAlign: z.enum(AFTERSALES_LOGO_ALIGNMENTS).default("left"),
+  logoHeightPx: z.number().int().min(12).max(120).default(32),
+  logoAlt: z.string().trim().max(200).default(""),
+  footerText: z.string().trim().max(500).default(""),
   gridItems: z.array(aftersalesGridItemSchema).max(MAX_GRID_ITEMS).default([]),
   tableHeaders: z.array(z.string().trim().max(80)).max(MAX_TABLE_COLUMNS).default([]),
   tableRows: z.array(aftersalesTableRowSchema).max(MAX_TABLE_ROWS).default([]),

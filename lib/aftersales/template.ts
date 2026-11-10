@@ -135,9 +135,12 @@ function renderEmailShell(input: {
 }): RenderedFlowEmail {
   const { locale, subject, previewText, canvas, blockText, actionUrl, design, logoUrl, extraHtml, extraText, footerText } = input;
   const fontStack = FONT_STACKS[design.font];
+  // Alignment, height and alt text are the admin's choice, not ours. The
+  // wrapper carries text-align because that is what mail clients honour.
+  const logoAlt = design.logoAlt.trim() || "De Notenman";
   const brandBlock = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="De Notenman" style="display:block;height:32px;width:auto;margin:0 0 12px" />`
-    : `<p style="margin:0;color:#806600;font-size:13px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
+    ? `<div style="text-align:${design.logoAlign};margin:0 0 12px"><img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(logoAlt)}" style="display:inline-block;height:${design.logoHeightPx}px;width:auto" /></div>`
+    : `<p style="margin:0 0 12px;text-align:${design.logoAlign};color:#806600;font-size:13px;font-weight:700;letter-spacing:.08em">DE NOTENMAN</p>`;
   const contentBlock = renderAftersalesCanvas(canvas, {
     escapeText: escapeHtml,
     resolveText: (key) => blockText[key] ?? "",
@@ -157,7 +160,7 @@ function renderEmailShell(input: {
         ${contentBlock}
         ${extraHtml ?? ""}
       </div>
-      <div style="padding:18px 28px 24px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px;line-height:1.5">${escapeHtml(footerText)}</div>
+      ${footerText.trim() ? `<div style="padding:18px 28px 24px;border-top:1px solid #ded7ca;color:#6e675c;font-size:13px;line-height:1.5">${escapeHtml(footerText)}</div>` : ""}
     </div>
   </div>
 </body>
@@ -171,10 +174,9 @@ function renderEmailShell(input: {
     "",
     body,
     ...(extraText && extraText.length > 0 ? ["", ...extraText] : []),
-    "",
-    `${buttonLabel}: ${actionUrl}`,
-    "",
-    footerText,
+    // A button with no label would print as a bare ": https://…".
+    ...(buttonLabel.trim() ? ["", `${buttonLabel}: ${actionUrl}`] : []),
+    ...(footerText.trim() ? ["", footerText] : []),
   ].join("\n");
 
   return { subject, html, text, actionUrl };
@@ -255,7 +257,9 @@ export function renderAftersalesEmail(
     logoUrl,
     extraHtml: `${orderNumberBox}${itemsSection}${tracking}`,
     extraText: [
-      `Bestelnummer: ${orderNumber}`,
+      // The review mail names the order in its own copy; nothing is imposed on
+      // that layout, so this line is suppressed there like the html box is.
+      ...(trigger === "REVIEW_REQUEST" ? [] : [`Bestelnummer: ${orderNumber}`]),
       ...(trigger === "ORDER_PAID"
         ? [
             ...order.items.map((item) => `${item.quantity}× ${item.productName} (${item.variantLabel}) — ${formatPrice(item.unitPriceCents * item.quantity, locale)}`),
@@ -264,7 +268,11 @@ export function renderAftersalesEmail(
         : []),
       ...(showsTracking ? [`Track & trace: ${order.postnlTrackingCode}`] : []),
     ],
-    footerText: "Vragen? Beantwoord deze e-mail; we helpen je graag.",
+    // The admin's own footer wins. The review mail has no default at all, so an
+    // empty field there means no footer block.
+    footerText:
+      design.footerText.trim() ||
+      (trigger === "REVIEW_REQUEST" ? "" : "Vragen? Beantwoord deze e-mail; we helpen je graag."),
   });
 }
 

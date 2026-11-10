@@ -6,6 +6,7 @@ const files = [
   "tests/admin-product-accessibility.test.tsx",
   "tests/aftersales-flow-trigger-growth.test.ts",
   "tests/aftersales-schema.test.ts",
+  "tests/aftersales-test-send-review.test.ts",
   "tests/business-portal.test.ts",
   "tests/cache-versioning.test.ts",
   "tests/compact-header.test.tsx",
