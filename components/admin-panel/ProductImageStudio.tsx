@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { LoadingIndicator } from "@/components/ui/LoadingIndicator";
 import {
@@ -85,13 +85,8 @@ function canonical(images: ProductImageStudioImage[]): ProductImageStudioImage[]
 }
 
 export function imagePositionLabel(images: ProductImageStudioImage[], imageId: string): string {
-  const image = images.find((item) => item.id === imageId);
-  if (!image) return "Onbekende positie";
-  if (image.isPrimary) return "Primair";
-  const supportingIndex = images.filter((item) => !item.isPrimary).findIndex((item) => item.id === imageId);
-  if (supportingIndex === 0) return "Secundair";
-  if (supportingIndex === 1) return "Tertiair";
-  return `Positie ${supportingIndex + 2}`;
+  const index = images.findIndex((item) => item.id === imageId);
+  return index < 0 ? "Onbekende positie" : `Foto ${index + 1}`;
 }
 
 async function responseJson<T>(response: Response): Promise<T> {
@@ -155,11 +150,6 @@ export function ProductImageStudio({
     }
   };
 
-  const primaryId = useMemo(
-    () => images.find((image) => image.isPrimary)?.id ?? images[0]?.id,
-    [images]
-  );
-
   async function refreshImages() {
     setBusy(true);
     setError(null);
@@ -189,10 +179,11 @@ export function ProductImageStudio({
     }
   }
 
-  async function persistOrder(next: ProductImageStudioImage[], nextPrimaryId = primaryId) {
+  async function persistOrder(next: ProductImageStudioImage[]) {
+    const nextPrimaryId = next[0]?.id;
     if (!nextPrimaryId) return;
     const previous = images;
-    const ordered = canonical(next).map((image) => ({ ...image, isPrimary: image.id === nextPrimaryId }));
+    const ordered = next.map((image, sortOrder) => ({ ...image, sortOrder, isPrimary: image.id === nextPrimaryId }));
     setImages(ordered);
     setBusy(true);
     setError(null);
@@ -365,7 +356,7 @@ export function ProductImageStudio({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="product-image-studio-title" className="text-heading-md text-text">Beeldstudio</h2>
-          <p className="mt-1 max-w-3xl text-body-sm text-muted">Sleep foto&apos;s in de juiste volgorde, kies één primaire foto en maak altijd een nieuwe versie bij een bewerking.</p>
+          <p className="mt-1 max-w-3xl text-body-sm text-muted">Sleep foto&apos;s naar positie 1, 2, 3 enzovoort. Foto 1 is de hoofdfoto.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void refreshImages()} disabled={busy} className={buttonClass}>Vernieuwen</button>
@@ -391,9 +382,10 @@ export function ProductImageStudio({
           <article
             key={image.id}
             draggable={!busy}
-            onDragStart={() => { dragId.current = image.id; }}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={() => dropOn(image.id)}
+            onDragStart={(event) => { dragId.current = image.id; event.dataTransfer.effectAllowed = "move"; }}
+            onDragEnd={() => { dragId.current = null; }}
+            onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }}
+            onDrop={(event) => { event.preventDefault(); dropOn(image.id); }}
             className={`rounded-card border p-3 ${selected?.id === image.id ? "border-accent ring-2 ring-accent/20" : "border-border"}`}
           >
             <button type="button" onClick={() => setSelectedImageId(image.id)} className="block min-h-11 w-full text-left" aria-label={`Afbeelding ${index + 1} als bron selecteren`} aria-pressed={selected?.id === image.id}>
@@ -415,7 +407,7 @@ export function ProductImageStudio({
               </Link>
               <button type="button" onClick={() => move(image.id, -1)} disabled={busy || index === 0} className={buttonClass}><ArrowUp className="h-4 w-4" />Omhoog</button>
               <button type="button" onClick={() => move(image.id, 1)} disabled={busy || index === images.length - 1} className={buttonClass}><ArrowDown className="h-4 w-4" />Omlaag</button>
-              <button type="button" onClick={() => void persistOrder(images, image.id)} disabled={busy || image.isPrimary} className={buttonClass}><Star className="h-4 w-4" />Primair</button>
+              <button type="button" onClick={() => void persistOrder([image, ...images.filter((item) => item.id !== image.id)])} disabled={busy || index === 0} className={buttonClass}><Star className="h-4 w-4" />Als eerste</button>
               <button type="button" onClick={() => void saveAlt(image)} disabled={busy} className={buttonClass}><Save className="h-4 w-4" />Alt opslaan</button>
               <button type="button" onClick={() => void remove(image)} disabled={busy || images.length === 1} className={`${buttonClass} col-span-2 border-red-200 text-red-700`}><Trash2 className="h-4 w-4" />Naar prullenbak</button>
             </div>
@@ -457,7 +449,7 @@ export function ProductImageStudio({
             <select value={operation} onChange={(event) => setOperation(event.target.value as StudioOperation)} className={inputClass}>{operations.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
           </label>
           {needsSource ? <label className="text-body-sm font-semibold text-text">Bronafbeelding
-            <select value={selected?.id ?? ""} onChange={(event) => setSelectedImageId(event.target.value)} className={inputClass}>{images.map((image, index) => <option key={image.id} value={image.id}>Foto {index + 1}{image.isPrimary ? " (primair)" : ""}</option>)}</select>
+            <select value={selected?.id ?? ""} onChange={(event) => setSelectedImageId(event.target.value)} className={inputClass}>{images.map((image, index) => <option key={image.id} value={image.id}>Foto {index + 1}</option>)}</select>
           </label> : null}
           {usesDimensions ? <><label className="text-body-sm font-semibold text-text">Breedte (px)<input type="number" min="16" max="3840" value={width} onChange={(event) => setWidth(Number(event.target.value))} className={inputClass} /></label><label className="text-body-sm font-semibold text-text">Hoogte (px)<input type="number" min="16" max="3840" value={height} onChange={(event) => setHeight(Number(event.target.value))} className={inputClass} /></label></> : null}
           {usesCoordinates ? <><label className="text-body-sm font-semibold text-text">X-positie<input type="number" min="0" max="3840" value={x} onChange={(event) => setX(Number(event.target.value))} className={inputClass} /></label><label className="text-body-sm font-semibold text-text">Y-positie<input type="number" min="0" max="3840" value={y} onChange={(event) => setY(Number(event.target.value))} className={inputClass} /></label></> : null}

@@ -19,7 +19,23 @@ export const LEGAL_IDENTITY = {
     },
   ],
   address: "Oude Baan 7a, 5076 PJ Haaren",
+  /**
+   * The same address in parts, for schema.org PostalAddress. Kept beside the
+   * display string rather than parsed out of it; a test asserts the two stay
+   * in agreement.
+   */
+  postalAddress: {
+    streetAddress: "Oude Baan 7a",
+    postalCode: "5076 PJ",
+    addressLocality: "Haaren",
+    addressCountry: "NL",
+  },
   returnAddress: "Oude Baan 7a, 5076 PJ Haaren",
   email: "info@denotenman.com",
   website: "https://denotenman.com",
+  /** Public profiles, emitted as schema.org sameAs. */
+  socialProfiles: [
+    "https://www.instagram.com/de_notenman",
+    "https://www.facebook.com/denotenman",
+  ],
 } as const;

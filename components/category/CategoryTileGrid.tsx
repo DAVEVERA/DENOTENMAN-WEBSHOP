@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import { BASE_URL } from "@/lib/routes";
 import type { CategoryTileData } from "@/lib/category-tiles-core";
 import { CategoryTile } from "@/components/category/CategoryTile";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export type CategoryTileGridProps = {
   eyebrow: string;
@@ -35,7 +36,7 @@ export function CategoryTileGrid({ eyebrow, title, viewAllLabel, viewAllHref, ti
 
   return (
     <section className="bg-[linear-gradient(180deg,#f1e9de_0%,#faf8f4_11rem,#faf8f4_100%)]" aria-labelledby={sectionId}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList).replace(/</g, "\u003c") }} />
+      <JsonLd data={itemList} />
       <div className="mx-auto w-full max-w-[88rem] px-4 py-14 sm:px-6 sm:py-16 lg:px-10 lg:py-24">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-3xl">

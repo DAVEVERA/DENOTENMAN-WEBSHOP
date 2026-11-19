@@ -39,7 +39,7 @@ export default async function NewProductPage() {
     .filter((product): product is { id: string; name: string } => Boolean(product.name));
   const initialProduct = {
     sku: "", slug: "", name: "", shortDescription: "", description: "",
-    basePriceEuro: "0.00", salePriceEuro: "", unit: "WEIGHT" as const, isActive: false,
+    basePriceEuro: "0.00", salePriceEuro: "", unit: "WEIGHT" as const, isActive: false, isSoldOut: false,
     categoryIds: [], recommendationIds: [],
     variants: [{ clientKey: "new-variant-1", sku: "", label: "", weightGrams: "250", preparation: "RAW" as const, salting: "UNSALTED" as const, coating: "NONE" as const, isActive: true, priceEuro: "0.00", salePriceEuro: "", stock: "0" }],
     translations: {

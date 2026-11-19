@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
   if (rateLimited(request)) return NextResponse.json({ error: "RATE_LIMITED" }, { status: 429 });
   const parsed = inputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "VALIDATION_ERROR" }, { status: 400 });
-  const product = await prisma.product.findUnique({ where: { id: parsed.data.productId }, select: { id: true, isActive: true } });
+  const product = await prisma.product.findUnique({ where: { id: parsed.data.productId }, select: { id: true, isActive: true, isSoldOut: true, variants: { where: { isActive: true }, select: { stock: true } } } });
   if (!product) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (product.isActive) return NextResponse.json({ error: "ALREADY_AVAILABLE" }, { status: 409 });
+  if (product.isActive && !product.isSoldOut && product.variants.some((variant) => process.env.UNLIMITED_STOCK === "true" || variant.stock > 0)) return NextResponse.json({ error: "ALREADY_AVAILABLE" }, { status: 409 });
 
   const emailNormalized = parsed.data.email.toLocaleLowerCase("nl-NL");
   const activeKey = `${product.id}:${emailNormalized}`;

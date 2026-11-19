@@ -227,6 +227,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
               isActive: true,
               priceCents: true,
               salePriceCents: true,
+              stock: true,
               _count: { select: { orderItems: true } },
             },
           },
@@ -349,6 +350,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           salePriceCents: input.salePriceCents,
           unit: input.unit,
           isActive: input.isActive,
+          isSoldOut: input.isSoldOut ?? current.isSoldOut,
         },
       });
       const visibilityUndoContext: VisibilityUndoContext | null = current.isActive !== input.isActive
@@ -454,7 +456,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
 
       await upsertNutrition(tx, id, input.nutrition);
-      shouldNotify = !current.isActive && input.isActive;
+      const isAvailable = (active: boolean, soldOut: boolean, variants: Array<{ isActive: boolean; stock: number }>) =>
+        active && !soldOut && variants.some((variant) => variant.isActive && (process.env.UNLIMITED_STOCK === "true" || variant.stock > 0));
+      shouldNotify = !isAvailable(current.isActive, current.isSoldOut, current.variants)
+        && isAvailable(input.isActive, input.isSoldOut ?? current.isSoldOut, input.variants);
       shouldSubmitIndexNow = current.isActive || input.isActive;
       return {
         productId: id,

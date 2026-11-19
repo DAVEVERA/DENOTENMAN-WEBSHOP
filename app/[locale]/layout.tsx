@@ -12,6 +12,7 @@ import { CookieConsent } from "@/components/privacy/CookieConsent";
 import { CountrySelectModal } from "@/components/storefront/CountrySelectModal";
 import { COOKIE_CONSENT_BOOTSTRAP_SCRIPT } from "@/lib/cookie-consent-bootstrap";
 import "@/app/globals.css";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 const dosis = Dosis({
   subsets: ["latin"],
@@ -63,6 +64,7 @@ export default async function LocaleLayout({
     >
       <head>
         <link rel="describedby" href="/llms.txt" type="text/markdown" />
+        <link rel="llms-txt" href="/llms.txt" type="text/markdown" />
       </head>
       <body className="bg-background font-body text-text">
         <Script
@@ -70,12 +72,7 @@ export default async function LocaleLayout({
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: COOKIE_CONSENT_BOOTSTRAP_SCRIPT }}
         />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationStructuredData).replace(/</g, "\\u003c"),
-          }}
-        />
+        <JsonLd data={organizationStructuredData} />
         <CookieConsent locale={locale} />
         <CountrySelectModal locale={locale} />
         <a

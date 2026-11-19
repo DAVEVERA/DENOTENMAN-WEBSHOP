@@ -3,11 +3,14 @@ import type { Metadata } from "next";
 import { locales, isLocale } from "@/lib/i18n";
 import { getCategoryNavigation, getHomeLandingProducts } from "@/lib/queries";
 import { getAlternates } from "@/lib/alternates";
-import { buildStorefrontMetadata } from "@/lib/storefront-seo";
+import { buildMetadata } from "@/lib/seo/metadata";
 import {
+  BASE_URL,
   categories as categoriesPath,
   category as categoryPath,
 } from "@/lib/routes";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { buildWebSiteStructuredData } from "@/lib/structured-data";
 import { pagePath } from "@/lib/pages";
 import {
   getAnnouncementTickerCopy,
@@ -67,9 +70,10 @@ export async function generateMetadata({
   const dictionary = dictionaries[rawLocale];
   const alternates = await getAlternates(rawLocale, { type: "home" });
 
-  return buildStorefrontMetadata({
+  return buildMetadata({
     title: dictionary.seo.home.title,
     description: dictionary.seo.home.description,
+    locale: rawLocale,
     alternates,
   });
 }
@@ -172,6 +176,7 @@ export default async function HomePage({
 
   return (
     <>
+      <JsonLd data={buildWebSiteStructuredData(BASE_URL)} />
       <AnnouncementTicker copy={announcementCopy} />
       <SiteShell
         className="bg-home-canvas"

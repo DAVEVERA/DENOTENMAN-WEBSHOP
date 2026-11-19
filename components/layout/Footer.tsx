@@ -196,7 +196,7 @@ export async function Footer({
                 </li>
                 <li>
                   <Link
-                    href={pagePath("contact", locale)}
+                    href={locale === "nl" ? "/nl/zakelijk-worden" : pagePath("contact", locale)}
                     className={footerLinkClass}
                   >
                     {dictionary.nav.business}

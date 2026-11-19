@@ -42,6 +42,8 @@ export function canvaConfig(
 
 /** Preset sizes offered when starting a new design, in pixels. */
 export const CANVA_DESIGN_SIZES = [
+  { id: "storefront-hero", label: "Webshop hero", width: 1920, height: 720 },
+  { id: "storefront-banner", label: "Webshopbanner", width: 1600, height: 500 },
   { id: "newsletter-banner", label: "Nieuwsbriefbanner", width: 1200, height: 600 },
   { id: "newsletter-image", label: "Nieuwsbriefbeeld (16:9)", width: 1200, height: 675 },
   { id: "square", label: "Vierkant (Instagram)", width: 1080, height: 1080 },

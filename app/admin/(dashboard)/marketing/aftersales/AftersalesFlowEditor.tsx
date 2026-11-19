@@ -58,11 +58,37 @@ const BLOCK_TYPE_LABELS: Record<AftersalesBlockType, string> = {
   customHtml: "Custom HTML",
 };
 
-const fontLabels: Record<AftersalesFont, string> = {
-  SANS: "Standaard (Arial)",
-  SERIF: "Serif (Georgia)",
-  MODERN: "Modern (Segoe UI)",
+const fontLabels: Record<(typeof AFTERSALES_FONTS)[number], string> = {
+  DOSIS: "Dosis",
+  MONTSERRAT: "Montserrat",
 };
+
+function preferredFont(font: AftersalesFont): (typeof AFTERSALES_FONTS)[number] {
+  return font === "SERIF" ? "DOSIS" : "MONTSERRAT";
+}
+
+function modernizeFlowFonts(flow: AftersalesFlowInput): AftersalesFlowInput {
+  return {
+    ...flow,
+    steps: flow.steps.map((step) => ({
+      ...step,
+      content: {
+        ...step.content,
+        design: { ...step.content.design, font: preferredFont(step.content.design.font) },
+        canvas: {
+          ...step.content.canvas,
+          rows: step.content.canvas.rows.map((row) => ({
+            ...row,
+            columns: row.columns.map((column) => ({
+              ...column,
+              blocks: column.blocks.map((block) => block.type === "text" ? { ...block, font: preferredFont(block.font) } : block),
+            })),
+          })),
+        },
+      },
+    })),
+  };
+}
 
 const fontSizeLabels: Record<AftersalesFontSize, string> = {
   COMPACT: "Compact",
@@ -74,7 +100,7 @@ function createBlock(type: AftersalesBlockType): AftersalesBlock {
   const id = newBlockId(type);
   switch (type) {
     case "text":
-      return { id, type, font: "SANS", size: "STANDAARD", color: "#141414", align: "left", bold: false, italic: false };
+      return { id, type, font: "MONTSERRAT", size: "STANDAARD", color: "#141414", align: "left", bold: false, italic: false };
     case "image":
       return { id, type, mediaUrl: null, alt: "", width: 544, align: "center", linkUrl: null };
     case "hero":
@@ -248,7 +274,7 @@ function formatDate(value: string): string {
 
 export function AftersalesFlowEditor({ initialFlow, initialDeliveries, provider }: Props) {
   const router = useRouter();
-  const [flow, setFlow] = useState(initialFlow);
+  const [flow, setFlow] = useState(() => modernizeFlowFonts(initialFlow));
   const [selectedStepId, setSelectedStepId] = useState(initialFlow.steps[0]?.id ?? "");
   const [locale, setLocale] = useState<Locale>("nl");
   const [dirty, setDirty] = useState(false);

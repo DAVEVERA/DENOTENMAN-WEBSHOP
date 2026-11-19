@@ -7,11 +7,12 @@ export async function notifyPendingStockSubscribers(productId: string): Promise<
     where: { id: productId },
     include: {
       translations: true,
+      variants: { where: { isActive: true }, select: { stock: true } },
       stockNotifications: { where: { status: "PENDING" }, orderBy: { createdAt: "asc" } },
     },
   });
 
-  if (!product?.isActive || product.stockNotifications.length === 0) return 0;
+  if (!product?.isActive || product.isSoldOut || !product.variants.some((variant) => process.env.UNLIMITED_STOCK === "true" || variant.stock > 0) || product.stockNotifications.length === 0) return 0;
 
   let sentCount = 0;
   for (const notification of product.stockNotifications) {

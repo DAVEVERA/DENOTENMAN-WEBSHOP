@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ProductDetailDto } from "../lib/queries";
 import {
+  buildFaqStructuredData,
   buildGoogleMerchantFeedXml,
+  buildOrganizationStructuredData,
   buildProductStructuredData,
+  buildWebSiteStructuredData,
   isStorefrontVariantOrderable,
   variantSelectionUrl,
 } from "../lib/structured-data";
+import { LEGAL_IDENTITY } from "../lib/legal";
+import { CUSTOMER_SERVICE_PHONE_E164 } from "../lib/customer-service";
 
 const product: ProductDetailDto = {
   id: "product-1",
@@ -141,6 +146,7 @@ test("uses the same orderability rule for JSON-LD and Merchant availability", ()
   assert.equal(isStorefrontVariantOrderable(true, { stock: 1 }), true);
   assert.equal(isStorefrontVariantOrderable(true, { stock: 0 }), false);
   assert.equal(isStorefrontVariantOrderable(false, { stock: 10 }), false);
+  assert.equal(isStorefrontVariantOrderable(true, { stock: 10 }, true), false);
 });
 
 test("builds a well-formed RSS Merchant feed item per visible variant", () => {
@@ -167,4 +173,49 @@ test("encodes a variant SKU into a directly selectable product URL", () => {
     variantSelectionUrl("https://denotenman.com/", "nl", "amandelen", "AM 250/+"),
     "https://denotenman.com/nl/producten/amandelen?variant=AM+250%2F%2B"
   );
+});
+
+test("the display address and the schema PostalAddress stay in agreement", () => {
+  const { address, postalAddress } = LEGAL_IDENTITY;
+  const rebuilt = `${postalAddress.streetAddress}, ${postalAddress.postalCode} ${postalAddress.addressLocality}`;
+
+  assert.equal(rebuilt, address);
+});
+
+test("Organization carries the identity Google asks a local merchant for", () => {
+  const organization = buildOrganizationStructuredData("https://denotenman.com") as Record<
+    string,
+    unknown
+  >;
+
+  assert.equal(organization["@type"], "Organization");
+  assert.equal(organization.telephone, CUSTOMER_SERVICE_PHONE_E164);
+  assert.equal(organization.email, LEGAL_IDENTITY.email);
+  assert.deepEqual(organization.address, {
+    "@type": "PostalAddress",
+    ...LEGAL_IDENTITY.postalAddress,
+  });
+  assert.deepEqual(organization.founder, { "@type": "Person", name: "Fedor" });
+  assert.deepEqual(organization.sameAs, [...LEGAL_IDENTITY.socialProfiles]);
+});
+
+test("WebSite is a separate node that points back at the Organization", () => {
+  const site = buildWebSiteStructuredData("https://denotenman.com") as Record<string, unknown>;
+
+  assert.equal(site["@type"], "WebSite");
+  assert.equal(site.alternateName, "De Notenman");
+  assert.deepEqual(site.publisher, { "@id": "https://denotenman.com#organization" });
+});
+
+test("FAQPage mirrors the entries the page renders", () => {
+  const faq = buildFaqStructuredData([
+    { question: "Bezorgen jullie in België?", answer: "Ja, in Nederland en België." },
+  ]) as { mainEntity: Array<Record<string, unknown>> };
+
+  assert.equal(faq.mainEntity.length, 1);
+  assert.equal(faq.mainEntity[0].name, "Bezorgen jullie in België?");
+  assert.deepEqual(faq.mainEntity[0].acceptedAnswer, {
+    "@type": "Answer",
+    text: "Ja, in Nederland en België.",
+  });
 });

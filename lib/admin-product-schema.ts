@@ -159,6 +159,7 @@ export const productAdminInputSchema = z
     salePriceCents: optionalSalePrice,
     unit: z.enum(["WEIGHT", "VOLUME"]),
     isActive: z.boolean(),
+    isSoldOut: z.boolean().optional(),
     translation: legacyTranslationSchema.optional(),
     translations: translationsInputSchema.optional(),
     categoryIds: z.array(z.string().cuid()).max(MAX_PRODUCT_CATEGORY_ASSIGNMENTS).default([]),

@@ -21,6 +21,8 @@ import {
   STANDARD_TRANSIT_DAYS,
 } from "@/lib/shipping";
 import { plainTextFromFaqHtml } from "@/lib/product-faq-schema";
+import { LEGAL_IDENTITY } from "@/lib/legal";
+import { CUSTOMER_SERVICE_PHONE_E164 } from "@/lib/customer-service";
 
 const SCHEMA = "https://schema.org";
 const BRAND_NAME = "De Notenman";
@@ -102,6 +104,21 @@ function organizationEntity(baseUrl: string) {
     name: BRAND_NAME,
     url: origin,
     logo: absoluteUrl(baseUrl, "/brand/logo-wordmark.svg"),
+    address: {
+      "@type": "PostalAddress",
+      ...LEGAL_IDENTITY.postalAddress,
+    },
+    telephone: CUSTOMER_SERVICE_PHONE_E164,
+    email: LEGAL_IDENTITY.email,
+    sameAs: [...LEGAL_IDENTITY.socialProfiles],
+    founder: { "@type": "Person", name: LEGAL_IDENTITY.attention },
+    vatID: LEGAL_IDENTITY.vatNumber,
+    // KVK number: the Dutch chamber-of-commerce register.
+    identifier: {
+      "@type": "PropertyValue",
+      propertyID: "KVK",
+      value: LEGAL_IDENTITY.registrationNumber,
+    },
     hasShippingService: {
       "@type": "ShippingService",
       "@id": shippingServiceId,
@@ -149,6 +166,42 @@ export function buildOrganizationStructuredData(baseUrl: string) {
   return { "@context": SCHEMA, ...organizationEntity(baseUrl) };
 }
 
+/**
+ * FAQPage built from the same entries the page renders as visible text —
+ * Google requires the answer on the page to match the markup.
+ */
+export function buildFaqStructuredData(
+  entries: ReadonlyArray<{ question: string; answer: string }>
+) {
+  return {
+    "@context": SCHEMA,
+    "@type": "FAQPage",
+    mainEntity: entries.map((entry) => ({
+      "@type": "Question",
+      name: entry.question,
+      acceptedAnswer: { "@type": "Answer", text: entry.answer },
+    })),
+  };
+}
+
+/**
+ * WebSite, for the homepage only. `alternateName` is what lets the one-word
+ * spelling people actually type resolve to the brand.
+ */
+export function buildWebSiteStructuredData(baseUrl: string) {
+  const origin = baseUrl.replace(/\/$/, "");
+
+  return {
+    "@context": SCHEMA,
+    "@type": "WebSite",
+    "@id": `${origin}#website`,
+    name: BRAND_NAME,
+    alternateName: "De Notenman",
+    url: origin,
+    publisher: { "@id": `${origin}#organization` },
+  };
+}
+
 export function buildBreadcrumbStructuredData(
   baseUrl: string,
   items: Array<{ name: string; path: string }>
@@ -178,9 +231,10 @@ export function variantSelectionUrl(
 
 export function isStorefrontVariantOrderable(
   productIsActive: boolean,
-  variant: Pick<ProductVariantDto, "stock">
+  variant: Pick<ProductVariantDto, "stock">,
+  productIsSoldOut = false,
 ): boolean {
-  return productIsActive && variant.stock > 0;
+  return productIsActive && !productIsSoldOut && variant.stock > 0;
 }
 
 function schemaAvailability(orderable: boolean): string {
@@ -225,7 +279,7 @@ function productVariantEntity(input: {
       priceCurrency: product.currency,
       price: (variant.priceCents / 100).toFixed(2),
       availability: schemaAvailability(
-        isStorefrontVariantOrderable(product.isActive, variant)
+        isStorefrontVariantOrderable(product.isActive, variant, product.isSoldOut)
       ),
       itemCondition: `${SCHEMA}/NewCondition`,
       ...offerPolicyReferences(baseUrl),
@@ -379,7 +433,7 @@ export function buildGoogleMerchantFeedXml(input: {
         `<g:image_link>${escapeXml(primaryImage.url)}</g:image_link>`,
         `<g:price>${(variant.priceCents / 100).toFixed(2)} ${escapeXml(product.currency)}</g:price>`,
         `<g:availability>${merchantAvailability(
-          isStorefrontVariantOrderable(product.isActive, variant)
+          isStorefrontVariantOrderable(product.isActive, variant, product.isSoldOut)
         )}</g:availability>`,
         "<g:condition>new</g:condition>",
         `<g:brand>${BRAND_NAME}</g:brand>`,

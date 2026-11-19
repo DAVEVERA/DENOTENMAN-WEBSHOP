@@ -16,6 +16,7 @@ import { OrderRefundPanel } from "./OrderRefundPanel";
 import { OrderTimeline } from "./OrderTimeline";
 import { publicOrderNumber } from "@/lib/order-reference";
 import { formatAmsterdamDateTime } from "@/lib/amsterdam-calendar";
+import { ExternalPaymentButton } from "./ExternalPaymentButton";
 
 export default async function OrderDetailPage({
   params,
@@ -58,6 +59,8 @@ export default async function OrderDetailPage({
         select: { kind: true, status: true, createdAt: true, deliveredAt: true },
         orderBy: { createdAt: "asc" },
       },
+      originalOrder: { select: { id: true, orderNumber: true } },
+      replacementOrders: { select: { id: true, orderNumber: true }, orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -123,6 +126,15 @@ export default async function OrderDetailPage({
           ) : null}
         </div>
       </div>
+
+      {order.origin !== "STOREFRONT" || order.replacementOrders.length > 0 ? <div className="mt-5 rounded-card border border-border bg-surface p-4 text-body-sm text-text">
+        <p className="font-heading font-bold">{order.origin === "REPLACEMENT" ? "Nabestelling · kosten voor De Notenman" : order.origin === "MANUAL" ? "Handmatige bestelling" : "Gekoppelde nabestellingen"}</p>
+        {order.originalOrder ? <Link href={`/admin/bestellingen/${order.originalOrder.id}`} className="mt-1 block text-accent-hover underline">Oorspronkelijke bestelling: {publicOrderNumber(order.originalOrder)}</Link> : null}
+        {order.replacementOrders.map((replacement) => <Link key={replacement.id} href={`/admin/bestellingen/${replacement.id}`} className="mt-1 block text-accent-hover underline">Nabestelling: {publicOrderNumber(replacement)}</Link>)}
+        {order.adminNote ? <p className="mt-2 whitespace-pre-wrap">Reden/notitie: {order.adminNote}</p> : null}
+      </div> : null}
+      {order.origin !== "REPLACEMENT" && ["PENDING", "PAID", "FULFILLED"].includes(order.status) ? <Link href={`/admin/bestellingen/nieuw?origineel=${encodeURIComponent(order.id)}`} className="mt-4 inline-flex min-h-11 items-center rounded-button border border-border bg-surface px-4 text-body-sm font-semibold text-text">Nabestelling maken</Link> : null}
+      {order.origin === "MANUAL" && order.status === "PENDING" ? <div className="mt-4"><ExternalPaymentButton orderId={order.id} amountCents={order.totalCents} /></div> : null}
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

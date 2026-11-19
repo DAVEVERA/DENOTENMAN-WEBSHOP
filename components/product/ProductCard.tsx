@@ -38,7 +38,7 @@ export type ProductCardCopy = {
 
 const productCardCopies: Record<Locale, ProductCardCopy> = {
   nl: {
-    outOfStock: "Niet op voorraad",
+    outOfStock: "Dit product is uitverkocht",
     addToFavorites: "Toevoegen aan favorieten",
     removeFromFavorites: "Verwijderen uit favorieten",
     openQuickView: "Open snelle productinformatie voor {product}",
@@ -194,7 +194,7 @@ export function ProductCard({
 
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
           <div className="min-w-0">
-            {!product.isActive ? (
+            {product.isSoldOut ? (
               <span className="block text-sm font-semibold text-red-600">
                 {labels.outOfStock}
               </span>
@@ -219,7 +219,7 @@ export function ProductCard({
           </button>
         </div>
 
-        {product.isActive ? (
+        {product.isActive && !product.isSoldOut ? (
           <button
             type="button"
             aria-label={labels.openQuickView.replace("{product}", product.name)}

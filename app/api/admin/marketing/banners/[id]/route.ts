@@ -4,14 +4,18 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
+import { isSameOriginMutation } from "@/lib/admin-request-security";
 
 const bannerPatchSchema = z
   .object({
     title: z.string().trim().min(1).optional(),
     imageUrl: z.string().trim().min(1).optional(),
     linkUrl: z.string().trim().nullable().optional(),
-    placement: z.enum(["HOMEPAGE", "CATEGORY", "PROMOTION"]).optional(),
+    placement: z.enum(["HOMEPAGE", "CATEGORY", "PROMOTION", "PAGE"]).optional(),
+    targetPath: z.string().trim().regex(/^\/(?!\/)[^\\?#]*$/u).nullable().optional(),
+    slot: z.enum(["TOP", "BOTTOM"]).optional(),
     isActive: z.boolean().optional(),
+    isPublished: z.boolean().optional(),
     sortOrder: z.number().int().optional(),
     startsAt: z.string().trim().nullable().optional(),
     endsAt: z.string().trim().nullable().optional(),
@@ -33,6 +37,7 @@ export async function PATCH(
   if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+  if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
 
   const { id } = await context.params;
 
@@ -51,8 +56,11 @@ export async function PATCH(
     title?: string;
     imageUrl?: string;
     linkUrl?: string | null;
-    placement?: "HOMEPAGE" | "CATEGORY" | "PROMOTION";
+    placement?: "HOMEPAGE" | "CATEGORY" | "PROMOTION" | "PAGE";
+    targetPath?: string | null;
+    slot?: "TOP" | "BOTTOM";
     isActive?: boolean;
+    isPublished?: boolean;
     sortOrder?: number;
     startsAt?: Date | null;
     endsAt?: Date | null;
@@ -62,7 +70,14 @@ export async function PATCH(
   if (input.imageUrl !== undefined) data.imageUrl = input.imageUrl;
   if (input.linkUrl !== undefined) data.linkUrl = input.linkUrl?.trim() ? input.linkUrl.trim() : null;
   if (input.placement !== undefined) data.placement = input.placement;
+  if (input.targetPath !== undefined) data.targetPath = input.targetPath;
+  if (input.slot !== undefined) data.slot = input.slot;
+  if ((data.placement ?? existing.placement) === "PAGE" && !(data.targetPath ?? existing.targetPath)) {
+    return NextResponse.json({ error: "TARGET_PATH_REQUIRED" }, { status: 400 });
+  }
+  if (data.placement && data.placement !== "PAGE") data.targetPath = null;
   if (input.isActive !== undefined) data.isActive = input.isActive;
+  if (input.isPublished !== undefined) data.isPublished = input.isPublished;
   if (input.sortOrder !== undefined) data.sortOrder = input.sortOrder;
 
   if (input.startsAt !== undefined) {
@@ -107,6 +122,7 @@ export async function DELETE(
   if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+  if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
 
   const { id } = await context.params;
 

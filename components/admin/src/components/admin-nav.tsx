@@ -30,7 +30,7 @@ export function AdminNav({ onNavigate }: AdminNavProps = {}) {
     <nav className="flex flex-col h-full" aria-label="Beheer navigatie">
       <div className="p-4 border-b border-neutral-200">
         <Link href="/" className="block">
-          <span className="text-base font-bold text-neutral-900">DeNotenman</span>
+          <span className="text-base font-bold text-neutral-900">De Notenman</span>
           <span className="block text-xs text-neutral-500 mt-0.5">Beheer</span>
         </Link>
       </div>

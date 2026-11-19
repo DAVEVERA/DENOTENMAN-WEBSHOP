@@ -229,8 +229,8 @@ export const newsletterDocumentSchema = z.object({
 export type NewsletterDocument = z.infer<typeof newsletterDocumentSchema>;
 
 export const DEFAULT_NEWSLETTER_THEME: NewsletterTheme = {
-  font: "arial",
-  headingFont: null,
+  font: "montserrat",
+  headingFont: "dosis",
   pageBackground: "#f5f1e8",
   contentBackground: "#ffffff",
   text: "#24231f",

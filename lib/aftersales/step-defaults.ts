@@ -183,10 +183,10 @@ export function reviewRequestStepContent(): AftersalesStepContent {
             backgroundColor: "#ffffff",
             padding: 0,
             blocks: [
-              { id: "heading", type: "text", font: "SANS", size: "GROOT", color: "#141414", align: "left", bold: true, italic: false },
-              { id: "body", type: "text", font: "SANS", size: "STANDAARD", color: "#333333", align: "left", bold: false, italic: false },
+              { id: "heading", type: "text", font: "DOSIS", size: "GROOT", color: "#141414", align: "left", bold: true, italic: false },
+              { id: "body", type: "text", font: "MONTSERRAT", size: "STANDAARD", color: "#333333", align: "left", bold: false, italic: false },
               { id: "google", type: "customHtml" },
-              { id: "optout", type: "text", font: "SANS", size: "COMPACT", color: "#625c53", align: "left", bold: false, italic: false },
+              { id: "optout", type: "text", font: "MONTSERRAT", size: "COMPACT", color: "#625c53", align: "left", bold: false, italic: false },
             ],
           },
         ],

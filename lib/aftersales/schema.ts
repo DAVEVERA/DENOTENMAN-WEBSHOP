@@ -64,8 +64,9 @@ export type AftersalesContent = Record<Locale, AftersalesLocaleContent>;
 export const AFTERSALES_LAYOUTS = ["CLASSIC", "IMAGE_TOP", "IMAGE_SIDE", "IMAGE_BOTTOM", "GRID_2COL", "TABLE"] as const;
 export type AftersalesLayout = (typeof AFTERSALES_LAYOUTS)[number];
 
-export const AFTERSALES_FONTS = ["SANS", "SERIF", "MODERN"] as const;
-export type AftersalesFont = (typeof AFTERSALES_FONTS)[number];
+export const AFTERSALES_FONTS = ["DOSIS", "MONTSERRAT"] as const;
+export const AFTERSALES_LEGACY_FONTS = ["SANS", "SERIF", "MODERN"] as const;
+export type AftersalesFont = (typeof AFTERSALES_FONTS)[number] | (typeof AFTERSALES_LEGACY_FONTS)[number];
 
 export const AFTERSALES_FONT_SIZES = ["COMPACT", "STANDAARD", "GROOT"] as const;
 
@@ -226,7 +227,7 @@ export type AftersalesDesign = {
 
 export const defaultAftersalesDesign: AftersalesDesign = {
   layout: "CLASSIC",
-  font: "SANS",
+  font: "MONTSERRAT",
   fontSize: "STANDAARD",
   mediaUrl: null,
   mediaAlt: "",
@@ -255,7 +256,7 @@ const blockIdSchema = z.string().trim().min(1).max(40);
 const textBlockSchema = z.object({
   id: blockIdSchema,
   type: z.literal("text"),
-  font: z.enum(AFTERSALES_FONTS),
+  font: z.enum([...AFTERSALES_FONTS, ...AFTERSALES_LEGACY_FONTS]),
   size: z.enum(AFTERSALES_FONT_SIZES),
   color: hexColorSchema,
   align: alignSchema,
@@ -374,7 +375,7 @@ const aftersalesTableRowSchema = z.object({
 
 export const aftersalesDesignSchema = z.object({
   layout: z.enum(AFTERSALES_LAYOUTS).default("CLASSIC"),
-  font: z.enum(AFTERSALES_FONTS).default("SANS"),
+  font: z.enum([...AFTERSALES_FONTS, ...AFTERSALES_LEGACY_FONTS]).default("MONTSERRAT"),
   fontSize: z.enum(AFTERSALES_FONT_SIZES).default("STANDAARD"),
   mediaUrl: z.string().trim().url().nullable().default(null),
   mediaAlt: z.string().trim().max(200).default(""),

@@ -29,6 +29,12 @@ export type CustomerServiceCopy = {
   lead: string;
   metadataTitle: string;
   metadataDescription: string;
+  /**
+   * The FAQ and contact routes render the same page component, so they need
+   * their own titles or they compete for the same query with one string.
+   */
+  faqMetadataTitle: string;
+  faqMetadataDescription: string;
   scopeTitle: string;
   scopeText: string;
   knowledgeTitle: string;
@@ -168,6 +174,8 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
       lead: "Find practical answers about ordering, delivery, collection, returns and where to meet De Notenman.",
       metadataTitle: "Customer service and contact | De Notenman",
       metadataDescription: "Answers about ordering, shipping, returns and market collection, plus De Notenman contact details and opening hours.",
+      faqMetadataTitle: "Frequently asked questions | De Notenman",
+      faqMetadataDescription: "Answers about ordering, delivery to the Netherlands and Belgium, returns, payment and collecting your order at a De Notenman market stall.",
       scopeTitle: "Webshop knowledge only",
       scopeText: "This knowledge base only uses information published in the De Notenman webshop. It does not make assumptions about products, orders or policies.",
       knowledgeTitle: "Knowledge base",
@@ -186,7 +194,7 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
         { id: "returns", category: "Returns", question: "How do returns work?", answer: `For eligible products, consumers have a ${RETURN_WINDOW_DAYS}-day withdrawal period after receipt. Notify De Notenman first by email and follow the current return instructions. Food safety and hygiene exceptions may apply.`, links: [{ label: "Read the complete returns policy", href: shippingHref }] },
         { id: "change-order", category: "Orders", question: "Can I change or cancel an order?", answer: "Contact De Notenman immediately before dispatch if you want to cancel or correct an address. We will try to make the change, but cannot guarantee this after processing or carrier handover." },
         { id: "product-information", category: "Products", question: "Where can I find ingredients and allergen information?", answer: "Open the relevant product page. Available ingredients, allergens, nutritional values and storage information are shown in the product details.", links: [{ label: "Browse the product range", href: productInformationHref }] },
-        { id: "market-days", category: "Markets", question: "Where can I find De Notenman at the market?", answer: "Thursday in Hilvarenbeek from 08:00–12:00, Friday in Uden from 08:00–12:30 and Saturday in Antwerp from 08:00–16:00.", links: [{ label: "Find DeNotenman", href: marketsHref }] },
+        { id: "market-days", category: "Markets", question: "Where can I find De Notenman at the market?", answer: "Thursday in Hilvarenbeek from 08:00–12:00, Friday in Uden from 08:00–12:30 and Saturday in Antwerp from 08:00–16:00.", links: [{ label: "Find De Notenman", href: marketsHref }] },
         { id: "terms", category: "Terms & policies", question: "Where can I find the terms and conditions?", answer: "De Notenman's terms and conditions describe the rules around ordering, payment, delivery and warranty. They're also linked at the bottom of every page.", links: [{ label: "Read the terms and conditions", href: termsHref }] },
         { id: "additional-terms", category: "Terms & policies", question: "What do the additional terms cover?", answer: "Alongside the general terms and conditions, additional terms apply to specific situations, such as promotions or deliveries to business customers.", links: [{ label: "Read the additional terms", href: additionalTermsHref }] },
         { id: "privacy", category: "Terms & policies", question: "How does De Notenman handle my personal data?", answer: "Our privacy policy explains what data we collect, what we use it for, how long we keep it, and how to exercise your rights (such as access or deletion).", links: [{ label: "Read the privacy policy", href: privacyHref }] },
@@ -198,7 +206,7 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
       marketsEyebrow: "Market route",
       marketsTitle: "Visit De Notenman",
       marketsLead: "These are our fixed market days and times.",
-      marketsLinkLabel: "Find DeNotenman at the market",
+      marketsLinkLabel: "Find De Notenman at the market",
       contactEyebrow: "Contact",
       contactTitle: "Prefer personal contact?",
       contactLead: "Use email, WhatsApp or call us during telephone opening hours.",
@@ -222,6 +230,8 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
       lead: "Trouvez des réponses pratiques sur les commandes, la livraison, le retrait, les retours et les marchés de De Notenman.",
       metadataTitle: "Service client et contact | De Notenman",
       metadataDescription: "Réponses sur les commandes, la livraison, les retours et le retrait au marché, avec les coordonnées et horaires de De Notenman.",
+      faqMetadataTitle: "Questions fréquentes | De Notenman",
+      faqMetadataDescription: "Réponses sur les commandes, la livraison aux Pays-Bas et en Belgique, les retours, le paiement et le retrait au marché De Notenman.",
       scopeTitle: "Uniquement les informations de la boutique",
       scopeText: "Cette base de connaissances utilise uniquement les informations publiées dans la boutique De Notenman. Elle ne fait aucune supposition sur les produits, les commandes ou les conditions.",
       knowledgeTitle: "Base de connaissances",
@@ -240,7 +250,7 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
         { id: "returns", category: "Retours", question: "Comment fonctionnent les retours ?", answer: `Pour les produits éligibles, le consommateur dispose d’un délai de rétractation de ${RETURN_WINDOW_DAYS} jours après réception. Prévenez d’abord De Notenman par e-mail et suivez les instructions de retour actuelles. Des exceptions liées à l’hygiène et à la sécurité alimentaire peuvent s’appliquer.`, links: [{ label: "Lire la politique complète", href: shippingHref }] },
         { id: "change-order", category: "Commandes", question: "Puis-je modifier ou annuler une commande ?", answer: "Contactez immédiatement De Notenman avant l’expédition pour annuler ou corriger une adresse. Nous essaierons d’effectuer la modification, sans pouvoir la garantir après le traitement ou la remise au transporteur." },
         { id: "product-information", category: "Produits", question: "Où trouver les ingrédients et les allergènes ?", answer: "Ouvrez la page du produit concerné. Les ingrédients, allergènes, valeurs nutritionnelles et informations de conservation disponibles figurent dans les détails du produit.", links: [{ label: "Voir les produits", href: productInformationHref }] },
-        { id: "market-days", category: "Marchés", question: "Où retrouver De Notenman au marché ?", answer: "Jeudi à Hilvarenbeek de 08:00 à 12:00, vendredi à Uden de 08:00 à 12:30 et samedi à Anvers de 08:00 à 16:00.", links: [{ label: "Trouver DeNotenman", href: marketsHref }] },
+        { id: "market-days", category: "Marchés", question: "Où retrouver De Notenman au marché ?", answer: "Jeudi à Hilvarenbeek de 08:00 à 12:00, vendredi à Uden de 08:00 à 12:30 et samedi à Anvers de 08:00 à 16:00.", links: [{ label: "Trouver De Notenman", href: marketsHref }] },
         { id: "terms", category: "Conditions et politiques", question: "Où puis-je trouver les conditions générales ?", answer: "Les conditions générales de De Notenman décrivent les règles de commande, de paiement, de livraison et de garantie. Elles sont également accessibles en bas de chaque page.", links: [{ label: "Lire les conditions générales", href: termsHref }] },
         { id: "additional-terms", category: "Conditions et politiques", question: "Que contiennent les conditions complémentaires ?", answer: "Outre les conditions générales, des conditions complémentaires s'appliquent à des situations spécifiques, comme les promotions ou les livraisons aux clients professionnels.", links: [{ label: "Lire les conditions complémentaires", href: additionalTermsHref }] },
         { id: "privacy", category: "Conditions et politiques", question: "Comment De Notenman traite-t-il mes données personnelles ?", answer: "Notre politique de confidentialité explique quelles données nous collectons, à quelles fins, combien de temps nous les conservons et comment exercer vos droits (accès, suppression, etc.).", links: [{ label: "Lire la politique de confidentialité", href: privacyHref }] },
@@ -252,7 +262,7 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
       marketsEyebrow: "Itinéraire des marchés",
       marketsTitle: "Retrouvez De Notenman",
       marketsLead: "Voici nos jours et horaires fixes de marché.",
-      marketsLinkLabel: "Trouver DeNotenman au marché",
+      marketsLinkLabel: "Trouver De Notenman au marché",
       contactEyebrow: "Contact",
       contactTitle: "Vous préférez un contact personnel ?",
       contactLead: "Écrivez-nous par e-mail ou WhatsApp, ou appelez pendant les heures de disponibilité téléphonique.",
@@ -275,6 +285,8 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
     lead: "Vind praktische antwoorden over bestellen, bezorgen, afhalen, retourneren en waar je De Notenman op de markt vindt.",
     metadataTitle: "Klantenservice en contact | De Notenman",
     metadataDescription: "Antwoorden over bestellen, bezorgen, retourneren en afhalen op de markt, met contactgegevens en bereikbaarheid van De Notenman.",
+    faqMetadataTitle: "Veelgestelde vragen | De Notenman",
+    faqMetadataDescription: "Antwoorden over bestellen, bezorgen in Nederland en België, retourneren, betalen en je bestelling afhalen op de markt bij De Notenman.",
     scopeTitle: "Alleen kennis uit onze webshop",
     scopeText: "Deze kennisbank gebruikt uitsluitend informatie die op de webshop van De Notenman staat. We doen geen aannames over producten, bestellingen of voorwaarden.",
     knowledgeTitle: "Kennisbank",
@@ -293,7 +305,7 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
       { id: "returns", category: "Retourneren", question: "Hoe werkt retourneren?", answer: `Voor producten waarop geen uitzondering geldt, heeft een consument na ontvangst ${RETURN_WINDOW_DAYS} dagen bedenktijd. Meld je retour eerst per e-mail aan en volg de actuele retourinstructies. Voor voedselveiligheid en hygiëne kunnen uitzonderingen gelden.`, links: [{ label: "Lees het volledige retourbeleid", href: shippingHref }] },
       { id: "change-order", category: "Bestellingen", question: "Kan ik mijn bestelling wijzigen of annuleren?", answer: "Neem vóór verzending direct contact op als je wilt annuleren of een adres wilt corrigeren. De Notenman probeert de wijziging uit te voeren, maar kan dit na verwerking of overdracht aan de vervoerder niet garanderen." },
       { id: "product-information", category: "Producten", question: "Waar vind ik ingrediënten en allergenen?", answer: "Open de betreffende productpagina. Beschikbare ingrediënten, allergenen, voedingswaarden en bewaarinformatie staan bij de productdetails.", links: [{ label: "Bekijk het assortiment", href: productInformationHref }] },
-      { id: "market-days", category: "Markten", question: "Waar staat De Notenman op de markt?", answer: "Donderdag in Hilvarenbeek van 08:00–12:00, vrijdag in Uden van 08:00–12:30 en zaterdag in Antwerpen van 08:00–16:00.", links: [{ label: "Vind DeNotenman", href: marketsHref }] },
+      { id: "market-days", category: "Markten", question: "Waar staat De Notenman op de markt?", answer: "Donderdag in Hilvarenbeek van 08:00–12:00, vrijdag in Uden van 08:00–12:30 en zaterdag in Antwerpen van 08:00–16:00.", links: [{ label: "Vind De Notenman", href: marketsHref }] },
       { id: "terms", category: "Voorwaarden & beleid", question: "Waar vind ik de algemene voorwaarden?", answer: "De algemene voorwaarden van De Notenman beschrijven de regels rond bestellen, betalen, leveren en garantie. Ze staan ook onderaan iedere pagina in de footer.", links: [{ label: "Lees de algemene voorwaarden", href: termsHref }] },
       { id: "additional-terms", category: "Voorwaarden & beleid", question: "Wat staat er in de aanvullende voorwaarden?", answer: "Naast de algemene voorwaarden gelden aanvullende voorwaarden voor specifieke situaties, zoals acties of leveringen aan zakelijke klanten.", links: [{ label: "Lees de aanvullende voorwaarden", href: additionalTermsHref }] },
       { id: "privacy", category: "Voorwaarden & beleid", question: "Hoe gaat De Notenman om met mijn persoonsgegevens?", answer: "In ons privacybeleid lees je welke gegevens we verzamelen, waarvoor we die gebruiken, hoe lang we ze bewaren en hoe je je rechten (zoals inzage of verwijdering) kunt uitoefenen.", links: [{ label: "Lees het privacybeleid", href: privacyHref }] },
@@ -305,7 +317,7 @@ export function getCustomerServiceCopy(locale: Locale): CustomerServiceCopy {
     marketsEyebrow: "Marktroute",
     marketsTitle: "Bezoek De Notenman",
     marketsLead: "Dit zijn onze vaste marktdagen en tijden.",
-    marketsLinkLabel: "Vind DeNotenman op de markt",
+    marketsLinkLabel: "Vind De Notenman op de markt",
     contactEyebrow: "Contact",
     contactTitle: "Liever persoonlijk contact?",
     contactLead: "Mail ons, stuur een WhatsApp-bericht of bel tijdens onze telefonische bereikbaarheid.",

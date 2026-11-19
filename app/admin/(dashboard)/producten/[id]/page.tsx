@@ -157,6 +157,7 @@ export default async function AdminProductEditPage({
     salePriceEuro: product.salePriceCents === null ? "" : (product.salePriceCents / 100).toFixed(2),
     unit: product.unit,
     isActive: product.isActive,
+    isSoldOut: product.isSoldOut,
     categoryIds: categoryAssignments.map((category) => category.categoryId),
     recommendationIds: product.recommendations.map((item) => item.targetProductId),
     variants,

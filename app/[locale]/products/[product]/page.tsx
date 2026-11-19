@@ -10,7 +10,9 @@ import en from "@/dictionaries/en.json";
 import fr from "@/dictionaries/fr.json";
 import { BASE_URL, product as productPath } from "@/lib/routes";
 import { buildProductStructuredData } from "@/lib/structured-data";
+import { buildMetadata } from "@/lib/seo/metadata";
 import { resolveProductDescription } from "@/lib/product-description";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 const dictionaries = { nl, en, fr };
 
@@ -36,14 +38,14 @@ export async function generateMetadata({
     return {};
   }
 
-  return {
+  // No `image` here on purpose: opengraph-image.tsx in this segment renders
+  // the product's own photo and supplies the og:image tags.
+  return buildMetadata({
     title: data.seoTitle ?? data.name,
     description: data.metaDescription ?? resolveProductDescription(data, rawLocale),
-    alternates: {
-      canonical: alternates.canonical,
-      languages: alternates.languages,
-    },
-  };
+    locale: rawLocale,
+    alternates,
+  });
 }
 
 export default async function ProductPage({
@@ -75,10 +77,7 @@ export default async function ProductPage({
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
-      />
+      <JsonLd data={structuredData} />
       <div className="min-h-[72vh] bg-background" aria-hidden="true" />
       <ProductDetailModal
         locale={locale}

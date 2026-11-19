@@ -10,7 +10,7 @@ import {
 import { normalizeCatalogSort } from "@/lib/catalog-sort";
 import { getAlternates } from "@/lib/alternates";
 import { category as categoryPath } from "@/lib/routes";
-import { buildStorefrontMetadata } from "@/lib/storefront-seo";
+import { buildMetadata } from "@/lib/seo/metadata";
 import { Container } from "@/components/ui/Container";
 import { ProductBrowser } from "@/components/product/ProductBrowser";
 import { SiteShell } from "@/components/layout/SiteShell";
@@ -44,9 +44,10 @@ export async function generateMetadata({
   const dictionary = dictionaries[rawLocale];
   const alternates = await getAlternates(rawLocale, { type: "categories" });
 
-  return buildStorefrontMetadata({
+  return buildMetadata({
     title: dictionary.seo.categories.title,
     description: dictionary.seo.categories.description,
+    locale: rawLocale,
     alternates,
   });
 }

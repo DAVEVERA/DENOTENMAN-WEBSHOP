@@ -45,6 +45,7 @@ type InitialProduct = {
   salePriceEuro: string;
   unit: "WEIGHT" | "VOLUME";
   isActive: boolean;
+  isSoldOut: boolean;
   categoryIds: string[];
   recommendationIds: string[];
   variants: Variant[];
@@ -265,6 +266,7 @@ function productDraftFingerprint(
       salePriceEuro: product.salePriceEuro,
       unit: product.unit,
       isActive: product.isActive,
+      isSoldOut: product.isSoldOut,
       recommendationIds: product.recommendationIds,
       variants: product.variants.map((variant) => ({
         sku: variant.sku,
@@ -580,6 +582,7 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
           salePriceCents,
           unit: product.unit,
           isActive: nextIsActive,
+          isSoldOut: product.isSoldOut,
           translations: localizedContent,
           nutrition,
           categories: categoryAssignments,
@@ -709,8 +712,12 @@ export function ProductAdminForm({ mode, productId, initial, categories, product
               {product.isActive ? "Online zichtbaar" : "Niet zichtbaar in de webshop"}
             </h2>
             <p id="product-visibility-description" className="mt-1 max-w-2xl text-body-sm text-muted">
-              Deze hoofdstatus bepaalt of het hele product online staat. Variantstatussen bepalen alleen welke verpakkingen bestelbaar zijn.
+              Markeer een product als uitverkocht om het zichtbaar te houden zonder bestelknop. Gebruik offline alleen als het product niet meer getoond moet worden.
             </p>
+            <label className="mt-3 flex min-h-11 items-center gap-3 text-body-sm font-semibold text-text">
+              <input type="checkbox" checked={product.isSoldOut} onChange={(event) => setField("isSoldOut", event.target.checked)} className="h-5 w-5" />
+              Toon als uitverkocht en blokkeer bestellen
+            </label>
           </div>
         </div>
         <button

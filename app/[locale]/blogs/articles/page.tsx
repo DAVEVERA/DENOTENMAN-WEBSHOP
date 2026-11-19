@@ -5,7 +5,7 @@ import { isLocale } from "@/lib/i18n";
 import { getAlternates } from "@/lib/alternates";
 import { getArticles } from "@/lib/queries";
 import { article as articlePath, categories as categoriesPath } from "@/lib/routes";
-import { buildStorefrontMetadata } from "@/lib/storefront-seo";
+import { buildMetadata } from "@/lib/seo/metadata";
 import { Container } from "@/components/ui/Container";
 import { SiteShell } from "@/components/layout/SiteShell";
 import nl from "@/dictionaries/nl.json";
@@ -31,9 +31,10 @@ export async function generateMetadata({
     getArticles(rawLocale),
   ]);
 
-  return buildStorefrontMetadata({
+  return buildMetadata({
     title: dictionary.seo.articles.title,
     description: dictionary.seo.articles.description,
+    locale: rawLocale,
     alternates,
     noIndex: articles.length === 0,
   });

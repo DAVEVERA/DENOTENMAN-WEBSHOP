@@ -18,14 +18,14 @@
     "whatsapp": "WhatsApp",
     "business": "Zakelijk",
     "customerService": "Klantenservice",
-    "whereIsNotenman": "Vind DeNotenman",
+    "whereIsNotenman": "Vind De Notenman",
     "searchPlaceholder": "Waar ben je naar op zoek?",
     "favorites": "Favorieten",
     "favoritesWithCount": "Favorieten ({count})",
     "cartWithCount": "Winkelwagen ({count})"
   },
   "brand": {
-    "baseline": "Vers gebrande noten, gedroogde zuidvruchten",
+    "baseline": "Gebrande noten: dagelijks vers gebrand",
     "logoMarkAlt": "De Notenman beeldmerk",
     "logoWordmarkAlt": "De Notenman"
   },
@@ -266,14 +266,14 @@
     "fedorsFavorite": "Fedor's Favoriet!",
     "fedorsFavoriteViewAll": "Bekijk alle acties",
     "hero": {
-      "carouselLabel": "Uitgelicht assortiment van DeNotenman",
+      "carouselLabel": "Uitgelicht assortiment van De Notenman",
       "slideLabel": "Hero {current} van {total}",
       "slides": [
         {
           "id": "noten",
           "category": "noten",
           "eyebrow": "Dagelijks vers gebrand",
-          "title": "Noten met de smaak van DeNotenman",
+          "title": "Noten met de smaak van De Notenman",
           "description": "Knapperig, vol van smaak en met zorg geselecteerd. Ontdek noten en mixen voor ieder moment.",
           "imageAlt": "Kom met amandelen, cashewnoten, pecannoten en andere gemengde noten",
           "desktopImage": "/hero/hero-nuts-desktop.webp",
@@ -419,7 +419,8 @@
       "description": "Bekijk {category} bij De Notenman. Kies je product en bestel eenvoudig online.",
       "introFallback": "Bekijk alle producten binnen {category} en kies de variant die bij je past.",
       "homeLabel": "Home",
-      "categoriesLabel": "Assortiment"
+      "categoriesLabel": "Assortiment",
+      "paginationLabel": "Paginering"
     },
     "articles": {
       "title": "Artikelen over noten en meer | De Notenman",

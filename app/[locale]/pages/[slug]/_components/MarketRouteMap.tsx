@@ -146,7 +146,8 @@ export function MarketRouteMap({ copy }: { copy: MarketRouteCopy }) {
               height={941}
               sizes="(max-width: 899px) 58rem, (max-width: 1200px) 100vw, 1152px"
               className={styles.mapImage}
-              priority
+              loading="eager"
+              fetchPriority="high"
               onLoad={centerActiveStop}
             />
             {activeStop && markerStyle ? (

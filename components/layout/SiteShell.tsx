@@ -3,6 +3,7 @@ import type nl from "@/dictionaries/nl.json";
 import type { Locale } from "@/lib/i18n";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { StorefrontCampaignBanners } from "@/components/marketing/StorefrontCampaignBanners";
 
 export function SiteShell({
   className,
@@ -20,7 +21,7 @@ export function SiteShell({
   const shell = (
     <>
       <Header locale={locale} dictionary={dictionary} languages={languages} />
-      <main id="main-content">{children}</main>
+      <main id="main-content"><StorefrontCampaignBanners slot="TOP" />{children}<StorefrontCampaignBanners slot="BOTTOM" /></main>
       <Footer locale={locale} dictionary={dictionary} />
     </>
   );

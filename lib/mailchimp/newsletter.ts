@@ -45,6 +45,7 @@ export type NewsletterStatus = "save" | "schedule" | "sending" | "sent" | "pause
 
 export type NewsletterSummary = {
   id: string;
+  webId?: number | null;
   subject: string;
   previewText: string;
   title: string;
@@ -142,6 +143,7 @@ function mapCampaign(value: unknown, businessSegmentId: number | null): Newslett
   const recipients = isRecord(value.recipients) ? value.recipients : {};
   return {
     id: value.id,
+    webId: typeof value.web_id === "number" && Number.isInteger(value.web_id) ? value.web_id : null,
     subject: text(settings.subject_line, "Zonder onderwerp"),
     previewText: text(settings.preview_text),
     title: text(settings.title),

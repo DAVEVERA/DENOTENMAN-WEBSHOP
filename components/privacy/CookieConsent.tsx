@@ -102,7 +102,7 @@ export function CookieConsent({ locale }: { locale: Locale }) {
   const [showDetails, setShowDetails] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
-  const headingRef = useRef<HTMLHeadingElement>(null);
+  const headingRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const stored = parseCookieConsent(window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY));
@@ -180,14 +180,14 @@ export function CookieConsent({ locale }: { locale: Locale }) {
             aria-labelledby="cookie-consent-title"
             className="mx-auto max-h-[calc(100vh-1.5rem)] max-w-3xl overflow-y-auto rounded-panel border-2 border-contrast bg-surface p-5 shadow-2xl sm:p-7"
           >
-            <h2
+            <p
               id="cookie-consent-title"
               ref={headingRef}
               tabIndex={-1}
               className="font-heading text-2xl font-bold text-contrast outline-none"
             >
               {labels.title}
-            </h2>
+            </p>
             <p className="mt-3 leading-relaxed text-muted">{labels.intro}</p>
 
             {showDetails ? (

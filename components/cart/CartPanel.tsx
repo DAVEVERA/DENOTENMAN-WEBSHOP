@@ -10,11 +10,14 @@ import {
   updateCartQuantity,
   useStorefrontState,
 } from "@/lib/storefront-state";
+import { ShippingAddons } from "./ShippingAddons";
+import type { ShippingCountryCode } from "@/lib/shipping";
 
 export function CartPanel({
   locale,
   labels,
   freeShippingThresholdCents,
+  country,
 }: {
   locale: Locale;
   labels: {
@@ -28,6 +31,7 @@ export function CartPanel({
     freeShippingReached: string;
   };
   freeShippingThresholdCents: number;
+  country: ShippingCountryCode;
 }) {
   const { cart } = useStorefrontState();
   const total = cart.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
@@ -126,6 +130,10 @@ export function CartPanel({
           />
         </div>
       </div>
+      <ShippingAddons locale={locale} country={country} subtotalCents={total} />
+      <p className="mt-3 rounded-card border border-border bg-surface px-4 py-3 text-body-sm text-text">
+        {locale === "nl" ? "Liever geen verzendkosten? Kies bij het afrekenen voor gratis afhalen bij De Notenman op de markt." : locale === "en" ? "Prefer to avoid shipping costs? Choose free pickup at De Notenman at the market during checkout." : "Vous préférez éviter les frais de livraison ? Choisissez le retrait gratuit chez De Notenman au marché lors du paiement."}
+      </p>
       <div className="mt-4 flex items-center justify-between rounded-card bg-contrast px-5 py-4 text-surface">
         <span className="font-heading text-lg font-semibold">{labels.total}</span>
         <span className="font-heading text-xl font-semibold">{formatPrice(total, locale)}</span>

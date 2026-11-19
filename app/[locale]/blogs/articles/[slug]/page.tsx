@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { isLocale } from "@/lib/i18n";
 import { getAlternates } from "@/lib/alternates";
+import { buildMetadata } from "@/lib/seo/metadata";
 import { getArticleBySlug } from "@/lib/queries";
 import { sanitizeProductHtml, toProductPlainText } from "@/lib/product-content";
 import { Container } from "@/components/ui/Container";
@@ -28,14 +29,13 @@ export async function generateMetadata({
 
   const description = toProductPlainText(article.body).slice(0, 160) || undefined;
 
-  return {
+  return buildMetadata({
     title: article.title,
     description,
-    alternates: {
-      canonical: alternates.canonical,
-      languages: alternates.languages,
-    },
-  };
+    locale,
+    alternates,
+    type: "article",
+  });
 }
 
 export default async function ArticlePage({

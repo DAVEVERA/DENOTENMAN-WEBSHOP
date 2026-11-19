@@ -154,6 +154,7 @@ export async function POST(request: NextRequest) {
           salePriceCents: input.salePriceCents,
           unit: input.unit,
           isActive: input.isActive,
+          isSoldOut: input.isSoldOut ?? false,
           translations: { create: translations.map(translationData) },
           productCategories: categoryAssignments.length
             ? { create: categoryAssignments }

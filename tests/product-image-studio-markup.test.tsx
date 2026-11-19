@@ -49,7 +49,7 @@ test("the image studio exposes progress, selection and an accessible empty state
   assert.match(empty, /Nog geen productafbeeldingen/);
 });
 
-test("the image studio names primary, secondary and tertiary positions explicitly", () => {
+test("the image studio shows simple numbered positions", () => {
   const html = renderToStaticMarkup(
     <ProductImageStudio
       productId="product_1"
@@ -62,9 +62,10 @@ test("the image studio names primary, secondary and tertiary positions explicitl
     />
   );
 
-  assert.match(html, />Primair</);
-  assert.match(html, />Secundair</);
-  assert.match(html, />Tertiair</);
+  assert.match(html, />Foto 1</);
+  assert.match(html, />Foto 2</);
+  assert.match(html, />Foto 3</);
+  assert.match(html, /Als eerste/);
   assert.match(html, /Product uitsnijden/);
   assert.match(html, /Uitbreidingsrichting/);
   assert.match(html, /Schaalmethode/);

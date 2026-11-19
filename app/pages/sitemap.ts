@@ -66,5 +66,5 @@ async function pageEntries(): Promise<SitemapEntry[]> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [homes, pages] = await Promise.all([homeEntries(), pageEntries()]);
-  return [...homes, ...pages];
+  return [...homes, ...pages, { url: absoluteUrl("/nl/zakelijk-worden") }];
 }

@@ -13,6 +13,9 @@ import {
   type CategoryStoryPageKey,
 } from "@/lib/pages";
 import { getAlternates } from "@/lib/alternates";
+import { buildMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { buildFaqStructuredData } from "@/lib/structured-data";
 import { Container } from "@/components/ui/Container";
 import { getCategoryNavigation, getPageBySlug } from "@/lib/queries";
 import { findCategoryByCanonicalSlug } from "@/lib/categoryGroups";
@@ -119,7 +122,7 @@ const newsletterUtilityMetadata: Record<
 const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTitle: string; metadataDescription: string }> = {
   nl: {
     eyebrow: "Vaste marktdagen",
-    title: "Vind DeNotenman op de markt",
+    title: "Vind De Notenman op de markt",
     lead: "Bekijk per dag waar en wanneer onze kraam staat. De rode stip op de kaart volgt automatisch onze vaste weekroute.",
     today: "Vandaag",
     locating: "Bestemming bepalen…",
@@ -135,12 +138,12 @@ const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTi
       antwerpen: "Zaterdag",
       haaren: "Zondag t/m woensdag",
     },
-    metadataTitle: "Vind DeNotenman vandaag",
+    metadataTitle: "Vind De Notenman vandaag",
     metadataDescription: "Bekijk de vaste weekroute van De Notenman: Hilvarenbeek op donderdag, Uden op vrijdag, Antwerpen op zaterdag en Haaren op de overige dagen.",
   },
   en: {
     eyebrow: "Fixed market days",
-    title: "Find DeNotenman at the market",
+    title: "Find De Notenman at the market",
     lead: "See where and when our stall is open each day. The red dot on the map automatically follows our weekly route.",
     today: "Today",
     locating: "Finding today’s location…",
@@ -156,12 +159,12 @@ const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTi
       antwerpen: "Saturday",
       haaren: "Sunday through Wednesday",
     },
-    metadataTitle: "Find DeNotenman today",
+    metadataTitle: "Find De Notenman today",
     metadataDescription: "View De Notenman’s weekly route: Hilvarenbeek on Thursday, Uden on Friday, Antwerp on Saturday and Haaren on all other days.",
   },
   fr: {
     eyebrow: "Jours de marché fixes",
-    title: "Trouver DeNotenman au marché",
+    title: "Trouver De Notenman au marché",
     lead: "Découvrez chaque jour où et quand notre stand est présent. Le point rouge sur la carte suit automatiquement notre itinéraire fixe.",
     today: "Aujourd’hui",
     locating: "Recherche du lieu du jour…",
@@ -177,7 +180,7 @@ const marketRouteCopy: Record<"nl" | "en" | "fr", MarketRouteCopy & { metadataTi
       antwerpen: "Samedi",
       haaren: "Du dimanche au mercredi",
     },
-    metadataTitle: "Trouver DeNotenman aujourd’hui",
+    metadataTitle: "Trouver De Notenman aujourd’hui",
     metadataDescription: "Consultez l’itinéraire hebdomadaire de De Notenman : Hilvarenbeek le jeudi, Uden le vendredi, Anvers le samedi et Haaren les autres jours.",
   },
 };
@@ -215,15 +218,13 @@ export async function generateMetadata({
   if (isCategoryStoryPageKey(key)) {
     const { seo } = getCategoryStoryContent(locale, key);
 
-    return {
+    return buildMetadata({
       title: seo.title,
       description: seo.description,
+      locale,
+      alternates,
       robots: pageRobots(key),
-      alternates: {
-        canonical: alternates.canonical,
-        languages: alternates.languages,
-      },
-    };
+    });
   }
 
   const customerServiceCopy = key === "faq" || key === "contact"
@@ -246,23 +247,24 @@ export async function generateMetadata({
     : key === "markets"
       ? marketRouteCopy[locale].metadataTitle
       : newsletterMetadata?.title
+        ?? (key === "faq" ? customerServiceCopy?.faqMetadataTitle : undefined)
         ?? customerServiceCopy?.metadataTitle
         ?? page?.title
         ?? key.charAt(0).toUpperCase() + key.slice(1);
 
-  return {
+  return buildMetadata({
     title,
     description: isDutchAbout
       ? dutchAboutMetadata.description
       : key === "markets"
         ? marketRouteCopy[locale].metadataDescription
-        : newsletterMetadata?.description ?? customerServiceCopy?.metadataDescription,
+        : newsletterMetadata?.description
+          ?? (key === "faq" ? customerServiceCopy?.faqMetadataDescription : undefined)
+          ?? customerServiceCopy?.metadataDescription,
+    locale,
+    alternates,
     robots: pageRobots(key),
-    alternates: {
-      canonical: alternates.canonical,
-      languages: alternates.languages,
-    },
-  };
+  });
 }
 
 export default async function ContentPage({
@@ -288,7 +290,16 @@ export default async function ContentPage({
   }
 
   if (key === "faq" || key === "contact") {
-    return <CustomerServicePage locale={locale} copy={getCustomerServiceCopy(locale)} />;
+    const copy = getCustomerServiceCopy(locale);
+
+    return (
+      <>
+        {/* Only on the FAQ route: the contact page shows the same entries,
+            and duplicate FAQPage markup across URLs is a Google violation. */}
+        {key === "faq" ? <JsonLd data={buildFaqStructuredData(copy.entries)} /> : null}
+        <CustomerServicePage locale={locale} copy={copy} />
+      </>
+    );
   }
 
   if (key === "subscribe") {

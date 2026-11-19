@@ -15,6 +15,8 @@ export type AftersalesCanvasRenderOptions = {
 };
 
 const FONT_STACKS: Record<AftersalesFont, string> = {
+  DOSIS: "Dosis,Arial,sans-serif",
+  MONTSERRAT: "Montserrat,Arial,sans-serif",
   SANS: "Arial,Helvetica,sans-serif",
   SERIF: "Georgia,'Times New Roman',serif",
   MODERN: "'Segoe UI',Verdana,sans-serif",

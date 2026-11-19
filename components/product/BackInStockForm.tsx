@@ -5,7 +5,7 @@ import { Bell } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 
 const copy = {
-  nl: { title: "Geef me een seintje", intro: "Ontvang één e-mail zodra dit product weer besteld kan worden.", email: "E-mailadres", consent: "Ja, stuur mij voor dit product een eenmalige voorraadmelding.", submit: "Houd mij op de hoogte", sent: "Gelukt. Je ontvangt een seintje zodra het product weer actief is.", error: "Aanmelden lukte niet. Probeer het opnieuw." },
+  nl: { title: "Geef me een seintje wanneer weer op voorraad", intro: "Ontvang één e-mail zodra dit product weer besteld kan worden.", email: "E-mailadres", consent: "Ja, stuur mij voor dit product een eenmalige voorraadmelding.", submit: "Geef me een seintje", sent: "Gelukt. Je ontvangt een seintje zodra het product weer op voorraad is.", error: "Aanmelden lukte niet. Probeer het opnieuw." },
   en: { title: "Notify me", intro: "Receive one email when this product can be ordered again.", email: "Email address", consent: "Yes, send me a one-time stock alert for this product.", submit: "Notify me", sent: "Done. We'll email you when the product is available again.", error: "We could not save your request. Please try again." },
   fr: { title: "Prévenez-moi", intro: "Recevez un e-mail lorsque ce produit pourra de nouveau être commandé.", email: "Adresse e-mail", consent: "Oui, envoyez-moi une alerte unique pour ce produit.", submit: "Me prévenir", sent: "C'est noté. Nous vous préviendrons lorsque le produit sera disponible.", error: "L'inscription a échoué. Veuillez réessayer." },
 } as const;

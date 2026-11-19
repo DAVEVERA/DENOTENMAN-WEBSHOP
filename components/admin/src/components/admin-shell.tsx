@@ -90,7 +90,7 @@ export function AdminShell({ children }: AdminShellProps) {
           >
             <Menu size={20} aria-hidden="true" />
           </button>
-          <span className="text-sm font-bold text-neutral-900">DeNotenman Beheer</span>
+          <span className="text-sm font-bold text-neutral-900">De Notenman Beheer</span>
         </header>
 
         <main className="admin-main" id="main-content">

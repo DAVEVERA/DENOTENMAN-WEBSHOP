@@ -18,14 +18,14 @@
     "whatsapp": "WhatsApp",
     "business": "Professionnels",
     "customerService": "Service client",
-    "whereIsNotenman": "Trouver DeNotenman",
+    "whereIsNotenman": "Trouver De Notenman",
     "searchPlaceholder": "Que recherchez-vous ?",
     "favorites": "Favoris",
     "favoritesWithCount": "Favoris ({count})",
     "cartWithCount": "Panier ({count})"
   },
   "brand": {
-    "baseline": "Noix fraîchement torréfiées, fruits secs",
+    "baseline": "Noix grillées : torréfiées chaque jour",
     "logoMarkAlt": "Emblème De Notenman",
     "logoWordmarkAlt": "De Notenman"
   },
@@ -266,14 +266,14 @@
     "fedorsFavorite": "Le favori de Fedor !",
     "fedorsFavoriteViewAll": "Voir toutes les promotions",
     "hero": {
-      "carouselLabel": "Sélection de produits DeNotenman",
+      "carouselLabel": "Sélection de produits De Notenman",
       "slideLabel": "Visuel {current} sur {total}",
       "slides": [
         {
           "id": "noix",
           "category": "noten",
           "eyebrow": "Fraîchement torréfiées chaque jour",
-          "title": "Des noix au goût de DeNotenman",
+          "title": "Des noix au goût de De Notenman",
           "description": "Croquantes, savoureuses et choisies avec soin. Découvrez nos noix et mélanges pour chaque moment.",
           "imageAlt": "Bol d’amandes, noix de cajou, noix de pécan et autres noix mélangées",
           "desktopImage": "/hero/hero-nuts-desktop.webp",
@@ -419,7 +419,8 @@
       "description": "Découvrez {category} chez De Notenman. Choisissez votre produit et commandez en ligne.",
       "introFallback": "Découvrez tous les produits de la catégorie {category} et choisissez l'option qui vous convient.",
       "homeLabel": "Accueil",
-      "categoriesLabel": "Collections"
+      "categoriesLabel": "Collections",
+      "paginationLabel": "Pagination"
     },
     "articles": {
       "title": "Articles sur les noix et plus | De Notenman",

@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Beheer · DeNotenman",
+  title: "Beheer · De Notenman",
   description: "Beheerpaneel voor De Notenman.",
   robots: {
     index: false,

@@ -138,9 +138,9 @@ export function ProductDetailContent({
             <h1 className="font-heading text-2xl font-bold tracking-heading text-text sm:text-3xl">
               {data.name}
             </h1>
-            {!data.isActive ? (
+            {data.isSoldOut ? (
               <span className="mt-2 inline-flex rounded-full bg-red-600 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-                {dictionary.product.outOfStock}
+                {locale === "nl" ? "Dit product is uitverkocht" : dictionary.product.outOfStock}
               </span>
             ) : null}
           </div>
@@ -176,7 +176,7 @@ export function ProductDetailContent({
         {data.promotionText ? <ProductPromotionCallout text={data.promotionText} /> : null}
         <VolumeTierNotice tiers={data.promotion?.volumeTiers} locale={locale} />
 
-        {data.variants.length > 0 ? (
+        {data.isSoldOut ? <BackInStockForm productId={data.id} locale={locale} /> : data.variants.length > 0 ? (
           <div className="mt-5">
             <VariantSelector
               variants={data.variants}
@@ -207,8 +207,6 @@ export function ProductDetailContent({
             </p>
           </div>
         )}
-
-        {!data.isActive ? <BackInStockForm productId={data.id} locale={locale} /> : null}
 
         <div className="mt-8">
           <Tabs

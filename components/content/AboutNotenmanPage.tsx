@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, CalendarDays, Check, MapPin, MessageCircle } from "lucide-react";
 import { categories, category } from "@/lib/routes";
 import { pagePath } from "@/lib/pages";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 const assortment = [
   "Gebrande en ongebrande noten",
@@ -77,12 +78,7 @@ export function AboutNotenmanPage() {
 
   return (
     <article className="overflow-hidden bg-[#f8f5ef] text-text">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(faqJsonLd).replace(/</g, "\\u003c"),
-        }}
-      />
+      <JsonLd data={faqJsonLd} />
 
       <section className="bg-[linear-gradient(180deg,#f8f5ef_0%,#efe6d8_88%,#f1e9de_100%)]">
         <div className="mx-auto grid w-full max-w-[96rem] items-center gap-8 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,0.92fr)_minmax(24rem,0.72fr)] lg:gap-14 lg:px-10 lg:py-20 xl:px-14">
@@ -115,7 +111,8 @@ export function AboutNotenmanPage() {
               src="/about/fedor-market.webp"
               alt="Fedor schept gemengde noten in een papieren zak aan de marktkraam."
               fill
-              priority
+              loading="eager"
+              fetchPriority="high"
               sizes="(min-width: 1024px) 38vw, 100vw"
               className="object-cover"
             />

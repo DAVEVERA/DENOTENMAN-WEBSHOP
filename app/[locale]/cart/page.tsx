@@ -34,6 +34,7 @@ export default async function CartPage({
         <CartPanel
           locale={locale}
           freeShippingThresholdCents={freeShippingThresholdCents}
+          country={country}
           labels={{
             empty: dictionary.cart.empty,
             total: dictionary.cart.total,

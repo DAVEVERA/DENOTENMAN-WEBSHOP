@@ -17,57 +17,28 @@ const inputClass = "min-h-11 w-full min-w-0 rounded-button border border-border 
 const labelClass = "grid gap-1 text-body-sm font-semibold text-text";
 const smallButton = "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-button border border-border bg-background px-3 text-xs font-semibold text-text disabled:opacity-40";
 
-const WEB_SAFE = Object.entries(NEWSLETTER_FONTS).filter(([, font]) => !("google" in font));
-const GOOGLE = Object.entries(NEWSLETTER_FONTS).filter(([, font]) => "google" in font);
-const OTHER_GOOGLE = "__other_google__";
+const BRAND_FONTS = ["montserrat", "dosis"] as const;
 
-/** Font picker: web-safe fonts, curated Google Fonts, or any other Google Font by name. */
+/** Keep existing saved fonts readable while offering the two house fonts for new edits. */
 export function FontSelect({ label, value, onChange, allowInherit }: { label: string; value: string | null; onChange: (value: string | null) => void; allowInherit?: boolean }) {
-  const isCustom = Boolean(value?.startsWith("google:"));
-  const [custom, setCustom] = useState(isCustom && value ? value.slice("google:".length) : "");
-  const [showCustom, setShowCustom] = useState(isCustom);
-  const selectValue = showCustom ? OTHER_GOOGLE : value ?? "";
+  const legacyValue = value && !BRAND_FONTS.some((font) => font === value) ? value : null;
   return (
     <div className="grid gap-1">
       <label className={labelClass}>{label}
         <select
-          value={selectValue}
+          value={value ?? ""}
           onChange={(event) => {
             const next = event.target.value;
-            if (next === OTHER_GOOGLE) {
-              setShowCustom(true);
-              if (/^[A-Za-z][A-Za-z0-9 ]{1,39}$/u.test(custom.trim())) onChange(`google:${custom.trim()}`);
-              return;
-            }
-            setShowCustom(false);
             onChange(next === "" ? null : next);
           }}
           className={inputClass}
-          style={value && !showCustom && Object.hasOwn(NEWSLETTER_FONTS, value) ? { fontFamily: NEWSLETTER_FONTS[value as keyof typeof NEWSLETTER_FONTS].stack } : undefined}
+          style={value && Object.hasOwn(NEWSLETTER_FONTS, value) ? { fontFamily: NEWSLETTER_FONTS[value as keyof typeof NEWSLETTER_FONTS].stack } : undefined}
         >
           {allowInherit ? <option value="">Zelfde als tekst</option> : null}
-          <optgroup label="Werkt in elke mail-app">
-            {WEB_SAFE.map(([key, font]) => <option key={key} value={key}>{font.label}</option>)}
-          </optgroup>
-          <optgroup label="Google Fonts">
-            {GOOGLE.map(([key, font]) => <option key={key} value={key}>{font.label}</option>)}
-            <option value={OTHER_GOOGLE}>Andere Google Font…</option>
-          </optgroup>
+          {legacyValue ? <option value={legacyValue}>Bestaand lettertype ({legacyValue})</option> : null}
+          {BRAND_FONTS.map((key) => <option key={key} value={key}>{NEWSLETTER_FONTS[key].label}</option>)}
         </select>
       </label>
-      {showCustom ? (
-        <input
-          value={custom}
-          onChange={(event) => {
-            setCustom(event.target.value);
-            const family = event.target.value.trim();
-            if (/^[A-Za-z][A-Za-z0-9 ]{1,39}$/u.test(family)) onChange(`google:${family}`);
-          }}
-          placeholder="Naam zoals op fonts.google.com, bv. Josefin Sans"
-          aria-label={`${label}: naam van de Google Font`}
-          className={inputClass}
-        />
-      ) : null}
     </div>
   );
 }

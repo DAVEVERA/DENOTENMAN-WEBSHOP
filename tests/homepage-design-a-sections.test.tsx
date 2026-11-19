@@ -18,7 +18,7 @@ test("home hero cycles three art-directed slides without navigation controls", (
         {
           id: "noten",
           eyebrow: "Vers gebrand",
-          title: "Noten van DeNotenman",
+          title: "Noten van De Notenman",
           description: "Een feitelijke introductie.",
           imageAlt: "Gemengde noten",
           desktopImage: "/hero/hero-nuts-desktop.webp",
@@ -54,7 +54,7 @@ test("home hero cycles three art-directed slides without navigation controls", (
 
   assert.equal((markup.match(/<h1/g) ?? []).length, 1);
   assert.equal((markup.match(/<picture/g) ?? []).length, 3);
-  assert.match(markup, /Noten van DeNotenman/);
+  assert.match(markup, /Noten van De Notenman/);
   assert.match(markup, /srcSet="\/hero\/hero-nuts-desktop\.webp"/);
   assert.match(markup, /src="\/hero\/hero-nuts-mobile\.webp"/);
   assert.match(markup, /srcSet="\/hero\/hero-honey-desktop\.webp"/);

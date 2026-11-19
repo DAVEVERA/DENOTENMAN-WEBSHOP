@@ -75,8 +75,28 @@ test("customer service route and metadata are localized without relying on a dat
   assert.match(routeSource, /if \(key === "faq" \|\| key === "contact"\)/);
   assert.match(routeSource, /getCustomerServiceCopy\(locale\)/);
   assert.match(routeSource, /getAlternates\(locale, \{ type: "page", key \}\)/);
-  assert.match(routeSource, /canonical: alternates\.canonical/);
-  assert.match(routeSource, /languages: alternates\.languages/);
+  // canonical + hreflang now come from buildMetadata, which is covered
+  // behaviourally in storefront-locale-seo.test.tsx; here we only check the
+  // route still hands it the alternates it resolved.
+  assert.match(routeSource, /buildMetadata\(\{[\s\S]*?alternates,/);
+});
+
+test("the FAQ route carries its own title and FAQPage markup, the contact route does not", () => {
+  const routeSource = readFileSync("app/[locale]/pages/[slug]/page.tsx", "utf8");
+
+  // Both routes render the same component, so the FAQ-specific title and the
+  // schema must be keyed off `faq` or the two pages compete with one string
+  // and Google sees duplicate FAQPage markup.
+  assert.match(routeSource, /key === "faq" \? customerServiceCopy\?\.faqMetadataTitle/);
+  assert.match(routeSource, /key === "faq" \? <JsonLd data=\{buildFaqStructuredData/);
+
+  for (const locale of ["nl", "en", "fr"] as const) {
+    const copy = getCustomerServiceCopy(locale);
+    assert.notEqual(copy.faqMetadataTitle, copy.metadataTitle);
+    assert.notEqual(copy.faqMetadataDescription, copy.metadataDescription);
+  }
+
+  assert.equal(getCustomerServiceCopy("nl").faqMetadataTitle, "Veelgestelde vragen | De Notenman");
 });
 
 test("announcement content uses every localized storefront USP and the shipping rule", () => {

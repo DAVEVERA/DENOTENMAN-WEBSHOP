@@ -8,6 +8,7 @@ const PLACEMENT_LABELS: Record<string, string> = {
   HOMEPAGE: "Homepage",
   CATEGORY: "Categorie",
   PROMOTION: "Promotie",
+  PAGE: "Specifieke pagina",
 };
 
 function resolveImageSrc(imageUrl: string): string {
@@ -80,7 +81,7 @@ export default async function MarketingBannersPage() {
                   </p>
                 </td>
                 <td className="px-4 py-3 text-muted">
-                  {PLACEMENT_LABELS[banner.placement] ?? banner.placement}
+                  {PLACEMENT_LABELS[banner.placement] ?? banner.placement}{banner.targetPath ? <span className="block text-xs">{banner.targetPath}</span> : null}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -90,11 +91,12 @@ export default async function MarketingBannersPage() {
                         : "inline-flex items-center rounded-button bg-border px-2 py-1 text-xs font-semibold text-muted"
                     }
                   >
-                    {banner.isActive ? "Actief" : "Inactief"}
+                    {banner.isPublished && banner.isActive ? "Gepubliceerd" : banner.isActive ? "Concept" : "Inactief"}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right text-text">{banner.sortOrder}</td>
                 <td className="px-4 py-3 text-right">
+                  <Link href={`/admin/marketing/banners/${banner.id}`} className="mr-3 text-accent-hover underline">Bewerken</Link>
                   <BannerRowActions bannerId={banner.id} isActive={banner.isActive} />
                 </td>
               </tr>

@@ -8,6 +8,7 @@ import {
 import { getBusinessSegmentInfo } from "@/lib/mailchimp/business-segment";
 import { NewsletterRowActions } from "./NewsletterRowActions";
 import { SyncBusinessTagsButton } from "./SyncBusinessTagsButton";
+import { getMailchimpEnvironment } from "@/lib/env";
 
 const STATUS_LABELS: Record<NewsletterSummary["status"], string> = {
   save: "Concept",
@@ -37,7 +38,7 @@ function formatCampaignDate(value: string | null): string {
   }).format(new Date(value));
 }
 
-function CampaignTable({ campaigns }: { campaigns: NewsletterSummary[] }) {
+function CampaignTable({ campaigns, mailchimpBase }: { campaigns: NewsletterSummary[]; mailchimpBase: string }) {
   if (campaigns.length === 0) {
     return <p className="px-5 py-8 text-center text-body-sm text-muted">Geen campagnes gevonden.</p>;
   }
@@ -73,6 +74,7 @@ function CampaignTable({ campaigns }: { campaigns: NewsletterSummary[] }) {
               </td>
               <td className="px-4 py-3 text-muted">{campaign.recipientCount || "—"}</td>
               <td className="px-4 py-3 text-right">
+                {campaign.webId ? <a href={`${mailchimpBase}/campaigns/show/?id=${campaign.webId}`} target="_blank" rel="noopener noreferrer" className="mr-3 inline-block text-accent-hover underline">Bewerk in Mailchimp</a> : null}
                 <NewsletterRowActions campaignId={campaign.id} status={campaign.status} />
               </td>
             </tr>
@@ -87,6 +89,7 @@ export default async function NewsletterCampaignsPage() {
   await connection();
 
   try {
+    const mailchimpBase = `https://${getMailchimpEnvironment().MAILCHIMP_SERVER_PREFIX}.admin.mailchimp.com`;
     const [{ drafts, sent }, audience, businessSegment] = await Promise.all([
       listNewsletterCampaigns(),
       getAudienceDetails(),
@@ -110,6 +113,7 @@ export default async function NewsletterCampaignsPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <a href={`${mailchimpBase}/campaigns/`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-button border border-border bg-background px-4 text-body-sm font-semibold">Volledige Mailchimp-editor openen</a>
             <Link
               href="/admin/marketing/e-mailadressen"
               className="inline-flex min-h-11 items-center rounded-button border border-border bg-background px-4 text-body-sm font-semibold"
@@ -136,14 +140,14 @@ export default async function NewsletterCampaignsPage() {
         <section className="mt-8">
           <h2 className="text-heading-md text-text">Concepten</h2>
           <div className="mt-3 overflow-hidden rounded-panel border border-border bg-surface shadow-card">
-            <CampaignTable campaigns={drafts} />
+            <CampaignTable campaigns={drafts} mailchimpBase={mailchimpBase} />
           </div>
         </section>
 
         <section className="mt-10">
           <h2 className="text-heading-md text-text">Verzonden archief</h2>
           <div className="mt-3 overflow-hidden rounded-panel border border-border bg-surface shadow-card">
-            <CampaignTable campaigns={sent} />
+            <CampaignTable campaigns={sent} mailchimpBase={mailchimpBase} />
           </div>
         </section>
       </div>

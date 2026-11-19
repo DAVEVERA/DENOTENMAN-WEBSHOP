@@ -4,19 +4,23 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
 import { recordAudit } from "@/lib/admin-audit";
+import { isSameOriginMutation } from "@/lib/admin-request-security";
 
 const bannerInputSchema = z
   .object({
     title: z.string().trim().min(1, "title required"),
     imageUrl: z.string().trim().min(1, "imageUrl required"),
     linkUrl: z.string().trim().nullable().optional(),
-    placement: z.enum(["HOMEPAGE", "CATEGORY", "PROMOTION"]),
+    placement: z.enum(["HOMEPAGE", "CATEGORY", "PROMOTION", "PAGE"]),
+    targetPath: z.string().trim().regex(/^\/(?!\/)[^\\?#]*$/u).nullable().optional(),
+    slot: z.enum(["TOP", "BOTTOM"]).default("TOP"),
     isActive: z.boolean(),
+    isPublished: z.boolean().default(false),
     sortOrder: z.number().int(),
     startsAt: z.string().trim().nullable().optional(),
     endsAt: z.string().trim().nullable().optional(),
   })
-  .strict();
+  .strict().refine((value) => value.placement !== "PAGE" || Boolean(value.targetPath), { path: ["targetPath"], message: "Kies een pagina." });
 
 function parseDate(value: string | null | undefined): Date | null | { error: true } {
   if (value === undefined || value === null || value.trim().length === 0) return null;
@@ -43,6 +47,7 @@ export async function POST(request: NextRequest) {
   if (!admin) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
+  if (!isSameOriginMutation(request)) return NextResponse.json({ error: "INVALID_ORIGIN" }, { status: 403 });
 
   const parsed = bannerInputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -70,7 +75,10 @@ export async function POST(request: NextRequest) {
         imageUrl: input.imageUrl,
         linkUrl: input.linkUrl?.trim() ? input.linkUrl.trim() : null,
         placement: input.placement,
+        targetPath: input.placement === "PAGE" ? input.targetPath : null,
+        slot: input.slot,
         isActive: input.isActive,
+        isPublished: input.isPublished,
         sortOrder: input.sortOrder,
         startsAt: startsAt as Date | null,
         endsAt: endsAt as Date | null,

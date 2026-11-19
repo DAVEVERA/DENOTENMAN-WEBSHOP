@@ -293,7 +293,7 @@ export function ProductQuickView({
               <h3 className="font-heading text-base font-bold leading-tight text-black sm:text-lg">
                 {product.name}
               </h3>
-              {!product.isActive ? (
+              {product.isSoldOut ? (
                 <span className="mt-1 inline-flex rounded-full bg-red-600 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-white">
                   {labels.outOfStock}
                 </span>
@@ -303,7 +303,7 @@ export function ProductQuickView({
                   {product.shortDescription}
                 </p>
               ) : null}
-              {!product.isActive ? <BackInStockForm productId={product.id} locale={locale} /> : null}
+              {product.isSoldOut ? <BackInStockForm productId={product.id} locale={locale} /> : null}
             </div>
           </div>
 
@@ -324,7 +324,7 @@ export function ProductQuickView({
           ) : null}
         </div>
 
-        <footer className="shrink-0 border-t border-[#E4DFD5] bg-white px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-5 sm:pb-5">
+        {!product.isSoldOut ? <footer className="shrink-0 border-t border-[#E4DFD5] bg-white px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-5 sm:pb-5">
           {added ? (
             <ProductQuickViewAddedActions
               locale={locale}
@@ -363,7 +363,7 @@ export function ProductQuickView({
                 </div>
                 <button
                   type="button"
-                  disabled={!product.isActive || !selected || selected.stock <= 0}
+                  disabled={!product.isActive || product.isSoldOut || !selected || selected.stock <= 0}
                   onClick={addSelectedToCart}
                   className={`${productActionButtonClass} h-12 min-w-0 flex-1 px-3 sm:px-6`}
                 >
@@ -383,7 +383,7 @@ export function ProductQuickView({
               </Link>
             </>
           )}
-        </footer>
+        </footer> : null}
       </div>
     </div>,
     document.body

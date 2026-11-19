@@ -76,6 +76,16 @@ test("an unavailable card keeps the stock alert and more info links", () => {
   assert.ok(links[2].includes("<span>Meer info</span>"));
 });
 
+test("a visible sold-out product shows the stock alert instead of ordering", () => {
+  const product = catalogProduct({ isActive: true, isSoldOut: true });
+  const markup = render(<ProductCard product={product} locale="nl" />);
+
+  assert.match(markup, /Dit product is uitverkocht/);
+  assert.match(markup, /Geef me een seintje/);
+  assert.doesNotMatch(markup, /Snel bestellen/);
+  assert.equal(productLinks(markup, productPath("nl", product.slug)).length, 3);
+});
+
 test("a click elsewhere on the card opens the detail page and never the quick view", () => {
   const source = readFileSync("components/product/ProductCard.tsx", "utf8");
   const cardClick = source.slice(source.indexOf("onClick={(event) =>"), source.indexOf("<Link"));

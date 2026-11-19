@@ -18,14 +18,14 @@
     "whatsapp": "WhatsApp",
     "business": "Business",
     "customerService": "Customer service",
-    "whereIsNotenman": "Find DeNotenman",
+    "whereIsNotenman": "Find De Notenman",
     "searchPlaceholder": "What are you looking for?",
     "favorites": "Favorites",
     "favoritesWithCount": "Favorites ({count})",
     "cartWithCount": "Cart ({count})"
   },
   "brand": {
-    "baseline": "Freshly roasted nuts, dried fruit",
+    "baseline": "Roasted nuts: freshly roasted every day",
     "logoMarkAlt": "De Notenman logomark",
     "logoWordmarkAlt": "De Notenman"
   },
@@ -266,14 +266,14 @@
     "fedorsFavorite": "Fedor's Favorite!",
     "fedorsFavoriteViewAll": "View all deals",
     "hero": {
-      "carouselLabel": "Featured DeNotenman range",
+      "carouselLabel": "Featured De Notenman range",
       "slideLabel": "Hero {current} of {total}",
       "slides": [
         {
           "id": "nuts",
           "category": "noten",
           "eyebrow": "Freshly roasted daily",
-          "title": "Nuts with the taste of DeNotenman",
+          "title": "Nuts with the taste of De Notenman",
           "description": "Crunchy, full of flavour and carefully selected. Discover nuts and mixes for every moment.",
           "imageAlt": "Bowl with almonds, cashews, pecans and other mixed nuts",
           "desktopImage": "/hero/hero-nuts-desktop.webp",
@@ -419,7 +419,8 @@
       "description": "Browse {category} from De Notenman. Choose your product and order online.",
       "introFallback": "Browse every product in {category} and choose the option that suits you.",
       "homeLabel": "Home",
-      "categoriesLabel": "Collections"
+      "categoriesLabel": "Collections",
+      "paginationLabel": "Pagination"
     },
     "articles": {
       "title": "Articles about nuts and more | De Notenman",

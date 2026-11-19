@@ -36,6 +36,7 @@ import {
   HOME_NUT_PRODUCT_SKUS,
 } from "@/lib/home-featured-products";
 import { Prisma } from "@prisma/client";
+import { rankTypoMatches } from "@/lib/catalog-fuzzy";
 import type {
   Category,
   CategoryTranslation,
@@ -115,6 +116,7 @@ export type ProductSummaryDto = {
   currency: string;
   unit: "WEIGHT" | "VOLUME";
   isActive: boolean;
+  isSoldOut?: boolean;
   images: ProductImageDto[];
   variants: ProductVariantDto[];
   category: ProductCategoryDto | null;
@@ -133,6 +135,7 @@ export type CatalogProductDto = Pick<
   | "hasVariablePrice"
   | "promotion"
   | "isActive"
+  | "isSoldOut"
   | "images"
   | "category"
 >;
@@ -459,6 +462,7 @@ function toProductSummaryDto(
     currency: product.currency,
     unit: product.unit,
     isActive: product.isActive,
+    isSoldOut: product.isSoldOut || variants.length === 0 || (process.env.UNLIMITED_STOCK !== "true" && variants.every((variant) => variant.stock <= 0)),
     images: product.images
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(toProductImageDto),
@@ -905,7 +909,7 @@ export async function getCatalogProducts(
     });
   }
 
-  const where: Prisma.ProductWhereInput = {
+  let where: Prisma.ProductWhereInput = {
     isActive: true,
     translations: { some: { locale: { in: locale === defaultLocale ? [locale] : [locale, defaultLocale] } } },
     AND: conditions,
@@ -917,6 +921,7 @@ export async function getCatalogProducts(
     basePriceCents: true,
     salePriceCents: true,
     isActive: true,
+    isSoldOut: true,
     translations: {
       where: { locale: { in: translationLocales } },
       select: { locale: true, slug: true, name: true, shortDescription: true, description: true },
@@ -928,7 +933,7 @@ export async function getCatalogProducts(
     },
     variants: {
       where: { isActive: true },
-      select: { priceCents: true, salePriceCents: true },
+      select: { priceCents: true, salePriceCents: true, stock: true },
     },
     productCategories: {
       where: { category: { isActive: true } },
@@ -951,7 +956,31 @@ export async function getCatalogProducts(
     },
   } satisfies Prisma.ProductSelect;
 
-  const total = await prisma.product.count({ where });
+  let total = await prisma.product.count({ where });
+  let fuzzyRank: Map<string, number> | null = null;
+  if (query && total === 0 && query.length >= 3) {
+    const possible = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        translations: { some: { locale: { in: translationLocales } } },
+        AND: conditions.slice(1),
+      },
+      select: {
+        id: true,
+        translations: { where: { locale: { in: translationLocales } }, select: { name: true } },
+      },
+      take: maxCatalogSortCandidates + 1,
+    });
+    if (possible.length <= maxCatalogSortCandidates) {
+      const matches = rankTypoMatches(query, possible.map((product) => ({
+        id: product.id,
+        names: product.translations.map((translation) => translation.name),
+      })));
+      fuzzyRank = new Map(matches.map((match, index) => [match.id, index]));
+      where = { ...where, AND: [...conditions.slice(1), { id: { in: matches.map((match) => match.id) } }] };
+      total = matches.length;
+    }
+  }
   if (total > maxCatalogSortCandidates) {
     throw new Error(
       `Catalog sort candidate limit exceeded (${total}/${maxCatalogSortCandidates})`
@@ -1007,6 +1036,7 @@ export async function getCatalogProducts(
       salePriceCents: displayPrice.salePriceCents,
       hasVariablePrice: displayPrice.hasVariablePrice,
       isActive: product.isActive,
+      isSoldOut: product.isSoldOut || product.variants.length === 0 || (process.env.UNLIMITED_STOCK !== "true" && product.variants.every((variant) => variant.stock <= 0)),
       images: product.images.map(toProductImageDto),
       category: categoryTranslation
         ? { slug: categoryTranslation.slug, name: categoryTranslation.name }
@@ -1024,7 +1054,9 @@ export async function getCatalogProducts(
   });
 
   const products = await withProductPromotions(
-    sortCatalogCandidates(candidates, sort, locale)
+    (fuzzyRank ? [...candidates].sort((left, right) =>
+      (fuzzyRank.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (fuzzyRank.get(right.id) ?? Number.MAX_SAFE_INTEGER))
+      : sortCatalogCandidates(candidates, sort, locale))
       .slice(offset, offset + limit)
       .map((candidate) => candidate.product),
     locale,

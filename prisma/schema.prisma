@@ -55,6 +55,12 @@ enum OrderStatus {
   REFUNDED
 }
 
+enum OrderOrigin {
+  STOREFRONT
+  MANUAL
+  REPLACEMENT
+}
+
 enum AftersalesTrigger {
   ORDER_PAID
   ORDER_FULFILLED
@@ -245,6 +251,7 @@ model Product {
   currency       String          @default("EUR")
   unit           MeasurementUnit @default(WEIGHT)
   isActive       Boolean         @default(true)
+  isSoldOut      Boolean         @default(false)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -763,6 +770,13 @@ model Order {
   userId      String
   user        User        @relation(fields: [userId], references: [id])
   status      OrderStatus @default(PENDING)
+  origin      OrderOrigin @default(STOREFRONT)
+  originalOrderId String?
+  originalOrder Order? @relation("OrderReplacement", fields: [originalOrderId], references: [id], onDelete: Restrict)
+  replacementOrders Order[] @relation("OrderReplacement")
+  adminNote String? @db.Text
+  externallyPaidAt DateTime?
+  adminCreationKey String? @unique
   isTest      Boolean     @default(false)
 
   locale        String  @default("nl")
@@ -829,6 +843,8 @@ model Order {
   @@index([status])
   @@index([processedAt])
   @@index([businessOrderListId])
+  @@index([originalOrderId])
+  @@index([origin, createdAt])
 }
 
 enum AftersalesFlowType {
@@ -1312,6 +1328,12 @@ enum MarketingBannerPlacement {
   HOMEPAGE
   CATEGORY
   PROMOTION
+  PAGE
+}
+
+enum MarketingBannerSlot {
+  TOP
+  BOTTOM
 }
 
 model MarketingBanner {
@@ -1320,7 +1342,10 @@ model MarketingBanner {
   imageUrl  String
   linkUrl   String?
   placement MarketingBannerPlacement @default(HOMEPAGE)
+  targetPath String?
+  slot MarketingBannerSlot @default(TOP)
   isActive  Boolean                  @default(true)
+  isPublished Boolean @default(false)
   sortOrder Int                      @default(0)
   startsAt  DateTime?
   endsAt    DateTime?

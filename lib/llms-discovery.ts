@@ -1,5 +1,5 @@
 import { pagePath } from "@/lib/pages";
-import { articles, categories, home } from "@/lib/routes";
+import { categories, home } from "@/lib/routes";
 
 function absolute(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, "")}${path}`;
@@ -37,7 +37,6 @@ Use the linked canonical storefront pages as the source of truth. Product pages 
 - [Markten](${absolute(origin, pagePath("markets", "nl"))}): Current weekly market locations and times.
 - [Veelgestelde vragen](${absolute(origin, pagePath("faq", "nl"))}): Ordering, delivery, collection and service answers.
 - [Contact](${absolute(origin, pagePath("contact", "nl"))}): Official contact information.
-- [Artikelen](${absolute(origin, articles("nl"))}): Editorial content when available.
 
 ## Machine-readable indexes
 

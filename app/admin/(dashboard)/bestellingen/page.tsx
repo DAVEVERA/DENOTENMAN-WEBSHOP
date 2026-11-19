@@ -83,7 +83,10 @@ export default async function BestellingenPage({
 
   return (
     <div>
-      <h1 className="text-heading-xl text-text">Bestellingen</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-heading-xl text-text">Bestellingen</h1>
+        <Link href="/admin/bestellingen/nieuw" className="inline-flex min-h-11 items-center rounded-button bg-accent px-4 font-heading text-body-sm font-bold text-contrast">Handmatige bestelling maken</Link>
+      </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <BulkLabelPrint />

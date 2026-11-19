@@ -15,7 +15,7 @@ test("desktop customer service opens the internal knowledge base", () => {
 
   assert.doesNotMatch(markup, />Zakelijk<\/a>/);
   assert.match(markup, />Klantenservice<\/a>/);
-  assert.match(markup, />Vind DeNotenman<\/a>/);
+  assert.match(markup, />Vind De Notenman<\/a>/);
   assert.match(markup, /href="\/nl\/paginas\/veelgestelde-vragen"[^>]*>Klantenservice<\/a>/);
   assert.match(markup, /href="\/nl\/paginas\/markten"/);
   assert.doesNotMatch(markup, /href="https:\/\/wa\.me\/31411700232"[^>]*>Klantenservice<\/a>/);

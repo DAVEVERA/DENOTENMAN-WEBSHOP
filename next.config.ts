@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import path from "node:path";
-import { locales } from "./lib/i18n";
+import { defaultLocale, locales } from "./lib/i18n";
 import { pageKeys, pageSlugs } from "./lib/pages";
 import { categoriesSegment, pagesSegment, productsSegment } from "./lib/segments";
 import { legacyWordpressRedirects } from "./lib/legacyRedirects";
@@ -81,6 +81,12 @@ function localizedIndexRedirects(segment: Record<string, string>, physicalSegmen
 const nextConfig: NextConfig = {
   output: "standalone",
   deploymentId: process.env.DEPLOYMENT_VERSION?.trim() || undefined,
+  // The OG card routes read the vendored Dosis face at runtime. File tracing
+  // cannot see through a path built from process.cwd(), so the standalone
+  // output would otherwise ship without the font.
+  outputFileTracingIncludes: {
+    "/**": ["./assets/fonts/**/*"],
+  },
   turbopack: {
     root: path.resolve(import.meta.dirname),
   },
@@ -130,6 +136,12 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // One canonical entry point. This runs before proxy.ts, so the bare
+      // domain no longer sniffs Accept-Language — deliberate, because a
+      // permanent redirect that varies per visitor would be cached by the
+      // load balancer and then served to everyone. http->https and
+      // www->apex stay on the load balancer; don't duplicate them here.
+      { source: "/", destination: `/${defaultLocale}`, permanent: true },
       { source: "/favicon.ico", destination: "/brand/favicon.png", permanent: true },
       // Google Ads and QR codes moved under Marketing in the admin.
       { source: "/admin/advertenties", destination: "/admin/marketing/advertenties", permanent: true },

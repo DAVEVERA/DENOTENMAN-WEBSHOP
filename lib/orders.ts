@@ -204,7 +204,7 @@ export async function priceCartLines(
     if (!variant) {
       throw new CheckoutError("VARIANT_NOT_FOUND", `Variant not found: ${line.variantId}`);
     }
-    if (!variant.isActive || !variant.product.isActive) {
+    if (!variant.isActive || !variant.product.isActive || variant.product.isSoldOut) {
       throw new CheckoutError("VARIANT_INACTIVE", `Variant not available: ${line.variantId}`);
     }
 

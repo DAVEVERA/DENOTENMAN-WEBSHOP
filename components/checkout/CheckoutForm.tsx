@@ -17,6 +17,7 @@ import {
   sendGoogleAnalyticsEventBeforeNavigation,
 } from "@/lib/analytics";
 import { Button } from "@/components/ui/Button";
+import { ShippingAddons } from "@/components/cart/ShippingAddons";
 
 type DeliveryMethod = "SHIPPING" | "PICKUP";
 type CountryCode = ShippingCountryCode;
@@ -595,6 +596,7 @@ export function CheckoutForm({
               );
             })}
           </ul>
+          {!isPickup ? <ShippingAddons locale={locale} country={country} subtotalCents={subtotalCents} /> : null}
           <div className="mt-4 border-t border-border pt-4">
             <label htmlFor="discountCode" className="block text-body-sm font-semibold text-text">
               {dictionary.discountCode}

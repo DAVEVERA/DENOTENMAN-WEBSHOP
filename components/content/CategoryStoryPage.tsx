@@ -4,6 +4,7 @@ import { ArrowRight, Check, ChevronRight, type LucideIcon } from "lucide-react";
 import { BASE_URL } from "@/lib/routes";
 import type { CategoryTileData } from "@/lib/category-tiles-core";
 import { CategoryTileGrid } from "@/components/category/CategoryTileGrid";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export type CategoryStoryVariety = {
   name: string;
@@ -79,17 +80,9 @@ export function CategoryStoryPage({
 
   return (
     <article className="overflow-hidden bg-[#f8f5ef] text-text">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, "\u003c") }}
-      />
+      <JsonLd data={breadcrumbJsonLd} />
       {faqJsonLd ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(faqJsonLd).replace(/</g, "\\u003c"),
-          }}
-        />
+        <JsonLd data={faqJsonLd} />
       ) : null}
 
       <nav aria-label="Breadcrumb" className="mx-auto w-full max-w-[96rem] px-4 pt-6 sm:px-6 lg:px-10 xl:px-14">
@@ -147,7 +140,8 @@ export function CategoryStoryPage({
                   src={heroImage.src}
                   alt={heroImage.alt}
                   fill
-                  priority
+                  loading="eager"
+                  fetchPriority="high"
                   sizes="(min-width: 1024px) 38vw, 100vw"
                   className="object-cover"
                   style={heroImage.objectPosition ? { objectPosition: heroImage.objectPosition } : undefined}

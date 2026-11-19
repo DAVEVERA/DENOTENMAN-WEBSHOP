@@ -11,21 +11,26 @@ export default function robots(): MetadataRoute.Robots {
 
   disallow.push("/admin", "/api");
 
+  // Every group may read the site summary, including the training crawlers
+  // that are otherwise blocked: a more specific Allow beats Disallow: /.
+  const LLMS_TXT = "/llms.txt";
+
   return {
     rules: [
       {
         userAgent: ["OAI-SearchBot", "ChatGPT-User", "Claude-SearchBot", "Claude-User"],
-        allow: "/",
+        allow: ["/", LLMS_TXT],
         disallow,
       },
       {
         // Search/retrieval access is intentionally separate from model training.
         userAgent: ["GPTBot", "ClaudeBot"],
+        allow: LLMS_TXT,
         disallow: "/",
       },
       {
         userAgent: "*",
-        allow: "/",
+        allow: ["/", LLMS_TXT],
         disallow,
       },
     ],

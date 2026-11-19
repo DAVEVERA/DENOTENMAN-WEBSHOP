@@ -14,6 +14,8 @@ import { blockTextKey, defaultAftersalesDesign } from "@/lib/aftersales/schema";
 import { renderAftersalesCanvas } from "@/lib/aftersales/canvas-renderer";
 
 const FONT_STACKS: Record<AftersalesDesign["font"], string> = {
+  DOSIS: "Dosis,Arial,sans-serif",
+  MONTSERRAT: "Montserrat,Arial,sans-serif",
   SANS: "Arial,Helvetica,sans-serif",
   SERIF: "Georgia,'Times New Roman',serif",
   MODERN: "'Segoe UI',Verdana,sans-serif",
