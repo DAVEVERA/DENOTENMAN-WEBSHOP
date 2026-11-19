@@ -22,6 +22,7 @@ const files = [
   "tests/product-image-migration-report.test.ts",
   "tests/product-image-studio-markup.test.tsx",
   "tests/product-image-studio.test.ts",
+  "tests/product-og-image.test.ts",
   "tests/review-dashboard-widgets.test.ts",
   "tests/review-request-button.test.tsx",
   "tests/review-request-content.test.ts",

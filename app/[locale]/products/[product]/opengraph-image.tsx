@@ -15,10 +15,17 @@ export const contentType = "image/png";
 
 type Params = { locale: string; product: string };
 
-async function load(params: Params | Promise<Params>) {
+/**
+ * `next build` collects page data for this route before any product exists:
+ * /[locale] contributes static params, [product] is force-dynamic and
+ * contributes none. The slug is therefore absent until a real request.
+ */
+type CollectedParams = { locale: string; product?: string };
+
+async function load(params: CollectedParams | Promise<Params>) {
   const { locale: rawLocale, product } = await params;
   const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
-  const data = await getProductBySlug(product, locale);
+  const data = product ? await getProductBySlug(product, locale) : null;
 
   return { locale, data };
 }
@@ -27,7 +34,11 @@ async function load(params: Params | Promise<Params>) {
  * Only here to give og:image:alt the product's own name — a single card,
  * not several sizes.
  */
-export async function generateImageMetadata({ params }: { params: Params }) {
+export async function generateImageMetadata({
+  params,
+}: {
+  params: CollectedParams;
+}) {
   const { data } = await load(params);
 
   return [
