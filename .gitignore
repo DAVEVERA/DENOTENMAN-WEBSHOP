@@ -36,3 +36,4 @@ output/
 .worktrees/
 prisma/product_varianten_prijscontrole.xlsx
 app/admin/(dashboard)/package-lock.json
+DENOTENMANWEBSHOP-zakelijk-isolated/
