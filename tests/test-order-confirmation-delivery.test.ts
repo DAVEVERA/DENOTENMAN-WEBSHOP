@@ -13,6 +13,7 @@ const testOrder = {
   adminNote: null,
   externallyPaidAt: null,
   adminCreationKey: null,
+  replyToken: null,
   isTest: true,
   locale: "nl",
   currency: "EUR",

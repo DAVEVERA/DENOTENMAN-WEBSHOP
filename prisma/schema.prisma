@@ -91,6 +91,19 @@ enum EmailDeliveryKind {
   BUSINESS_INVOICE
   BUSINESS_PRICE_REQUESTED
   REVIEW_REQUEST
+  /// A single message an admin wrote by hand to one customer, from the order
+  /// page, the business account page or a reply in the inbox.
+  MANUAL_MESSAGE
+}
+
+/// Where an inbound customer message stands. NIEUW is untouched, BEANTWOORD
+/// got a reply from the admin, AFGEHANDELD was closed without one, and SPAM
+/// is filed away by classifyInbound() or by hand.
+enum InboundMessageStatus {
+  NIEUW
+  BEANTWOORD
+  AFGEHANDELD
+  SPAM
 }
 
 enum EmailDeliveryStatus {
@@ -765,19 +778,19 @@ model User {
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  orderNumber String?     @unique @default(dbgenerated("('DN-' || to_char(CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Amsterdam', 'YYYY') || '-' || lpad(nextval('\"Order_orderNumber_seq\"'::regclass)::text, 5, '0'))"))
-  userId      String
-  user        User        @relation(fields: [userId], references: [id])
-  status      OrderStatus @default(PENDING)
-  origin      OrderOrigin @default(STOREFRONT)
-  originalOrderId String?
-  originalOrder Order? @relation("OrderReplacement", fields: [originalOrderId], references: [id], onDelete: Restrict)
-  replacementOrders Order[] @relation("OrderReplacement")
-  adminNote String? @db.Text
-  externallyPaidAt DateTime?
-  adminCreationKey String? @unique
-  isTest      Boolean     @default(false)
+  id                String      @id @default(cuid())
+  orderNumber       String?     @unique @default(dbgenerated("('DN-' || to_char(CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Amsterdam', 'YYYY') || '-' || lpad(nextval('\"Order_orderNumber_seq\"'::regclass)::text, 5, '0'))"))
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  status            OrderStatus @default(PENDING)
+  origin            OrderOrigin @default(STOREFRONT)
+  originalOrderId   String?
+  originalOrder     Order?      @relation("OrderReplacement", fields: [originalOrderId], references: [id], onDelete: Restrict)
+  replacementOrders Order[]     @relation("OrderReplacement")
+  adminNote         String?     @db.Text
+  externallyPaidAt  DateTime?
+  adminCreationKey  String?     @unique
+  isTest            Boolean     @default(false)
 
   locale        String  @default("nl")
   currency      String  @default("EUR")
@@ -828,6 +841,11 @@ model Order {
   postnlLabelClaimedAt  DateTime?
   postnlLabelLastError  String?   @db.Text
 
+  /// Minted the first time we mail this order, and carried in the Reply-To as
+  /// b-<token>@<reply domain>, so a customer's answer finds its way back here
+  /// even when he writes from a different address.
+  replyToken String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -835,6 +853,7 @@ model Order {
   refunds                      OrderRefund[]
   aftersalesDeliveries         AftersalesDelivery[]
   emailDeliveryLogs            EmailDeliveryLog[]
+  inboundMessages              InboundMessage[]
   invoices                     Invoice[]
   discountRedemption           DiscountRedemption?
   businessCancellationRequests BusinessOrderCancellationRequest[]
@@ -919,6 +938,10 @@ model EmailDeliveryLog {
   provider            String?
   providerMessageId   String?
   providerStatus      String?
+  /// Our own RFC Message-ID, which neither Mandrill nor Resend hands back.
+  /// Without it a customer's reply cannot be threaded onto what we sent.
+  messageId           String?             @unique
+  threadKey           String?
   orderId             String?
   order               Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
   trigger             AftersalesTrigger?
@@ -977,6 +1000,63 @@ model EmailDeliveryEvent {
   @@index([deliveryId, occurredAt])
   @@index([type, occurredAt])
   @@index([providerMessageId])
+}
+
+/// A customer mail that arrived on the reply subdomain. The address it was
+/// sent to carries a token, which is what binds it to an order or a business
+/// account; without a usable token the row stays unbound and shows up in the
+/// inbox without context rather than being dropped.
+model InboundMessage {
+  id                    String               @id @default(cuid())
+  providerMessageId     String               @unique
+  threadKey             String?
+  fromEmail             String
+  fromName              String?
+  toEmail               String
+  subject               String
+  textBody              String               @db.Text
+  htmlBody              String?              @db.Text
+  status                InboundMessageStatus @default(NIEUW)
+  spamScore             Float?
+  dkimOk                Boolean?
+  spfOk                 Boolean?
+  /// False when the sender is not the address on the order. The inbox says so
+  /// before an admin replies, because a reply goes to whoever wrote in.
+  recipientMatchesOrder Boolean              @default(false)
+  orderId               String?
+  order                 Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  businessAccountId     String?
+  businessAccount       BusinessAccount?     @relation(fields: [businessAccountId], references: [id], onDelete: SetNull)
+  rawPayload            Json
+  receivedAt            DateTime
+  handledAt             DateTime?
+  handledByAdminUserId  String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  attachments InboundAttachment[]
+
+  @@index([status, receivedAt])
+  @@index([orderId, receivedAt])
+  @@index([businessAccountId, receivedAt])
+  @@index([threadKey])
+}
+
+/// An attachment on an inbound message. storageKey is null when the file was
+/// refused by attachmentDecision(); the name is kept so an admin can see that
+/// something was sent and ask for it another way.
+model InboundAttachment {
+  id            String         @id @default(cuid())
+  messageId     String
+  message       InboundMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileName      String
+  contentType   String
+  sizeBytes     Int
+  storageKey    String?
+  skippedReason String?
+  createdAt     DateTime       @default(now())
+
+  @@index([messageId])
 }
 
 model OrderItem {
@@ -1337,20 +1417,20 @@ enum MarketingBannerSlot {
 }
 
 model MarketingBanner {
-  id        String                   @id @default(cuid())
-  title     String
-  imageUrl  String
-  linkUrl   String?
-  placement MarketingBannerPlacement @default(HOMEPAGE)
-  targetPath String?
-  slot MarketingBannerSlot @default(TOP)
-  isActive  Boolean                  @default(true)
-  isPublished Boolean @default(false)
-  sortOrder Int                      @default(0)
-  startsAt  DateTime?
-  endsAt    DateTime?
-  createdAt DateTime                 @default(now())
-  updatedAt DateTime                 @updatedAt
+  id          String                   @id @default(cuid())
+  title       String
+  imageUrl    String
+  linkUrl     String?
+  placement   MarketingBannerPlacement @default(HOMEPAGE)
+  targetPath  String?
+  slot        MarketingBannerSlot      @default(TOP)
+  isActive    Boolean                  @default(true)
+  isPublished Boolean                  @default(false)
+  sortOrder   Int                      @default(0)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
 }
 
 enum MarketingCampaignStatus {
@@ -1487,6 +1567,9 @@ model BusinessAccount {
   // remain valid historical records, so admin "delete" hides it instead of
   // removing the row.
   deletedAt                   DateTime?
+  /// Same idea as Order.replyToken, carried as z-<token>@<reply domain> on
+  /// mail sent from the business account page, which has no order to hang on.
+  replyToken                  String?                  @unique
   createdAt                   DateTime                 @default(now())
   updatedAt                   DateTime                 @updatedAt
 
@@ -1496,6 +1579,7 @@ model BusinessAccount {
   events               BusinessEvent[]
   invoices             Invoice[]
   cancellationRequests BusinessOrderCancellationRequest[]
+  inboundMessages      InboundMessage[]
 }
 
 model BusinessLoginLinkRateLimit {

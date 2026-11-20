@@ -15,6 +15,7 @@ const files = [
   "tests/home-landing-products.test.ts",
   "tests/homepage-static-hero.test.ts",
   "tests/image-migration-job.test.ts",
+  "tests/inbound-mail-schema.test.ts",
   "tests/invoice-template-editor.test.tsx",
   "tests/mailchimp-newsletter-template.test.ts",
   "tests/product-browser-progressive.test.ts",

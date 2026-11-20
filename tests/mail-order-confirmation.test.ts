@@ -13,6 +13,7 @@ function baseOrder(overrides: Partial<Order> = {}): Order {
     adminNote: null,
     externallyPaidAt: null,
     adminCreationKey: null,
+    replyToken: null,
     isTest: false,
     newsletterOptIn: false,
     processedAt: null,
