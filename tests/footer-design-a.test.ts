@@ -69,22 +69,27 @@ test("footer omits the truck strip and its yellow-to-anthracite gradient", () =>
   assert.doesNotMatch(footerStyles, /linear-gradient\(180deg, #e0b200 0, #121212 4\.5rem/);
 });
 
-test("footer shows the four supplied Mollie payment icons in a static dark card", () => {
-  for (const iconPath of [
-    "/icons/Mollie - Payment Methods/Apple-pay/Apple-pay-squircle.svg",
-    "/icons/Mollie - Payment Methods/Maestro/Maestro-squircle.svg",
-    "/icons/Mollie - Payment Methods/iDEAL-Wero/iDEAL-Wero-squircle.svg",
-    "/icons/Mollie - Payment Methods/PayPal/PayPal-squircle.svg",
-  ]) {
-    assert.match(footerSource, new RegExp(iconPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
+test("footer shows the supplied Mollie payment banner, not the old per-method icons", () => {
+  assert.match(footerSource, /\/payment\/mollie-secure-payments-nl\.svg/);
+  // The per-method squircles were replaced by one banner; a leftover reference
+  // would 404, because those files are gone from public/.
+  assert.doesNotMatch(footerSource, /Mollie - Payment Methods/);
 
   assert.match(footerSource, /aria-labelledby="footer-payment-methods-title"/);
-  assert.match(footerSource, /<ul className=\{styles\.paymentMethodsCard\}>/);
-  assert.match(footerStyles, /\.paymentMethodsCard\s*\{[\s\S]*max-width: 100%/);
-  assert.match(footerStyles, /width: clamp\(3rem, 12vw, 3\.25rem\)/);
-  assert.match(footerStyles, /\.paymentMethodsCard\s*\{[\s\S]*background: rgb\(0 0 0 \/ 42%\)/);
+  assert.match(footerSource, /className=\{styles\.paymentMethodsBanner\}/);
+  assert.doesNotMatch(footerSource, /styles\.paymentMethodsCard/);
+  assert.match(footerStyles, /\.paymentMethodsBanner\s*\{[\s\S]*max-width: 100%/);
+  assert.match(footerStyles, /\.paymentMethodsBanner\s*\{[\s\S]*height: auto/);
   assert.doesNotMatch(footerStyles, /paymentMethod:hover|payment-method-slide-in/);
+});
+
+test("the payment banner is described per locale instead of by file name", () => {
+  // A decorative alt like "Mollie" tells a screen reader nothing about which
+  // methods the shop accepts.
+  for (const needle of [/iDEAL, creditcard en PayPal/, /iDEAL, credit card and PayPal/, /carte de crédit et PayPal/]) {
+    assert.match(footerSource, needle);
+  }
+  assert.match(footerSource, /alt=\{paymentMethodsAlt\[locale\]\}/);
 });
 
 test("footer reuses the animated light card for verified social channels", () => {

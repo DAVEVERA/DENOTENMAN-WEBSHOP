@@ -5,38 +5,14 @@
   padding-top: clamp(1.25rem, 3vw, 2rem);
 }
 
-.paymentMethodsCard {
-  display: flex;
-  width: fit-content;
-  max-width: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(0.5rem, 2vw, 0.875rem);
-  margin: 0;
-  padding: clamp(0.75rem, 3vw, 1.25rem);
-  border-radius: var(--radius-card);
-  border: 1px solid rgb(246 243 238 / 10%);
-  background: rgb(0 0 0 / 42%);
-  list-style: none;
-}
-
-.paymentMethod {
-  display: flex;
-  width: clamp(3rem, 12vw, 3.25rem);
-  height: clamp(3rem, 12vw, 3.25rem);
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 0.625rem;
-  background: rgb(0 0 0 / 28%);
-}
-
-.paymentMethodIcon {
+/* The banner carries its own dark panel and rounded corners, so it sits in the
+   footer without a card around it. Width is capped so it never dominates the
+   column on a wide screen. */
+.paymentMethodsBanner {
   display: block;
-  width: calc(100% - 0.375rem);
-  height: calc(100% - 0.375rem);
-  object-fit: contain;
+  width: clamp(16rem, 80vw, 24rem);
+  max-width: 100%;
+  height: auto;
 }
 
 .socialMediaSection {

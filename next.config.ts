@@ -93,9 +93,9 @@ const nextConfig: NextConfig = {
   images: {
     minimumCacheTTL: 2678400,
     qualities: [70, 75],
-    // Payment-method marks (public/icons/Mollie - Payment Methods/*.svg) are
-    // our own trusted static assets, not user uploads — safe to let the
-    // optimizer serve them, locked down with a strict CSP per Next's docs.
+    // The payment banner (public/payment/mollie-secure-payments-nl.svg) is one
+    // of our own trusted static assets, not a user upload — safe to let the
+    // optimizer serve it, locked down with a strict CSP per Next's docs.
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

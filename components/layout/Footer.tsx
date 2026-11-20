@@ -44,24 +44,22 @@ const socialMediaLabel: Record<Locale, string> = {
   fr: "Suivez De Notenman",
 };
 
-const paymentMethods = [
-  {
-    label: "Apple Pay",
-    src: "/icons/Mollie - Payment Methods/Apple-pay/Apple-pay-squircle.svg",
-  },
-  {
-    label: "Maestro",
-    src: "/icons/Mollie - Payment Methods/Maestro/Maestro-squircle.svg",
-  },
-  {
-    label: "iDEAL | Wero",
-    src: "/icons/Mollie - Payment Methods/iDEAL-Wero/iDEAL-Wero-squircle.svg",
-  },
-  {
-    label: "PayPal",
-    src: "/icons/Mollie - Payment Methods/PayPal/PayPal-squircle.svg",
-  },
-] as const;
+/**
+ * Mollie's own banner, which carries the method marks and the "powered by
+ * Mollie" line in one asset. It brings its own dark background and rounded
+ * corners, so it needs no card around it.
+ */
+const paymentMethodsBanner = {
+  src: "/payment/mollie-secure-payments-nl.svg",
+  width: 593,
+  height: 139,
+} as const;
+
+const paymentMethodsAlt: Record<Locale, string> = {
+  nl: "Veilig betalen via Mollie met iDEAL, creditcard en PayPal",
+  en: "Secure payments via Mollie with iDEAL, credit card and PayPal",
+  fr: "Paiement sécurisé via Mollie avec iDEAL, carte de crédit et PayPal",
+};
 
 export async function Footer({
   locale,
@@ -351,20 +349,14 @@ export async function Footer({
             <h2 id="footer-payment-methods-title" className="sr-only">
               {paymentMethodsLabel[locale]}
             </h2>
-            <ul className={styles.paymentMethodsCard}>
-              {paymentMethods.map((method) => (
-                <li key={method.label} className={styles.paymentMethod}>
-                  <Image
-                    src={method.src}
-                    alt={method.label}
-                    width={64}
-                    height={64}
-                    sizes="52px"
-                    className={styles.paymentMethodIcon}
-                  />
-                </li>
-              ))}
-            </ul>
+            <Image
+              src={paymentMethodsBanner.src}
+              alt={paymentMethodsAlt[locale]}
+              width={paymentMethodsBanner.width}
+              height={paymentMethodsBanner.height}
+              sizes="(min-width: 640px) 24rem, 80vw"
+              className={styles.paymentMethodsBanner}
+            />
           </section>
         </Container>
 

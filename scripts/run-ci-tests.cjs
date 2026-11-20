@@ -10,6 +10,7 @@ const files = [
   "tests/business-portal.test.ts",
   "tests/cache-versioning.test.ts",
   "tests/compact-header.test.tsx",
+  "tests/footer-design-a.test.ts",
   "tests/google-reviews.test.ts",
   "tests/home-landing-products.test.ts",
   "tests/homepage-static-hero.test.ts",
