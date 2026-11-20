@@ -17,6 +17,7 @@ const files = [
   "tests/image-migration-job.test.ts",
   "tests/inbound-mail-schema.test.ts",
   "tests/invoice-template-editor.test.tsx",
+  "tests/mail-reply-token.test.ts",
   "tests/mailchimp-newsletter-template.test.ts",
   "tests/product-browser-progressive.test.ts",
   "tests/product-image-crop-fallback.test.ts",
