@@ -92,14 +92,19 @@ test("the payment banner is described per locale instead of by file name", () =>
   assert.match(footerSource, /alt=\{paymentMethodsAlt\[locale\]\}/);
 });
 
-test("footer reuses the animated light card for verified social channels", () => {
+test("footer shows verified social channels as rings that sit in the dark", () => {
   assert.match(footerSource, /https:\/\/www\.facebook\.com\/denotenman/);
   assert.match(footerSource, /https:\/\/instagram\.com\/de_notenman/);
   assert.match(footerSource, /CUSTOMER_SERVICE_WHATSAPP_URL/);
   assert.match(footerSource, /aria-labelledby="footer-social-media-title"/);
   assert.match(footerSource, /target="_blank"/);
   assert.match(footerSource, /rel="noopener noreferrer"/);
-  assert.match(footerStyles, /\.socialMediaCard\s*\{[\s\S]*background: #e8e8e8/);
+  // The light card was replaced by rings that sit in the dark footer.
+  assert.doesNotMatch(footerStyles, /#e8e8e8/);
+  assert.match(footerStyles, /\.socialMediaLink\s*\{[\s\S]*border-radius: 999px/);
+  assert.match(footerStyles, /\.socialMediaLink\s*\{[\s\S]*border: 1px solid rgb\(246 243 238 \/ 22%\)/);
+  // 44px keeps the tap target usable now that there is no filled button.
+  assert.match(footerStyles, /\.socialMediaLink\s*\{[\s\S]*width: 2\.75rem/);
   assert.match(footerStyles, /@keyframes social-media-icon-slide-in/);
   assert.match(footerStyles, /\.socialMediaFacebook:hover\s*\{[\s\S]*#1877f2/);
   assert.match(footerStyles, /\.socialMediaInstagram:hover\s*\{[\s\S]*#d62976/);
