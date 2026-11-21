@@ -75,7 +75,7 @@ export async function searchProductSources(
     }
   }
   // Deduplicate by normalized URL, preserving the first search hit.
-  const unique = [...new Map(results.map((item) => [item.url.replace(/\/$/, ""), item])).values()];
+  const unique = [...new Map([...results].reverse().map((item) => [item.url.replace(/\/$/, ""), item])).values()];
   return {
     status: failures ? "partial" : "complete",
     queries,
