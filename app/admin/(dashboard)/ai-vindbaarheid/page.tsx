@@ -29,7 +29,7 @@ export default async function AiVindbaarheidPage({
   if (!admin?.active) redirect("/admin/login");
 
   const { product: productId, fixed, batch, offset } = await searchParams;
-  const batchOffset = Math.min(1000, Math.max(0, Number.isFinite(Number(offset)) ? Math.floor(Number(offset)) : 0));
+  const batchOffset = Math.max(0, Number.isSafeInteger(Number(offset)) ? Number(offset) : 0);
   const products = await prisma.product.findMany({
     where: { isActive: true, translations: { some: { locale: "nl" } } },
     select: {
@@ -54,6 +54,9 @@ export default async function AiVindbaarheidPage({
     select: { locale: true, name: true, shortDescription: true, seoTitle: true, metaDescription: true },
   }) : [];
   const fixes = planSafeMetadataFixes(translationData);
+  const batchProductCount = batch === "1" ? await prisma.product.count({
+    where: { isActive: true, translations: { some: { locale: "nl" } } },
+  }) : 0;
   // Explicitly triggered, read-only batch. Never scan the whole catalogue during page load.
   const batchProducts = batch === "1" ? await prisma.product.findMany({
     where: { isActive: true, translations: { some: { locale: "nl" } } },
@@ -82,6 +85,7 @@ export default async function AiVindbaarheidPage({
     { baseUrl: BASE_URL, concurrency: 2 }
   ) : [];
   const batchFindingCount = batchResults.reduce((sum, product) => sum + product.findings.length, 0);
+  const hasMoreBatchProducts = batchOffset + batchResults.length < batchProductCount;
 
 
   return (
@@ -133,7 +137,7 @@ export default async function AiVindbaarheidPage({
           <input type="hidden" name="batch" value="1" />
           <label className="grid gap-1 text-body-sm font-semibold" htmlFor="batch-offset">
             Start bij productnummer
-            <input id="batch-offset" type="number" name="offset" min="0" max="1000" step="6" defaultValue={batchOffset}
+            <input id="batch-offset" type="number" name="offset" min="0" step="6" defaultValue={batchOffset}
               className="min-h-11 w-36 rounded-button border border-border bg-background px-3 text-text" />
           </label>
           <button type="submit" className="min-h-11 rounded-button bg-accent px-5 font-heading text-body-sm font-bold text-contrast">
@@ -143,7 +147,7 @@ export default async function AiVindbaarheidPage({
         {batch === "1" ? (
           <div className="mt-5 space-y-3">
             <p role="status" className="text-body-sm text-text">
-              {batchResults.length} producten en {batchResults.reduce((sum, product) => sum + product.pages.length, 0)} taalpagina's gecontroleerd.
+              {batchResults.length} van {batchProductCount} producten in deze selectie verwerkt, met {batchResults.reduce((sum, product) => sum + product.pages.length, 0)} gecontroleerde taalpagina's.
               {batchFindingCount} technische aandachtspunten gevonden.
             </p>
             {batchResults.map((product) => (
@@ -164,7 +168,7 @@ export default async function AiVindbaarheidPage({
                 ) : <p className="mt-2 text-body-sm text-muted">Geen afwijkingen binnen de uitgevoerde controles.</p>}
               </details>
             ))}
-            {batchResults.length === 6 ? (
+            {hasMoreBatchProducts ? (
               <Link href={`/admin/ai-vindbaarheid?batch=1&offset=${batchOffset + 6}`}
                 className="inline-flex min-h-11 items-center rounded-button border border-border px-4 text-body-sm font-semibold text-text">
                 Volgende zes producten
