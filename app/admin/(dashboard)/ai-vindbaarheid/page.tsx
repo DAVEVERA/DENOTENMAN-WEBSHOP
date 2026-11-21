@@ -55,7 +55,7 @@ export default async function AiVindbaarheidPage({
         <h1 className="text-heading-xl text-text">AI Vindbaarheid</h1>
         <p className="mt-2 max-w-3xl text-body-sm text-muted">
           Controleer de publiek toegankelijke storefront zoals een crawler die ontvangt.
-          Deze eerste versie hergebruikt de bestaande SEO-productaudit en wijzigt geen productgegevens.
+          De audit hergebruikt de bestaande SEO-productcontroles. Alleen bevoegde beheerders kunnen expliciet gekozen metadata-correcties uitvoeren; alle wijzigingen worden geregistreerd.
         </p>
       </div>
 
