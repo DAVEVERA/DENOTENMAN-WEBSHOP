@@ -7,13 +7,16 @@ import { buildProductAudit } from "@/lib/product-audit";
 import { canApplyMetadataFixes, planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
 import { applySafeMetadataFixes } from "./actions";
 import { actionableAuditFindings } from "@/lib/ai-vindbaarheid/audit-findings";
+import { runBatchAudit } from "@/lib/ai-vindbaarheid/batch-audit";
+import { BASE_URL, product as productPath } from "@/lib/routes";
+import { auditLocales } from "@/lib/product-audit-core";
 
 export const dynamic = "force-dynamic";
 
 export default async function AiVindbaarheidPage({
   searchParams,
 }: {
-  searchParams: Promise<{ product?: string; fixed?: string }>;
+  searchParams: Promise<{ product?: string; fixed?: string; batch?: string; offset?: string }>;
 }) {
   const session = await verifyAdminSessionToken(
     (await cookies()).get(ADMIN_SESSION_COOKIE)?.value
@@ -25,7 +28,8 @@ export default async function AiVindbaarheidPage({
   });
   if (!admin?.active) redirect("/admin/login");
 
-  const { product: productId, fixed } = await searchParams;
+  const { product: productId, fixed, batch, offset } = await searchParams;
+  const batchOffset = Math.min(1000, Math.max(0, Number.isFinite(Number(offset)) ? Math.floor(Number(offset)) : 0));
   const products = await prisma.product.findMany({
     where: { isActive: true, translations: { some: { locale: "nl" } } },
     select: {
@@ -50,6 +54,35 @@ export default async function AiVindbaarheidPage({
     select: { locale: true, name: true, shortDescription: true, seoTitle: true, metaDescription: true },
   }) : [];
   const fixes = planSafeMetadataFixes(translationData);
+  // Explicitly triggered, read-only batch. Never scan the whole catalogue during page load.
+  const batchProducts = batch === "1" ? await prisma.product.findMany({
+    where: { isActive: true, translations: { some: { locale: "nl" } } },
+    select: {
+      id: true,
+      sku: true,
+      translations: { select: { locale: true, slug: true, name: true } },
+    },
+    orderBy: [{ slug: "asc" }, { id: "asc" }],
+    skip: batchOffset,
+    take: 6,
+  }) : [];
+  const batchResults = batch === "1" ? await runBatchAudit(
+    batchProducts.map((item) => ({
+      id: item.id,
+      sku: item.sku,
+      name: item.translations.find((translation) => translation.locale === "nl")?.name ?? item.sku,
+      targets: item.translations
+        .filter((translation) => auditLocales.some((locale) => locale === translation.locale) && translation.slug.trim() && translation.name.trim())
+        .map((translation) => ({
+          locale: translation.locale as (typeof auditLocales)[number],
+          path: productPath(translation.locale as (typeof auditLocales)[number], translation.slug),
+          productName: translation.name,
+        })),
+    })),
+    { baseUrl: BASE_URL, concurrency: 2 }
+  ) : [];
+  const batchFindingCount = batchResults.reduce((sum, product) => sum + product.findings.length, 0);
+
 
   return (
     <div className="space-y-7">
@@ -88,6 +121,57 @@ export default async function AiVindbaarheidPage({
         <p className="mt-3 text-xs text-muted">
           Eerste 100 actieve producten, alfabetisch op slug. Een analyse controleert de beschikbare taalversies.
         </p>
+      </section>
+
+      <section className="rounded-panel border border-border bg-surface p-5" aria-label="Batch-audit">
+        <h2 className="font-heading text-heading-md text-text">Meerdere producten controleren</h2>
+        <p className="mt-2 text-body-sm text-muted">
+          Controleer per keer maximaal zes actieve producten, inclusief beschikbare NL-, EN- en FR-pagina's.
+          Dit is een alleen-lezen controle; er worden geen productgegevens aangepast.
+        </p>
+        <form method="get" className="mt-3 flex flex-wrap items-end gap-3">
+          <input type="hidden" name="batch" value="1" />
+          <label className="grid gap-1 text-body-sm font-semibold" htmlFor="batch-offset">
+            Start bij productnummer
+            <input id="batch-offset" type="number" name="offset" min="0" max="1000" step="6" defaultValue={batchOffset}
+              className="min-h-11 w-36 rounded-button border border-border bg-background px-3 text-text" />
+          </label>
+          <button type="submit" className="min-h-11 rounded-button bg-accent px-5 font-heading text-body-sm font-bold text-contrast">
+            Batch-audit uitvoeren
+          </button>
+        </form>
+        {batch === "1" ? (
+          <div className="mt-5 space-y-3">
+            <p role="status" className="text-body-sm text-text">
+              {batchResults.length} producten en {batchResults.reduce((sum, product) => sum + product.pages.length, 0)} taalpagina's gecontroleerd.
+              {batchFindingCount} technische aandachtspunten gevonden.
+            </p>
+            {batchResults.map((product) => (
+              <details key={product.id} className="rounded-card border border-border p-3">
+                <summary className="cursor-pointer text-body-sm font-semibold text-text">
+                  {product.name} ({product.sku}) · {product.findings.length} aandachtspunten
+                </summary>
+                {product.findings.length ? (
+                  <ul className="mt-3 space-y-2">
+                    {product.findings.map((finding) => (
+                      <li key={`${finding.locale}-${finding.code}`} className="text-body-sm text-muted">
+                        <span className="font-semibold">{finding.priority === "hoog" ? "Hoog" : "Normaal"} · {finding.locale.toUpperCase()} · {finding.label}</span>
+                        <p>{finding.recommendation}</p>
+                        <a href={finding.url} target="_blank" rel="noopener noreferrer" className="break-all text-xs text-accent-hover underline">Controleer pagina</a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="mt-2 text-body-sm text-muted">Geen afwijkingen binnen de uitgevoerde controles.</p>}
+              </details>
+            ))}
+            {batchResults.length === 6 ? (
+              <Link href={`/admin/ai-vindbaarheid?batch=1&offset=${batchOffset + 6}`}
+                className="inline-flex min-h-11 items-center rounded-button border border-border px-4 text-body-sm font-semibold text-text">
+                Volgende zes producten
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {productId && !selected ? (
