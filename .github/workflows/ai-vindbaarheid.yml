@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "app/admin/(dashboard)/ai-vindbaarheid/**"
+      - "app/api/admin/ai-vindbaarheid/**"
       - "lib/ai-vindbaarheid/**"
       - "lib/rendered-product-page-audit.ts"
       - "tests/ai-vindbaarheid-*.test.ts"
