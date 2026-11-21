@@ -102,3 +102,13 @@ Status: triagelogica stuurt ontbrekende bronfeiten nu naar online onderzoek; daa
 - [ ] Koppel brononderzoek aan duurzame onderzoekstaken, quota/rate limiting, auditlogging en goedkeuringsworkflow; verstuur nooit automatisch productwijzigingen.
 
 De connector vraagt een externe dienst aan en kan kosten veroorzaken; de route is daarom alleen expliciet via POST en beperkt tot één productvariant en één feitenveld.
+
+
+### Google Search Grounding (22 november 2026)
+
+- [x] Bestaande `GEMINI_API_KEY` hergebruiken via `@google/genai` en Google Search Grounding in `lib/ai-vindbaarheid/gemini-source-search.ts`.
+- [x] De admin-API en het onderzoekspaneel aan de Gemini-adapter gekoppeld. Alleen groundingbronlinks tonen, nooit onbewezen modeltekst als productfeit.
+- [x] Tests voor ontbrekende sleutel, bronverwijzingen, dubbele of onveilige URL's en ontbrekende grounding toegevoegd.
+- [ ] In Google Cloud Run verifiëren dat `GEMINI_API_KEY` bereikbaar is voor de bestaande dienst, dat Grounding toegang heeft en de modelaanroep werkelijk werkt. GitHub CI test met mocks, niet met de echte API.
+- [ ] De oude Brave-adapter en -tests na integratiecontrole verwijderen; geen `BRAVE_SEARCH_API_KEY` meer benodigd in de actieve route.
+- [ ] Resultaten duurzaam opslaan, bronpagina's inhoudelijk beoordelen, akkoordflow en hercontrole bouwen.
