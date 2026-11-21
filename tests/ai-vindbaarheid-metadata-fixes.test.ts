@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planSafeMetadataFixes } from "../lib/ai-vindbaarheid/metadata-fixes";
+import { canApplyMetadataFixes, planSafeMetadataFixes } from "../lib/ai-vindbaarheid/metadata-fixes";
 
 test("fills only missing metadata using existing product facts", () => {
   const result = planSafeMetadataFixes([{
@@ -34,4 +34,17 @@ test("does not generate excessively long or short metadata", () => {
     metaDescription: null,
   }]);
   assert.equal(result.length, 0);
+});
+
+test("only owners and administrators can apply metadata fixes", () => {
+  assert.equal(canApplyMetadataFixes("OWNER"), true);
+  assert.equal(canApplyMetadataFixes("ADMIN"), true);
+  assert.equal(canApplyMetadataFixes("STAFF"), false);
+});
+
+test("preserves the exact previous field value for optimistic updates", () => {
+  const fixes = planSafeMetadataFixes([{ locale: "en", name: "Organic cashew nuts", shortDescription: null, seoTitle: "", metaDescription: null }]);
+  assert.equal(fixes.length, 1);
+  assert.equal(fixes[0].expected, "");
+  assert.equal(fixes[0].field, "seoTitle");
 });
