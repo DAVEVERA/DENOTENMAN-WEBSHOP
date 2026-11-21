@@ -89,3 +89,16 @@ Status: triagelogica stuurt ontbrekende bronfeiten nu naar online onderzoek; daa
 - [ ] Koppel een werkelijke server-side webzoekprovider (met geldige credentials, limieten, retries en bronlog) aan de onderzoeksstap. De huidige code voert nog geen zoekopdrachten op internet uit.
 - [ ] Haal concrete productdocumenten veilig op, inclusief bewijs van SKU en variant, en leg bron en tijdstip vast.
 - [ ] Sluit brononderzoek aan op het adminportaal, de AI-vertaalvoorstellen en de expliciete goedkeuringsworkflow.
+
+
+### Zoekconnector en admin-API (22 november 2026)
+
+- [x] Server-side Brave Search-adapter gebouwd met maximaal twee gerichte zoekopdrachten per expliciete aanvraag, korte time-outs, URL-validatie, deduplicatie en onzekere bronnen als kandidaat, **niet** als bevestigd feit.
+- [x] Beveiligd POST-endpoint toegevoegd: `/api/admin/ai-vindbaarheid/research`, alleen OWNER/ADMIN met geldige sessie en origincontrole. Request: `{ "productId": "...", "variantId": "...", "field": "ingredients" }`. De server haalt SKU en productnaam uit de database; geen vrije zoekopdrachten door de browser.
+- [x] Nieuwe connector- en regressietests toegevoegd.
+- [ ] Configureer `BRAVE_SEARCH_API_KEY` uitsluitend server-side in de deploymentomgeving. Zonder sleutel retourneert het endpoint HTTP 503 met status `not_configured` en worden geen zoekacties uitgevoerd.
+- [ ] Bouw de zichtbare onderzoeksknop en kandidatenlijst in AI Vindbaarheid met waarschuwing 'nog niet geverifieerd'.
+- [ ] Bouw extractie uit concrete productdatasheets met veiligheidscontroles en een gecontroleerde bron-naar-feit-verificatie.
+- [ ] Koppel brononderzoek aan duurzame onderzoekstaken, quota/rate limiting, auditlogging en goedkeuringsworkflow; verstuur nooit automatisch productwijzigingen.
+
+De connector vraagt een externe dienst aan en kan kosten veroorzaken; de route is daarom alleen expliciet via POST en beperkt tot één productvariant en één feitenveld.
