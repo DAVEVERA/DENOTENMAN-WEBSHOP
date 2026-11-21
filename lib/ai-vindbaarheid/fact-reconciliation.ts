@@ -21,7 +21,7 @@ export type FactReconciliationInput = {
   evidence: FactEvidence[];
 };
 export type FactReconciliationPlan = {
-  action: "translate_verified_source" | "verify_source" | "request_source_data";
+  action: "translate_verified_source" | "verify_source" | "research_online";
   field: FactKind;
   productId: string;
   variantId: string;
@@ -51,9 +51,9 @@ export function planFactReconciliation(input: FactReconciliationInput): FactReco
   }
   if (uniqueValues.size === 0) {
     return {
-      action: "request_source_data", field: input.kind, productId: input.productId,
+      action: "research_online", field: input.kind, productId: input.productId,
       variantId: input.variantId, missingLocales, requiresApproval: true,
-      verifiedSource: null, reason: "Geen bevestigde productbron voor deze variant. AI mag geen productfeiten invullen.",
+      verifiedSource: null, reason: "Zoek actief naar de exacte productvariant via leveranciers, etiket- of productspecificaties en vergelijk bewijs. Tot verificatie: markeer dit veld zichtbaar als onderzoek vereist; vul geen onbewezen feiten in.",
     };
   }
   const source = verified[0];
