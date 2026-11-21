@@ -4,13 +4,15 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { buildProductAudit } from "@/lib/product-audit";
+import { planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
+import { applySafeMetadataFixes } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function AiVindbaarheidPage({
   searchParams,
 }: {
-  searchParams: Promise<{ product?: string }>;
+  searchParams: Promise<{ product?: string; fixed?: string }>;
 }) {
   const session = await verifyAdminSessionToken(
     (await cookies()).get(ADMIN_SESSION_COOKIE)?.value
@@ -22,7 +24,7 @@ export default async function AiVindbaarheidPage({
   });
   if (!admin?.active) redirect("/admin/login");
 
-  const { product: productId } = await searchParams;
+  const { product: productId, fixed } = await searchParams;
   const products = await prisma.product.findMany({
     where: { isActive: true, translations: { some: { locale: "nl" } } },
     select: {
@@ -41,6 +43,11 @@ export default async function AiVindbaarheidPage({
   const selected = productId ? products.find((item) => item.id === productId) : undefined;
   const audit = selected ? await buildProductAudit(selected.id) : null;
   const checks = audit?.renderedPages ?? [];
+  const translationData = selected ? await prisma.productTranslation.findMany({
+    where: { productId: selected.id },
+    select: { locale: true, name: true, shortDescription: true, seoTitle: true, metaDescription: true },
+  }) : [];
+  const fixes = planSafeMetadataFixes(translationData);
 
   return (
     <div className="space-y-7">
@@ -87,6 +94,12 @@ export default async function AiVindbaarheidPage({
         </p>
       ) : null}
 
+      {fixed !== undefined && selected ? (
+        <p role="status" className="rounded-panel border border-border bg-surface p-4 text-body-sm text-text">
+          {Number(fixed) > 0 ? `${Number(fixed)} ontbrekende metadatavelden veilig aangevuld.` : "Geen wijzigingen nodig of brongegevens zijn tussentijds gewijzigd."}
+        </p>
+      ) : null}
+
       {selected && audit ? (
         <section aria-label="Auditresultaten" className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -102,6 +115,30 @@ export default async function AiVindbaarheidPage({
             >
               Open uitgebreide productaudit en verbeteringen
             </Link>
+          </div>
+          <div className="rounded-panel border border-border bg-surface p-5">
+            <h3 className="font-heading text-heading-md text-text">Veilige automatische correcties</h3>
+            <p className="mt-2 text-body-sm text-muted">
+              Alleen ontbrekende SEO-titels en metaomschrijvingen, afgeleid van bestaande productnamen en beschrijvingen.
+              Bestaande handmatige velden blijven ongemoeid.
+            </p>
+            {fixes.length ? (
+              <>
+                <ul className="mt-3 space-y-1 text-body-sm text-text">
+                  {fixes.map((fix) => (
+                    <li key={`${fix.locale}-${fix.field}`}>
+                      {fix.locale.toUpperCase()} · {fix.field === "seoTitle" ? "SEO-titel" : "Metaomschrijving"}: {fix.value}
+                    </li>
+                  ))}
+                </ul>
+                <form action={applySafeMetadataFixes} className="mt-4">
+                  <input type="hidden" name="product" value={selected.id} />
+                  <button type="submit" className="min-h-11 rounded-button bg-accent px-5 font-heading text-body-sm font-bold text-contrast">
+                    {fixes.length} veilige correcties uitvoeren
+                  </button>
+                </form>
+              </>
+            ) : <p className="mt-3 text-body-sm text-muted">Geen automatisch herstelbare ontbrekende metadata gevonden.</p>}
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
             {checks.map((page) => (
@@ -134,7 +171,7 @@ export default async function AiVindbaarheidPage({
           </div>
           <p className="text-xs text-muted">
             Dit is een technische audit, geen meting van daadwerkelijke AI-vermeldingen of aanbevelingen.
-            Resultaten zijn momentopnamen en er worden geen wijzigingen automatisch doorgevoerd.
+            Resultaten zijn momentopnamen. Metadatacorrecties worden uitsluitend na gebruik van de herstelknop toegepast.
           </p>
         </section>
       ) : null}
