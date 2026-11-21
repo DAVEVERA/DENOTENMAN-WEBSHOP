@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
-import { planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
+import { canApplyMetadataFixes, planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
 import { product as productPath } from "@/lib/routes";
 
 export async function applySafeMetadataFixes(formData: FormData) {
@@ -18,7 +18,7 @@ export async function applySafeMetadataFixes(formData: FormData) {
     select: { active: true, role: true },
   });
   if (!admin?.active) redirect("/admin/login");
-  if (admin.role === "STAFF") redirect("/admin/ai-vindbaarheid");
+  if (!canApplyMetadataFixes(admin.role)) redirect("/admin/ai-vindbaarheid");
 
   const id = formData.get("product");
   if (typeof id !== "string" || !id || id.length > 128) {
