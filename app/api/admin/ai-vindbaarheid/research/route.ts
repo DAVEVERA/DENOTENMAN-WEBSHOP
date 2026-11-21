@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-api-auth";
-import { searchProductSources } from "@/lib/ai-vindbaarheid/brave-source-search";
+import { searchProductSources } from "@/lib/ai-vindbaarheid/gemini-source-search";
 import type { ProductResearchTarget } from "@/lib/ai-vindbaarheid/source-research";
 
 export const runtime = "nodejs";
