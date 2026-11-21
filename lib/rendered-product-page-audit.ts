@@ -102,16 +102,14 @@ export function auditRenderedProductPageHtml(input: {
       .filter((value): value is string => Boolean(value))
   );
   const h1Matches = [...input.html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)];
-  // Read only the response body, excluding embedded scripts and styles. This
-  // catches product descriptions that are present in metadata but absent from
-  // the HTML crawlers receive without executing JavaScript.
-  const body = input.html.match(/<body\\b[^>]*>([\\s\\S]*?)<\\/body>/i)?.[1] ?? "";
+  // Check text in the initial response body, not only metadata or JSON-LD.
+  const body = input.html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? "";
   const readableBody = body
-    .replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, " ")
-    .replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi, " ");
-  const paragraphText = [...readableBody.matchAll(/<p\\b[^>]*>([\\s\\S]*?)<\\/p>/gi)]
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
+  const paragraphText = [...readableBody.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
     .map((match) => decodeText(match[1]));
-  const shortDescriptionText = [...readableBody.matchAll(/<(?:div|section)\\b[^>]*class=["'][^"']*product-short-description[^"']*["'][^>]*>([\\s\\S]*?)<\\/(?:div|section)>/gi)]
+  const shortDescriptionText = [...readableBody.matchAll(/<(?:div|section)\b[^>]*class=["'][^"']*product-short-description[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section)>/gi)]
     .map((match) => decodeText(match[1]));
   const hasReadableDescription = [...paragraphText, ...shortDescriptionText]
     .some((value) => value.length >= 60);
