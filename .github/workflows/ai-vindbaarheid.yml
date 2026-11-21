@@ -1,0 +1,31 @@
+name: AI Vindbaarheid quality gates
+
+on:
+  pull_request:
+    paths:
+      - "app/admin/(dashboard)/ai-vindbaarheid/**"
+      - "lib/ai-vindbaarheid/**"
+      - "tests/ai-vindbaarheid-*.test.ts"
+      - ".github/workflows/ai-vindbaarheid.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata-fixes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Run AI Vindbaarheid regression tests
+        run: npx tsx --test tests/ai-vindbaarheid-metadata-fixes.test.ts
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Typecheck
+        run: npm run typecheck
