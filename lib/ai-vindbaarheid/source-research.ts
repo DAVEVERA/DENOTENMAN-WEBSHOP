@@ -33,6 +33,13 @@ function cleaned(value: string | null | undefined): string {
   return (value ?? "").trim().replace(/\s+/g, " ");
 }
 
+/** A SKU must be a complete identifier, not a prefix of another variant. */
+function mentionsExactSku(text: string, sku: string): boolean {
+  if (!sku) return false;
+  const escaped = sku.replace(/[.*+?^${}()|[\]\\]/g, "\\function quoted(value: string): string {");
+  return new RegExp(`(?:^|[^a-z0-9_-])${escaped}(?=$|[^a-z0-9_-])`, "i").test(text);
+}
+
 function quoted(value: string): string {
   return `"${value.replace(/"/g, "")}"`;
 }
@@ -69,7 +76,7 @@ export function triageResearchCandidates(
   return candidates.map((candidate) => {
     const haystack = `${candidate.title} ${candidate.excerpt}`.toLocaleLowerCase("nl-NL");
     // Matching a search excerpt is only a hint, never proof of correct formulation.
-    const exactSkuMentioned = Boolean(sku && haystack.includes(sku));
+    const exactSkuMentioned = mentionsExactSku(haystack, sku);
     const hasProductName = Boolean(name && haystack.includes(name));
     const confidenceSignals = [
       ...(exactSkuMentioned ? ["SKU vermeld in zoekresultaat"] : []),
