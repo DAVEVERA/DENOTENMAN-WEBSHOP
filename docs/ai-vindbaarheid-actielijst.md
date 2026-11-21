@@ -80,3 +80,12 @@ Bestaande architectuur: ingrediënten, allergenen, sporen en voedingswaarden sta
 **Geen stilzwijgend lege velden:** ieder ontbrekend feit krijgt een verplichte onderzoekstaak en een zichtbaar voortgangslabel. Een uitgeputte zoekactie eindigt als 'bron nog niet vastgesteld' met zoeklog, niet als verzonnen feit. Een inhoudelijk veld mag pas gevuld worden als de exacte productspecificatie betrouwbaar is bevestigd.
 
 Status: triagelogica stuurt ontbrekende bronfeiten nu naar online onderzoek; daadwerkelijke internetzoekconnector, wachtrij, AI-generatie, bronkoppeling, review-UI, opslag en verwerking zijn nog niet gebouwd.
+
+
+### Nieuwe onderzoeksvoorbereiding (22 november 2026)
+
+- [x] Automatische product- en SKU-specifieke zoekopdrachten voor ontbrekende feiten in `lib/ai-vindbaarheid/source-research.ts`, met regressietests.
+- [x] Kandidaatbronnen worden gerangschikt op indicaties van match met SKU, productnaam en type bron; deze rangschikking is geen verificatie.
+- [ ] Koppel een werkelijke server-side webzoekprovider (met geldige credentials, limieten, retries en bronlog) aan de onderzoeksstap. De huidige code voert nog geen zoekopdrachten op internet uit.
+- [ ] Haal concrete productdocumenten veilig op, inclusief bewijs van SKU en variant, en leg bron en tijdstip vast.
+- [ ] Sluit brononderzoek aan op het adminportaal, de AI-vertaalvoorstellen en de expliciete goedkeuringsworkflow.
