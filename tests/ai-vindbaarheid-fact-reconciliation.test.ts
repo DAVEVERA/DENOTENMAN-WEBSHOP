@@ -13,7 +13,7 @@ const base = {
 
 test("different language coverage cannot become product truth without verified evidence", () => {
   const result = planFactReconciliation({ ...base, evidence: [] });
-  assert.equal(result.action, "request_source_data");
+  assert.equal(result.action, "research_online");
   assert.equal(result.verifiedSource, null);
   assert.deepEqual(result.missingLocales, ["nl", "fr"]);
 });
@@ -22,7 +22,7 @@ test("verified evidence from wrong product variant is rejected", () => {
   const result = planFactReconciliation({
     ...base, evidence: [{ sourceId: "other", verified: true, value: "almonds", variantId: "v2" }],
   });
-  assert.equal(result.action, "request_source_data");
+  assert.equal(result.action, "research_online");
 });
 
 test("conflicting verified sources require manual review", () => {
@@ -50,5 +50,5 @@ test("all languages missing still cannot trigger factual invention", () => {
     ...base, translations: [], evidence: [],
   });
   assert.deepEqual(result.missingLocales, ["nl", "en", "fr"]);
-  assert.equal(result.action, "request_source_data");
+  assert.equal(result.action, "research_online");
 });
