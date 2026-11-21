@@ -40,10 +40,6 @@ function mentionsExactSku(text: string, sku: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9_-])${escaped}(?=$|[^a-z0-9_-])`, "i").test(text);
 }
 
-function quoted(value: string): string {");
-  return new RegExp(`(?:^|[^a-z0-9_-])${escaped}(?=$|[^a-z0-9_-])`, "i").test(text);
-}
-
 function quoted(value: string): string {
   return `"${value.replace(/"/g, "")}"`;
 }
