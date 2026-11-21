@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { buildProductAudit } from "@/lib/product-audit";
-import { planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
+import { canApplyMetadataFixes, planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
 import { applySafeMetadataFixes } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default async function AiVindbaarheidPage({
   if (!session) redirect("/admin/login");
   const admin = await prisma.adminUser.findUnique({
     where: { id: session.userId },
-    select: { active: true },
+    select: { active: true, role: true },
   });
   if (!admin?.active) redirect("/admin/login");
 
@@ -122,7 +122,7 @@ export default async function AiVindbaarheidPage({
               Alleen ontbrekende SEO-titels en metaomschrijvingen, afgeleid van bestaande productnamen en beschrijvingen.
               Bestaande handmatige velden blijven ongemoeid.
             </p>
-            {fixes.length ? (
+            {fixes.length && canApplyMetadataFixes(admin.role) ? (
               <>
                 <ul className="mt-3 space-y-1 text-body-sm text-text">
                   {fixes.map((fix) => (
@@ -138,7 +138,7 @@ export default async function AiVindbaarheidPage({
                   </button>
                 </form>
               </>
-            ) : <p className="mt-3 text-body-sm text-muted">Geen automatisch herstelbare ontbrekende metadata gevonden.</p>}
+             ) : <p className="mt-3 text-body-sm text-muted">{fixes.length ? "Alleen beheerders kunnen deze correcties uitvoeren." : "Geen automatisch herstelbare ontbrekende metadata gevonden."}</p>}
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
             {checks.map((page) => (
