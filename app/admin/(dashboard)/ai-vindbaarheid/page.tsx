@@ -6,6 +6,7 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth"
 import { buildProductAudit } from "@/lib/product-audit";
 import { canApplyMetadataFixes, planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
 import { applySafeMetadataFixes } from "./actions";
+import { actionableAuditFindings } from "@/lib/ai-vindbaarheid/audit-findings";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export default async function AiVindbaarheidPage({
   const selected = productId ? products.find((item) => item.id === productId) : undefined;
   const audit = selected ? await buildProductAudit(selected.id) : null;
   const checks = audit?.renderedPages ?? [];
+  const findings = actionableAuditFindings(checks);
   const translationData = selected ? await prisma.productTranslation.findMany({
     where: { productId: selected.id },
     select: { locale: true, name: true, shortDescription: true, seoTitle: true, metaDescription: true },
@@ -115,6 +117,29 @@ export default async function AiVindbaarheidPage({
             >
               Open uitgebreide productaudit en verbeteringen
             </Link>
+          </div>
+          <div className="rounded-panel border border-border bg-surface p-5">
+            <h3 className="font-heading text-heading-md text-text">Actielijst storefront</h3>
+            <p className="mt-2 text-body-sm text-muted">
+              {findings.length
+                ? `${findings.length} controle(s) vragen aandacht. Deze meldingen zijn gebaseerd op de ontvangen publieke HTML en moeten vóór een correctie worden geverifieerd.`
+                : "Geen afwijkingen gevonden binnen de uitgevoerde technische controles. Dit is geen garantie op volledige indexering."}
+            </p>
+            {findings.length > 0 ? (
+              <ul className="mt-4 space-y-3">
+                {findings.map((finding) => (
+                  <li key={`${finding.locale}-${finding.code}`} className="rounded-card border border-border p-3 text-body-sm">
+                    <p className="font-semibold text-text">
+                      {finding.priority === "hoog" ? "Hoge prioriteit" : "Normale prioriteit"} · {finding.locale.toUpperCase()} · {finding.label}
+                    </p>
+                    <p className="mt-1 text-muted">{finding.recommendation}</p>
+                    <a href={finding.url} target="_blank" rel="noopener noreferrer" className="mt-1 block break-all text-xs text-accent-hover underline">
+                      Te controleren storefront-URL
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
           <div className="rounded-panel border border-border bg-surface p-5">
             <h3 className="font-heading text-heading-md text-text">Veilige automatische correcties</h3>
