@@ -20,7 +20,16 @@ export async function POST(request: NextRequest) {
   }
 
   const origin = request.headers.get("origin");
-  if (!origin || new URL(origin).host !== request.nextUrl.host) {
+  let originMatches = false;
+  try {
+    if (origin) {
+      const parsed = new URL(origin);
+      originMatches = parsed.protocol === request.nextUrl.protocol && parsed.host === request.nextUrl.host;
+    }
+  } catch {
+    originMatches = false;
+  }
+  if (!originMatches) {
     return NextResponse.json({ error: "ORIGIN_MISMATCH" }, { status: 403 });
   }
 
