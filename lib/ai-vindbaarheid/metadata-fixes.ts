@@ -30,3 +30,8 @@ export function planSafeMetadataFixes(
   }
   return fixes;
 }
+
+/** Only administrators may write SEO metadata; staff may still run audits. */
+export function canApplyMetadataFixes(role: "OWNER" | "ADMIN" | "STAFF"): boolean {
+  return role === "OWNER" || role === "ADMIN";
+}
