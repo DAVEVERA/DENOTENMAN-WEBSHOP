@@ -36,7 +36,11 @@ function cleaned(value: string | null | undefined): string {
 /** A SKU must be a complete identifier, not a prefix of another variant. */
 function mentionsExactSku(text: string, sku: string): boolean {
   if (!sku) return false;
-  const escaped = sku.replace(/[.*+?^${}()|[\]\\]/g, "\\function quoted(value: string): string {");
+  const escaped = sku.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[^a-z0-9_-])${escaped}(?=$|[^a-z0-9_-])`, "i").test(text);
+}
+
+function quoted(value: string): string {");
   return new RegExp(`(?:^|[^a-z0-9_-])${escaped}(?=$|[^a-z0-9_-])`, "i").test(text);
 }
 
