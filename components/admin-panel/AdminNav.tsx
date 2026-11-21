@@ -26,6 +26,7 @@ export const adminNavEntries: NavEntry[] = [
     sections: [{ items: [{ href: "/admin/bestellingen", label: "Particuliere bestellingen" }, { href: "/admin/zakelijk", label: "Zakelijke bestellijsten" }] }],
   },
   { id: "design-studio", label: "Design Studio", href: "/admin/design-studio" },
+  { id: "ai-vindbaarheid", label: "AI Vindbaarheid", href: "/admin/ai-vindbaarheid" },
   {
     id: "marketing",
     label: "Marketing",
