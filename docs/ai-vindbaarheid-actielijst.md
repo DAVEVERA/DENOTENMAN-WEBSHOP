@@ -59,3 +59,21 @@ Implementatievolgorde:
 5. [ ] Trendmeting pas inschakelen wanneer historische snapshots betrouwbaar worden opgeslagen.
 
 **Geen fictieve nullen:** ontbrekende metingen tonen als 'Nog niet gemeten'. Auditdekking mag 0% zijn als de totale actieve catalogus bekend is. KPI's vermelden altijd waarop ze betrekking hebben.
+
+
+## P1 - AI meertalige feitenharmonisatie (NL/EN/FR)
+
+Doel: per product **en variant** één aantoonbaar correcte feitenbron, met begrijpelijke vertaling en consistente presentatie over de drie talen. Het feit dat twee taalversies hetzelfde melden bewijst niet dat die inhoud klopt.
+
+Bestaande architectuur: ingrediënten, allergenen, sporen en voedingswaarden staan hoofdzakelijk als gedeelde ProductAttribute-waarden in de databron; de storefront presenteert deze waarden deels ongewijzigd in meerdere talen. De oorzaak is dus niet per definitie drie verschillende waarden in de database. Houd brontaal, feitelijke betekenis en vertaalde presentatietekst strikt gescheiden.
+
+1. [x] Read-only triage met statussen **vertaal geverifieerde bron**, **controleer tegenstrijdige bronnen** en **vraag broninformatie op**. Geen automatische publicatie (lib/ai-vindbaarheid/fact-reconciliation.ts).
+2. [ ] Bouw de vergelijking tussen de feitelijke bron, productvarianten en de zichtbare NL/EN/FR-pagina's. Vergelijk ook eenheden, voedingswaardebasis (bijv. per 100 g), bereidingswijze en bijbehorende SKU.
+3. [ ] Integreer een AI-voorstelgenerator voor taalcorrecte formuleringen van **geverifieerde** gegevens. Toon bron, productvariant, huidige en voorgestelde waarde per taal en uitleg van het verschil.
+4. [ ] Zorg voor review en akkoord per veld en product, met OWNER/ADMIN-rechten, optimistic concurrency, auditlog en rollbackmogelijkheid. Niets wijzigen bij alleen een audit.
+5. [ ] Hercontroleer de drie publieke taalpagina's na expliciete toepassing.
+6. [ ] Voeg aan het admin-dashboard statistieken toe: aantal taalconflicten, aantal ontbrekende bronwaarden, AI-voorstellen in afwachting, goedgekeurde verbeteringen en hercontrole-resultaten.
+
+**Veiligheidsregel productfeiten:** als ingrediënten, allergenen, sporen of voedingswaarden bij **alle** taalversies ontbreken, mag AI bronnen zoeken, vergelijken en een voorstel met herkomst voorbereiden. Er wordt **nooit** een ingrediënt of voedingswaarde uit alleen een productnaam, algemene kennis of meerderheid van de vertalingen afgeleid. Eerst betrouwbare productspecifieke leverancier-/etiket-/productsheetgegevens voor de exacte variant, daarna pas vertaling en publicatie na akkoord.
+
+Status: triagelogica en tests toegevoegd op ontwikkelbranch. AI-generatie, bronkoppeling, review-UI, opslag en verwerking zijn nog niet gebouwd.
