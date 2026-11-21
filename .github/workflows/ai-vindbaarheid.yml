@@ -27,5 +27,7 @@ jobs:
         run: npx tsx --test tests/ai-vindbaarheid-metadata-fixes.test.ts
       - name: Generate Prisma client
         run: npx prisma generate
+      - name: Generate Next.js route types
+        run: npx next typegen
       - name: Typecheck
         run: npm run typecheck
