@@ -37,3 +37,25 @@ Deze vier punten zijn vooralsnog **auditmeldingen uit een beperkte steekproef**,
 ## Releasevoorwaarden
 
 Geen merge of productie-uitrol vóór geslaagde relevante tests, bevestigde HTTP-crawlresultaten en een gecontroleerde review van de wijzigingen.
+
+
+## P1 - Dashboardwidgets op de adminvoorpagina
+
+De bestaande dashboard-widgetbouwer (lib/dashboard/schema.ts, sources.ts en AdminDashboardWorkspace)
+wordt hergebruikt. Geen los dashboardsysteem maken.
+
+Gewenste optionele widgets, elk met link naar /admin/ai-vindbaarheid:
+- **Auditvoortgang:** aantal unieke actieve producten met een geldige laatste audit / alle actieve producten. Toon teller, noemer en meetdatum.
+- **Datavolledigheid:** ingevulde verplichte velden / verwachte verplichte velden bij gecontroleerde producten. Regels en toepasselijkheid per product vastleggen.
+- **Datakwaliteit:** gemiddelde deterministische productauditscore (0–100) van gecontroleerde producten, nooit presenteren als catalogusbrede score zolang dekking < 100%.
+- **Openstaande bevindingen:** totaal uit laatste audits, uitsplitsing op ernst; sla status open/bevestigd/opgelost/hercontrole apart op.
+- **Taaldekking:** complete NL/EN/FR-vertalingen / verwachte talen voor gecontroleerde producten, met afzonderlijk inzicht per taal.
+
+Implementatievolgorde:
+1. [x] Pure aggregatie met expliciete nulls voor onbekende waarden en regressietests.
+2. [ ] Auditresultaten per product en locale persistent opslaan met auditversie, tijd, bron, status en betrouwbare noemer. Voeg stale-detectie en hercontrole toe.
+3. [ ] Registry-bronnen en adapter voor bovenstaande metrics toevoegen, met products:read rechten.
+4. [ ] Optioneel toevoegen/verbergen/verplaatsen via de bestaande widgetbouwer, zonder standaard extra dashboardbelasting.
+5. [ ] Trendmeting pas inschakelen wanneer historische snapshots betrouwbaar worden opgeslagen.
+
+**Geen fictieve nullen:** ontbrekende metingen tonen als 'Nog niet gemeten'. Auditdekking mag 0% zijn als de totale actieve catalogus bekend is. KPI's vermelden altijd waarop ze betrekking hebben.
