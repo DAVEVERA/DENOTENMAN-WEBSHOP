@@ -35,3 +35,14 @@ test("a search snippet is never treated as verified product fact", () => {
   assert.equal(candidates[0].needsManualVerification, true);
   assert.equal(candidates[1].needsManualVerification, true);
 });
+
+test("SKU match rejects identifiers that only share a prefix or suffix", () => {
+  const candidates = triageResearchCandidates(target, [
+    { url: "https://example.com/long", title: "Amandelen gebrand ABC-1234", excerpt: "wrong variant", sourceType: "unknown", retrievedAt: "2026-11-22T00:00:00Z" },
+    { url: "https://example.com/suffixed", title: "Amandelen gebrand ABC-123-XL", excerpt: "wrong variant", sourceType: "unknown", retrievedAt: "2026-11-22T00:00:00Z" },
+    { url: "https://example.com/exact", title: "Amandelen gebrand (ABC-123)", excerpt: "correct identifier in result", sourceType: "unknown", retrievedAt: "2026-11-22T00:00:00Z" },
+  ]);
+  assert.equal(candidates.find((item) => item.url.endsWith("/exact"))?.exactSkuMentioned, true);
+  assert.equal(candidates.find((item) => item.url.endsWith("/long"))?.exactSkuMentioned, false);
+  assert.equal(candidates.find((item) => item.url.endsWith("/suffixed"))?.exactSkuMentioned, false);
+});
