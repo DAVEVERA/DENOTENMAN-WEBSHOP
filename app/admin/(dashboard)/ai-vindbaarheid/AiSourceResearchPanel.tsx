@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { FactKind } from "@/lib/ai-vindbaarheid/fact-reconciliation";
-import type { SourceSearchResult } from "@/lib/ai-vindbaarheid/brave-source-search";
+import type { SourceSearchResult } from "@/lib/ai-vindbaarheid/gemini-source-search";
 
 type Variant = { id: string; sku: string; weightGrams: number };
 type Props = { productId: string; variants: Variant[] };
