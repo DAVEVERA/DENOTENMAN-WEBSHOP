@@ -8,6 +8,7 @@ import { canApplyMetadataFixes, planSafeMetadataFixes } from "@/lib/ai-vindbaarh
 import { applySafeMetadataFixes } from "./actions";
 import { actionableAuditFindings } from "@/lib/ai-vindbaarheid/audit-findings";
 import { runBatchAudit } from "@/lib/ai-vindbaarheid/batch-audit";
+import { AiSourceResearchPanel } from "./AiSourceResearchPanel";
 import { BASE_URL, product as productPath } from "@/lib/routes";
 import { auditLocales } from "@/lib/product-audit-core";
 
@@ -46,6 +47,11 @@ export default async function AiVindbaarheidPage({
   });
 
   const selected = productId ? products.find((item) => item.id === productId) : undefined;
+  const researchVariants = selected ? await prisma.productVariant.findMany({
+    where: { productId: selected.id, isActive: true },
+    select: { id: true, sku: true, weightGrams: true },
+    orderBy: { weightGrams: "asc" },
+  }) : [];
   const audit = selected ? await buildProductAudit(selected.id) : null;
   const checks = audit?.renderedPages ?? [];
   const findings = actionableAuditFindings(checks);
@@ -206,6 +212,9 @@ export default async function AiVindbaarheidPage({
               Open uitgebreide productaudit en verbeteringen
             </Link>
           </div>
+          {researchVariants.length && canApplyMetadataFixes(admin.role) ? (
+            <AiSourceResearchPanel productId={selected.id} variants={researchVariants} />
+          ) : null}
           <div className="rounded-panel border border-border bg-surface p-5">
             <h3 className="font-heading text-heading-md text-text">Actielijst storefront</h3>
             <p className="mt-2 text-body-sm text-muted">
