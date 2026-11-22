@@ -12,7 +12,7 @@ const input = {
 test("detects readable product description in initial HTML body", () => {
   const html = `<html><head><title>Test Amandelen</title></head><body>
     <h1>Test Amandelen</h1>
-    <p>Deze knapperige amandelen zijn geschikt voor een borrelplank en kunnen ook worden gebruikt als topping bij verschillende gerechten.</p>
+    <p data-geo-product-description="true">Deze knapperige amandelen zijn geschikt voor een borrelplank en kunnen ook worden gebruikt als topping bij verschillende gerechten.</p>
   </body></html>`;
   const audit = auditRenderedProductPageHtml({ ...input, html });
   assert.equal(audit.checks.find((check) => check.code === "visible-description")?.passed, true);
@@ -28,5 +28,15 @@ test("does not mistake JSON-LD or head metadata for visible description", () => 
 
 test("reports missing description on unreachable product page", () => {
   const audit = auditRenderedProductPageHtml({ ...input, status: 0, html: "" });
+  assert.equal(audit.checks.find((check) => check.code === "visible-description")?.passed, false);
+});
+
+
+test("does not mistake long footer copy for a server-rendered product description", () => {
+  const html = `<html><head><title>Test Amandelen</title></head><body>
+    <h1>Test Amandelen</h1>
+    <footer><p>Welkom bij onze webwinkel met veel informatie over bezorgen, klantenservice, aanbiedingen, algemene voorwaarden en onze klantenservice.</p></footer>
+  </body></html>`;
+  const audit = auditRenderedProductPageHtml({ ...input, html });
   assert.equal(audit.checks.find((check) => check.code === "visible-description")?.passed, false);
 });
