@@ -80,7 +80,7 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Prepare isolated disposable CI database (never production)
-        run: npx prisma db push --skip-generate
+      - name: Apply committed migrations to disposable CI database (never production)
+        run: npx prisma migrate deploy
       - name: Build complete Next.js application against disposable test database
         run: npm run build
