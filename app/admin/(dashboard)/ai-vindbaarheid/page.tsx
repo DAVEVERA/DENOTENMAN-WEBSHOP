@@ -9,6 +9,7 @@ import { applySafeMetadataFixes } from "./actions";
 import { actionableAuditFindings } from "@/lib/ai-vindbaarheid/audit-findings";
 import { runBatchAudit } from "@/lib/ai-vindbaarheid/batch-audit";
 import { AiSourceResearchPanel } from "./AiSourceResearchPanel";
+import { FullCatalogueAuditPanel } from "./FullCatalogueAuditPanel";
 import { BASE_URL, product as productPath } from "@/lib/routes";
 import { auditLocales } from "@/lib/product-audit-core";
 
@@ -132,6 +133,8 @@ export default async function AiVindbaarheidPage({
           Eerste 100 actieve producten, alfabetisch op slug. Een analyse controleert de beschikbare taalversies.
         </p>
       </section>
+
+      {canApplyMetadataFixes(admin.role) ? <FullCatalogueAuditPanel /> : null}
 
       <section className="rounded-panel border border-border bg-surface p-5" aria-label="Batch-audit">
         <h2 className="font-heading text-heading-md text-text">Meerdere producten controleren</h2>
