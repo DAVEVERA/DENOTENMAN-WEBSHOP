@@ -10,6 +10,7 @@ import { actionableAuditFindings } from "@/lib/ai-vindbaarheid/audit-findings";
 import { runBatchAudit } from "@/lib/ai-vindbaarheid/batch-audit";
 import { AiSourceResearchPanel } from "./AiSourceResearchPanel";
 import { FullCatalogueAuditPanel } from "./FullCatalogueAuditPanel";
+import { GeoAuditHistory } from "./GeoAuditHistory";
 import { BASE_URL, product as productPath } from "@/lib/routes";
 import { auditLocales } from "@/lib/product-audit-core";
 
@@ -133,6 +134,8 @@ export default async function AiVindbaarheidPage({
           Eerste 100 actieve producten, alfabetisch op slug. Een analyse controleert de beschikbare taalversies.
         </p>
       </section>
+
+      <GeoAuditHistory />
 
       {canApplyMetadataFixes(admin.role) ? <FullCatalogueAuditPanel /> : null}
 
