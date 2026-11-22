@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
-import { canApplyMetadataFixes, planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
+import { canApplyMetadataFixes, metadataFixPreview, planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
 import { product as productPath } from "@/lib/routes";
 
 export async function applySafeMetadataFixes(formData: FormData) {
@@ -44,6 +44,13 @@ export async function applySafeMetadataFixes(formData: FormData) {
   if (!product) redirect("/admin/ai-vindbaarheid");
 
   const fixes = planSafeMetadataFixes(product.translations);
+  // Only apply the exact corrections that were displayed to this administrator.
+  // A changed product name or description invalidates the preview entirely.
+  const reviewedPreview = formData.get("preview");
+  if (typeof reviewedPreview !== "string" || reviewedPreview.length > 20_000 ||
+      reviewedPreview !== metadataFixPreview(fixes)) {
+    redirect(`/admin/ai-vindbaarheid?product=${encodeURIComponent(product.id)}&stale=1`);
+  }
   // Apply updates and their audit records atomically. A stale preview cannot
   // overwrite fields that changed since the product was loaded.
   const changed = await prisma.$transaction(async (tx) => {
