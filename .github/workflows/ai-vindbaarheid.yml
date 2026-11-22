@@ -9,6 +9,8 @@ on:
       - "lib/rendered-product-page-audit.ts"
       - "tests/ai-vindbaarheid-*.test.ts"
       - ".github/workflows/ai-vindbaarheid.yml"
+      - "scripts/verify-public-storefront-html.mjs"
+      - "components/product/ProductDetailContent.tsx"
   workflow_dispatch:
 
 permissions:
@@ -33,3 +35,14 @@ jobs:
         run: npx next typegen
       - name: Typecheck
         run: npm run typecheck
+
+  live-storefront-html:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify raw storefront HTML without JavaScript
+        run: node scripts/verify-public-storefront-html.mjs
