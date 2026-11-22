@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { buildProductAudit } from "@/lib/product-audit";
-import { canApplyMetadataFixes, planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
+import { canApplyMetadataFixes, metadataFixPreview, planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
 import { applySafeMetadataFixes } from "./actions";
 import { actionableAuditFindings } from "@/lib/ai-vindbaarheid/audit-findings";
 import { runBatchAudit } from "@/lib/ai-vindbaarheid/batch-audit";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function AiVindbaarheidPage({
   searchParams,
 }: {
-  searchParams: Promise<{ product?: string; fixed?: string; batch?: string; offset?: string }>;
+  searchParams: Promise<{ product?: string; fixed?: string; stale?: string; batch?: string; offset?: string }>;
 }) {
   const session = await verifyAdminSessionToken(
     (await cookies()).get(ADMIN_SESSION_COOKIE)?.value
@@ -29,7 +29,7 @@ export default async function AiVindbaarheidPage({
   });
   if (!admin?.active) redirect("/admin/login");
 
-  const { product: productId, fixed, batch, offset } = await searchParams;
+  const { product: productId, fixed, stale, batch, offset } = await searchParams;
   const batchOffset = Math.max(0, Number.isSafeInteger(Number(offset)) ? Number(offset) : 0);
   const products = await prisma.product.findMany({
     where: { isActive: true, translations: { some: { locale: "nl" } } },
@@ -190,6 +190,12 @@ export default async function AiVindbaarheidPage({
         </p>
       ) : null}
 
+      {stale === "1" && selected ? (
+        <p role="alert" className="rounded-panel border border-border bg-surface p-4 text-body-sm text-text">
+          Productgegevens zijn gewijzigd sinds het voorstel werd bekeken. Controleer de nieuwe voorstellen voordat je correcties toepast.
+        </p>
+      ) : null}
+
       {fixed !== undefined && selected ? (
         <p role="status" className="rounded-panel border border-border bg-surface p-4 text-body-sm text-text">
           {Number(fixed) > 0 ? `${Number(fixed)} ontbrekende metadatavelden veilig aangevuld.` : "Geen wijzigingen nodig of brongegevens zijn tussentijds gewijzigd."}
@@ -255,6 +261,7 @@ export default async function AiVindbaarheidPage({
                 </ul>
                 <form action={applySafeMetadataFixes} className="mt-4">
                   <input type="hidden" name="product" value={selected.id} />
+                  <input type="hidden" name="preview" value={metadataFixPreview(fixes)} />
                   <button type="submit" className="min-h-11 rounded-button bg-accent px-5 font-heading text-body-sm font-bold text-contrast">
                     {fixes.length} veilige correcties uitvoeren
                   </button>
