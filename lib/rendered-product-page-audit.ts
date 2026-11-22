@@ -109,7 +109,7 @@ export function auditRenderedProductPageHtml(input: {
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
   // Require an explicit product-description marker: generic footer or navigation
   // paragraphs must never produce a false positive crawlability pass.
-  const productDescriptionText = [...readableBody.matchAll(/<(?:p|div|section)\\b[^>]*\\bdata-geo-product-description=["']true["'][^>]*>([\\s\\S]*?)<\\/(?:p|div|section)>/gi)]
+  const productDescriptionText = [...readableBody.matchAll(/<(?:p|div|section)\b[^>]*\bdata-geo-product-description=["']true["'][^>]*>([\s\S]*?)<\/(?:p|div|section)>/gi)]
     .map((match) => decodeText(match[1]));
   const hasReadableDescription = productDescriptionText.some((value) => value.length >= 60);
 
