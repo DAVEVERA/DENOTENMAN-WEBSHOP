@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_CURSOR" }, { status: 400 });
   }
 
-  const where = { isActive: true, translations: { some: { locale: "nl" } } };
+  const where = { isActive: true };
   const [total, products] = await Promise.all([
     prisma.product.count({ where }),
     prisma.product.findMany({
