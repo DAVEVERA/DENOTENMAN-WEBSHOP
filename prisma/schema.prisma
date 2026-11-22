@@ -2173,3 +2173,53 @@ model GoogleReviewSnapshot {
 
   @@index([capturedOn])
 }
+
+
+/// Singleton lease and next execution time for the weekly storefront GEO scan.
+model GeoAuditScheduler {
+  id          String   @id
+  activeRunId String?
+  leaseOwner  String?
+  leaseUntil  DateTime?
+  nextDueAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// One complete catalog scan, processed in durable, bounded batches.
+model GeoAuditRun {
+  id              String   @id @default(cuid())
+  status          String   @default("RUNNING")
+  trigger         String
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  cursor          String?
+  totalProducts   Int
+  scannedProducts Int      @default(0)
+  pagesChecked    Int      @default(0)
+  issueCount      Int      @default(0)
+  lastError       String?
+  pages           GeoAuditPage[]
+
+  @@index([startedAt])
+  @@index([status, startedAt])
+}
+
+/// A rendered HTML snapshot of one product and locale in a single scan.
+model GeoAuditPage {
+  id         String   @id @default(cuid())
+  runId      String
+  run        GeoAuditRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  productId  String
+  sku        String
+  locale     Locale
+  url        String
+  httpStatus Int
+  score      Int
+  checks     Json
+  findings   Json
+  checkedAt  DateTime @default(now())
+
+  @@unique([runId, productId, locale])
+  @@index([productId, locale, checkedAt])
+  @@index([runId, checkedAt])
+}
