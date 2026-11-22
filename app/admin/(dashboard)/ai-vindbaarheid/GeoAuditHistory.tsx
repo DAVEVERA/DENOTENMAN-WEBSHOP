@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 function stamp(value: Date | null): string {
@@ -84,6 +85,10 @@ export async function GeoAuditHistory() {
           ) : null}
         </>
       )}
+      <Link href="/admin/ai-vindbaarheid/geschiedenis"
+        className="mt-4 inline-flex min-h-11 items-center rounded-button border border-border px-4 text-body-sm font-semibold text-text">
+        Bekijk volledige auditgeschiedenis
+      </Link>
       <p className="mt-3 text-xs text-muted">
         De standaardplanning start iedere zeven dagen een nieuwe cyclus. Een ingestelde Cloud Scheduler
         roept de beveiligde route iedere vijf minuten aan tot alle producten zijn gecontroleerd.
