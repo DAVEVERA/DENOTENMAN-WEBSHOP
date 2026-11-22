@@ -49,3 +49,38 @@ jobs:
           node-version: "22"
       - name: Verify raw storefront HTML without JavaScript
         run: node scripts/verify-public-storefront-html.mjs
+
+  full-app-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: denotenman_ci
+          POSTGRES_USER: denotenman_ci
+          POSTGRES_PASSWORD: ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U denotenman_ci -d denotenman_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://denotenman_ci:ci_only@127.0.0.1:5432/denotenman_ci
+      SITE_URL: https://denotenman.com
+      CDN_BASE_URL: https://storage.googleapis.com/notenbucket
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Prepare isolated disposable CI database (never production)
+        run: npx prisma db push --skip-generate
+      - name: Build complete Next.js application against disposable test database
+        run: npm run build
