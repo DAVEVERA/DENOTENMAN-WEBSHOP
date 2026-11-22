@@ -107,12 +107,11 @@ export function auditRenderedProductPageHtml(input: {
   const readableBody = body
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
-  const paragraphText = [...readableBody.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+  // Require an explicit product-description marker: generic footer or navigation
+  // paragraphs must never produce a false positive crawlability pass.
+  const productDescriptionText = [...readableBody.matchAll(/<(?:p|div|section)\\b[^>]*\\bdata-geo-product-description=["']true["'][^>]*>([\\s\\S]*?)<\\/(?:p|div|section)>/gi)]
     .map((match) => decodeText(match[1]));
-  const shortDescriptionText = [...readableBody.matchAll(/<(?:div|section)\b[^>]*class=["'][^"']*product-short-description[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section)>/gi)]
-    .map((match) => decodeText(match[1]));
-  const hasReadableDescription = [...paragraphText, ...shortDescriptionText]
-    .some((value) => value.length >= 60);
+  const hasReadableDescription = productDescriptionText.some((value) => value.length >= 60);
 
   const expectedPath = new URL(input.url).pathname.replace(/\/$/, "");
   let canonicalPath = "";
