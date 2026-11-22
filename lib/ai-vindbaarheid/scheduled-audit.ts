@@ -62,11 +62,11 @@ export async function runScheduledGeoAudit(now = new Date()): Promise<ScheduledA
       sku: item.sku,
       name: item.translations.find((translation) => translation.locale === "nl")?.name ?? item.sku,
       targets: item.translations
-        .filter((translation) => auditLocales.includes(translation.locale) &&
+        .filter((translation) => auditLocales.some((locale) => locale === translation.locale) &&
           translation.name.trim() && translation.slug.trim())
         .map((translation) => ({
-          locale: translation.locale,
-          path: productPath(translation.locale, translation.slug),
+          locale: translation.locale as (typeof auditLocales)[number],
+          path: productPath(translation.locale as (typeof auditLocales)[number], translation.slug),
           productName: translation.name,
         })),
     })), { baseUrl: BASE_URL, concurrency: 2 });
