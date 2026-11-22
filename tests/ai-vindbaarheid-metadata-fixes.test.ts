@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planSafeMetadataFixes } from "../lib/ai-vindbaarheid/metadata-fixes";
+import { canApplyMetadataFixes, metadataFixPreview, planSafeMetadataFixes } from "../lib/ai-vindbaarheid/metadata-fixes";
 
 test("fills only missing metadata using existing product facts", () => {
   const result = planSafeMetadataFixes([{
@@ -34,4 +34,33 @@ test("does not generate excessively long or short metadata", () => {
     metaDescription: null,
   }]);
   assert.equal(result.length, 0);
+});
+
+test("only owners and administrators can apply metadata fixes", () => {
+  assert.equal(canApplyMetadataFixes("OWNER"), true);
+  assert.equal(canApplyMetadataFixes("ADMIN"), true);
+  assert.equal(canApplyMetadataFixes("STAFF"), false);
+});
+
+test("preserves the exact previous field value for optimistic updates", () => {
+  const fixes = planSafeMetadataFixes([{ locale: "en", name: "Organic cashew nuts", shortDescription: null, seoTitle: "", metaDescription: null }]);
+  assert.equal(fixes.length, 1);
+  assert.equal(fixes[0].expected, "");
+  assert.equal(fixes[0].field, "seoTitle");
+});
+
+
+test("reviewed snapshot is order-independent but changes when a proposal changes", () => {
+  const fixes = planSafeMetadataFixes([{
+    locale: "nl", name: "Geroosterde ongezouten amandelen",
+    shortDescription: "Geroosterde ongezouten amandelen met een knapperige bite, geschikt als snack bij de borrel of als toevoeging aan een salade.",
+    seoTitle: null, metaDescription: null,
+  }]);
+  assert.equal(metadataFixPreview(fixes), metadataFixPreview([...fixes].reverse()));
+  assert.notEqual(metadataFixPreview(fixes), metadataFixPreview([{ ...fixes[0], value: "Gewijzigde titel" }, ...fixes.slice(1)]));
+});
+
+test("reviewed snapshot changes when expected database value changes", () => {
+  const proposal = { locale: "nl" as const, field: "seoTitle" as const, expected: null, value: "Geroosterde amandelen | De Notenman" };
+  assert.notEqual(metadataFixPreview([proposal]), metadataFixPreview([{ ...proposal, expected: "" }]));
 });

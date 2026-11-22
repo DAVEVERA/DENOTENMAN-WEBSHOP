@@ -4,15 +4,22 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-auth";
 import { buildProductAudit } from "@/lib/product-audit";
-import { planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
+import { canApplyMetadataFixes, metadataFixPreview, planSafeMetadataFixes } from "@/lib/ai-vindbaarheid/metadata-fixes";
 import { applySafeMetadataFixes } from "./actions";
+import { actionableAuditFindings } from "@/lib/ai-vindbaarheid/audit-findings";
+import { runBatchAudit } from "@/lib/ai-vindbaarheid/batch-audit";
+import { AiSourceResearchPanel } from "./AiSourceResearchPanel";
+import { FullCatalogueAuditPanel } from "./FullCatalogueAuditPanel";
+import { GeoAuditHistory } from "./GeoAuditHistory";
+import { BASE_URL, product as productPath } from "@/lib/routes";
+import { auditLocales } from "@/lib/product-audit-core";
 
 export const dynamic = "force-dynamic";
 
 export default async function AiVindbaarheidPage({
   searchParams,
 }: {
-  searchParams: Promise<{ product?: string; fixed?: string }>;
+  searchParams: Promise<{ product?: string; fixed?: string; stale?: string; batch?: string; offset?: string }>;
 }) {
   const session = await verifyAdminSessionToken(
     (await cookies()).get(ADMIN_SESSION_COOKIE)?.value
@@ -20,11 +27,12 @@ export default async function AiVindbaarheidPage({
   if (!session) redirect("/admin/login");
   const admin = await prisma.adminUser.findUnique({
     where: { id: session.userId },
-    select: { active: true },
+    select: { active: true, role: true },
   });
   if (!admin?.active) redirect("/admin/login");
 
-  const { product: productId, fixed } = await searchParams;
+  const { product: productId, fixed, stale, batch, offset } = await searchParams;
+  const batchOffset = Math.max(0, Number.isSafeInteger(Number(offset)) ? Number(offset) : 0);
   const products = await prisma.product.findMany({
     where: { isActive: true, translations: { some: { locale: "nl" } } },
     select: {
@@ -41,13 +49,52 @@ export default async function AiVindbaarheidPage({
   });
 
   const selected = productId ? products.find((item) => item.id === productId) : undefined;
+  const researchVariants = selected ? await prisma.productVariant.findMany({
+    where: { productId: selected.id, isActive: true },
+    select: { id: true, sku: true, weightGrams: true },
+    orderBy: { weightGrams: "asc" },
+  }) : [];
   const audit = selected ? await buildProductAudit(selected.id) : null;
   const checks = audit?.renderedPages ?? [];
+  const findings = actionableAuditFindings(checks);
   const translationData = selected ? await prisma.productTranslation.findMany({
     where: { productId: selected.id },
     select: { locale: true, name: true, shortDescription: true, seoTitle: true, metaDescription: true },
   }) : [];
   const fixes = planSafeMetadataFixes(translationData);
+  const batchProductCount = batch === "1" ? await prisma.product.count({
+    where: { isActive: true, translations: { some: { locale: "nl" } } },
+  }) : 0;
+  // Explicitly triggered, read-only batch. Never scan the whole catalogue during page load.
+  const batchProducts = batch === "1" ? await prisma.product.findMany({
+    where: { isActive: true, translations: { some: { locale: "nl" } } },
+    select: {
+      id: true,
+      sku: true,
+      translations: { select: { locale: true, slug: true, name: true } },
+    },
+    orderBy: [{ slug: "asc" }, { id: "asc" }],
+    skip: batchOffset,
+    take: 6,
+  }) : [];
+  const batchResults = batch === "1" ? await runBatchAudit(
+    batchProducts.map((item) => ({
+      id: item.id,
+      sku: item.sku,
+      name: item.translations.find((translation) => translation.locale === "nl")?.name ?? item.sku,
+      targets: item.translations
+        .filter((translation) => auditLocales.some((locale) => locale === translation.locale) && translation.slug.trim() && translation.name.trim())
+        .map((translation) => ({
+          locale: translation.locale as (typeof auditLocales)[number],
+          path: productPath(translation.locale as (typeof auditLocales)[number], translation.slug),
+          productName: translation.name,
+        })),
+    })),
+    { baseUrl: BASE_URL, concurrency: 2 }
+  ) : [];
+  const batchFindingCount = batchResults.reduce((sum, product) => sum + product.findings.length, 0);
+  const hasMoreBatchProducts = batchOffset + batchResults.length < batchProductCount;
+
 
   return (
     <div className="space-y-7">
@@ -55,7 +102,7 @@ export default async function AiVindbaarheidPage({
         <h1 className="text-heading-xl text-text">AI Vindbaarheid</h1>
         <p className="mt-2 max-w-3xl text-body-sm text-muted">
           Controleer de publiek toegankelijke storefront zoals een crawler die ontvangt.
-          Deze eerste versie hergebruikt de bestaande SEO-productaudit en wijzigt geen productgegevens.
+          De audit hergebruikt de bestaande SEO-productcontroles. Alleen bevoegde beheerders kunnen expliciet gekozen metadata-correcties uitvoeren; alle wijzigingen worden geregistreerd.
         </p>
       </div>
 
@@ -88,9 +135,70 @@ export default async function AiVindbaarheidPage({
         </p>
       </section>
 
+      <GeoAuditHistory />
+
+      {canApplyMetadataFixes(admin.role) ? <FullCatalogueAuditPanel /> : null}
+
+      <section className="rounded-panel border border-border bg-surface p-5" aria-label="Batch-audit">
+        <h2 className="font-heading text-heading-md text-text">Meerdere producten controleren</h2>
+        <p className="mt-2 text-body-sm text-muted">
+          Controleer per keer maximaal zes actieve producten, inclusief beschikbare NL-, EN- en FR-pagina's.
+          Dit is een alleen-lezen controle; er worden geen productgegevens aangepast.
+        </p>
+        <form method="get" className="mt-3 flex flex-wrap items-end gap-3">
+          <input type="hidden" name="batch" value="1" />
+          <label className="grid gap-1 text-body-sm font-semibold" htmlFor="batch-offset">
+            Start bij productnummer
+            <input id="batch-offset" type="number" name="offset" min="0" step="6" defaultValue={batchOffset}
+              className="min-h-11 w-36 rounded-button border border-border bg-background px-3 text-text" />
+          </label>
+          <button type="submit" className="min-h-11 rounded-button bg-accent px-5 font-heading text-body-sm font-bold text-contrast">
+            Batch-audit uitvoeren
+          </button>
+        </form>
+        {batch === "1" ? (
+          <div className="mt-5 space-y-3">
+            <p role="status" className="text-body-sm text-text">
+              {batchResults.length} van {batchProductCount} producten in deze selectie verwerkt, met {batchResults.reduce((sum, product) => sum + product.pages.length, 0)} gecontroleerde taalpagina's.
+              {batchFindingCount} technische aandachtspunten gevonden.
+            </p>
+            {batchResults.map((product) => (
+              <details key={product.id} className="rounded-card border border-border p-3">
+                <summary className="cursor-pointer text-body-sm font-semibold text-text">
+                  {product.name} ({product.sku}) · {product.findings.length} aandachtspunten
+                </summary>
+                {product.findings.length ? (
+                  <ul className="mt-3 space-y-2">
+                    {product.findings.map((finding) => (
+                      <li key={`${finding.locale}-${finding.code}`} className="text-body-sm text-muted">
+                        <span className="font-semibold">{finding.priority === "hoog" ? "Hoog" : "Normaal"} · {finding.locale.toUpperCase()} · {finding.label}</span>
+                        <p>{finding.recommendation}</p>
+                        <a href={finding.url} target="_blank" rel="noopener noreferrer" className="break-all text-xs text-accent-hover underline">Controleer pagina</a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="mt-2 text-body-sm text-muted">Geen afwijkingen binnen de uitgevoerde controles.</p>}
+              </details>
+            ))}
+            {hasMoreBatchProducts ? (
+              <Link href={`/admin/ai-vindbaarheid?batch=1&offset=${batchOffset + 6}`}
+                className="inline-flex min-h-11 items-center rounded-button border border-border px-4 text-body-sm font-semibold text-text">
+                Volgende zes producten
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+
       {productId && !selected ? (
         <p role="alert" className="rounded-panel border border-border p-4 text-body-sm">
           Dit product staat niet in de huidige selectie van actieve producten.
+        </p>
+      ) : null}
+
+      {stale === "1" && selected ? (
+        <p role="alert" className="rounded-panel border border-border bg-surface p-4 text-body-sm text-text">
+          Productgegevens zijn gewijzigd sinds het voorstel werd bekeken. Controleer de nieuwe voorstellen voordat je correcties toepast.
         </p>
       ) : null}
 
@@ -116,13 +224,39 @@ export default async function AiVindbaarheidPage({
               Open uitgebreide productaudit en verbeteringen
             </Link>
           </div>
+          {researchVariants.length && canApplyMetadataFixes(admin.role) ? (
+            <AiSourceResearchPanel productId={selected.id} variants={researchVariants} />
+          ) : null}
+          <div className="rounded-panel border border-border bg-surface p-5">
+            <h3 className="font-heading text-heading-md text-text">Actielijst storefront</h3>
+            <p className="mt-2 text-body-sm text-muted">
+              {findings.length
+                ? `${findings.length} controle(s) vragen aandacht. Deze meldingen zijn gebaseerd op de ontvangen publieke HTML en moeten vóór een correctie worden geverifieerd.`
+                : "Geen afwijkingen gevonden binnen de uitgevoerde technische controles. Dit is geen garantie op volledige indexering."}
+            </p>
+            {findings.length > 0 ? (
+              <ul className="mt-4 space-y-3">
+                {findings.map((finding) => (
+                  <li key={`${finding.locale}-${finding.code}`} className="rounded-card border border-border p-3 text-body-sm">
+                    <p className="font-semibold text-text">
+                      {finding.priority === "hoog" ? "Hoge prioriteit" : "Normale prioriteit"} · {finding.locale.toUpperCase()} · {finding.label}
+                    </p>
+                    <p className="mt-1 text-muted">{finding.recommendation}</p>
+                    <a href={finding.url} target="_blank" rel="noopener noreferrer" className="mt-1 block break-all text-xs text-accent-hover underline">
+                      Te controleren storefront-URL
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
           <div className="rounded-panel border border-border bg-surface p-5">
             <h3 className="font-heading text-heading-md text-text">Veilige automatische correcties</h3>
             <p className="mt-2 text-body-sm text-muted">
               Alleen ontbrekende SEO-titels en metaomschrijvingen, afgeleid van bestaande productnamen en beschrijvingen.
               Bestaande handmatige velden blijven ongemoeid.
             </p>
-            {fixes.length ? (
+            {fixes.length && canApplyMetadataFixes(admin.role) ? (
               <>
                 <ul className="mt-3 space-y-1 text-body-sm text-text">
                   {fixes.map((fix) => (
@@ -133,12 +267,13 @@ export default async function AiVindbaarheidPage({
                 </ul>
                 <form action={applySafeMetadataFixes} className="mt-4">
                   <input type="hidden" name="product" value={selected.id} />
+                  <input type="hidden" name="preview" value={metadataFixPreview(fixes)} />
                   <button type="submit" className="min-h-11 rounded-button bg-accent px-5 font-heading text-body-sm font-bold text-contrast">
                     {fixes.length} veilige correcties uitvoeren
                   </button>
                 </form>
               </>
-            ) : <p className="mt-3 text-body-sm text-muted">Geen automatisch herstelbare ontbrekende metadata gevonden.</p>}
+             ) : <p className="mt-3 text-body-sm text-muted">{fixes.length ? "Alleen beheerders kunnen deze correcties uitvoeren." : "Geen automatisch herstelbare ontbrekende metadata gevonden."}</p>}
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
             {checks.map((page) => (

@@ -30,3 +30,15 @@ export function planSafeMetadataFixes(
   }
   return fixes;
 }
+
+/** Only administrators may write SEO metadata; staff may still run audits. */
+export function canApplyMetadataFixes(role: "OWNER" | "ADMIN" | "STAFF"): boolean {
+  return role === "OWNER" || role === "ADMIN";
+}
+
+/** Stable snapshot of the exact proposals displayed to an administrator. */
+export function metadataFixPreview(fixes: MetadataFix[]): string {
+  return JSON.stringify([...fixes].sort((a, b) =>
+    a.locale.localeCompare(b.locale) || a.field.localeCompare(b.field)
+  ));
+}

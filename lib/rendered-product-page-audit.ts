@@ -9,7 +9,8 @@ export type RenderedPageCheck = {
     | "hreflang"
     | "robots"
     | "h1"
-    | "product-jsonld";
+    | "product-jsonld"
+    | "visible-description";
   label: string;
   passed: boolean;
   detail: string;
@@ -101,6 +102,17 @@ export function auditRenderedProductPageHtml(input: {
       .filter((value): value is string => Boolean(value))
   );
   const h1Matches = [...input.html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)];
+  // Check text in the initial response body, not only metadata or JSON-LD.
+  const body = input.html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? "";
+  const readableBody = body
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
+  // Require an explicit product-description marker: generic footer or navigation
+  // paragraphs must never produce a false positive crawlability pass.
+  const productDescriptionText = [...readableBody.matchAll(/<(?:p|div|section)\b[^>]*\bdata-geo-product-description=["']true["'][^>]*>([\s\S]*?)<\/(?:p|div|section)>/gi)]
+    .map((match) => decodeText(match[1]));
+  const hasReadableDescription = productDescriptionText.some((value) => value.length >= 60);
+
   const expectedPath = new URL(input.url).pathname.replace(/\/$/, "");
   let canonicalPath = "";
   try {
@@ -117,6 +129,7 @@ export function auditRenderedProductPageHtml(input: {
     { code: "hreflang", label: "Hreflang", passed: (["nl", "en", "fr"] as const).every((locale) => hreflangs.has(locale)), detail: hreflangs.size ? [...hreflangs].join(", ") : "Hreflang ontbreekt", recommendation: "Koppel de NL-, EN- en FR-productpagina wederzijds met correcte hreflang-links." },
     { code: "robots", label: "Indexeerbaarheid", passed: input.status > 0 && !/\bnoindex\b/i.test(robots), detail: input.status === 0 ? "Pagina kon niet worden opgehaald" : robots || "Geen beperkende robots-meta", recommendation: "Maak de pagina bereikbaar en verwijder noindex zolang dit product publiek geïndexeerd moet worden." },
     { code: "h1", label: "H1", passed: h1Matches.length === 1 && normalize(h1Matches[0]?.[1] ?? "").includes(normalize(input.productName)), detail: `${h1Matches.length} H1-kop(pen)`, recommendation: "Gebruik exact één H1 met de gelokaliseerde productnaam." },
+    { code: "visible-description", label: "Leesbare productbeschrijving in HTML", passed: input.status >= 200 && input.status < 300 && hasReadableDescription, detail: hasReadableDescription ? "Beschrijvende producttekst aanwezig in HTML" : "Geen substantiële productbeschrijving gevonden in HTML", recommendation: "Controleer of de productbeschrijving server-side als leesbare HTML wordt meegestuurd, niet alleen als metadata of client-side JavaScript." },
     { code: "product-jsonld", label: "Product structured data", passed: containsProductJsonLd(input.html), detail: containsProductJsonLd(input.html) ? "Product JSON-LD gevonden" : "Product JSON-LD ontbreekt", recommendation: "Voeg geldige Product JSON-LD toe met naam, aanbod, prijs, valuta en beschikbaarheid." },
   ];
   const passed = checks.filter((check) => check.passed).length;

@@ -1,0 +1,86 @@
+name: AI Vindbaarheid quality gates
+
+on:
+  pull_request:
+    paths:
+      - "app/admin/(dashboard)/ai-vindbaarheid/**"
+      - "app/api/admin/ai-vindbaarheid/**"
+      - "lib/ai-vindbaarheid/**"
+      - "lib/rendered-product-page-audit.ts"
+      - "tests/ai-vindbaarheid-*.test.ts"
+      - ".github/workflows/ai-vindbaarheid.yml"
+      - "scripts/verify-public-storefront-html.mjs"
+      - "components/product/ProductDetailContent.tsx"
+      - "prisma/schema.prisma"
+      - "prisma/migrations/**"
+      - "app/api/cron/geo-audit/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata-fixes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Run AI Vindbaarheid regression tests
+        run: npx tsx --test tests/ai-vindbaarheid-*.test.ts
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Generate Next.js route types
+        run: npx next typegen
+      - name: Typecheck
+        run: npm run typecheck
+
+  live-storefront-html:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify raw storefront HTML without JavaScript
+        run: node scripts/verify-public-storefront-html.mjs
+
+  full-app-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: denotenman_ci
+          POSTGRES_USER: denotenman_ci
+          POSTGRES_PASSWORD: ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U denotenman_ci -d denotenman_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://denotenman_ci:ci_only@127.0.0.1:5432/denotenman_ci
+      SITE_URL: https://denotenman.com
+      CDN_BASE_URL: https://storage.googleapis.com/notenbucket
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --include=dev --ignore-scripts
+      - name: Apply committed migrations to disposable CI database (never production)
+        run: npx prisma migrate deploy
+      - name: Build complete Next.js application against disposable test database
+        run: npm run build
