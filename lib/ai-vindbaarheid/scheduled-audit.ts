@@ -18,6 +18,11 @@ export type ScheduledAuditTick =
  * Do not call from a regular storefront request.
  */
 export async function runScheduledGeoAudit(now = new Date()): Promise<ScheduledAuditTick> {
+  // Never persist a scan against the localhost fallback or an insecure origin.
+  const origin = new URL(BASE_URL);
+  if (origin.protocol !== "https:" || !origin.hostname || origin.username || origin.password) {
+    throw new Error("GEO_AUDIT_SITE_URL_NOT_CONFIGURED");
+  }
   await prisma.geoAuditScheduler.upsert({
     where: { id: STATE_ID },
     create: { id: STATE_ID, nextDueAt: now },
@@ -123,7 +128,7 @@ export async function runScheduledGeoAudit(now = new Date()): Promise<ScheduledA
         });
       }
       return updatedRun;
-    });
+    }, { maxWait: 5_000, timeout: 30_000 });
     return {
       status: finished ? "completed" : "running",
       runId: updated.id,
