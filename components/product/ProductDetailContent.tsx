@@ -155,11 +155,12 @@ export function ProductDetailContent({
 
         {data.shortDescriptionHtml ? (
           <div
+            data-geo-product-description="true"
             className="product-rich-text product-short-description mt-3 max-w-2xl text-body-md"
             dangerouslySetInnerHTML={{ __html: data.shortDescriptionHtml }}
           />
         ) : data.shortDescription ? (
-          <p className="mt-3 max-w-2xl text-body-md leading-relaxed text-text">{data.shortDescription}</p>
+          <p data-geo-product-description="true" className="mt-3 max-w-2xl text-body-md leading-relaxed text-text">{data.shortDescription}</p>
         ) : null}
 
         {productFacts.length > 0 ? (
@@ -217,6 +218,7 @@ export function ProductDetailContent({
                 content: data.descriptionHtml ? (
                   <>
                     <div
+                      data-geo-product-description="true"
                       className="product-rich-text"
                       dangerouslySetInnerHTML={{ __html: data.descriptionHtml }}
                     />
@@ -224,7 +226,7 @@ export function ProductDetailContent({
                   </>
                 ) : (
                   <>
-                    <p className="text-text">{data.description ?? resolvedDescription}</p>
+                    <p data-geo-product-description="true" className="text-text">{data.description ?? resolvedDescription}</p>
                     <ProductFaqAccordion items={faqs.BELOW_DESCRIPTION} locale={locale} placement="BELOW_DESCRIPTION" />
                   </>
                 ),
