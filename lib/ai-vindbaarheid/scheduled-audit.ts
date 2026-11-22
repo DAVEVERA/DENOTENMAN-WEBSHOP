@@ -4,11 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { auditLocales } from "@/lib/product-audit-core";
 import { BASE_URL, product as productPath } from "@/lib/routes";
 import { runBatchAudit } from "@/lib/ai-vindbaarheid/batch-audit";
+import { GEO_AUDIT_BATCH_SIZE, geoAuditBatchFinished, geoAuditNextDueAt, geoAuditShouldStart } from "@/lib/ai-vindbaarheid/schedule-policy";
 
 const STATE_ID = "catalogue";
-const PAGE_SIZE = 6;
 const LEASE_MS = 180_000;
-const INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type ScheduledAuditTick =
   | { status: "busy" | "not_due" }
@@ -40,7 +39,7 @@ export async function runScheduledGeoAudit(now = new Date()): Promise<ScheduledA
     const state = await prisma.geoAuditScheduler.findUniqueOrThrow({ where: { id: STATE_ID } });
     runId = state.activeRunId;
     if (!runId) {
-      if (state.nextDueAt > now) return { status: "not_due" };
+      if (!geoAuditShouldStart(state.nextDueAt, now, state.activeRunId)) return { status: "not_due" };
       const totalProducts = await prisma.product.count({ where: { isActive: true } });
       const run = await prisma.geoAuditRun.create({
         data: { status: "RUNNING", trigger: "SCHEDULED", totalProducts },
@@ -55,7 +54,7 @@ export async function runScheduledGeoAudit(now = new Date()): Promise<ScheduledA
     const products = await prisma.product.findMany({
       where: { isActive: true, ...(run.cursor ? { id: { gt: run.cursor } } : {}) },
       orderBy: { id: "asc" },
-      take: PAGE_SIZE,
+      take: GEO_AUDIT_BATCH_SIZE,
       select: {
         id: true,
         sku: true,
@@ -78,7 +77,7 @@ export async function runScheduledGeoAudit(now = new Date()): Promise<ScheduledA
 
     const countPages = results.reduce((sum, result) => sum + result.pages.length, 0);
     const countIssues = results.reduce((sum, result) => sum + result.findings.length, 0);
-    const finished = products.length < PAGE_SIZE;
+    const finished = geoAuditBatchFinished(products.length);
     const lastCursor = products.at(-1)?.id ?? run.cursor;
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -123,7 +122,7 @@ export async function runScheduledGeoAudit(now = new Date()): Promise<ScheduledA
           where: { id: STATE_ID },
           data: {
             activeRunId: null,
-            nextDueAt: new Date(now.getTime() + INTERVAL_MS),
+            nextDueAt: geoAuditNextDueAt(now),
           },
         });
       }
