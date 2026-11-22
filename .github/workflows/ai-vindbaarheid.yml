@@ -11,6 +11,9 @@ on:
       - ".github/workflows/ai-vindbaarheid.yml"
       - "scripts/verify-public-storefront-html.mjs"
       - "components/product/ProductDetailContent.tsx"
+      - "prisma/schema.prisma"
+      - "prisma/migrations/**"
+      - "app/api/cron/geo-audit/**"
   workflow_dispatch:
 
 permissions:
